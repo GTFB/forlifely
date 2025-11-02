@@ -1268,5 +1268,22 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "logOut": "Log out"
+  },
+  "login": {
+    "title": "Login",
+    "description": "Enter your credentials to access the admin panel",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "admin@example.com",
+    "passwordPlaceholder": "••••••••",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "errors": {
+      "apiNotFound": "API endpoint not found. Please ensure you are running the development server correctly.\n\nFor local development with Cloudflare Functions, use:\n  npm run dev:all\n\nThis will start both Next.js and Wrangler servers.",
+      "serverError": "Server error. Please try again later.",
+      "unexpectedResponse": "Server returned an unexpected response",
+      "loginFailed": "Login failed",
+      "unknownError": "Unknown error"
+    }
   }
 }

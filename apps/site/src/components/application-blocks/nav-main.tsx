@@ -3,6 +3,7 @@
 import * as React from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { ChevronRight, type LucideIcon } from "lucide-react"
+import Link from "next/link"
 
 import {
   Collapsible,
@@ -241,30 +242,15 @@ const NavMainItem = React.memo(function NavMainItem({
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
-                  {item.items?.map((subItem) => {
-                    // Determine if sub-item is active by parsing its URL
-                    const subItemParams = new URLSearchParams(subItem.url.split('?')[1] || '')
-                    const subItemCollection = subItemParams.get('c') || ''
-                    const isSubItemActive = subItemCollection === currentCollection
-                    
-                    return (
-                      <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton asChild isActive={isSubItemActive}>
-                          <a
-                            href={subItem.url}
-                            onClick={(e) => {
-                              if (subItem.onClick) {
-                                e.preventDefault()
-                                subItem.onClick()
-                              }
-                            }}
-                          >
-                            <span>{subItem.title}</span>
-                          </a>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    )
-                  })}
+                  {item.items?.map((subItem) => (
+                    <SidebarMenuSubItem key={subItem.title}>
+                      <SidebarMenuSubButton asChild>
+                        <Link href={subItem.url}>
+                          <span>{subItem.title}</span>
+                        </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
                 </SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>

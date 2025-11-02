@@ -1267,5 +1267,22 @@
     "darkMode": "Темная тема",
     "lightMode": "Светлая тема",
     "logOut": "Выйти"
+  },
+  "login": {
+    "title": "Вход",
+    "description": "Введите свои учетные данные для доступа к панели администратора",
+    "email": "Email",
+    "password": "Пароль",
+    "emailPlaceholder": "admin@example.com",
+    "passwordPlaceholder": "••••••••",
+    "loginButton": "Войти",
+    "loggingIn": "Вход...",
+    "errors": {
+      "apiNotFound": "API endpoint не найден. Убедитесь, что сервер разработки запущен правильно.\n\nДля локальной разработки с Cloudflare Functions используйте:\n  npm run dev:all\n\nЭто запустит серверы Next.js и Wrangler.",
+      "serverError": "Ошибка сервера. Пожалуйста, попробуйте позже.",
+      "unexpectedResponse": "Сервер вернул неожиданный ответ",
+      "loginFailed": "Ошибка входа",
+      "unknownError": "Неизвестная ошибка"
+    }
   }
 }
