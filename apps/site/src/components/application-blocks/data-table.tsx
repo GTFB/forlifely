@@ -17,7 +17,6 @@ import {
   IconTrash,
 } from "@tabler/icons-react"
 import { getCollection } from "../../../functions/_shared/collections/getCollection"
-import { useLocale } from "@/packages/hooks/use-locale"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
 import qs from "qs"
@@ -322,7 +321,15 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
 
 export function DataTable() {
   const { state, setState } = useAdminState()
-  const { locale } = useLocale()
+  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved === 'en' || saved === 'ru') {
+        return saved
+      }
+    }
+    return 'ru'
+  })
 
   const [data, setData] = React.useState<CollectionData[]>([])
   const [schema, setSchema] = React.useState<ColumnSchemaExtended[]>([])
@@ -331,9 +338,104 @@ export function DataTable() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [relationData, setRelationData] = React.useState<Record<string, Record<any, string>>>({})
+  const [translations, setTranslations] = React.useState<any>(null)
   
   // Local search state for input (debounced before updating global state)
   const [searchInput, setSearchInput] = React.useState(state.search)
+
+  // Sync locale with sidebar when it changes
+  React.useEffect(() => {
+    const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
+      const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
+      if (newLocale === 'en' || newLocale === 'ru') {
+        setLocale(newLocale)
+      }
+    }
+
+    // Listen to localStorage changes
+    window.addEventListener('storage', handleLocaleChanged as EventListener)
+    // Listen to custom event from sidebar
+    window.addEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', handleLocaleChanged as EventListener)
+      window.removeEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+    }
+  }, [])
+
+  // Load translations
+  React.useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const cacheKey = `sidebar-translations-${locale}`
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+        
+        if (cached) {
+          try {
+            const cachedTranslations = JSON.parse(cached)
+            console.log('[DataTable] Using cached translations for locale:', locale, cachedTranslations?.dataTable)
+            setTranslations(cachedTranslations)
+            // Continue to fetch fresh translations in background to ensure we have latest
+            // Don't return here, let it fetch fresh data
+          } catch (e) {
+            console.error('[DataTable] Failed to parse cached translations:', e)
+            // If parsing fails, proceed with fetch
+          }
+        }
+        
+        const response = await fetch(`/api/locales/${locale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json()
+        console.log('[DataTable] Translations loaded for locale:', locale, translationsData?.dataTable)
+        setTranslations(translationsData)
+        
+        // Cache translations
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+      } catch (e) {
+        console.error('[DataTable] Failed to load translations:', e)
+        // Fallback to direct import
+        try {
+          const translationsModule = locale === 'ru'
+            ? await import("@/packages/content/locales/ru.json")
+            : await import("@/packages/content/locales/en.json")
+          setTranslations(translationsModule.default || translationsModule)
+        } catch (fallbackError) {
+          console.error('Fallback import also failed:', fallbackError)
+        }
+      }
+    }
+    
+    loadTranslations()
+  }, [locale])
+
+  const t = React.useMemo(() => {
+    const dataTableTranslations = translations?.dataTable
+    if (!dataTableTranslations) {
+      console.warn('[DataTable] Using fallback translations, translations not loaded yet')
+    }
+    return dataTableTranslations || {
+      search: "Search...",
+      customizeColumns: "Customize Columns",
+      columns: "Columns",
+      add: "Add",
+      noDataFound: "No data found in {collection}.",
+      selectedRecords: "{count} selected · {total} total records",
+      rowsPerPage: "Rows per page",
+      page: "Page {page} of {total}",
+      addRecord: {
+        title: "Add new record to {collection}",
+        description: "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
+      }
+    }
+  }, [translations?.dataTable])
+  
+  React.useEffect(() => {
+    console.log('[DataTable] Current translations:', { locale, hasTranslations: !!translations, dataTable: translations?.dataTable, t })
+  }, [locale, translations, t])
 
   const primaryKey = React.useMemo(() => schema.find((c) => c.primary)?.name || "id", [schema])
 
@@ -715,7 +817,7 @@ export function DataTable() {
           <IconSearch className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search..."
+            placeholder={t.search}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
@@ -742,8 +844,8 @@ export function DataTable() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <IconLayoutColumns />
-                <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
+                <span className="hidden lg:inline">{t.customizeColumns}</span>
+                <span className="lg:hidden">{t.columns}</span>
                 <IconChevronDown />
               </Button>
             </DropdownMenuTrigger>
@@ -773,7 +875,7 @@ export function DataTable() {
           </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
             <IconPlus />
-            <span className="hidden lg:inline">Add</span>
+            <span className="hidden lg:inline">{t.add}</span>
           </Button>
         </div>
       </div>
@@ -834,7 +936,7 @@ export function DataTable() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                        No data found in {state.collection}.
+                        {t.noDataFound.replace('{collection}', state.collection)}
                     </TableCell>
                   </TableRow>
                 )}
@@ -843,12 +945,12 @@ export function DataTable() {
         </div>
         <div className="flex items-center justify-between px-4">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                {table.getFilteredSelectedRowModel().rows.length} selected · {total} total records
+                {t.selectedRecords.replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{total}', String(total))}
           </div>
           <div className="flex w-full items-center gap-8 lg:w-fit">
             <div className="hidden items-center gap-2 lg:flex">
               <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Rows per page
+                {t.rowsPerPage}
               </Label>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
@@ -871,7 +973,7 @@ export function DataTable() {
               </Select>
             </div>
             <div className="flex w-fit items-center justify-center text-sm font-medium">
-                  Page {state.page} of {totalPages || 1}
+                  {t.page.replace('{page}', String(state.page)).replace('{total}', String(totalPages || 1))}
             </div>
             <div className="ml-auto flex items-center gap-2 lg:ml-0">
               <Button
@@ -964,9 +1066,9 @@ export function DataTable() {
       <ResponsiveDialog open={createOpen} onOpenChange={setCreateOpen}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Add new record to {state.collection}</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{t.addRecord.title.replace('{collection}', state.collection)}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically.
+              {t.addRecord.description}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4 p-4">

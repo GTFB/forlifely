@@ -1284,5 +1284,21 @@
       "loginFailed": "Ошибка входа",
       "unknownError": "Неизвестная ошибка"
     }
+  },
+  "dataTable": {
+    "toggleSidebar": "Переключить боковую панель",
+    "adminPanel": "Панель администратора",
+    "search": "Поиск...",
+    "customizeColumns": "Настроить колонки",
+    "columns": "Колонки",
+    "add": "Добавить",
+    "noDataFound": "Данные в {collection} не найдены.",
+    "selectedRecords": "{count} выбрано · всего {total} записей",
+    "rowsPerPage": "Строк на странице",
+    "page": "Страница {page} из {total}",
+    "addRecord": {
+      "title": "Добавить новую запись в {collection}",
+      "description": "Заполните поля ниже. Автоматически генерируемые поля (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) скрыты и будут созданы автоматически."
+    }
   }
 }

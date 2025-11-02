@@ -266,6 +266,72 @@ function SidebarTrigger({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar()
+  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved === 'en' || saved === 'ru') {
+        return saved
+      }
+    }
+    return 'ru'
+  })
+  const [toggleSidebarText, setToggleSidebarText] = React.useState("Toggle Sidebar")
+  
+  // Sync locale with sidebar when it changes
+  React.useEffect(() => {
+    const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
+      const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
+      if (newLocale === 'en' || newLocale === 'ru') {
+        setLocale(newLocale)
+      }
+    }
+
+    // Listen to localStorage changes
+    window.addEventListener('storage', handleLocaleChanged as EventListener)
+    // Listen to custom event from sidebar
+    window.addEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', handleLocaleChanged as EventListener)
+      window.removeEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+    }
+  }, [])
+  
+  React.useEffect(() => {
+    const loadTranslation = async () => {
+      try {
+        const cacheKey = `sidebar-translations-${locale}`
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+        
+        if (cached) {
+          try {
+            const cachedTranslations = JSON.parse(cached)
+            setToggleSidebarText(cachedTranslations?.dataTable?.toggleSidebar || "Toggle Sidebar")
+            return
+          } catch (e) {
+            // If parsing fails, proceed with fetch
+          }
+        }
+        
+        const response = await fetch(`/api/locales/${locale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json() as any
+        setToggleSidebarText(translationsData?.dataTable?.toggleSidebar || "Toggle Sidebar")
+        
+        // Cache translations
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+      } catch (e) {
+        // Silently fail - use default text
+      }
+    }
+    
+    loadTranslation()
+  }, [locale])
+  
   return (
     <Button
       data-sidebar="trigger"
@@ -280,7 +346,7 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">{toggleSidebarText}</span>
     </Button>
   )
 }

@@ -1285,5 +1285,21 @@
       "loginFailed": "Login failed",
       "unknownError": "Unknown error"
     }
+  },
+  "dataTable": {
+    "toggleSidebar": "Toggle Sidebar",
+    "adminPanel": "Admin Panel",
+    "search": "Search...",
+    "customizeColumns": "Customize Columns",
+    "columns": "Columns",
+    "add": "Add",
+    "noDataFound": "No data found in {collection}.",
+    "selectedRecords": "{count} selected · {total} total records",
+    "rowsPerPage": "Rows per page",
+    "page": "Page {page} of {total}",
+    "addRecord": {
+      "title": "Add new record to {collection}",
+      "description": "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
+    }
   }
 }

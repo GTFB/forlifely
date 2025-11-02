@@ -13,7 +13,6 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { getCollection } from "@/shared/collections/getCollection"
-
 interface AdminHeaderProps {
   title?: string
   breadcrumbItems?: Array<{ label: string; href?: string }>
@@ -25,9 +24,94 @@ export const AdminHeader = React.memo(function AdminHeader({
 }: AdminHeaderProps) {
   // Only subscribe to collection, not entire state
   const currentCollection = useAdminCollection()
+  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved === 'en' || saved === 'ru') {
+        return saved
+      }
+    }
+    return 'ru'
+  })
   const [displayTitle, setDisplayTitle] = React.useState<string>(title || '')
   const prevCollectionRef = React.useRef<string | null>(null)
   const displayTitleRef = React.useRef<string>(title || '')
+  const [translations, setTranslations] = React.useState<any>(null)
+
+  // Sync locale with sidebar when it changes
+  React.useEffect(() => {
+    const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
+      const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
+      if (newLocale === 'en' || newLocale === 'ru') {
+        setLocale(newLocale)
+      }
+    }
+
+    // Listen to localStorage changes
+    window.addEventListener('storage', handleLocaleChanged as EventListener)
+    // Listen to custom event from sidebar
+    window.addEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', handleLocaleChanged as EventListener)
+      window.removeEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+    }
+  }, [])
+
+  // Load translations
+  React.useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const cacheKey = `sidebar-translations-${locale}`
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+        
+        if (cached) {
+          try {
+            const cachedTranslations = JSON.parse(cached)
+            console.log('[AdminHeader] Using cached translations for locale:', locale, cachedTranslations?.dataTable)
+            setTranslations(cachedTranslations)
+            // Continue to fetch fresh translations in background to ensure we have latest
+            // Don't return here, let it fetch fresh data
+          } catch (e) {
+            console.error('[AdminHeader] Failed to parse cached translations:', e)
+            // If parsing fails, proceed with fetch
+          }
+        }
+        
+        const response = await fetch(`/api/locales/${locale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json()
+        console.log('[AdminHeader] Translations loaded for locale:', locale, translationsData?.dataTable)
+        setTranslations(translationsData)
+        
+        // Cache translations
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+      } catch (e) {
+        console.error('[AdminHeader] Failed to load translations:', e)
+        // Fallback to direct import
+        try {
+          const translationsModule = locale === 'ru'
+            ? await import("@/packages/content/locales/ru.json")
+            : await import("@/packages/content/locales/en.json")
+          setTranslations(translationsModule.default || translationsModule)
+        } catch (fallbackError) {
+          console.error('Fallback import also failed:', fallbackError)
+        }
+      }
+    }
+    
+    loadTranslations()
+  }, [locale])
+
+  const adminPanelLabel = React.useMemo(() => {
+    const label = translations?.dataTable?.adminPanel || "Admin Panel"
+    console.log('[AdminHeader] Admin panel label:', { hasTranslations: !!translations, label })
+    return label
+  }, [translations?.dataTable?.adminPanel])
 
   React.useEffect(() => {
     if (title) {
@@ -47,22 +131,30 @@ export const AdminHeader = React.memo(function AdminHeader({
     const collection = getCollection(currentCollection)
     const titleConfig = (collection as any).__title
     
-    // Use __title if available, otherwise use collection name
-    const collectionName = currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
-    let collectionTitle = collectionName
-    
-    // Check if __title is a string or BaseColumn
-    if (typeof titleConfig === 'string') {
-      collectionTitle = titleConfig
-    } else if (titleConfig?.options?.defaultValue) {
-      collectionTitle = titleConfig.options.defaultValue
+    // Try to get translated collection name from translations
+    let collectionTitle: string
+    if (translations?.sidebar?.collections) {
+      const collectionKey = currentCollection as keyof typeof translations.sidebar.collections
+      collectionTitle = translations.sidebar.collections[collectionKey] || currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
+    } else {
+      // Use __title if available, otherwise use collection name
+      const collectionName = currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
+      collectionTitle = collectionName
+      
+      // Check if __title is a string or BaseColumn
+      if (typeof titleConfig === 'string') {
+        collectionTitle = titleConfig
+      } else if (titleConfig?.options?.defaultValue) {
+        collectionTitle = titleConfig.options.defaultValue
+      }
     }
     
     displayTitleRef.current = collectionTitle
     setDisplayTitle(collectionTitle)
     
     // Update document title
-    const newTitle = `${collectionTitle} - Admin Panel`
+    const panelLabel = translations?.dataTable?.adminPanel || "Admin Panel"
+    const newTitle = `${collectionTitle} - ${panelLabel}`
     document.title = newTitle
     
     // Set again after a short delay to override Next.js metadata
@@ -75,7 +167,7 @@ export const AdminHeader = React.memo(function AdminHeader({
     return () => {
       timeouts.forEach(t => clearTimeout(t))
     }
-  }, [currentCollection, title])
+  }, [currentCollection, title, translations?.sidebar?.collections, translations?.dataTable?.adminPanel])
 
   // Use ref for breadcrumb items to prevent re-creation
   const finalBreadcrumbItemsRef = React.useRef<Array<{ label: string; href?: string }>>(
@@ -90,11 +182,11 @@ export const AdminHeader = React.memo(function AdminHeader({
       finalBreadcrumbItemsRef.current = breadcrumbItems
     } else {
       finalBreadcrumbItemsRef.current = [
-        { label: "Admin Panel", href: "#" },
+        { label: adminPanelLabel, href: "#" },
         { label: displayTitleRef.current || currentCollection },
       ]
     }
-  }, [breadcrumbItems, displayTitle, currentCollection])
+  }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel])
   
   const finalBreadcrumbItems = finalBreadcrumbItemsRef.current
 
