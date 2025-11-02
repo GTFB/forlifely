@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, ReactNode } from "react"
+import { useEffect, useState, useRef, ReactNode } from "react"
+import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
 
@@ -43,41 +44,73 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     }
   }
 
-  // Initial check
+  // Initial check - only on mount, not on every pathname change
+  const hasCheckedRef = useRef(false)
+  const isCheckingRef = useRef(false)
+  
   useEffect(() => {
+    // Prevent multiple simultaneous checks
+    if (isCheckingRef.current || hasCheckedRef.current) return
+    
     const checkAuth = async () => {
+      if (isCheckingRef.current) return
+      isCheckingRef.current = true
+      
       try {
-        // If on create-new-user page, skip auth checks (with or without trailing slash)
-        if (pathname === '/admin/create-new-user' || pathname === '/admin/create-new-user/') {
+        const currentPath = window.location.pathname
+        
+        // If on create-new-user page, skip auth checks
+        if (currentPath === '/admin/create-new-user' || currentPath === '/admin/create-new-user/') {
           setChecking(false)
+          hasCheckedRef.current = true
+          isCheckingRef.current = false
           return
         }
 
-        // Check if users exist
-        const checkResponse = await fetch('/api/auth/check-users')
-        const checkData: { hasUsers: boolean } = await checkResponse.json()
+        // Check if users exist - handle 404 gracefully
+        let hasUsers = true
+        try {
+          const checkResponse = await fetch('/api/auth/check-users')
+          if (checkResponse.ok) {
+            const checkData: { hasUsers: boolean } = await checkResponse.json()
+            hasUsers = checkData.hasUsers
+          } else if (checkResponse.status === 404) {
+            // API endpoint not found, assume users exist and proceed
+            console.warn('check-users endpoint not found, proceeding with auth check')
+            hasUsers = true
+          }
+        } catch (fetchErr) {
+          // Network error or other issue, assume users exist and proceed
+          console.warn('Failed to check users, proceeding with auth check:', fetchErr)
+          hasUsers = true
+        }
         
-        if (!checkData.hasUsers) {
+        if (!hasUsers) {
           // No users exist, redirect to create first user
           router.replace('/admin/create-new-user')
+          isCheckingRef.current = false
           return
         }
         
         // Check if current user is admin
         const isAdmin = await checkUserAuth()
         if (!isAdmin) {
+          isCheckingRef.current = false
           return
         }
         
         setChecking(false)
+        hasCheckedRef.current = true
       } catch (err) {
         console.error('Failed to check auth:', err)
         redirectToLogin()
+      } finally {
+        isCheckingRef.current = false
       }
     }
 
     checkAuth()
-  }, [router, pathname])
+  }, [router])
 
   // Periodic auth check (every minute) - skip for create-new-user page
   useEffect(() => {
@@ -91,7 +124,8 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
     // Cleanup interval on unmount
     return () => clearInterval(interval)
-  }, [pathname])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (checking) {
     return (
@@ -101,6 +135,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     )
   }
 
-  return <>{children}</>
+  // Return children directly without wrapper to preserve component identity
+  return children
 }
 

@@ -16,10 +16,16 @@ import {
   Settings2,
   SquareTerminal,
 } from "lucide-react"
+import { Logo } from "@/components/misc/logo/logo"
 
 import { NavMain } from "@/components/application-blocks/nav-main"
 import { NavUser } from "@/components/application-blocks/nav-user"
 import { TeamSwitcher } from "@/components/application-blocks/team-switcher"
+
+// Memoized versions to prevent re-renders
+const NavMainMemo = React.memo(NavMain)
+const NavUserMemo = React.memo(NavUser)
+const TeamSwitcherMemo = React.memo(TeamSwitcher)
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +34,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
-import { useAdminState } from "@/components/admin/AdminStateProvider"
+import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { PROJECT_SETTINGS } from "@/settings"
 
 type CollectionsResponse = {
@@ -56,9 +62,54 @@ const categoryIcon: Record<string, any> = {
   Logs: ShieldCheck,
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+// Global refs to preserve state across component remounts
+// These persist even when Next.js remounts the component tree
+// In dev mode, Next.js may hot-reload modules, so we also use sessionStorage as backup
+function getGlobalRefs() {
+  // Try to restore from sessionStorage if available (for dev mode hot-reloads)
+  let restoredItems = []
+  let restoredItemsStructure = []
+  try {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('sidebar-global-items')
+      if (stored) {
+        restoredItems = JSON.parse(stored)
+      }
+      const storedStructure = sessionStorage.getItem('sidebar-global-structure')
+      if (storedStructure) {
+        restoredItemsStructure = JSON.parse(storedStructure)
+      }
+    }
+  } catch (e) {
+    // Ignore parse errors
+  }
+  
+  return {
+    itemsRef: { current: restoredItems },
+    translationsRef: { current: null as any }, // Don't persist translations in sessionStorage
+    teamsRef: { current: [{ name: "Admin", logo: Logo, plan: "" }] },
+    itemsStructureRef: { current: restoredItemsStructure },
+    currentCollectionRef: { current: "" },
+    platformLabelRef: { current: "Platform" },
+    userPropsRef: { current: null as any }, // Don't persist user props
+  }
+}
+
+const globalRefs = getGlobalRefs()
+const globalItemsRef = globalRefs.itemsRef
+const globalTranslationsRef = globalRefs.translationsRef
+const globalTeamsRef = globalRefs.teamsRef
+const globalItemsStructureRef = globalRefs.itemsStructureRef
+const globalCurrentCollectionRef = globalRefs.currentCollectionRef
+const globalPlatformLabelRef = globalRefs.platformLabelRef
+const globalUserPropsRef = globalRefs.userPropsRef
+
+// Custom comparison to prevent re-renders on state changes that don't affect sidebar
+const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { handleMouseDown } = useResizableSidebar()
-  const { state, pushState } = useAdminState()
+  
+  // Only subscribe to collection changes, not entire state
+  const currentCollection = useAdminCollection()
 
   const [groups, setGroups] = React.useState<CollectionsResponse["groups"]>([])
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
@@ -75,17 +126,47 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return 'ru'
   })
 
-  const [translations, setTranslations] = React.useState<any>(null)
+  // Use global ref to preserve translations across component remounts
+  const translationsRef = globalTranslationsRef
+  const localeRef = React.useRef(locale)
+  const [, setVersion] = React.useReducer(x => x + 1, 0)
 
   React.useEffect(() => {
+    if (localeRef.current === locale && translationsRef.current) {
+      return // Already loaded for this locale
+    }
+    
+    localeRef.current = locale
+    
+    // Check cache first
+    const cacheKey = `sidebar-translations-${locale}`
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+    
+    if (cached) {
+      try {
+        const cachedTranslations = JSON.parse(cached)
+        translationsRef.current = cachedTranslations
+        setVersion() // Trigger re-render once to use translations
+        return
+      } catch (e) {
+        // If parsing fails, proceed with fetch
+      }
+    }
+
     const loadTranslations = async () => {
       try {
         const response = await fetch(`/api/locales/${locale}`)
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
-        const translationsData = await response.json()
-        setTranslations(translationsData)
+        const translationsData = await response.json() as any
+        translationsRef.current = translationsData
+        
+        // Cache translations
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+        setVersion() // Trigger re-render to use translations
       } catch (e) {
         console.error('Failed to load translations:', e)
         // Fallback: try dynamic import as backup
@@ -93,15 +174,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           const translationsModule = locale === 'ru'
             ? await import("@/packages/content/locales/ru.json")
             : await import("@/packages/content/locales/en.json")
-          setTranslations(translationsModule.default || translationsModule)
+          const translationsData = translationsModule.default || translationsModule
+          translationsRef.current = translationsData
+          
+          // Cache fallback translations too
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+          }
+          setVersion() // Trigger re-render to use translations
         } catch (fallbackError) {
           console.error('Fallback import also failed:', fallbackError)
         }
       }
     }
+    
     loadTranslations()
   }, [locale])
+  
+  // Use stable reference from ref
+  const translations = translationsRef.current
 
+  // Create stable translation functions that don't change reference
   const t = React.useMemo(() => {
     if (!translations) {
       return {
@@ -110,16 +203,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         collection: (collection: string) => collection,
       }
     }
+    const categories = translations?.sidebar?.categories || {}
+    const collections = translations?.sidebar?.collections || {}
+    const platform = translations?.sidebar?.platform || "Platform"
+    
     return {
-      platform: translations?.sidebar?.platform || "Platform",
+      platform,
       category: (category: string): string => {
-        return translations?.sidebar?.categories?.[category as keyof typeof translations.sidebar.categories] || category
+        return categories[category as keyof typeof categories] || category
       },
       collection: (collection: string): string => {
-        return translations?.sidebar?.collections?.[collection as keyof typeof translations.sidebar.collections] || collection
+        return collections[collection as keyof typeof collections] || collection
       },
     }
-  }, [translations])
+  }, [translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.sidebar?.collections])
 
   const handleLocaleChange = React.useCallback((newLocale: 'en' | 'ru') => {
     setLocale(newLocale)
@@ -131,9 +228,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [])
 
   React.useEffect(() => {
+    // Check if data is already loaded in sessionStorage
+    const cachedGroups = typeof window !== 'undefined' ? sessionStorage.getItem('sidebar-groups') : null
+    const cachedUser = typeof window !== 'undefined' ? sessionStorage.getItem('sidebar-user') : null
+    
+    if (cachedGroups && cachedUser) {
+      try {
+        setGroups(JSON.parse(cachedGroups))
+        setUser(JSON.parse(cachedUser))
+        setLoading(false)
+      } catch (e) {
+        // If parsing fails, proceed with fetch
+      }
+    }
+
     const controller = new AbortController()
     const load = async () => {
-      setLoading(true)
+      // Only show loading if we don't have cached data
+      if (!cachedGroups || !cachedUser) {
+        setLoading(true)
+      }
       setError(null)
       try {
         const [collectionsRes, meRes] = await Promise.all([
@@ -150,6 +264,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         if (meRes.ok) {
           const meJson: MeResponse = await meRes.json()
           if (meJson.user) setUser(meJson.user)
+          
+          // Cache the data
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('sidebar-groups', JSON.stringify(collectionsJson.groups))
+            sessionStorage.setItem('sidebar-user', JSON.stringify(meJson.user))
+          }
         }
       } catch (e) {
         if ((e as any).name !== "AbortError") setError((e as Error).message)
@@ -161,14 +281,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return () => controller.abort()
   }, [])
 
-  const items = React.useMemo(() => {
-    const collectionItems = groups.map((group) => ({
+  // Memoize items structure separately from active state to prevent full re-renders
+  const itemsStructure = React.useMemo(() => {
+    return groups.map((group) => ({
+      category: group.category,
+      collections: group.collections,
+      icon: categoryIcon[group.category] || SquareTerminal,
+    }))
+  }, [groups])
+
+  // Use global refs to preserve state across component remounts
+  const itemsRef = globalItemsRef
+  const itemsStructureRef = globalItemsStructureRef
+  const currentCollectionRef = globalCurrentCollectionRef
+  const tRef = React.useRef(t)
+  
+  // Restore items structure to global ref if groups changed
+  if (itemsStructure.length > 0 && (
+    itemsStructureRef.current.length === 0 ||
+    itemsStructureRef.current.length !== itemsStructure.length ||
+    itemsStructureRef.current.some((s: any, i: number) => s.category !== itemsStructure[i]?.category)
+  )) {
+    itemsStructureRef.current = itemsStructure
+  }
+  
+  // Initialize items on mount or when structure first appears
+  // Only rebuild if structure actually changed or items are empty
+  const needsRebuild = itemsRef.current.length === 0 || 
+    itemsRef.current.length !== itemsStructure.length ||
+    itemsRef.current.some((item: any, i: number) => item.category !== itemsStructure[i]?.category)
+  
+  if (needsRebuild && itemsStructure.length > 0 && translations) {
+    itemsRef.current = itemsStructure.map((group) => ({
       title: t.category(group.category),
       url: "#",
-      icon: categoryIcon[group.category] || SquareTerminal,
-      isActive: group.collections.includes(state.collection),
+      icon: group.icon,
+      category: group.category,
+      collections: group.collections,
+      // Remove isActive - will be determined by URL in NavMainItem
       items: group.collections.map((name) => {
-        // Build proper URL for the collection
         const params = new URLSearchParams()
         params.set("c", name)
         params.set("p", "1")
@@ -179,17 +330,116 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         }
       }),
     }))
+    currentCollectionRef.current = currentCollection
+  }
+  
+  // Update refs when dependencies change
+  React.useEffect(() => {
+    tRef.current = t
+  }, [t])
+  
+  // Update items silently - no re-renders, just mutate in place
+  React.useEffect(() => {
+    const structureChanged = itemsRef.current.length !== itemsStructure.length ||
+      itemsRef.current.some((item: any, i: number) => item.category !== itemsStructure[i]?.category)
+    
+    if (structureChanged && itemsStructure.length > 0 && translations) {
+      // Rebuild items completely - but this should be rare
+      itemsStructureRef.current = itemsStructure
+      itemsRef.current = itemsStructure.map((group) => ({
+        title: tRef.current.category(group.category),
+        url: "#",
+        icon: group.icon,
+        category: group.category,
+        collections: group.collections,
+        // Remove isActive - will be determined by URL in NavMainItem
+        items: group.collections.map((name) => {
+          const params = new URLSearchParams()
+          params.set("c", name)
+          params.set("p", "1")
+          
+          return {
+            title: tRef.current.collection(name),
+            url: `/admin?${params.toString()}`,
+          }
+        }),
+      }))
+      currentCollectionRef.current = currentCollection
+      
+      // Persist structure to sessionStorage for dev mode hot-reloads
+      // Note: We can't serialize React components (icons), so we only save structure
+      try {
+        if (typeof window !== 'undefined') {
+          const structureToSave = itemsStructureRef.current.map((s: any) => ({
+            category: s.category,
+            collections: s.collections,
+          }))
+          sessionStorage.setItem('sidebar-global-structure', JSON.stringify(structureToSave))
+        }
+      } catch (e) {
+        // Ignore storage errors
+      }
+    } else if (currentCollectionRef.current !== currentCollection && itemsRef.current.length > 0) {
+      // Collection changed, but structure is static - no need to update anything
+      // NavMainItem will determine active state from URL automatically
+      currentCollectionRef.current = currentCollection
+      // No updates needed - items are static, NavMainItem reads from URL
+    }
+  }, [itemsStructure, currentCollection, translations])
+  
+  // Always return same reference - mutations happen in-place
+  const items = itemsRef.current
 
-    return collectionItems
-  }, [groups, state.collection, pushState, t])
+  // Use global ref to preserve teams across component remounts
+  const teamsRef = globalTeamsRef
+  
+  // Update team name without causing re-renders - mutate in place
+  React.useEffect(() => {
+    const adminCategory = translations?.sidebar?.categories?.Admin || "Admin"
+    // Mutate in place instead of recreating array
+    if (teamsRef.current[0] && teamsRef.current[0].name !== adminCategory) {
+      teamsRef.current[0].name = adminCategory
+    }
+  }, [translations?.sidebar?.categories?.Admin])
+  
+  // Always return same reference - mutations happen in-place
+  const teams = teamsRef.current
 
-  // Dummy teams source for TeamSwitcher (kept UI parity). Could be enriched later.
-  const teams = [{ name: t.category("Admin"), logo: Settings2, plan: "" }]
+  // Use global ref for userProps to maintain stable reference
+  const userPropsRef = globalUserPropsRef
+  React.useEffect(() => {
+    if (user) {
+      const newProps = {
+        name: user.name,
+        email: user.email,
+        avatar: "/avatars/placeholder-user.jpg",
+      }
+      // Only update if changed
+      if (!userPropsRef.current || 
+          userPropsRef.current.name !== newProps.name ||
+          userPropsRef.current.email !== newProps.email) {
+        userPropsRef.current = newProps
+      }
+    } else {
+      userPropsRef.current = null
+    }
+  }, [user?.name, user?.email])
+  const userProps = userPropsRef.current
 
+  // Use global ref for platformLabel to maintain stable reference
+  const platformLabelRef = globalPlatformLabelRef
+  React.useEffect(() => {
+    const newLabel = translations?.sidebar?.platform || "Platform"
+    if (platformLabelRef.current !== newLabel) {
+      platformLabelRef.current = newLabel
+    }
+  }, [translations?.sidebar?.platform])
+  const platformLabel = platformLabelRef.current
+  
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams as any} translations={translations} />
+        <TeamSwitcherMemo teams={teams as any} translations={translations} />
       </SidebarHeader>
       <SidebarContent>
         {loading && (
@@ -198,12 +448,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {error && (
           <div className="px-3 py-2 text-xs text-destructive">{error}</div>
         )}
-        {!loading && !error && <NavMain items={items} platformLabel={t.platform} />}
+        {!loading && !error && <NavMainMemo items={items} platformLabel={platformLabel} currentCollection={currentCollection} />}
       </SidebarContent>
       <SidebarFooter>
-        {user && (
-          <NavUser 
-            user={{ name: user.name, email: user.email, avatar: "/avatars/placeholder-user.jpg" }}
+        {userProps && (
+          <NavUserMemo 
+            user={userProps}
             locale={locale}
             onLocaleChange={handleLocaleChange}
             translations={translations}
@@ -214,3 +464,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
+
+export const AppSidebar = React.memo(AppSidebarComponent, (prevProps, nextProps) => {
+  // Always allow re-renders - React.memo will prevent if props are the same
+  // The actual optimization happens inside the component with global refs
+  return false // Allow re-render (React.memo default behavior)
+})

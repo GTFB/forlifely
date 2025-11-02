@@ -7,14 +7,20 @@ interface LogoProps {
 }
 
 export function Logo({ className }: LogoProps) {
+  // Extract height class if present
+  const hasHeight = className?.match(/h-[\d]+/);
+  
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center justify-center", className)}>
       <Image 
         src="/images/logo.svg" 
         alt="Sun Day Logo" 
         width={90} 
         height={32}
-        className="-mt-4 w-40 h-auto"
+        className={cn(
+          "object-contain",
+          hasHeight ? "h-full w-auto" : "w-full h-auto"
+        )}
       />
     </div>
   );

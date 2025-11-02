@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -61,11 +62,20 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
   }, [searchParams])
 
   const [state, _setState] = useState<AdminState>(() => parseStateFromSearch())
+  const pendingUrlUpdateRef = React.useRef<string | null>(null)
 
   // Update document title based on collection
   useEffect(() => {
     document.title = `${state.collection} - Admin Panel`
   }, [state.collection])
+
+  // Apply pending URL updates
+  useEffect(() => {
+    if (pendingUrlUpdateRef.current) {
+      router.replace(pendingUrlUpdateRef.current)
+      pendingUrlUpdateRef.current = null
+    }
+  }, [state, router])
 
   useEffect(() => {
     // When URL changes (e.g., back/forward), sync state
@@ -79,14 +89,14 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
   const setState = useCallback((updater: (prev: AdminState) => AdminState) => {
     _setState((prev) => {
       const next = updater(prev)
-      // Sync URL with replace (no history entry)
+      // Sync URL with replace (no history entry) - defer to useEffect to avoid render warnings
       const params = new URLSearchParams()
       params.set("c", next.collection)
       params.set("p", String(next.page))
       params.set("ps", String(next.pageSize))
       if (next.search) params.set("s", next.search)
       if (next.filters.length) params.set("f", JSON.stringify(next.filters))
-      router.replace(`${pathname}?${params.toString()}`)
+      pendingUrlUpdateRef.current = `${pathname}?${params.toString()}`
       return next
     })
   }, [pathname, router])
@@ -126,4 +136,26 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
 export function useAdminState() {
   const ctx = useContext(AdminStateContext)
   return ctx
+}
+
+// Hook to subscribe only to collection changes, not entire state
+// This prevents re-renders when other parts of state change
+export function useAdminCollection() {
+  const ctx = useContext(AdminStateContext)
+  const collectionRef = React.useRef(ctx.state.collection)
+  const [, forceUpdate] = React.useReducer(x => x + 1, 0)
+  
+  React.useEffect(() => {
+      const checkCollection = () => {
+        if (collectionRef.current !== ctx.state.collection) {
+          collectionRef.current = ctx.state.collection
+          forceUpdate()
+        }
+      }
+      
+      // Subscribe to context changes, but only update if collection actually changed
+      checkCollection()
+    }, [ctx.state.collection])
+    
+    return collectionRef.current
 }

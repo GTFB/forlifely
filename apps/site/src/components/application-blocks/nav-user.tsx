@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
   BadgeCheck,
   Bell,
@@ -36,7 +37,7 @@ import { useTheme } from "@/packages/hooks/use-theme"
 import { useRouter } from "next/navigation"
 import { useCallback } from "react"
 
-export function NavUser({
+export const NavUser = React.memo(function NavUser({
   user,
   locale,
   onLocaleChange,
@@ -151,4 +152,26 @@ export function NavUser({
       </SidebarMenuItem>
     </SidebarMenu>
   )
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  if (
+    prevProps.user.name !== nextProps.user.name ||
+    prevProps.user.email !== nextProps.user.email ||
+    prevProps.user.avatar !== nextProps.user.avatar ||
+    prevProps.locale !== nextProps.locale
+  ) {
+    return false // Re-render needed
+  }
+  
+  // For translations, compare by reference (they should be stable)
+  if (prevProps.translations !== nextProps.translations) {
+    // If translations changed, check if navUser section is actually different
+    const prevNavUser = prevProps.translations?.navUser
+    const nextNavUser = nextProps.translations?.navUser
+    if (prevNavUser !== nextNavUser && JSON.stringify(prevNavUser) !== JSON.stringify(nextNavUser)) {
+      return false // Re-render needed
+    }
+  }
+  
+  return true // Skip re-render
+})

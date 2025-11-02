@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { AppSidebar } from "@/components/application-blocks/app-sidebar"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,11 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Database, Loader2, CheckCircle2, XCircle, AlertCircle, Eye } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { seeds, type SeedMeta } from "../../../../functions/_shared/seeds"
@@ -148,27 +143,24 @@ export default function SeedPage() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Database Seeding</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </header>
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem className="hidden md:block">
+              <BreadcrumbLink href="/admin">Admin Panel</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator className="hidden md:block" />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Database Seeding</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
 
-          <main className="flex-1 overflow-y-auto p-4">
+      <main className="flex-1 overflow-y-auto p-4">
             <div className="max-w-4xl mx-auto space-y-6">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">Database Seeding</h1>
@@ -241,10 +233,8 @@ export default function SeedPage() {
                 </Alert>
               )}
             </div>
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-
+      </main>
+      
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -409,7 +399,7 @@ export default function SeedPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
 

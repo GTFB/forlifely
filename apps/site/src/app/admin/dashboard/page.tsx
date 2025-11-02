@@ -1,24 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { AppSidebar } from "@/components/application-blocks/app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { AdminHeader } from "@/components/admin/AdminHeader"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LayoutDashboard, Users, Package, TrendingUp, FileText } from "lucide-react"
-import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
 
 function DashboardContent() {
   const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
@@ -125,7 +110,7 @@ function DashboardContent() {
 
         let totalUsers = 0
         if (usersRes.ok) {
-          const usersData = await usersRes.json()
+          const usersData = await usersRes.json() as { total?: number }
           totalUsers = usersData.total || 0
         }
 
@@ -154,29 +139,15 @@ function DashboardContent() {
     loadStats()
   }, [])
 
+  const breadcrumbItems = React.useMemo(() => [
+    { label: t.adminPanel, href: "/admin/dashboard" },
+    { label: t.title },
+  ], [t.adminPanel, t.title])
+
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/admin/dashboard">
-                    {t.adminPanel}
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{t.title}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </header>
-          <main className="flex-1 overflow-y-auto p-6">
+    <>
+      <AdminHeader title={t.title} breadcrumbItems={breadcrumbItems} />
+      <main className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">{t.title}</h1>
@@ -305,17 +276,11 @@ function DashboardContent() {
               </Card>
             </div>
           </main>
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+    </>
   )
 }
 
 export default function DashboardPage() {
-  return (
-    <AdminStateProvider>
-      <DashboardContent />
-    </AdminStateProvider>
-  )
+  return <DashboardContent />
 }
 
