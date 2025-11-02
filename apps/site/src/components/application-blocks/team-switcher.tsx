@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ChevronsUpDown, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   DropdownMenu,
@@ -21,15 +22,31 @@ import {
 
 export function TeamSwitcher({
   teams,
+  translations,
 }: {
   teams: {
     name: string
     logo: React.ElementType
     plan: string
   }[]
+  translations?: any
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
   const [activeTeam, setActiveTeam] = React.useState(teams[0])
+
+  const t = React.useMemo(() => {
+    if (!translations) {
+      return {
+        teamSwitcher: { teamsLabel: "Teams", addTeam: "Add team" },
+        dashboard: { title: "Dashboard" },
+      }
+    }
+    return {
+      teamSwitcher: translations.teamSwitcher || { teamsLabel: "Teams", addTeam: "Add team" },
+      dashboard: translations.dashboard || { title: "Dashboard" },
+    }
+  }, [translations])
 
   if (!activeTeam) {
     return null
@@ -61,8 +78,18 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+              {t.teamSwitcher.teamsLabel}
             </DropdownMenuLabel>
+            <DropdownMenuItem
+              onClick={() => router.push("/admin/dashboard")}
+              className="gap-2 p-2"
+            >
+              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                <activeTeam.logo className="size-3.5 shrink-0" />
+              </div>
+              {t.dashboard.title}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
@@ -81,7 +108,7 @@ export function TeamSwitcher({
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>
-              <div className="text-muted-foreground font-medium">Add team</div>
+              <div className="text-muted-foreground font-medium">{t.teamSwitcher.addTeam}</div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

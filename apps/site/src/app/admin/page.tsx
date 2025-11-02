@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AppSidebar } from "@/components/application-blocks/app-sidebar"
 import { DataTable } from "@/components/application-blocks/data-table"
 import {
@@ -19,10 +20,19 @@ import {
 } from "@/components/ui/sidebar"
 import { AdminStateProvider, useAdminState } from "@/components/admin/AdminStateProvider"
 import { getCollection } from "@/shared/collections/getCollection"
-import data from "./data.json"
 
 function AdminContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { state } = useAdminState()
+
+  // Redirect to dashboard if no collection parameter
+  React.useEffect(() => {
+    const collection = searchParams.get("c")
+    if (!collection) {
+      router.replace("/admin/dashboard")
+    }
+  }, [searchParams, router])
   const [displayTitle, setDisplayTitle] = React.useState<string>('')
 
   React.useEffect(() => {
@@ -58,6 +68,12 @@ function AdminContent() {
       timeouts.forEach(t => clearTimeout(t))
     }
   }, [state.collection])
+
+  // Don't render if redirecting to dashboard
+  const collection = searchParams.get("c")
+  if (!collection) {
+    return null
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden">

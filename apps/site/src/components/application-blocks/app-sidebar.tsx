@@ -2,14 +2,19 @@
 
 import * as React from "react"
 import {
-  Bot,
-  BookOpen,
-  Frame,
-  Map,
-  PieChart,
+  Contact,
+  TrendingUp,
+  Megaphone,
+  KanbanSquare,
+  Truck,
+  UsersRound,
+  Landmark,
+  FolderArchive,
+  MessageSquareMore,
+  SlidersHorizontal,
+  ShieldCheck,
   Settings2,
   SquareTerminal,
-  Database,
 } from "lucide-react"
 
 import { NavMain } from "@/components/application-blocks/nav-main"
@@ -24,6 +29,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState } from "@/components/admin/AdminStateProvider"
+import { PROJECT_SETTINGS } from "@/settings"
 
 type CollectionsResponse = {
   success: boolean
@@ -37,16 +43,17 @@ type MeResponse = {
 }
 
 const categoryIcon: Record<string, any> = {
-  System: Settings2,
-  Content: BookOpen,
-  People: Map,
-  Organization: Frame,
-  Finance: PieChart,
-  Products: SquareTerminal,
-  Communication: Bot,
-  Relations: Bot,
-  Journal: BookOpen,
-  Other: SquareTerminal,
+  Contacts: Contact,
+  Sales: TrendingUp,
+  Marketing: Megaphone,
+  Projects: KanbanSquare,
+  Logistics: Truck,
+  Staff: UsersRound,
+  Finance: Landmark,
+  Content: FolderArchive,
+  Chats: MessageSquareMore,
+  Admin: SlidersHorizontal,
+  Logs: ShieldCheck,
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -57,6 +64,71 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved === 'en' || saved === 'ru') {
+        return saved
+      }
+    }
+    // Use 'ru' as default (overriding PROJECT_SETTINGS.defaultLanguage for admin panel)
+    return 'ru'
+  })
+
+  const [translations, setTranslations] = React.useState<any>(null)
+
+  React.useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const response = await fetch(`/api/locales/${locale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json()
+        setTranslations(translationsData)
+      } catch (e) {
+        console.error('Failed to load translations:', e)
+        // Fallback: try dynamic import as backup
+        try {
+          const translationsModule = locale === 'ru'
+            ? await import("@/packages/content/locales/ru.json")
+            : await import("@/packages/content/locales/en.json")
+          setTranslations(translationsModule.default || translationsModule)
+        } catch (fallbackError) {
+          console.error('Fallback import also failed:', fallbackError)
+        }
+      }
+    }
+    loadTranslations()
+  }, [locale])
+
+  const t = React.useMemo(() => {
+    if (!translations) {
+      return {
+        platform: "Platform",
+        category: (category: string) => category,
+        collection: (collection: string) => collection,
+      }
+    }
+    return {
+      platform: translations?.sidebar?.platform || "Platform",
+      category: (category: string): string => {
+        return translations?.sidebar?.categories?.[category as keyof typeof translations.sidebar.categories] || category
+      },
+      collection: (collection: string): string => {
+        return translations?.sidebar?.collections?.[collection as keyof typeof translations.sidebar.collections] || collection
+      },
+    }
+  }, [translations])
+
+  const handleLocaleChange = React.useCallback((newLocale: 'en' | 'ru') => {
+    setLocale(newLocale)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-locale', newLocale)
+      // Dispatch custom event to notify other components about locale change
+      window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
+    }
+  }, [])
 
   React.useEffect(() => {
     const controller = new AbortController()
@@ -90,23 +162,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [])
 
   const items = React.useMemo(() => {
-    const databaseItems = [
-      {
-        title: "Database",
-        url: "#",
-        icon: Database,
-        isActive: false,
-        items: [
-          {
-            title: "Seed Data",
-            url: "/admin/seed",
-          },
-        ],
-      },
-    ]
-
     const collectionItems = groups.map((group) => ({
-      title: group.category,
+      title: t.category(group.category),
       url: "#",
       icon: categoryIcon[group.category] || SquareTerminal,
       isActive: group.collections.includes(state.collection),
@@ -117,22 +174,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         params.set("p", "1")
         
         return {
-          title: name,
+          title: t.collection(name),
           url: `/admin?${params.toString()}`,
         }
       }),
     }))
 
-    return [...databaseItems, ...collectionItems]
-  }, [groups, state.collection, pushState])
+    return collectionItems
+  }, [groups, state.collection, pushState, t])
 
   // Dummy teams source for TeamSwitcher (kept UI parity). Could be enriched later.
-  const teams = [{ name: "Admin", logo: Settings2, plan: "" }]
+  const teams = [{ name: t.category("Admin"), logo: Settings2, plan: "" }]
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams as any} />
+        <TeamSwitcher teams={teams as any} translations={translations} />
       </SidebarHeader>
       <SidebarContent>
         {loading && (
@@ -141,10 +198,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {error && (
           <div className="px-3 py-2 text-xs text-destructive">{error}</div>
         )}
-        {!loading && !error && <NavMain items={items} />}
+        {!loading && !error && <NavMain items={items} platformLabel={t.platform} />}
       </SidebarContent>
       <SidebarFooter>
-        {user && <NavUser user={{ name: user.name, email: user.email, avatar: "/avatars/placeholder-user.jpg" }} />}
+        {user && (
+          <NavUser 
+            user={{ name: user.name, email: user.email, avatar: "/avatars/placeholder-user.jpg" }}
+            locale={locale}
+            onLocaleChange={handleLocaleChange}
+            translations={translations}
+          />
+        )}
       </SidebarFooter>
       <SidebarRail onMouseDown={handleMouseDown} />
     </Sidebar>

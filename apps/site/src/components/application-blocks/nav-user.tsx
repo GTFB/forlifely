@@ -5,6 +5,7 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
+  Globe,
   LogOut,
   Moon,
   Sparkles,
@@ -37,16 +38,31 @@ import { useCallback } from "react"
 
 export function NavUser({
   user,
+  locale,
+  onLocaleChange,
+  translations,
 }: {
   user: {
     name: string
     email: string
     avatar: string
   }
+  locale?: 'en' | 'ru'
+  onLocaleChange?: (locale: 'en' | 'ru') => void
+  translations?: any
 }) {
   const { isMobile } = useSidebar()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+
+  const t = translations?.navUser || {
+    notifications: "Notifications",
+    english: "English",
+    russian: "Russian",
+    darkMode: "Dark mode",
+    lightMode: "Light mode",
+    logOut: "Log out",
+  }
 
   const toggleTheme = useCallback(() => {
     setTheme(theme === "light" ? "dark" : "light", false)
@@ -108,33 +124,27 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
                 <Bell />
-                Notifications
+                {t.notifications}
               </DropdownMenuItem>
+              {onLocaleChange && (
+                <>
+                  <DropdownMenuItem onClick={() => onLocaleChange(locale === 'ru' ? 'en' : 'ru')}>
+                    <Globe />
+                    {locale === 'ru' ? t.english : t.russian} ({locale?.toUpperCase()})
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={toggleTheme}>
                 {theme === "light" ? <Moon /> : <Sun />}
-                {theme === "light" ? "Dark mode" : "Light mode"}
+                {theme === "light" ? t.darkMode : t.lightMode}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
-              Log out
+              {t.logOut}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -47,6 +47,7 @@
         "../../packages/hooks/*"
       ],
       "@/shared/*": [
+        "./src/shared/*",
         "./functions/_shared/*"
       ]
     }
