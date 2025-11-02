@@ -31,6 +31,28 @@ export default function LoginPage() {
         body: JSON.stringify(formData),
       })
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        
+        // If we get HTML or 404, the endpoint is not available
+        if (response.status === 404 || (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<!doctype'))) {
+          throw new Error(
+            'API endpoint not found. Please ensure you are running the development server correctly.\n\n' +
+            'For local development with Cloudflare Functions, use:\n' +
+            '  npm run dev:all\n\n' +
+            'This will start both Next.js and Wrangler servers.'
+          )
+        }
+        
+        throw new Error(
+          response.status === 500
+            ? 'Server error. Please try again later.'
+            : `Server returned an unexpected response (${response.status})`
+        )
+      }
+
       const data: { 
         error?: string
         success?: boolean
@@ -115,7 +137,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+              <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive whitespace-pre-wrap">
                 {error}
               </div>
             )}
