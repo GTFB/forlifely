@@ -18,6 +18,10 @@
     "d1:migrate:remote": "wrangler d1 execute altrp-site-db --remote --file=../../migrations/site/app-schema.sql",
     "d1:migrate:users:local": "wrangler d1 execute altrp-site-db --local --file=../../migrations/site/users-table.sql",
     "d1:migrate:users:remote": "wrangler d1 execute altrp-site-db --remote --file=../../migrations/site/users-table.sql",
+    "d1:migrate:taxonomy-uuid:local": "wrangler d1 execute altrp-site-db --local --file=../../migrations/site/20250115_add_uuid_to_taxonomy.sql",
+    "d1:migrate:taxonomy-uuid:remote": "wrangler d1 execute altrp-site-db --remote --file=../../migrations/site/20250115_add_uuid_to_taxonomy.sql",
+    "d1:migrate:taxonomy-title-json:local": "wrangler d1 execute altrp-site-db --local --file=../../migrations/site/20250115_convert_taxonomy_title_to_json.sql",
+    "d1:migrate:taxonomy-title-json:remote": "wrangler d1 execute altrp-site-db --remote --file=../../migrations/site/20250115_convert_taxonomy_title_to_json.sql",
     "d1:query:local": "wrangler d1 execute altrp-site-db --local",
     "d1:query:remote": "wrangler d1 execute altrp-site-db --remote",
     "hash-password": "node scripts/hash-password.mjs"

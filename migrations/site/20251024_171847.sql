@@ -17,6 +17,7 @@ CREATE INDEX `settings_created_at_idx` ON `settings` (`created_at`);
 
 CREATE TABLE `taxonomy` (
   	`id` integer PRIMARY KEY NOT NULL,
+	`uuid` text,
   	`entity` text NOT NULL,
   	`name` text NOT NULL,
   	`title` text,
@@ -24,6 +25,7 @@ CREATE TABLE `taxonomy` (
   	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
   	`deleted_at` numeric
+	`data_in` text
   );
 
 CREATE INDEX `taxonomy_updated_at_idx` ON `taxonomy` (`updated_at`);

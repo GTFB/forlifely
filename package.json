@@ -38,6 +38,11 @@
     "db:site:migrate:remote": "node scripts/migrate-site.mjs --remote",
     "cms:up": "node scripts/cms-sqlite-up.js",
     "dev:kill": "taskkill /F /IM node.exe",
+    "import:taxonomy": "bun scripts/import-taxonomy.ts",
+    "d1:migrate:taxonomy-title-json:local": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:local",
+    "d1:migrate:taxonomy-title-json:remote": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:remote",
+    "migrate:taxonomy-title-json:local": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:local",
+    "migrate:taxonomy-title-json:remote": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:remote",
     "prepare": "husky"
   },
   "devDependencies": {

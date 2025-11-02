@@ -1298,7 +1298,112 @@
     "page": "Страница {page} из {total}",
     "addRecord": {
       "title": "Добавить новую запись в {collection}",
-      "description": "Заполните поля ниже. Автоматически генерируемые поля (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) скрыты и будут созданы автоматически."
+      "description": "Заполните поля ниже"
+    },
+    "form": {
+      "select": "Выберите {field}",
+      "enter": "Введите {field}",
+      "confirm": "Подтвердите {field}",
+      "confirmNew": "Подтвердите новый {field}",
+      "enterNew": "Введите новый {field}",
+      "loading": "Загрузка...",
+      "selectPlaceholder": "Выбрать...",
+      "noResults": "Результаты не найдены.",
+      "cancel": "Отмена",
+      "create": "Создать",
+      "save": "Сохранить",
+      "passwordsDoNotMatch": "Пароли не совпадают"
+    },
+    "actions": {
+      "view": "Просмотр",
+      "edit": "Редактировать"
+    },
+    "delete": {
+      "selected": "Удалить выбранные",
+      "delete": "Удалить",
+      "deleteRecord": {
+        "title": "Удалить запись?",
+        "description": "Это действие нельзя отменить. Вы собираетесь удалить одну запись из \"{collection}\"."
+      },
+      "deleteSelected": {
+        "title": "Удалить выбранные записи?",
+        "description": "Это действие нельзя отменить. Вы собираетесь удалить {count} записей из \"{collection}\".",
+        "deleting": "Удаление...",
+        "deleteAll": "Удалить все"
+      }
+    },
+    "editRecord": {
+      "title": "Редактировать запись в {collection}",
+      "description": "Измените поля ниже. Автоматически генерируемые поля не редактируются и скрыты."
+    },
+    "loading": "Загрузка {collection}..."
+  },
+  "taxonomy": {
+    "entityOptions": {
+      "channel": "Канал",
+      "city": "Город",
+      "country": "Страна",
+      "content": "Контент",
+      "currency": "Валюта",
+      "domain": "Домен",
+      "isic": "ОКВЭД",
+      "sex": "Пол",
+      "asset": "Актив",
+      "asset_variant": "Вариант актива",
+      "base": "База",
+      "base_move": "Перемещение базы",
+      "base_move_route": "Маршрут перемещения базы",
+      "contractor": "Подрядчик",
+      "deal": "Сделка",
+      "employee": "Сотрудник",
+      "employee_echelon": "Эшелон сотрудника",
+      "employee_timesheet": "Табель сотрудника",
+      "employee_leave": "Отпуск сотрудника",
+      "finance": "Финансы",
+      "goal": "Цель",
+      "human": "Человек",
+      "identity": "Идентичность",
+      "journal": "Журнал",
+      "journal_connection": "Соединение журнала",
+      "journal_generation": "Генерация журнала",
+      "journal_system": "Система журнала",
+      "key": "Ключ",
+      "location": "Местоположение",
+      "message": "Сообщение",
+      "message_thread": "Тред сообщений",
+      "media": "Медиа",
+      "notice": "Уведомление",
+      "outreach": "Обращение",
+      "outreach_referral": "Реферальное обращение",
+      "product": "Продукт",
+      "product_variant": "Вариант продукта",
+      "permission": "Разрешение",
+      "qualification": "Квалификация",
+      "relation": "Связь",
+      "role": "Роль",
+      "role_permission": "Разрешение роли",
+      "segment": "Сегмент",
+      "setting": "Настройка",
+      "text": "Текст",
+      "text_variant": "Вариант текста",
+      "taxonomy": "Таксономия",
+      "university": "Университет",
+      "user": "Пользователь",
+      "user_ban": "Бан пользователя",
+      "user_session": "Сессия пользователя",
+      "user_verification": "Верификация пользователя",
+      "vote": "Голос",
+      "wallet": "Кошелек",
+      "wallet_transaction": "Транзакция кошелька",
+      "expanse": "Расход",
+      "yield": "Доход",
+      "zoo": "Зоопарк"
+    },
+    "fields": {
+      "entity": "Сущность",
+      "name": "Имя",
+      "title": "Заголовок",
+      "sortOrder": "Порядок сортировки"
     }
   }
 }

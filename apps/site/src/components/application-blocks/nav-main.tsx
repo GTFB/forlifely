@@ -51,9 +51,11 @@ export const NavMain = React.memo(function NavMain({
   const openStatesRef = React.useRef<Record<string, boolean>>({})
   
   // Initialize open states - check if current collection is in any category
+  // Admin category should not auto-open
   if (Object.keys(openStatesRef.current).length === 0 && currentCollection) {
     items.forEach((item: any) => {
-      if (item.collections?.includes(currentCollection)) {
+      // Don't auto-open Admin category
+      if (item.title !== "Admin" && item.collections?.includes(currentCollection)) {
         openStatesRef.current[item.title] = true
       }
     })
@@ -70,12 +72,14 @@ export const NavMain = React.memo(function NavMain({
         {items.map((item) => {
           // Determine if any sub-item is active by checking if currentCollection is in this category
           const isCategoryActive = (item as any).collections?.includes(currentCollection) ?? false
+          // Admin category should not auto-open, even if it contains the active collection
+          const shouldAutoOpen = item.title !== "Admin" ? isCategoryActive : false
           return (
             <NavMainItem
               key={item.title}
               item={item}
               currentCollection={currentCollection}
-              initialOpen={openStatesRef.current[item.title] ?? isCategoryActive}
+              initialOpen={openStatesRef.current[item.title] ?? shouldAutoOpen}
               onOpenChange={(open) => handleOpenChange(item.title, open)}
             />
           )
@@ -165,13 +169,14 @@ const NavMainItem = React.memo(function NavMainItem({
   const prevIsActiveRef = React.useRef(isCategoryActive)
   
   // Auto-open category if it becomes active (but don't close if user manually closed)
+  // Admin category should never auto-open
   React.useEffect(() => {
-    if (!prevIsActiveRef.current && isCategoryActive) {
-      // Category became active - auto-open it
+    if (!prevIsActiveRef.current && isCategoryActive && item.title !== "Admin") {
+      // Category became active - auto-open it (except Admin)
       setInternalOpen(true)
     }
     prevIsActiveRef.current = isCategoryActive
-  }, [isCategoryActive])
+  }, [isCategoryActive, item.title])
   
   const handleOpenChange = React.useCallback((open: boolean) => {
     setInternalOpen(open)

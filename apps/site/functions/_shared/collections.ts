@@ -45,7 +45,6 @@ export const COLLECTION_GROUPS: Record<string, string[]> = {
     'texts',
     'text_variants',
     'media',
-    'taxonomy',
   ],
   Chats: [
     'message_threads',

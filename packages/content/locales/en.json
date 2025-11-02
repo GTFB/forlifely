@@ -1299,7 +1299,112 @@
     "page": "Page {page} of {total}",
     "addRecord": {
       "title": "Add new record to {collection}",
-      "description": "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
+      "description": "Fill in the fields below."
+    },
+    "form": {
+      "select": "Select {field}",
+      "enter": "Enter {field}",
+      "confirm": "Confirm {field}",
+      "confirmNew": "Confirm new {field}",
+      "enterNew": "Enter new {field}",
+      "loading": "Loading...",
+      "selectPlaceholder": "Select...",
+      "noResults": "No results found.",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save",
+      "passwordsDoNotMatch": "Passwords do not match"
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit"
+    },
+    "delete": {
+      "selected": "Delete Selected",
+      "delete": "Delete",
+      "deleteRecord": {
+        "title": "Delete record?",
+        "description": "This action cannot be undone. You are about to delete one record from \"{collection}\"."
+      },
+      "deleteSelected": {
+        "title": "Delete selected records?",
+        "description": "This action cannot be undone. You are about to delete {count} records from \"{collection}\".",
+        "deleting": "Deleting...",
+        "deleteAll": "Delete All"
+      }
+    },
+    "editRecord": {
+      "title": "Edit record in {collection}",
+      "description": "Change fields below. Auto-generated fields are not editable and hidden."
+    },
+    "loading": "Loading {collection}..."
+  },
+  "taxonomy": {
+    "entityOptions": {
+      "channel": "Channel",
+      "city": "City",
+      "country": "Country",
+      "content": "Content",
+      "currency": "Currency",
+      "domain": "Domain",
+      "isic": "Isic",
+      "sex": "Sex",
+      "asset": "Asset",
+      "asset_variant": "Asset Variant",
+      "base": "Base",
+      "base_move": "Base Move",
+      "base_move_route": "Base Move Route",
+      "contractor": "Contractor",
+      "deal": "Deal",
+      "employee": "Employee",
+      "employee_echelon": "Employee Echelon",
+      "employee_timesheet": "Employee Timesheet",
+      "employee_leave": "Employee Leave",
+      "finance": "Finance",
+      "goal": "Goal",
+      "human": "Human",
+      "identity": "Identity",
+      "journal": "Journal",
+      "journal_connection": "Journal Connection",
+      "journal_generation": "Journal Generation",
+      "journal_system": "Journal System",
+      "key": "Key",
+      "location": "Location",
+      "message": "Message",
+      "message_thread": "Message Thread",
+      "media": "Media",
+      "notice": "Notice",
+      "outreach": "Outreach",
+      "outreach_referral": "Outreach Referral",
+      "product": "Product",
+      "product_variant": "Product Variant",
+      "permission": "Permission",
+      "qualification": "Qualification",
+      "relation": "Relation",
+      "role": "Role",
+      "role_permission": "Role Permission",
+      "segment": "Segment",
+      "setting": "Setting",
+      "text": "Text",
+      "text_variant": "Text Variant",
+      "taxonomy": "Taxonomy",
+      "university": "University",
+      "user": "User",
+      "user_ban": "User Ban",
+      "user_session": "User Session",
+      "user_verification": "User Verification",
+      "vote": "Vote",
+      "wallet": "Wallet",
+      "wallet_transaction": "Wallet Transaction",
+      "expanse": "Expanse",
+      "yield": "Yield",
+      "zoo": "Zoo"
+    },
+    "fields": {
+      "entity": "Entity",
+      "name": "Name",
+      "title": "Title",
+      "sortOrder": "Sort order"
     }
   }
 }

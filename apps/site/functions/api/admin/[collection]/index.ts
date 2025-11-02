@@ -258,10 +258,26 @@ async function handlePost(context: AuthenticatedContext): Promise<Response> {
     const values = keys.map((k) => data[k])
 
     const result = await env.DB.prepare(sql).bind(...values).run()
+    const lastRowId = result.meta.last_row_id
+
+    // Auto-assign sort_order = id * 100 for taxonomy collection if sort_order is empty/null/0
+    if (collection === 'taxonomy' && lastRowId) {
+      const sortOrderValue = data.sort_order
+      const needsAutoOrder = sortOrderValue === null || sortOrderValue === undefined || sortOrderValue === 0 || sortOrderValue === ''
+      
+      if (needsAutoOrder) {
+        const autoSortOrder = lastRowId * 100
+        await env.DB.prepare(`UPDATE ${collection} SET sort_order = ? WHERE id = ?`)
+          .bind(autoSortOrder, lastRowId)
+          .run()
+        // Update data object for response
+        data.sort_order = autoSortOrder
+      }
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      lastRowId: result.meta.last_row_id || null,
+      lastRowId: lastRowId || null,
       generated: Object.keys(data).filter(k => !body[k]),
     }), {
       status: 201,

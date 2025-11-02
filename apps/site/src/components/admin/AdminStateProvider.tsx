@@ -21,7 +21,7 @@ export type AdminState = {
 const DEFAULT_STATE: AdminState = {
   collection: "users",
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   filters: [],
   search: "",
 }

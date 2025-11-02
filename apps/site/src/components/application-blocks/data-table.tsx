@@ -15,6 +15,9 @@ import {
   IconX,
   IconSearch,
   IconTrash,
+  IconArrowUp,
+  IconArrowDown,
+  IconArrowsSort,
 } from "@tabler/icons-react"
 import { getCollection } from "../../../functions/_shared/collections/getCollection"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
@@ -33,6 +36,7 @@ import {
   SortingState,
   useReactTable,
   VisibilityState,
+  HeaderContext,
 } from "@tanstack/react-table"
 
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +59,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   Table,
   TableBody,
@@ -94,6 +113,11 @@ type RelationConfig = {
   labelFields?: string[]
 }
 
+type SelectOption = {
+  label: string
+  value: string
+}
+
 type ColumnSchemaExtended = ColumnSchema & {
   title?: string
   hidden?: boolean
@@ -103,8 +127,9 @@ type ColumnSchemaExtended = ColumnSchema & {
   virtual?: boolean
   defaultCell?: any
   format?: (value: any, locale?: string) => string
-  fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object'
+  fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'select'
   relation?: RelationConfig
+  selectOptions?: SelectOption[]
 }
 
 type CollectionData = Record<string, any>
@@ -139,6 +164,77 @@ function formatCellValue(value: any): React.ReactNode {
   return String(value)
 }
 
+// Combobox Component for select fields with search
+function ComboboxSelect({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  disabled,
+  required,
+  id,
+  translations,
+}: {
+  options: Array<{ value: string; label: string }>
+  value: string
+  onValueChange: (value: string) => void
+  placeholder?: string
+  disabled?: boolean
+  required?: boolean
+  id?: string
+  translations?: any
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  const selectedOption = options.find((opt) => opt.value === value)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+          disabled={disabled}
+        >
+          {selectedOption ? selectedOption.label : placeholder || "Select..."}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10002]" align="start">
+        <Command>
+          <CommandInput placeholder={placeholder || "Search..."} />
+          <CommandList>
+            <CommandEmpty>{(translations as any)?.form?.noResults || "No results found."}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`${option.label} ${option.value}`}
+                  onSelect={() => {
+                    onValueChange(option.value === value ? "" : option.value)
+                    setOpen(false)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // Relation Select Component
 function RelationSelect({
   relation,
@@ -146,12 +242,14 @@ function RelationSelect({
   onChange,
   disabled,
   required,
+  translations,
 }: {
   relation: RelationConfig
   value: any
   onChange: (value: any) => void
   disabled?: boolean
   required?: boolean
+  translations?: any
 }) {
   const [options, setOptions] = React.useState<Array<{ value: any; label: string }>>([])
   const [loading, setLoading] = React.useState(false)
@@ -195,9 +293,9 @@ function RelationSelect({
   return (
     <Select value={value ? String(value) : ""} onValueChange={onChange} disabled={disabled || loading} required={required}>
       <SelectTrigger>
-        <SelectValue placeholder={loading ? "Loading..." : "Select..."} />
+        <SelectValue placeholder={loading ? (translations?.form?.loading || "Loading...") : (translations?.form?.selectPlaceholder || "Select...")} />
       </SelectTrigger>
-      <SelectContent className="max-h-[300px] z-[9999]" position="popper" sideOffset={5}>
+      <SelectContent className="max-h-[300px] z-[10002]" position="popper" sideOffset={5}>
         {options.length === 0 && !loading ? (
           <div className="p-2 text-sm text-muted-foreground">No options available</div>
         ) : (
@@ -213,7 +311,7 @@ function RelationSelect({
 }
 
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}): ColumnDef<CollectionData>[] {
+function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string): ColumnDef<CollectionData>[] {
   return [
   {
     id: "select",
@@ -243,16 +341,54 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
   },
     ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
       accessorKey: col.name,
-      header: () => (
-        <div className="flex items-center gap-1">
-          <span>{col.title || col.name}</span>
-          {col.primary && (
-            <Badge variant="outline" className="text-[10px] px-1 py-0">
-              PK
-        </Badge>
-          )}
-      </div>
-    ),
+      enableSorting: true,
+      header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
+        const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
+        const isSorted = column.getIsSorted()
+        return (
+          <Button
+            variant="ghost"
+            className="h-auto p-0 hover:bg-transparent font-semibold"
+            onClick={(e) => {
+              if (e.shiftKey) {
+                // Shift + click: add to multi-sort
+                column.toggleSorting(isSorted === "asc", true)
+              } else {
+                // Regular click: toggle sort (replaces existing sorts)
+                column.toggleSorting(isSorted === "asc")
+              }
+            }}
+          >
+            <div className="flex items-center gap-1">
+              <span>{col.title || col.name}</span>
+              {col.primary && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0">
+                  PK
+                </Badge>
+              )}
+              {column.getCanSort() && isSorted && (
+                <span className="ml-1 flex items-center gap-0.5">
+                  {isSorted === "asc" ? (
+                    <>
+                      <IconArrowUp className="h-3 w-3" />
+                      {sortedIndex >= 0 && table.getState().sorting.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground">{sortedIndex + 1}</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <IconArrowDown className="h-3 w-3" />
+                      {sortedIndex >= 0 && table.getState().sorting.length > 1 && (
+                        <span className="text-[10px] text-muted-foreground">{sortedIndex + 1}</span>
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+          </Button>
+        )
+      },
       cell: ({ row }: { row: Row<CollectionData> }) => {
         const value = row.original[col.name]
         
@@ -274,6 +410,29 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         if (col.relation && relationData[col.name]) {
           const label = relationData[col.name][value] || value || "-"
           return <div>{label}</div>
+        }
+        
+        // For select fields, show label instead of value
+        if (col.fieldType === 'select' && col.selectOptions) {
+          const option = col.selectOptions.find(opt => opt.value === value || String(opt.value) === String(value))
+          const displayValue = option ? option.label : value || "-"
+          return <div>{displayValue}</div>
+        }
+        
+        // For JSON fields in taxonomy collection (title field), extract translation by locale
+        if (col.fieldType === 'json' && collection === 'taxonomy' && col.name === 'title') {
+          let titleValue = value
+          if (typeof value === 'string') {
+            try {
+              titleValue = JSON.parse(value)
+            } catch (e) {
+              // If it's not valid JSON, treat as plain text (backward compatibility)
+            }
+          }
+          if (titleValue && typeof titleValue === 'object') {
+            const localizedTitle = titleValue[locale] || titleValue.en || titleValue.ru || value || "-"
+            return <div>{localizedTitle}</div>
+          }
         }
         
         // Use defaultCell if value is empty/null/undefined
@@ -306,11 +465,11 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           </Button>
         </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem>View</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEditRequest(row)}>Edit</DropdownMenuItem>
+            <DropdownMenuItem>{translations?.actions?.view || "View"}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEditRequest(row)}>{translations?.actions?.edit || "Edit"}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => onDeleteRequest(row)}>
-              Delete
+              {translations?.delete?.delete || "Delete"}
             </DropdownMenuItem>
           </DropdownMenuContent>
       </DropdownMenu>
@@ -339,9 +498,23 @@ export function DataTable() {
   const [error, setError] = React.useState<string | null>(null)
   const [relationData, setRelationData] = React.useState<Record<string, Record<any, string>>>({})
   const [translations, setTranslations] = React.useState<any>(null)
+  const [taxonomyConfig, setTaxonomyConfig] = React.useState<any>(null)
   
   // Local search state for input (debounced before updating global state)
   const [searchInput, setSearchInput] = React.useState(state.search)
+
+  // Load Taxonomy config when collection is taxonomy
+  React.useEffect(() => {
+    if (state.collection === 'taxonomy' && typeof window !== 'undefined') {
+      import('../../../../app/src/collections/Taxonomy').then((module) => {
+        setTaxonomyConfig(module.Taxonomy)
+      }).catch((e) => {
+        console.error('[DataTable] Failed to load Taxonomy config:', e)
+      })
+    } else {
+      setTaxonomyConfig(null)
+    }
+  }, [state.collection])
 
   // Sync locale with sidebar when it changes
   React.useEffect(() => {
@@ -387,7 +560,7 @@ export function DataTable() {
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
-        const translationsData = await response.json()
+        const translationsData = await response.json() as any
         console.log('[DataTable] Translations loaded for locale:', locale, translationsData?.dataTable)
         setTranslations(translationsData)
         
@@ -413,11 +586,11 @@ export function DataTable() {
   }, [locale])
 
   const t = React.useMemo(() => {
-    const dataTableTranslations = translations?.dataTable
+    const dataTableTranslations = (translations as any)?.dataTable
     if (!dataTableTranslations) {
       console.warn('[DataTable] Using fallback translations, translations not loaded yet')
     }
-    return dataTableTranslations || {
+    const defaultT = {
       search: "Search...",
       customizeColumns: "Customize Columns",
       columns: "Columns",
@@ -429,8 +602,45 @@ export function DataTable() {
       addRecord: {
         title: "Add new record to {collection}",
         description: "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
+      },
+      form: {
+        select: "Select {field}",
+        enter: "Enter {field}",
+        confirm: "Confirm {field}",
+        confirmNew: "Confirm new {field}",
+        enterNew: "Enter new {field}",
+        loading: "Loading...",
+        selectPlaceholder: "Select...",
+        cancel: "Cancel",
+        create: "Create",
+        save: "Save",
+        passwordsDoNotMatch: "Passwords do not match"
+      },
+      editRecord: {
+        title: "Edit record in {collection}",
+        description: "Change fields below. Auto-generated fields are not editable and hidden."
+      },
+      loading: "Loading {collection}...",
+      actions: {
+        view: "View",
+        edit: "Edit"
+      },
+      delete: {
+        selected: "Delete Selected",
+        delete: "Delete",
+        deleteRecord: {
+          title: "Delete record?",
+          description: "This action cannot be undone. You are about to delete one record from \"{collection}\"."
+        },
+        deleteSelected: {
+          title: "Delete selected records?",
+          description: "This action cannot be undone. You are about to delete {count} records from \"{collection}\".",
+          deleting: "Deleting...",
+          deleteAll: "Delete All"
+        }
       }
     }
+    return dataTableTranslations || defaultT
   }, [translations?.dataTable])
   
   React.useEffect(() => {
@@ -462,22 +672,66 @@ export function DataTable() {
       
       // Get collection config and apply column settings
       const collection = getCollection(state.collection)
+      
       const extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
-        const columnConfig = (collection as any)[col.name]
+        const columnConfig = (collection as any)?.fields?.find((f: any) => f.name === col.name)
         const options = columnConfig?.options || {}
+        
+        // For taxonomy collection, get config from Taxonomy export
+        let fieldConfig: any = null
+        if (state.collection === 'taxonomy' && taxonomyConfig?.fields) {
+          fieldConfig = taxonomyConfig.fields.find((f: any) => f.name === col.name)
+        }
+        
+        // Hide system fields (created_at, updated_at, deleted_at, uuid)
+        const isSystemField = ['created_at', 'updated_at', 'deleted_at', 'uuid'].includes(col.name)
+        
+        // Extract select options if field is select type
+        let selectOptions: SelectOption[] | undefined
+        if (fieldConfig?.type === 'select' && fieldConfig?.options?.length) {
+          // Use translated options if available
+          const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+          selectOptions = fieldConfig.options.map((opt: any) => {
+            const value = opt.value || opt
+            const translatedLabel = entityOptions[value] || opt.label || value
+            return {
+              label: translatedLabel,
+              value: String(value),
+            }
+          })
+        } else if (columnConfig?.type === 'select' && columnConfig?.options?.length) {
+          selectOptions = columnConfig.options.map((opt: any) => ({
+            label: opt.label || opt.value,
+            value: opt.value || opt,
+          }))
+        }
+        
+        // Get translated field title
+        let fieldTitle: string | undefined
+        if (state.collection === 'taxonomy' && (translations as any)?.taxonomy?.fields) {
+          const taxonomyFields = (translations as any).taxonomy.fields
+          // Map sort_order to sortOrder for translation key
+          const translationKey = col.name === 'sort_order' ? 'sortOrder' : col.name
+          const fieldKey = translationKey as keyof typeof taxonomyFields
+          fieldTitle = taxonomyFields[fieldKey]
+        }
+        
+        // Capitalize first letter and replace underscores with spaces
+        const defaultTitle = col.name.charAt(0).toUpperCase() + col.name.slice(1).replace(/_/g, ' ')
         
         return {
           ...col,
-          title: options.title,
+          title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
           hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || false,
+          hiddenTable: options.hiddenTable || isSystemField, // Hide system fields
           readOnly: options.readOnly || false,
-          required: options.required || false,
+          required: options.required || fieldConfig?.required || columnConfig?.required || false,
           virtual: options.virtual || false,
           defaultCell: options.defaultCell,
           format: options.format,
-          fieldType: options.type,
+          fieldType: options.type || fieldConfig?.type || (columnConfig?.type === 'select' ? 'select' : columnConfig?.type),
           relation: options.relation,
+          selectOptions,
         }
       })
       
@@ -533,7 +787,7 @@ export function DataTable() {
     } finally {
       setLoading(false)
     }
-  }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState])
+  }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState, taxonomyConfig, translations])
 
   React.useEffect(() => {
     const controller = new AbortController()
@@ -653,6 +907,22 @@ export function DataTable() {
           initial[col.name] = record[col.name] === 1 || record[col.name] === true || record[col.name] === '1' || record[col.name] === 'true'
         } else if (col.fieldType === 'date' || col.fieldType === 'time' || col.fieldType === 'datetime') {
           initial[col.name] = record[col.name] ? new Date(record[col.name]) : null
+        } else if (col.fieldType === 'json' && state.collection === 'taxonomy' && col.name === 'title') {
+          // For title JSON field, parse and extract en/ru values
+          let titleValue = record[col.name]
+          if (typeof titleValue === 'string') {
+            try {
+              titleValue = JSON.parse(titleValue)
+            } catch (e) {
+              // If it's not valid JSON, treat as plain text (backward compatibility)
+              titleValue = { en: titleValue || '', ru: titleValue || '' }
+            }
+          }
+          if (!titleValue || typeof titleValue !== 'object') {
+            titleValue = { en: '', ru: '' }
+          }
+          initial[`${col.name}_en`] = titleValue.en || ''
+          initial[`${col.name}_ru`] = titleValue.ru || ''
         } else {
           initial[col.name] = record[col.name] != null ? String(record[col.name]) : ''
         }
@@ -660,7 +930,7 @@ export function DataTable() {
     }
     setEditData(initial)
     setEditOpen(true)
-  }, [schema, isAutoGeneratedField])
+  }, [schema, isAutoGeneratedField, state.collection])
 
   const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | null) => {
     setEditData((prev) => ({ ...prev, [fieldName]: value }))
@@ -669,8 +939,8 @@ export function DataTable() {
   // Create dialog keep after
   // Generate columns dynamically
   const columns = React.useMemo(
-    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, locale, relationData) : []),
-    [schema, onDeleteRequest, onEditRequest, locale, relationData]
+    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, locale, relationData, t, state.collection) : []),
+    [schema, onDeleteRequest, onEditRequest, locale, relationData, t, state.collection]
   )
 
   const table = useReactTable({
@@ -686,6 +956,7 @@ export function DataTable() {
     pageCount: totalPages,
     manualPagination: true,
     enableRowSelection: true,
+    enableMultiSort: true, // Enable multi-column sorting
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -747,9 +1018,22 @@ export function DataTable() {
     e.preventDefault()
     setCreateError(null)
     try {
-      // Convert Date objects to ISO strings for API
+      // Convert Date objects to ISO strings for API and handle JSON fields
       const payload = Object.entries(formData).reduce((acc, [key, value]) => {
-        acc[key] = value instanceof Date ? value.toISOString() : value
+        // Handle title_en/title_ru for taxonomy collection
+        if (state.collection === 'taxonomy' && (key === 'title_en' || key === 'title_ru')) {
+          if (!acc.title) {
+            acc.title = { en: '', ru: '' }
+          }
+          if (key === 'title_en') {
+            acc.title.en = value || ''
+          } else {
+            acc.title.ru = value || ''
+          }
+        } else if (key !== 'title_en' && key !== 'title_ru') {
+          // Skip title_en/title_ru as they're already processed above
+          acc[key] = value instanceof Date ? value.toISOString() : value
+        }
         return acc
       }, {} as Record<string, any>)
       
@@ -780,9 +1064,22 @@ export function DataTable() {
     if (!recordToEdit) return
     setEditError(null)
     try {
-      // Convert Date objects to ISO strings for API
+      // Convert Date objects to ISO strings for API and handle JSON fields
       const payload = Object.entries(editData).reduce((acc, [key, value]) => {
-        acc[key] = value instanceof Date ? value.toISOString() : value
+        // Handle title_en/title_ru for taxonomy collection
+        if (state.collection === 'taxonomy' && (key === 'title_en' || key === 'title_ru')) {
+          if (!acc.title) {
+            acc.title = { en: '', ru: '' }
+          }
+          if (key === 'title_en') {
+            acc.title.en = value || ''
+          } else {
+            acc.title.ru = value || ''
+          }
+        } else if (key !== 'title_en' && key !== 'title_ru') {
+          // Skip title_en/title_ru as they're already processed above
+          acc[key] = value instanceof Date ? value.toISOString() : value
+        }
         return acc
       }, {} as Record<string, any>)
       
@@ -836,8 +1133,8 @@ export function DataTable() {
               disabled={batchDeleting}
             >
               <IconTrash />
-              <span className="hidden lg:inline">Delete Selected</span>
-              <span className="lg:hidden">Delete</span>
+              <span className="hidden lg:inline">{t.delete?.selected || "Delete Selected"}</span>
+              <span className="lg:hidden">{t.delete?.delete || "Delete"}</span>
             </Button>
           )}
           <DropdownMenu>
@@ -1025,14 +1322,14 @@ export function DataTable() {
       <ResponsiveDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <ResponsiveDialogContent className="p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Delete record?</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{t.delete?.deleteRecord?.title || "Delete record?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              This action cannot be undone. You are about to delete one record from "{state.collection}".
+              {(t.delete?.deleteRecord?.description || "This action cannot be undone. You are about to delete one record from \"{collection}\".").replace('{collection}', state.collection)}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t.form?.cancel || "Cancel"}</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>{t.delete?.delete || "Delete"}</Button>
           </ResponsiveDialogFooter>
           <ResponsiveDialogClose className="sr-only" />
         </ResponsiveDialogContent>
@@ -1041,21 +1338,21 @@ export function DataTable() {
       <ResponsiveDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
         <ResponsiveDialogContent className="p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Delete selected records?</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{t.delete?.deleteSelected?.title || "Delete selected records?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              This action cannot be undone. You are about to delete {table.getFilteredSelectedRowModel().rows.length} records from "{state.collection}".
+              {(t.delete?.deleteSelected?.description || "This action cannot be undone. You are about to delete {count} records from \"{collection}\".").replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{collection}', state.collection)}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogFooter>
-            <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchDeleting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchDeleting}>{t.form?.cancel || "Cancel"}</Button>
             <Button variant="destructive" onClick={handleBatchDelete} disabled={batchDeleting}>
               {batchDeleting ? (
                 <>
                   <IconLoader className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
+                  {t.delete?.deleteSelected?.deleting || "Deleting..."}
                 </>
               ) : (
-                'Delete All'
+                t.delete?.deleteSelected?.deleteAll || 'Delete All'
               )}
             </Button>
           </ResponsiveDialogFooter>
@@ -1071,7 +1368,7 @@ export function DataTable() {
               {t.addRecord.description}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <form onSubmit={handleCreateSubmit} className="space-y-4 p-4">
+          <form onSubmit={handleCreateSubmit} className="space-y-4">
             {editableFields.map((field) => (
               <div key={field.name} className="flex flex-col gap-2">
                 {field.fieldType === 'boolean' ? (
@@ -1095,7 +1392,7 @@ export function DataTable() {
                       mode={field.fieldType}
                       value={formData[field.name] || null}
                       onChange={(date) => handleFieldChange(field.name, date)}
-                      placeholder={`Select ${field.title || field.name}`}
+                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
                     />
                   </>
                 ) : field.fieldType === 'phone' ? (
@@ -1107,7 +1404,7 @@ export function DataTable() {
                     <PhoneInput
                       value={formData[field.name] || ''}
                       onChange={(value) => handleFieldChange(field.name, value || '')}
-                      placeholder={`Enter ${field.title || field.name}`}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                     />
                   </>
                 ) : field.fieldType === 'password' ? (
@@ -1122,11 +1419,11 @@ export function DataTable() {
                       required={!field.nullable}
                       value={formData[field.name] || ""}
                       onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={`Enter ${field.title || field.name}`}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                       minLength={8}
                     />
                     <Label htmlFor={`field-${field.name}-confirm`} className="text-sm font-medium">
-                      Confirm {field.title || field.name}
+                      {t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -1135,12 +1432,56 @@ export function DataTable() {
                       required={!field.nullable}
                       value={formData[`${field.name}_confirm`] || ""}
                       onChange={(e) => handleFieldChange(`${field.name}_confirm`, e.target.value)}
-                      placeholder={`Confirm ${field.title || field.name}`}
+                      placeholder={t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
                       minLength={8}
                     />
                     {formData[field.name] && formData[`${field.name}_confirm`] && formData[field.name] !== formData[`${field.name}_confirm`] && (
-                      <p className="text-sm text-destructive">Passwords do not match</p>
+                      <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
+                  </>
+                ) : field.fieldType === 'json' && state.collection === 'taxonomy' && field.name === 'title' ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}_en`} className="text-sm font-medium">
+                      {field.title || field.name} (English)
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Input
+                      id={`field-${field.name}_en`}
+                      type="text"
+                      required={!field.nullable}
+                      value={formData[`${field.name}_en`] || ""}
+                      onChange={(e) => handleFieldChange(`${field.name}_en`, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (English)`) || `Enter ${field.title || field.name} (English)`}
+                    />
+                    <Label htmlFor={`field-${field.name}_ru`} className="text-sm font-medium">
+                      {field.title || field.name} (Russian)
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Input
+                      id={`field-${field.name}_ru`}
+                      type="text"
+                      required={!field.nullable}
+                      value={formData[`${field.name}_ru`] || ""}
+                      onChange={(e) => handleFieldChange(`${field.name}_ru`, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (Russian)`) || `Enter ${field.title || field.name} (Russian)`}
+                    />
+                  </>
+                ) : field.fieldType === 'select' && field.selectOptions ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <ComboboxSelect
+                      id={`field-${field.name}`}
+                      options={field.selectOptions}
+                      value={formData[field.name] || ""}
+                      onValueChange={(value) => handleFieldChange(field.name, value)}
+                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                      disabled={false}
+                      required={!field.nullable}
+                      translations={t}
+                    />
                   </>
                 ) : field.relation ? (
                   <>
@@ -1153,6 +1494,7 @@ export function DataTable() {
                       value={formData[field.name]}
                       onChange={(value) => handleFieldChange(field.name, value)}
                       required={!field.nullable}
+                      translations={t}
                     />
                   </>
                 ) : (
@@ -1167,7 +1509,7 @@ export function DataTable() {
                       required={!field.nullable}
                       value={formData[field.name] || ""}
                       onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={`Enter ${field.title || field.name}`}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                     />
                   </>
                 )}
@@ -1180,9 +1522,9 @@ export function DataTable() {
             )}
             <ResponsiveDialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                Cancel
+                {t.form?.cancel || "Cancel"}
               </Button>
-              <Button type="submit">Create</Button>
+              <Button type="submit">{t.form?.create || "Create"}</Button>
             </ResponsiveDialogFooter>
           </form>
           <ResponsiveDialogClose className="sr-only" />
@@ -1192,12 +1534,12 @@ export function DataTable() {
       <ResponsiveDialog open={editOpen} onOpenChange={setEditOpen}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>Edit record in {state.collection}</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{(t.editRecord?.title || "Edit record in {collection}").replace('{collection}', state.collection)}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              Change fields below. Auto-generated fields are not editable and hidden.
+              {t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden."}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4 p-4">
+          <form onSubmit={handleEditSubmit} className="space-y-4">
             {schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).map((field) => (
               <div key={field.name} className="flex flex-col gap-2">
                 {field.fieldType === 'boolean' ? (
@@ -1222,7 +1564,7 @@ export function DataTable() {
                       mode={field.fieldType}
                       value={editData[field.name] || null}
                       onChange={(date) => handleEditFieldChange(field.name, date)}
-                      placeholder={`Select ${field.title || field.name}`}
+                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
                       disabled={field.readOnly}
                     />
                   </>
@@ -1235,7 +1577,7 @@ export function DataTable() {
                     <PhoneInput
                       value={editData[field.name] || ''}
                       onChange={(value) => handleEditFieldChange(field.name, value || '')}
-                      placeholder={`Enter ${field.title || field.name}`}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                       disabled={field.readOnly}
                     />
                   </>
@@ -1249,25 +1591,71 @@ export function DataTable() {
                       type="password"
                       value={editData[field.name] || ""}
                       onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
-                      placeholder={`Enter new ${field.title || field.name}`}
+                      placeholder={t.form?.enterNew?.replace('{field}', field.title || field.name) || `Enter new ${field.title || field.name}`}
                       disabled={field.readOnly}
                       minLength={8}
                     />
                     <Label htmlFor={`edit-field-${field.name}-confirm`} className="text-sm font-medium">
-                      Confirm {field.title || field.name}
+                      {t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
                     </Label>
                     <Input
                       id={`edit-field-${field.name}-confirm`}
                       type="password"
                       value={editData[`${field.name}_confirm`] || ""}
                       onChange={(e) => handleEditFieldChange(`${field.name}_confirm`, e.target.value)}
-                      placeholder={`Confirm new ${field.title || field.name}`}
+                      placeholder={t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
                       disabled={field.readOnly}
                       minLength={8}
                     />
                     {editData[field.name] && editData[`${field.name}_confirm`] && editData[field.name] !== editData[`${field.name}_confirm`] && (
-                      <p className="text-sm text-destructive">Passwords do not match</p>
+                      <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
+                  </>
+                ) : field.fieldType === 'json' && state.collection === 'taxonomy' && field.name === 'title' ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}_en`} className="text-sm font-medium">
+                      {field.title || field.name} (English)
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Input
+                      id={`edit-field-${field.name}_en`}
+                      type="text"
+                      required={!field.nullable}
+                      value={editData[`${field.name}_en`] || ""}
+                      onChange={(e) => handleEditFieldChange(`${field.name}_en`, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (English)`) || `Enter ${field.title || field.name} (English)`}
+                      disabled={field.readOnly}
+                    />
+                    <Label htmlFor={`edit-field-${field.name}_ru`} className="text-sm font-medium">
+                      {field.title || field.name} (Russian)
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Input
+                      id={`edit-field-${field.name}_ru`}
+                      type="text"
+                      required={!field.nullable}
+                      value={editData[`${field.name}_ru`] || ""}
+                      onChange={(e) => handleEditFieldChange(`${field.name}_ru`, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (Russian)`) || `Enter ${field.title || field.name} (Russian)`}
+                      disabled={field.readOnly}
+                    />
+                  </>
+                ) : field.fieldType === 'select' && field.selectOptions ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <ComboboxSelect
+                      id={`edit-field-${field.name}`}
+                      options={field.selectOptions}
+                      value={editData[field.name] || ""}
+                      onValueChange={(value) => handleEditFieldChange(field.name, value)}
+                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                      disabled={field.readOnly}
+                      required={!field.nullable}
+                      translations={t}
+                    />
                   </>
                 ) : field.relation ? (
                   <>
@@ -1281,6 +1669,7 @@ export function DataTable() {
                       onChange={(value) => handleEditFieldChange(field.name, value)}
                       required={!field.nullable}
                       disabled={field.readOnly}
+                      translations={t}
                     />
                   </>
                 ) : (
@@ -1295,6 +1684,7 @@ export function DataTable() {
                       required={!field.nullable}
                       value={editData[field.name] || ''}
                       onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                       disabled={field.readOnly}
                     />
                   </>
@@ -1308,9 +1698,9 @@ export function DataTable() {
             )}
             <ResponsiveDialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                Cancel
+                {t.form?.cancel || "Cancel"}
               </Button>
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t.form?.save || "Save"}</Button>
             </ResponsiveDialogFooter>
           </form>
           <ResponsiveDialogClose className="sr-only" />
