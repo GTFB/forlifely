@@ -131,11 +131,41 @@ export const AdminHeader = React.memo(function AdminHeader({
     const collection = getCollection(currentCollection)
     const titleConfig = (collection as any).__title
     
-    // Try to get translated collection name from translations
+    // Helper function to convert collection name to taxonomy entity key
+    const collectionToEntityKey = (collection: string): string => {
+      const specialCases: Record<string, string> = {
+        'echelon_employees': 'employee_echelon',
+        'product_variants': 'product_variant',
+        'asset_variants': 'asset_variant',
+        'text_variants': 'text_variant',
+        'wallet_transactions': 'wallet_transaction',
+        'base_moves': 'base_move',
+        'base_move_routes': 'base_move_route',
+        'message_threads': 'message_thread',
+        'outreach_referrals': 'outreach_referral',
+        'echelons': 'employee_echelon',
+        'employee_timesheets': 'employee_timesheet',
+        'employee_leaves': 'employee_leave',
+        'journal_generations': 'journal_generation',
+        'journal_connections': 'journal_connection',
+        'user_sessions': 'user_session',
+        'user_bans': 'user_ban',
+        'user_verifications': 'user_verification',
+        'role_permissions': 'role_permission',
+      }
+      if (specialCases[collection]) return specialCases[collection]
+      if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
+      if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
+      if (collection.endsWith('s')) return collection.slice(0, -1)
+      return collection
+    }
+    
+    // Try to get translated collection name from taxonomy.entityOptions
     let collectionTitle: string
-    if (translations?.sidebar?.collections) {
-      const collectionKey = currentCollection as keyof typeof translations.sidebar.collections
-      collectionTitle = translations.sidebar.collections[collectionKey] || currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
+    if (translations?.taxonomy?.entityOptions) {
+      const entityKey = collectionToEntityKey(currentCollection)
+      const entityOptions = translations.taxonomy.entityOptions as Record<string, string>
+      collectionTitle = entityOptions[entityKey] || currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
     } else {
       // Use __title if available, otherwise use collection name
       const collectionName = currentCollection.charAt(0).toUpperCase() + currentCollection.slice(1)
@@ -167,7 +197,7 @@ export const AdminHeader = React.memo(function AdminHeader({
     return () => {
       timeouts.forEach(t => clearTimeout(t))
     }
-  }, [currentCollection, title, translations?.sidebar?.collections, translations?.dataTable?.adminPanel])
+  }, [currentCollection, title, translations?.taxonomy?.entityOptions, translations?.dataTable?.adminPanel])
 
   // Use ref for breadcrumb items to prevent re-creation
   const finalBreadcrumbItemsRef = React.useRef<Array<{ label: string; href?: string }>>(
@@ -181,12 +211,43 @@ export const AdminHeader = React.memo(function AdminHeader({
     if (breadcrumbItems) {
       finalBreadcrumbItemsRef.current = breadcrumbItems
     } else {
+      // Use displayTitle state instead of ref for breadcrumbs
+      const collectionToEntityKey = (collection: string): string => {
+        const specialCases: Record<string, string> = {
+          'echelon_employees': 'employee_echelon',
+          'product_variants': 'product_variant',
+          'asset_variants': 'asset_variant',
+          'text_variants': 'text_variant',
+          'wallet_transactions': 'wallet_transaction',
+          'base_moves': 'base_move',
+          'base_move_routes': 'base_move_route',
+          'message_threads': 'message_thread',
+          'outreach_referrals': 'outreach_referral',
+          'echelons': 'employee_echelon',
+          'employee_timesheets': 'employee_timesheet',
+          'employee_leaves': 'employee_leave',
+          'journal_generations': 'journal_generation',
+          'journal_connections': 'journal_connection',
+          'user_sessions': 'user_session',
+          'user_bans': 'user_ban',
+          'user_verifications': 'user_verification',
+          'role_permissions': 'role_permission',
+        }
+        if (specialCases[collection]) return specialCases[collection]
+        if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
+        if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
+        if (collection.endsWith('s')) return collection.slice(0, -1)
+        return collection
+      }
+      const entityKey = collectionToEntityKey(currentCollection)
+      const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+      const collectionLabel = displayTitle || entityOptions[entityKey] || currentCollection
       finalBreadcrumbItemsRef.current = [
         { label: adminPanelLabel, href: "#" },
-        { label: displayTitleRef.current || currentCollection },
+        { label: collectionLabel },
       ]
     }
-  }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel])
+  }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel, translations?.taxonomy?.entityOptions])
   
   const finalBreadcrumbItems = finalBreadcrumbItemsRef.current
 

@@ -752,10 +752,11 @@ const TITLE_TRANSLATIONS: Record<string, string> = {
 interface TaxonomyRow {
   entity: string
   name: string
-  title: string
-  titleRu: string
+  title: { en: string; ru: string }
   sortOrder: number
   uuid: string
+  dataIn?: string | null
+  category?: { en: string; ru: string } | null
 }
 
 function generateUUID(): string {
@@ -772,23 +773,49 @@ function parseData(data: string): TaxonomyRow[] {
 
     const entity = parts[0].trim()
     const name = parts[1].trim()
-    const titleEn = parts[2].trim()
+    const titleStr = parts[2].trim() // Can be JSON or plain text
     const sortOrder = parseInt(parts[3].trim(), 10) || 0
+    const dataIn = parts[4]?.trim() || ''
     const uuid = parts[5]?.trim() || ''
 
     // Convert entity to lowercase for Taxonomy.ts
     const entityLower = ENTITY_MAP[entity] || entity.toLowerCase().replace(/\s+/g, '_')
     
-    // Translate title
-    const titleRu = TITLE_TRANSLATIONS[titleEn] || titleEn
+    // Parse title (can be JSON or plain text)
+    let title: string | { en: string; ru: string } = titleStr
+    try {
+      // Try to parse as JSON
+      const titleJson = JSON.parse(titleStr)
+      if (typeof titleJson === 'object' && (titleJson.en || titleJson.ru)) {
+        title = titleJson
+      }
+    } catch {
+      // Not JSON, use as plain text and translate
+      const titleRu = TITLE_TRANSLATIONS[titleStr] || titleStr
+      title = { en: titleStr, ru: titleRu }
+    }
+
+    // Extract category from data_in if present
+    let category: { en: string; ru: string } | null = null
+    if (dataIn) {
+      try {
+        const dataInJson = JSON.parse(dataIn)
+        if (dataInJson && typeof dataInJson === 'object' && dataInJson.category) {
+          category = dataInJson.category
+        }
+      } catch {
+        // data_in is not valid JSON, ignore
+      }
+    }
 
     rows.push({
       entity: entityLower,
       name,
-      title: titleRu, // Use Russian translation
-      titleRu,
+      title: typeof title === 'string' ? { en: title, ru: title } : title,
       sortOrder,
       uuid,
+      dataIn: dataIn || null,
+      category,
     })
   }
 
@@ -828,6 +855,8 @@ async function importTaxonomy() {
   const hasUuid = columns.includes('uuid')
   const hasCreatedAt = columns.includes('created_at')
   const hasUpdatedAt = columns.includes('updated_at')
+  const hasDataIn = columns.includes('data_in')
+  const hasCategory = columns.includes('category')
   
   console.log(`📋 Table columns: ${columns.join(', ')}`)
 
@@ -838,6 +867,14 @@ async function importTaxonomy() {
   
   if (hasUuid) {
     insertFields.push('uuid')
+    insertPlaceholders.push('?')
+  }
+  if (hasDataIn) {
+    insertFields.push('data_in')
+    insertPlaceholders.push('?')
+  }
+  if (hasCategory) {
+    insertFields.push('category')
     insertPlaceholders.push('?')
   }
   if (hasCreatedAt) {
@@ -862,10 +899,15 @@ async function importTaxonomy() {
     for (const row of rows) {
       try {
         // Build values array dynamically
+        // Convert title to JSON string
+        const titleJson = typeof row.title === 'object' 
+          ? JSON.stringify(row.title) 
+          : JSON.stringify({ en: row.title, ru: row.title })
+        
         const values: any[] = [
           row.entity,
           row.name,
-          row.title,
+          titleJson,
           row.sortOrder || 0, // Use provided sort_order or 0
         ]
         
@@ -873,6 +915,18 @@ async function importTaxonomy() {
         if (hasUuid) {
           values.push(row.uuid || generateUUID())
         }
+        
+        // Add data_in if column exists and row has dataIn
+        if (hasDataIn) {
+          values.push(row.dataIn || null)
+        }
+        
+        // Add category if column exists and row has category
+        if (hasCategory) {
+          const categoryJson = row.category ? JSON.stringify(row.category) : null
+          values.push(categoryJson)
+        }
+        
         // Note: created_at and updated_at are handled in SQL as datetime('now')
         
         // Insert record

@@ -194,6 +194,47 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   // Use stable reference from ref
   const translations = translationsRef.current
 
+  // Helper function to convert collection name to taxonomy entity key
+  const collectionToEntityKey = (collection: string): string => {
+    // Special cases mapping
+    const specialCases: Record<string, string> = {
+      'echelon_employees': 'employee_echelon',
+      'product_variants': 'product_variant',
+      'asset_variants': 'asset_variant',
+      'text_variants': 'text_variant',
+      'wallet_transactions': 'wallet_transaction',
+      'base_moves': 'base_move',
+      'base_move_routes': 'base_move_route',
+      'message_threads': 'message_thread',
+      'outreach_referrals': 'outreach_referral',
+      'echelons': 'employee_echelon',
+      'employee_timesheets': 'employee_timesheet',
+      'employee_leaves': 'employee_leave',
+      'journal_generations': 'journal_generation',
+      'journal_connections': 'journal_connection',
+      'user_sessions': 'user_session',
+      'user_bans': 'user_ban',
+      'user_verifications': 'user_verification',
+      'role_permissions': 'role_permission',
+    }
+    if (specialCases[collection]) {
+      return specialCases[collection]
+    }
+    
+    // Convert plural to singular (simple approach)
+    // Remove trailing 's' for simple plurals, or convert common patterns
+    if (collection.endsWith('ies')) {
+      return collection.slice(0, -3) + 'y'
+    }
+    if (collection.endsWith('es') && !collection.endsWith('ses')) {
+      return collection.slice(0, -2)
+    }
+    if (collection.endsWith('s')) {
+      return collection.slice(0, -1)
+    }
+    return collection
+  }
+
   // Create stable translation functions that don't change reference
   const t = React.useMemo(() => {
     if (!translations) {
@@ -204,7 +245,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       }
     }
     const categories = translations?.sidebar?.categories || {}
-    const collections = translations?.sidebar?.collections || {}
+    const entityOptions = translations?.taxonomy?.entityOptions || {}
     const platform = translations?.sidebar?.platform || "Platform"
     
     return {
@@ -213,10 +254,11 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         return categories[category as keyof typeof categories] || category
       },
       collection: (collection: string): string => {
-        return collections[collection as keyof typeof collections] || collection
+        const entityKey = collectionToEntityKey(collection)
+        return entityOptions[entityKey as keyof typeof entityOptions] || collection
       },
     }
-  }, [translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.sidebar?.collections])
+  }, [translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
 
   const handleLocaleChange = React.useCallback((newLocale: 'en' | 'ru') => {
     setLocale(newLocale)

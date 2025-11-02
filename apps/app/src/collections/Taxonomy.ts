@@ -73,6 +73,7 @@ export const Taxonomy: CollectionConfig = {
     },
     { name: 'name', type: 'text', required: true },
     { name: 'title', type: 'json' },
+    { name: 'category', type: 'json' },
     { name: 'sort_order', type: 'number', defaultValue: 0 },
     { name: 'created_at', type: 'number' },
     { name: 'updated_at', type: 'number' },
