@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import HeroSection from "@/components/home/hero-section";
+import AudienceSegments from "@/components/home/audience-segments";
+import { LogoCloud } from "@/components/home/logo-cloud";
 import FeaturesSection from "@/components/home/features";
 
 export default function Home() {
@@ -10,6 +12,8 @@ export default function Home() {
   return (
       <div className="flex-1">
         <HeroSection />
+        <AudienceSegments />
+        <LogoCloud />
         <FeaturesSection />
       </div>
   );

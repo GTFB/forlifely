@@ -2,21 +2,24 @@
 import { Logo } from '@/components/misc/logo/logo'
 import { Activity, Map as MapIcon, MessageCircle } from 'lucide-react'
 import { createMap } from 'svg-dotted-map'
-import { Area, AreaChart, CartesianGrid } from 'recharts'
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 export default function FeaturesSection() {
     return (
         <section className="px-4 py-16 md:py-32">
+            <div className="mx-auto max-w-5xl mb-12 text-center">
+                <h2 className="text-balance text-4xl font-semibold lg:text-5xl">В основе нашей работы — прозрачность и доверие</h2>
+            </div>
             <div className="mx-auto grid max-w-5xl border md:grid-cols-2">
                 <div>
                     <div className="p-6 sm:p-12">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <MapIcon className="size-4" />
-                            Отслеживание в реальном времени
+                            Возможности доступные везде
                         </span>
 
-                        <p className="mt-8 text-2xl font-semibold">Продвинутая система отслеживания, мгновенно находите все ваши активы.</p>
+                        <p className="mt-8 text-2xl font-semibold">Машстабная география, работаем в 4 регионах России.</p>
                     </div>
 
                     <div
@@ -39,10 +42,10 @@ export default function FeaturesSection() {
                     <div className="relative z-10">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <MessageCircle className="size-4" />
-                            Поддержка по email и на сайте
+                            Поддержка, которая всегда на связи
                         </span>
 
-                        <p className="my-8 text-2xl font-semibold">Свяжитесь с нами по email или на сайте для любой необходимой помощи.</p>
+                        <p className="my-8 text-2xl font-semibold">Мы ценим каждого участника нашей экосистемы. Наша команда готова ответить на ваши вопросы и помочь на любом этапе вашего пути с Esnad Finance.</p>
                     </div>
                     <div
                         aria-hidden
@@ -64,17 +67,22 @@ export default function FeaturesSection() {
                     </div>
                 </div>
                 <div className="col-span-full border-y p-12">
-                    <p className="text-center text-4xl font-semibold lg:text-7xl">99.99% Время работы</p>
+                    <div className="text-center">
+                        <h3 className="text-2xl font-semibold mb-4">Надежность и безопасность данных</h3>
+                        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                            Мы используем современные технологии для защиты ваших данных и средств. Платформа работает на защищенной инфраструктуре, обеспечивая стабильность и конфиденциальность.
+                        </p>
+                    </div>
                 </div>
                 <div className="relative col-span-full">
                     <div className="absolute z-10 max-w-lg px-6 pr-12 pt-6 md:px-12 md:pt-12">
                         <span className="text-muted-foreground flex items-center gap-2">
                             <Activity className="size-4" />
-                            Лента активности
+                            Полный контроль в личном кабинете
                         </span>
 
-                        <p className="my-8 text-2xl font-semibold">
-                            Мониторьте активность вашего приложения в реальном времени. <span className="text-muted-foreground"> Мгновенно выявляйте и решайте проблемы.</span>
+                        <p className="ml-8 my-8 max-w-2xl text-2xl font-semibold">
+                        Отслеживайте каждую операцию<span className="text-muted-foreground">, график платежей и начисление прибыли.</span>
                         </p>
                     </div>
                     <MonitoringChart />
@@ -117,22 +125,22 @@ const Map = () => {
 
 const chartConfig = {
     desktop: {
-        label: 'Десктоп',
+        label: '2024',
         color: '#2563eb',
     },
     mobile: {
-        label: 'Мобильный',
+        label: '2025',
         color: '#60a5fa',
     },
 } satisfies ChartConfig
 
 const chartData = [
-    { month: 'Май', desktop: 56, mobile: 224 },
     { month: 'Июнь', desktop: 56, mobile: 224 },
-    { month: 'Январь', desktop: 126, mobile: 252 },
-    { month: 'Февраль', desktop: 205, mobile: 410 },
-    { month: 'Март', desktop: 200, mobile: 126 },
-    { month: 'Апрель', desktop: 400, mobile: 800 },
+    { month: 'Июль', desktop: 56, mobile: 224 },
+    { month: 'Август', desktop: 126, mobile: 252 },
+    { month: 'Сентябрь', desktop: 205, mobile: 410 },
+    { month: 'Октябрь', desktop: 200, mobile: 126 },
+    { month: 'Ноябрь', desktop: 400, mobile: 800 },
 ]
 
 const MonitoringChart = () => {
@@ -144,8 +152,10 @@ const MonitoringChart = () => {
                 accessibilityLayer
                 data={chartData}
                 margin={{
-                    left: 0,
-                    right: 0,
+                    left: 20,
+                    right: 10,
+                    top: 10,
+                    bottom: 30,
                 }}>
                 <defs>
                     <linearGradient
@@ -184,6 +194,17 @@ const MonitoringChart = () => {
                     </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} />
+                <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                />
+                <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                />
                 <ChartTooltip
                     active
                     cursor={false}

@@ -1,12 +1,11 @@
 'use client'
 import React from 'react'
-import { Mail, SendHorizonal } from 'lucide-react'
+import Link from 'next/link'
 import { type Variants } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { TextEffect } from '@/components/motion-primitives/text-effect'
 import { AnimatedGroup } from '@/components/motion-primitives/animated-group'
 import { HeroHeader } from "@/components/home/header"
-import { LogoCloud } from "@/components/home/logo-cloud"
 
 const transitionVariants: { item: Variants } = {
     item: {
@@ -41,8 +40,8 @@ export default function HeroSection() {
                                 preset="fade-in-blur"
                                 speedSegment={0.3}
                                 as="h1"
-                                className="text-balance text-5xl font-medium md:text-6xl">
-                                Финансовые решения нового уровня
+                                className="font-heading text-bold text-balance text-5xl font-medium md:text-6xl">
+                                Инвестиции и рассрочка на принципах партнерства
                             </TextEffect>
                             <TextEffect
                                 per="line"
@@ -51,7 +50,7 @@ export default function HeroSection() {
                                 delay={0.5}
                                 as="p"
                                 className="mx-auto mt-6 max-w-2xl text-pretty text-lg">
-                                Инвестируйте, получайте рассрочку или станьте партнером. Удобные финансовые инструменты для достижения ваших целей.
+                                Прозрачные финансовые инструменты. Объединяем инвесторов, покупателей и партнеров для взаимной выгоды.
                             </TextEffect>
 
                             <AnimatedGroup
@@ -67,32 +66,17 @@ export default function HeroSection() {
                                     item: transitionVariants.item,
                                 }}
                                 className="mt-12">
-                                <form
-                                    action=""
-                                    className="mx-auto max-w-sm">
-                                    <div className="bg-background has-[input:focus]:ring-muted relative grid grid-cols-[1fr_auto] items-center rounded-[calc(var(--radius)+0.5rem)] border pr-2 shadow shadow-zinc-950/5 has-[input:focus]:ring-2">
-                                        <Mail className="pointer-events-none absolute inset-y-0 left-4 my-auto size-4" />
-
-                                        <input
-                                            placeholder="Ваш email адрес"
-                                            className="h-12 w-full bg-transparent pl-12 focus:outline-none"
-                                            type="email"
-                                        />
-
-                                        <div className="md:pr-1.5 lg:pr-0">
-                                            <Button
-                                                aria-label="отправить"
-                                                size="sm"
-                                                className="rounded-(--radius)">
-                                                <span className="hidden md:block">Начать</span>
-                                                <SendHorizonal
-                                                    className="relative mx-auto size-5 md:hidden"
-                                                    strokeWidth={2}
-                                                />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </form>
+                                <div className="mx-auto flex flex-col gap-4 sm:flex-row sm:justify-center">
+                                    <Button asChild size="lg" className="rounded-lg">
+                                        <Link href="/clients">Получить рассрочку</Link>
+                                    </Button>
+                                    <Button asChild size="lg" variant="outline" className="rounded-lg">
+                                        <Link href="/investors">Стать инвестором</Link>
+                                    </Button>
+                                    <Button asChild size="lg" variant="outline" className="rounded-lg">
+                                        <Link href="/partners">Подключить магазин</Link>
+                                    </Button>
+                                </div>
 
                                 <div
                                     aria-hidden
@@ -113,7 +97,6 @@ export default function HeroSection() {
                         </div>
                     </div>
                 </section>
-                <LogoCloud />
             </main>
         </>
     )
@@ -138,10 +121,12 @@ const AppComponent = () => {
                             d="M23 21.851c0 4.042-3.519 7.291-7.799 7.144c-4.62-.156-7.788-4.384-7.11-8.739C9.07 14.012 15.48 10 15.48 10S23 14.707 23 21.851"></path>
                     </g>
                 </svg>
-                <div className="text-sm font-medium">Esnad Инвестиции</div>
+                <div className="text-sm font-medium">Приумножайте капитал, инвестируя этично</div>
             </div>
             <div className="space-y-3">
-                <div className="text-foreground border-b border-white/10 pb-3 text-sm font-medium">В этом году вы зарабатываете больше в среднем, чем в 2024 году.</div>
+                <div className="text-foreground border-b border-white/10 pb-3 text-sm font-medium">
+                    Наша платформа позволяет вам вкладывать средства напрямую в торговые операции, финансируя реальные покупки. Отслеживайте вашу доходность в удобном дашборде и будьте уверены в прозрачности каждой сделки.
+                </div>
                 <div className="space-y-3">
                     <div className="space-y-1">
                         <div className="space-x-1">
