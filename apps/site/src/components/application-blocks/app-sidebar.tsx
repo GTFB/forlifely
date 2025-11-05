@@ -87,7 +87,14 @@ function getGlobalRefs() {
   return {
     itemsRef: { current: restoredItems },
     translationsRef: { current: null as any }, // Don't persist translations in sessionStorage
-    teamsRef: { current: [{ name: "Admin", logo: Logo, plan: "" }] },
+    teamsRef: { 
+      current: [
+        { name: "Admin", logo: Logo, plan: "", href: "/admin/dashboard" },
+        { name: "Кабинет Потребителя", logo: Logo, plan: "", href: "/c/dashboard" },
+        { name: "Кабинет Инвестора", logo: Logo, plan: "", href: "/i/dashboard" },
+        { name: "Кабинет Партнера", logo: Logo, plan: "", href: "/p/dashboard" },
+      ] 
+    },
     itemsStructureRef: { current: restoredItemsStructure },
     currentCollectionRef: { current: "" },
     platformLabelRef: { current: "Platform" },

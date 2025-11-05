@@ -1,19 +1,25 @@
+"use client";
+
 import { PROJECT_SETTINGS } from "@/settings";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useTheme } from "@/packages/hooks/use-theme";
 
 interface LogoProps {
   className?: string;
 }
 
 export function Logo({ className }: LogoProps) {
+  const { theme } = useTheme();
   // Extract height class if present
   const hasHeight = className?.match(/h-[\d]+/);
+  
+  const logoSrc = theme === "dark" ? "/images/logo_dark.svg" : "/images/logo.svg";
   
   return (
     <div className={cn("flex items-center justify-center", className)}>
       <Image 
-        src="/images/logo.svg" 
+        src={logoSrc}
         alt="Sun Day Logo" 
         width={90} 
         height={32}

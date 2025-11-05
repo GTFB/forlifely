@@ -16,44 +16,44 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://altrp.org'),
-  title: "ALTRP",
-  description: "Digital Product Generation Platform",
+  metadataBase: new URL('https://esnad.ru'),
+  title: "Esnad Finance",
+  description: "Financial Solutions and Investment Platform",
   keywords: [
-    "digital products",
-    "product generation",
-    "platform development",
-    "web applications",
-    "mobile apps",
-    "software development",
-    "digital solutions",
-    "productivity tools",
-    "automation",
-    "technology platform"
+    "finance",
+    "financial services",
+    "investment",
+    "financial solutions",
+    "financial planning",
+    "wealth management",
+    "financial consulting",
+    "asset management",
+    "financial platform",
+    "investment platform"
   ],
   openGraph: {
     type: "website",
-    siteName: "ALTRP",
+    siteName: "Esnad Finance",
     locale: "ru_RU",
-    url: "https://altrp.org",
-    title: "ALTRP - Digital Product Generation Platform",
-    description: "Digital Product Generation Platform",
+    url: "https://esnad.ru",
+    title: "Esnad Finance - Financial Solutions and Investment Platform",
+    description: "Financial Solutions and Investment Platform",
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "ALTRP",
+        alt: "Esnad Finance",
       },
     ],
   },
   authors: [
     {
-      name: "ALTRP",
-      url: "https://altrp.org",
+      name: "Esnad Finance",
+      url: "https://esnad.ru",
     },
   ],
-  creator: "ALTRP",
+  creator: "Esnad Finance",
   icons: [
     {
       rel: "icon",

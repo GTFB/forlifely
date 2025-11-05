@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { ChevronsUpDown, Plus } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
@@ -36,27 +36,46 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
     name: string
     logo: React.ElementType
     plan: string
+    href?: string
   }[]
   translations?: any
 }) {
   const { isMobile, state } = useSidebar()
   const router = useRouter()
+  const pathname = usePathname()
   const isCollapsed = state === "collapsed"
   // Use ref to track teams to avoid unnecessary state updates
   const teamsRef = React.useRef(teams)
-  const [activeTeam, setActiveTeam] = React.useState(() => teams[0])
   
-  // Update activeTeam if teams reference or structure changes
-  React.useEffect(() => {
-    // Only update if teams reference changed or first team changed significantly
-    if (teamsRef.current !== teams || 
-        (teams[0] && (!activeTeam || activeTeam !== teams[0]))) {
-      teamsRef.current = teams
-      if (teams[0] && (!activeTeam || activeTeam !== teams[0])) {
-        setActiveTeam(teams[0])
-      }
+  // Determine active team based on current pathname
+  const getActiveTeam = React.useCallback(() => {
+    if (!pathname) return teams[0]
+    
+    if (pathname.startsWith('/c/')) {
+      return teams.find(t => t.href?.startsWith('/c/')) || teams[0]
     }
-  }, [teams, activeTeam])
+    if (pathname.startsWith('/i/')) {
+      return teams.find(t => t.href?.startsWith('/i/')) || teams[0]
+    }
+    if (pathname.startsWith('/p/')) {
+      return teams.find(t => t.href?.startsWith('/p/')) || teams[0]
+    }
+    if (pathname.startsWith('/admin/')) {
+      return teams.find(t => t.href?.startsWith('/admin/')) || teams[0]
+    }
+    
+    return teams[0]
+  }, [pathname, teams])
+  
+  const [activeTeam, setActiveTeam] = React.useState(() => getActiveTeam())
+  
+  // Update activeTeam when pathname or teams change
+  React.useEffect(() => {
+    const newActiveTeam = getActiveTeam()
+    if (newActiveTeam && newActiveTeam !== activeTeam) {
+      setActiveTeam(newActiveTeam)
+    }
+  }, [pathname, teams, getActiveTeam, activeTeam])
 
   const t = React.useMemo(() => {
     if (!translations) {
@@ -144,17 +163,15 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               {t.teamSwitcher.teamsLabel}
             </DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => router.push("/admin/dashboard")}
-              className="gap-2 p-2"
-            >
-              {t.dashboard.title}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             {teams.map((team, index) => (
               <DropdownMenuItem
                 key={team.name}
-                onClick={() => setActiveTeam(team)}
+                onClick={() => {
+                  setActiveTeam(team)
+                  if (team.href) {
+                    router.push(team.href)
+                  }
+                }}
                 className="gap-2 p-2"
               >
                 {team.name}

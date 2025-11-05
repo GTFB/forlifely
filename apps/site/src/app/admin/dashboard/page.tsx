@@ -116,7 +116,7 @@ function DashboardContent() {
 
         let totalCollections = 0
         if (collectionsRes.ok) {
-          const collectionsData = await collectionsRes.json()
+          const collectionsData: { groups?: Array<{ collections?: any[] }> } = await collectionsRes.json()
           totalCollections = collectionsData.groups?.reduce(
             (acc: number, group: any) => acc + (group.collections?.length || 0),
             0
