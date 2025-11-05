@@ -40,7 +40,7 @@ export default function HeroSection() {
                                 preset="fade-in-blur"
                                 speedSegment={0.3}
                                 as="h1"
-                                className="font-heading text-bold text-balance text-5xl font-medium md:text-6xl">
+                                className="font-heading text-balance text-5xl font-bold md:text-6xl">
                                 Инвестиции и рассрочка на принципах партнерства
                             </TextEffect>
                             <TextEffect
@@ -121,11 +121,11 @@ const AppComponent = () => {
                             d="M23 21.851c0 4.042-3.519 7.291-7.799 7.144c-4.62-.156-7.788-4.384-7.11-8.739C9.07 14.012 15.48 10 15.48 10S23 14.707 23 21.851"></path>
                     </g>
                 </svg>
-                <div className="text-sm font-medium">Приумножайте капитал, инвестируя этично</div>
+                <div className="text-sm font-medium">Приумножайте капитал</div>
             </div>
             <div className="space-y-3">
                 <div className="text-foreground border-b border-white/10 pb-3 text-sm font-medium">
-                    Наша платформа позволяет вам вкладывать средства напрямую в торговые операции, финансируя реальные покупки. Отслеживайте вашу доходность в удобном дашборде и будьте уверены в прозрачности каждой сделки.
+                    Вкладывайте средства напрямую в торговые операции, финансируя реальные покупки
                 </div>
                 <div className="space-y-3">
                     <div className="space-y-1">

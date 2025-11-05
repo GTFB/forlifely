@@ -9,7 +9,7 @@ export default function FeaturesSection() {
     return (
         <section className="px-4 py-16 md:py-32">
             <div className="mx-auto max-w-5xl mb-12 text-center">
-                <h2 className="text-balance text-4xl font-semibold lg:text-5xl">В основе нашей работы — прозрачность и доверие</h2>
+                <h2 className="font-heading text-balance text-4xl font-semibold lg:text-5xl">В основе нашей работы — прозрачность и доверие</h2>
             </div>
             <div className="mx-auto grid max-w-5xl border md:grid-cols-2">
                 <div>
@@ -82,7 +82,7 @@ export default function FeaturesSection() {
                         </span>
 
                         <p className="ml-8 my-8 max-w-2xl text-2xl font-semibold">
-                        Отслеживайте каждую операцию<span className="text-muted-foreground">, график платежей и начисление прибыли.</span>
+                        Отслеживайте каждую операцию<span className="text-muted-foreground">, график платежей и&nbsp;начисление прибыли</span>
                         </p>
                     </div>
                     <MonitoringChart />
