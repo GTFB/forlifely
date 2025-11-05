@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // For static export, we need to configure this route
 export const dynamic = 'force-static'
-export const dynamicParams = true
 
 export async function generateStaticParams() {
   // Return supported locales for static generation
