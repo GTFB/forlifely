@@ -48,7 +48,7 @@ export default function DealDetailPage() {
           throw new Error('Failed to load deal')
         }
 
-        const data = await response.json()
+        const data = await response.json() as DealDetail
         setDealData(data)
       } catch (err) {
         console.error('Deal fetch error:', err)

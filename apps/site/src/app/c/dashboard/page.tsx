@@ -26,9 +26,14 @@ export default function ConsumerDashboardPage() {
           throw new Error('Failed to load dashboard data')
         }
 
-        const data = await response.json()
+        const data = await response.json() as {
+          nextPayment?: { amount: number; date: string } | null
+          totalDebt?: number
+          activeDealsCount?: number
+          recentDeals?: any[]
+        }
         setStats({
-          nextPayment: data.nextPayment,
+          nextPayment: data.nextPayment || null,
           totalDebt: data.totalDebt || 0,
           activeDealsCount: data.activeDealsCount || 0,
           recentDeals: data.recentDeals || [],

@@ -59,12 +59,15 @@ export default function DealsPage() {
         throw new Error('Failed to load deals')
       }
 
-      const data = await response.json()
+      const data = await response.json() as {
+        deals?: Deal[]
+        pagination?: { total: number; totalPages: number }
+      }
       setDeals(data.deals || [])
       setPagination(prev => ({
         ...prev,
-        total: data.pagination.total,
-        totalPages: data.pagination.totalPages,
+        total: data.pagination?.total || 0,
+        totalPages: data.pagination?.totalPages || 0,
       }))
     } catch (err) {
       console.error('Deals fetch error:', err)

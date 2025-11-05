@@ -68,12 +68,12 @@ export default function PaymentsPage() {
         ])
 
         if (dealsRes.ok) {
-          const dealsData = await dealsRes.json()
+          const dealsData = await dealsRes.json() as { deals?: Deal[] }
           setDeals(dealsData.deals || [])
         }
 
         if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json()
+          const paymentsData = await paymentsRes.json() as { payments?: Payment[] }
           setPayments(paymentsData.payments || [])
         }
       } catch (err) {
@@ -111,7 +111,7 @@ export default function PaymentsPage() {
       })
 
       if (!response.ok) {
-        const data = await response.json()
+        const data = await response.json() as { error?: string }
         throw new Error(data.error || 'Failed to create payment')
       }
 
@@ -123,7 +123,7 @@ export default function PaymentsPage() {
         credentials: 'include',
       })
       if (paymentsRes.ok) {
-        const paymentsData = await paymentsRes.json()
+        const paymentsData = await paymentsRes.json() as { payments?: Payment[] }
         setPayments(paymentsData.payments || [])
       }
     } catch (err) {
