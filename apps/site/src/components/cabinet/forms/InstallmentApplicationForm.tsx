@@ -198,11 +198,11 @@ export function InstallmentApplicationForm() {
       })
 
       if (!response.ok) {
-        const data = await response.json()
+        const data = await response.json() as { error?: string }
         throw new Error(data.error || 'Failed to submit application')
       }
 
-      const data = await response.json()
+      const data = await response.json() as { applicationId?: string }
       router.push(`/c/deals`)
     } catch (err) {
       console.error('Submit error:', err)
