@@ -1,3 +1,5 @@
+import React from 'react'
+
 // Layout for dynamic deal detail page
 // This exports generateStaticParams for static export compatibility
 export async function generateStaticParams() {
@@ -11,6 +13,6 @@ export default function DealDetailLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return <>{children}</>
 }
 
