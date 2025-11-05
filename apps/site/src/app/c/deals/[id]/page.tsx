@@ -1,10 +1,16 @@
 import DealDetailPageClient from './page.client'
 
-// For static export, generateStaticParams must be exported from page.tsx
-// Return empty array to allow dynamic generation at runtime
 export async function generateStaticParams() {
-  // In production, you could fetch all deal IDs here for static generation
-  return []
+  // Return at least one param for static export
+  // In production, fetch actual deal IDs here
+  return [{ id: 'placeholder' }]
 }
 
-export default DealDetailPageClient
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+export default async function DealDetailPage({ params }: PageProps) {
+  await params
+  return <DealDetailPageClient />
+}

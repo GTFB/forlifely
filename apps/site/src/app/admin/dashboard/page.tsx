@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { AdminHeader } from "@/components/admin/AdminHeader"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { LayoutDashboard, Users, Package, TrendingUp, FileText } from "lucide-react"
@@ -281,6 +282,10 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
-  return <DashboardContent />
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
+  )
 }
 

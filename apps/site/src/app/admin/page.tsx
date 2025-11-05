@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { DataTable } from "@/components/application-blocks/data-table"
 import { AdminHeader } from "@/components/admin/AdminHeader"
 
@@ -34,5 +35,9 @@ function AdminContent() {
 }
 
 export default function AdminPage() {
-  return <AdminContent />
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AdminContent />
+    </Suspense>
+  )
 }

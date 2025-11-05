@@ -3,6 +3,7 @@
 import * as React from "react"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
 export type AdminFilter = {
   field: string
@@ -38,7 +39,7 @@ const AdminStateContext = createContext<{
   pushState: () => {},
 })
 
-export function AdminStateProvider({ children }: { children: ReactNode }) {
+function AdminStateProviderInner({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -130,6 +131,14 @@ export function AdminStateProvider({ children }: { children: ReactNode }) {
     <AdminStateContext.Provider value={value}>
       {children}
     </AdminStateContext.Provider>
+  )
+}
+
+export function AdminStateProvider({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AdminStateProviderInner>{children}</AdminStateProviderInner>
+    </Suspense>
   )
 }
 
