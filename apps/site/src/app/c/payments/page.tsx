@@ -58,28 +58,123 @@ export default function PaymentsPage() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [dealsRes, paymentsRes] = await Promise.all([
-          fetch('/api/c/deals?status=Активна&limit=100', {
-            credentials: 'include',
-          }),
-          fetch('/api/c/payments', {
-            credentials: 'include',
-          }),
-        ])
+        // TODO: Replace with actual API endpoints
+        // const [dealsRes, paymentsRes] = await Promise.all([
+        //   fetch('/api/c/deals?status=Активна&limit=100', {
+        //     credentials: 'include',
+        //   }),
+        //   fetch('/api/c/payments', {
+        //     credentials: 'include',
+        //   }),
+        // ])
 
-        if (dealsRes.ok) {
-          const dealsData = await dealsRes.json() as { deals?: Deal[] }
-          setDeals(dealsData.deals || [])
-        }
+        // Mock data
+        setTimeout(() => {
+          const mockDeals: Deal[] = [
+            {
+              id: 'DEAL-001',
+              title: 'Смартфон Samsung Galaxy S24',
+              status: 'Активна',
+            },
+            {
+              id: 'DEAL-002',
+              title: 'Ноутбук ASUS VivoBook 15',
+              status: 'Активна',
+            },
+            {
+              id: 'DEAL-003',
+              title: 'Телевизор LG OLED 55"',
+              status: 'Активна',
+            },
+            {
+              id: 'DEAL-005',
+              title: 'Стиральная машина Indesit IWSC 5105',
+              status: 'Активна',
+            },
+          ]
 
-        if (paymentsRes.ok) {
-          const paymentsData = await paymentsRes.json() as { payments?: Payment[] }
-          setPayments(paymentsData.payments || [])
-        }
+          const mockPayments: Payment[] = [
+            {
+              id: 'PAY-001',
+              dealId: 'DEAL-001',
+              dealTitle: 'Смартфон Samsung Galaxy S24',
+              amount: 12500,
+              date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-002',
+              dealId: 'DEAL-002',
+              dealTitle: 'Ноутбук ASUS VivoBook 15',
+              amount: 8500,
+              date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-003',
+              dealId: 'DEAL-003',
+              dealTitle: 'Телевизор LG OLED 55"',
+              amount: 16667,
+              date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-004',
+              dealId: 'DEAL-001',
+              dealTitle: 'Смартфон Samsung Galaxy S24',
+              amount: 12500,
+              date: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-005',
+              dealId: 'DEAL-005',
+              dealTitle: 'Стиральная машина Indesit IWSC 5105',
+              amount: 7917,
+              date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-006',
+              dealId: 'DEAL-002',
+              dealTitle: 'Ноутбук ASUS VivoBook 15',
+              amount: 8500,
+              date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-007',
+              dealId: 'DEAL-003',
+              dealTitle: 'Телевизор LG OLED 55"',
+              amount: 16667,
+              date: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Оплачен',
+              comment: 'Ежемесячный платеж',
+            },
+            {
+              id: 'PAY-008',
+              dealId: 'DEAL-001',
+              dealTitle: 'Смартфон Samsung Galaxy S24',
+              amount: 12500,
+              date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+              status: 'Ожидается',
+              comment: 'Предстоящий платеж',
+            },
+          ]
+
+          setDeals(mockDeals)
+          setPayments(mockPayments)
+          setLoading(false)
+        }, 500)
       } catch (err) {
         console.error('Fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
         setLoading(false)
       }
     }

@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   FileText,
   CreditCard,
-  User,
   MessageSquare,
 } from 'lucide-react'
 import { CabinetSidebar, type NavigationItem } from './CabinetSidebar'
@@ -17,7 +16,7 @@ const navigationItems: NavigationItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: 'Мои рассрочки',
+    title: 'Рассрочки',
     url: '/c/deals',
     icon: FileText,
   },
@@ -25,11 +24,6 @@ const navigationItems: NavigationItem[] = [
     title: 'Платежи',
     url: '/c/payments',
     icon: CreditCard,
-  },
-  {
-    title: 'Профиль',
-    url: '/c/profile',
-    icon: User,
   },
   {
     title: 'Поддержка',

@@ -5,14 +5,13 @@ import {
   LayoutDashboard,
   FileText,
   Wallet,
-  User,
   MessageSquare,
 } from 'lucide-react'
 import { CabinetSidebar, type NavigationItem } from './CabinetSidebar'
 
 const navigationItems: NavigationItem[] = [
   {
-    title: 'Главный экран',
+    title: 'Дашборд',
     url: '/p/dashboard',
     icon: LayoutDashboard,
   },
@@ -25,11 +24,6 @@ const navigationItems: NavigationItem[] = [
     title: 'Выплаты',
     url: '/p/payouts',
     icon: Wallet,
-  },
-  {
-    title: 'Профиль',
-    url: '/p/profile',
-    icon: User,
   },
   {
     title: 'Поддержка',

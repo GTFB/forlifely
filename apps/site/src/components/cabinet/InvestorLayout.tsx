@@ -2,51 +2,51 @@
 
 import * as React from 'react'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
-import { ConsumerSidebar } from './ConsumerSidebar'
+import { InvestorSidebar } from './InvestorSidebar'
 import { ConsumerHeader } from './ConsumerHeader'
 import { BottomNavigation } from './BottomNavigation'
 import {
   LayoutDashboard,
-  FileText,
-  CreditCard,
+  Wallet,
+  TrendingUp,
   MessageSquare,
 } from 'lucide-react'
 import type { NavigationItem } from './BottomNavigation'
 
 const navigationItems: NavigationItem[] = [
   {
-    title: 'Обзор',
-    url: '/c/dashboard',
+    title: 'Портфель',
+    url: '/i/dashboard',
     icon: LayoutDashboard,
   },
   {
-    title: 'Рассрочки',
-    url: '/c/deals',
-    icon: FileText,
+    title: 'Мой кошелек',
+    url: '/i/wallet',
+    icon: Wallet,
   },
   {
-    title: 'Платежи',
-    url: '/c/payments',
-    icon: CreditCard,
+    title: 'Продукты',
+    url: '/i/products',
+    icon: TrendingUp,
   },
   {
     title: 'Поддержка',
-    url: '/c/support',
+    url: '/i/support',
     icon: MessageSquare,
   },
 ]
 
-interface ConsumerLayoutProps {
+interface InvestorLayoutProps {
   children: React.ReactNode
   headerTitle?: string
   headerBreadcrumbs?: Array<{ label: string; href?: string }>
 }
 
-export function ConsumerLayout({
+export function InvestorLayout({
   children,
   headerTitle,
   headerBreadcrumbs,
-}: ConsumerLayoutProps) {
+}: InvestorLayoutProps) {
   const [user, setUser] = React.useState<{
     name: string
     email: string
@@ -54,7 +54,6 @@ export function ConsumerLayout({
   } | null>(null)
 
   React.useEffect(() => {
-    // Fetch user data
     fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data: unknown) => {
@@ -73,7 +72,7 @@ export function ConsumerLayout({
   return (
     <div className="flex h-screen w-full overflow-hidden">
       <SidebarProvider defaultOpen={true}>
-        <ConsumerSidebar user={user || undefined} />
+        <InvestorSidebar user={user || undefined} />
         <SidebarInset className="flex flex-col overflow-hidden">
           <ConsumerHeader title={headerTitle} breadcrumbItems={headerBreadcrumbs} />
           <main className="flex-1 overflow-y-auto p-6 pb-20 md:pb-6">{children}</main>
@@ -83,3 +82,4 @@ export function ConsumerLayout({
     </div>
   )
 }
+

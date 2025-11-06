@@ -5,14 +5,13 @@ import {
   LayoutDashboard,
   Wallet,
   TrendingUp,
-  User,
   MessageSquare,
 } from 'lucide-react'
 import { CabinetSidebar, type NavigationItem } from './CabinetSidebar'
 
 const navigationItems: NavigationItem[] = [
   {
-    title: 'Инвест-портфель',
+    title: 'Портфель',
     url: '/i/dashboard',
     icon: LayoutDashboard,
   },
@@ -22,14 +21,9 @@ const navigationItems: NavigationItem[] = [
     icon: Wallet,
   },
   {
-    title: 'Инвест-продукты',
+    title: 'Продукты',
     url: '/i/products',
     icon: TrendingUp,
-  },
-  {
-    title: 'Профиль',
-    url: '/i/profile',
-    icon: User,
   },
   {
     title: 'Поддержка',

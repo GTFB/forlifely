@@ -18,30 +18,66 @@ export default function ConsumerDashboardPage() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/c/dashboard', {
-          credentials: 'include',
-        })
+        // TODO: Replace with actual API endpoint
+        // const response = await fetch('/api/c/dashboard', {
+        //   credentials: 'include',
+        // })
 
-        if (!response.ok) {
-          throw new Error('Failed to load dashboard data')
-        }
+        // Mock data
+        setTimeout(() => {
+          // Calculate next payment date (5 days from now)
+          const nextPaymentDate = new Date()
+          nextPaymentDate.setDate(nextPaymentDate.getDate() + 5)
 
-        const data = await response.json() as {
-          nextPayment?: { amount: number; date: string } | null
-          totalDebt?: number
-          activeDealsCount?: number
-          recentDeals?: any[]
-        }
-        setStats({
-          nextPayment: data.nextPayment || null,
-          totalDebt: data.totalDebt || 0,
-          activeDealsCount: data.activeDealsCount || 0,
-          recentDeals: data.recentDeals || [],
-        })
+          const mockRecentDeals = [
+            {
+              id: 'DEAL-001',
+              uuid: 'uuid-deal-001',
+              title: 'Смартфон Samsung Galaxy S24',
+              status: 'Активна',
+              createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+              dataIn: { totalAmount: 150000 },
+            },
+            {
+              id: 'DEAL-002',
+              uuid: 'uuid-deal-002',
+              title: 'Ноутбук ASUS VivoBook 15',
+              status: 'Активна',
+              createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+              dataIn: { totalAmount: 85000 },
+            },
+            {
+              id: 'DEAL-003',
+              uuid: 'uuid-deal-003',
+              title: 'Телевизор LG OLED 55"',
+              status: 'Активна',
+              createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+              dataIn: { totalAmount: 200000 },
+            },
+            {
+              id: 'DEAL-005',
+              uuid: 'uuid-deal-005',
+              title: 'Стиральная машина Indesit IWSC 5105',
+              status: 'Активна',
+              createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+              dataIn: { totalAmount: 95000 },
+            },
+          ]
+
+          setStats({
+            nextPayment: {
+              amount: 12500,
+              date: nextPaymentDate.toISOString(),
+            },
+            totalDebt: 530000,
+            activeDealsCount: 4,
+            recentDeals: mockRecentDeals,
+          })
+          setLoading(false)
+        }, 500)
       } catch (err) {
         console.error('Dashboard fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
         setLoading(false)
       }
     }

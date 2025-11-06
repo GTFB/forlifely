@@ -15,17 +15,37 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { Loader2, ChevronDown } from 'lucide-react'
 
 interface FormData {
   // Client Primary Info
   firstName: string
   lastName: string
+  middleName: string
   phoneNumber: string
+  email: string
+  dateOfBirth: string
+  placeOfBirth: string
+  citizenship: string
+  passportSeries: string
+  passportNumber: string
+  passportIssueDate: string
+  passportIssuedBy: string
+  passportDivisionCode: string
+  inn: string
+  snils: string
+  maritalStatus: string
+  numberOfChildren: string
   productName: string
   productPrice: string
   purchaseLocation: string
   permanentAddress: string
+  registrationAddress: string
 
   // Product and Terms
   documentPhotos: File[]
@@ -106,10 +126,20 @@ export function InstallmentApplicationForm() {
   const [currentSection, setCurrentSection] = React.useState(0)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
+    clientPrimaryInfo: true, // Первая секция открыта по умолчанию
+  })
 
   const [formData, setFormData] = React.useState<Partial<FormData>>({
     consentToProcessData: false,
   })
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }))
+  }
 
   const sections = [
     {
@@ -214,7 +244,21 @@ export function InstallmentApplicationForm() {
 
   const renderClientPrimaryInfo = () => (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+      <h3 className="text-lg font-semibold">Личные данные</h3>
+      
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="lastName">
+            Фамилия * <span className="text-muted-foreground">(только русские буквы)</span>
+          </Label>
+          <Input
+            id="lastName"
+            value={formData.lastName || ''}
+            onChange={(e) => handleInputChange('lastName', e.target.value)}
+            required
+            pattern="^[А-Яа-яЁё\s-]+$"
+          />
+        </div>
         <div className="space-y-2">
           <Label htmlFor="firstName">
             Имя * <span className="text-muted-foreground">(только русские буквы)</span>
@@ -228,30 +272,219 @@ export function InstallmentApplicationForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">
-            Фамилия * <span className="text-muted-foreground">(только русские буквы)</span>
+          <Label htmlFor="middleName">
+            Отчество <span className="text-muted-foreground">(только русские буквы)</span>
           </Label>
           <Input
-            id="lastName"
-            value={formData.lastName || ''}
-            onChange={(e) => handleInputChange('lastName', e.target.value)}
-            required
+            id="middleName"
+            value={formData.middleName || ''}
+            onChange={(e) => handleInputChange('middleName', e.target.value)}
             pattern="^[А-Яа-яЁё\s-]+$"
           />
         </div>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="dateOfBirth">Дата рождения *</Label>
+          <Input
+            id="dateOfBirth"
+            type="date"
+            value={formData.dateOfBirth || ''}
+            onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="placeOfBirth">Место рождения *</Label>
+          <Input
+            id="placeOfBirth"
+            value={formData.placeOfBirth || ''}
+            onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
+            placeholder="Город, область"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="phoneNumber">Телефон *</Label>
+          <Input
+            id="phoneNumber"
+            type="tel"
+            value={formData.phoneNumber || ''}
+            onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+            placeholder="+7 (___) ___-__-__"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email || ''}
+            onChange={(e) => handleInputChange('email', e.target.value)}
+            placeholder="example@mail.ru"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="citizenship">Гражданство *</Label>
+          <Input
+            id="citizenship"
+            value={formData.citizenship || ''}
+            onChange={(e) => handleInputChange('citizenship', e.target.value)}
+            placeholder="РФ"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="maritalStatus">Семейное положение</Label>
+          <Select
+            value={formData.maritalStatus || ''}
+            onValueChange={(value) => handleInputChange('maritalStatus', value)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Выберите семейное положение" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="single">Холост/не замужем</SelectItem>
+              <SelectItem value="married">Женат/замужем</SelectItem>
+              <SelectItem value="divorced">В разводе</SelectItem>
+              <SelectItem value="widowed">Вдова/вдовец</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label htmlFor="phoneNumber">Телефон *</Label>
+        <Label htmlFor="numberOfChildren">Количество детей</Label>
         <Input
-          id="phoneNumber"
-          type="tel"
-          value={formData.phoneNumber || ''}
-          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-          placeholder="+7 (___) ___-__-__"
+          id="numberOfChildren"
+          type="number"
+          min="0"
+          value={formData.numberOfChildren || ''}
+          onChange={(e) => handleInputChange('numberOfChildren', e.target.value)}
+          placeholder="0"
+        />
+      </div>
+
+      <h3 className="text-lg font-semibold mt-6">Паспортные данные</h3>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="passportSeries">Серия паспорта *</Label>
+          <Input
+            id="passportSeries"
+            value={formData.passportSeries || ''}
+            onChange={(e) => handleInputChange('passportSeries', e.target.value)}
+            placeholder="1234"
+            maxLength={4}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="passportNumber">Номер паспорта *</Label>
+          <Input
+            id="passportNumber"
+            value={formData.passportNumber || ''}
+            onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+            placeholder="567890"
+            maxLength={6}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="passportIssueDate">Дата выдачи паспорта *</Label>
+        <Input
+          id="passportIssueDate"
+          type="date"
+          value={formData.passportIssueDate || ''}
+          onChange={(e) => handleInputChange('passportIssueDate', e.target.value)}
           required
         />
       </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="passportIssuedBy">Кем выдан паспорт *</Label>
+        <Textarea
+          id="passportIssuedBy"
+          value={formData.passportIssuedBy || ''}
+          onChange={(e) => handleInputChange('passportIssuedBy', e.target.value)}
+          placeholder="Наименование органа, выдавшего паспорт"
+          rows={2}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="passportDivisionCode">Код подразделения *</Label>
+        <Input
+          id="passportDivisionCode"
+          value={formData.passportDivisionCode || ''}
+          onChange={(e) => handleInputChange('passportDivisionCode', e.target.value)}
+          placeholder="123-456"
+          pattern="[0-9]{3}-[0-9]{3}"
+          required
+        />
+      </div>
+
+      <h3 className="text-lg font-semibold mt-6">Документы</h3>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="inn">ИНН</Label>
+          <Input
+            id="inn"
+            value={formData.inn || ''}
+            onChange={(e) => handleInputChange('inn', e.target.value)}
+            placeholder="123456789012"
+            maxLength={12}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="snils">СНИЛС</Label>
+          <Input
+            id="snils"
+            value={formData.snils || ''}
+            onChange={(e) => handleInputChange('snils', e.target.value)}
+            placeholder="123-456-789 12"
+            maxLength={14}
+          />
+        </div>
+      </div>
+
+      <h3 className="text-lg font-semibold mt-6">Адреса</h3>
+
+      <div className="space-y-2">
+        <Label htmlFor="permanentAddress">Постоянное место жительства (прописка) *</Label>
+        <Textarea
+          id="permanentAddress"
+          value={formData.permanentAddress || ''}
+          onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
+          placeholder="Полный адрес регистрации"
+          rows={3}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="registrationAddress">Адрес фактического проживания</Label>
+        <Textarea
+          id="registrationAddress"
+          value={formData.registrationAddress || ''}
+          onChange={(e) => handleInputChange('registrationAddress', e.target.value)}
+          placeholder="Полный адрес фактического проживания (если отличается от прописки)"
+          rows={3}
+        />
+      </div>
+
+      <h3 className="text-lg font-semibold mt-6">Информация о товаре</h3>
 
       <div className="space-y-2">
         <Label htmlFor="productName">Наименование товара</Label>
@@ -259,6 +492,7 @@ export function InstallmentApplicationForm() {
           id="productName"
           value={formData.productName || ''}
           onChange={(e) => handleInputChange('productName', e.target.value)}
+          placeholder="Название товара"
         />
       </div>
 
@@ -270,6 +504,7 @@ export function InstallmentApplicationForm() {
             type="number"
             value={formData.productPrice || ''}
             onChange={(e) => handleInputChange('productPrice', e.target.value)}
+            placeholder="0"
           />
         </div>
         <div className="space-y-2">
@@ -281,17 +516,6 @@ export function InstallmentApplicationForm() {
             placeholder="Название магазина или город"
           />
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="permanentAddress">Факт. постоянное место жительства *</Label>
-        <Textarea
-          id="permanentAddress"
-          value={formData.permanentAddress || ''}
-          onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
-          required
-          rows={3}
-        />
       </div>
     </div>
   )
@@ -423,6 +647,7 @@ export function InstallmentApplicationForm() {
                 value={formData.fsspInfo_sb || ''}
                 onChange={(e) => handleInputChange('fsspInfo_sb', e.target.value)}
                 rows={3}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -432,9 +657,150 @@ export function InstallmentApplicationForm() {
                 value={formData.getcontactInfo_sb || ''}
                 onChange={(e) => handleInputChange('getcontactInfo_sb', e.target.value)}
                 rows={3}
+                required
               />
             </div>
-            {/* Additional СБ fields can be added here */}
+            <div className="space-y-2">
+              <Label htmlFor="purchasePurpose_sb">Цель покупки товара (СБ)</Label>
+              <Textarea
+                id="purchasePurpose_sb"
+                value={formData.purchasePurpose_sb || ''}
+                onChange={(e) => handleInputChange('purchasePurpose_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="referralSource_sb">От кого перешли по ссылке (СБ)</Label>
+              <Textarea
+                id="referralSource_sb"
+                value={formData.referralSource_sb || ''}
+                onChange={(e) => handleInputChange('referralSource_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employmentInfo_sb">Место работы (организация), должность и стаж на текущем месте (СБ) *</Label>
+              <Textarea
+                id="employmentInfo_sb"
+                value={formData.employmentInfo_sb || ''}
+                onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalIncome_sb">Пенсии, выплаты и другие доп. доходы (СБ)</Label>
+              <Textarea
+                id="additionalIncome_sb"
+                value={formData.additionalIncome_sb || ''}
+                onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="officialIncome_sb">Официальное трудоустройство и сумма доходов по отдельности (СБ) *</Label>
+              <Textarea
+                id="officialIncome_sb"
+                value={formData.officialIncome_sb || ''}
+                onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maritalStatus_sb">Семейное положение клиента (СБ) *</Label>
+              <Select
+                value={formData.maritalStatus_sb || ''}
+                onValueChange={(value) => handleInputChange('maritalStatus_sb', value)}
+                required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите семейное положение" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="married">Женат/замужем</SelectItem>
+                  <SelectItem value="single">Холост/не замужем</SelectItem>
+                  <SelectItem value="divorced">В разводе</SelectItem>
+                  <SelectItem value="widowed">Вдова/вдовец</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="childrenInfo_sb">Дети (количество детей) клиента и их возраст (в диапазоне 0-10-20-30 лет) (СБ)</Label>
+              <Textarea
+                id="childrenInfo_sb"
+                value={formData.childrenInfo_sb || ''}
+                onChange={(e) => handleInputChange('childrenInfo_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="creditHistory_sb">Имеются ли действующие кредиты/рассрочки? Где? Суммы платежей? А до этого были? (СБ) *</Label>
+              <Textarea
+                id="creditHistory_sb"
+                value={formData.creditHistory_sb || ''}
+                onChange={(e) => handleInputChange('creditHistory_sb', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="collateralInfo_sb">Есть ли имущество, чтобы при необходимости использовать в качестве залога? (СБ)</Label>
+              <Textarea
+                id="collateralInfo_sb"
+                value={formData.collateralInfo_sb || ''}
+                onChange={(e) => handleInputChange('collateralInfo_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="housingInfo_sb">Имеется ли собственное жилье? Или съемное, или с родителями? (СБ)</Label>
+              <Textarea
+                id="housingInfo_sb"
+                value={formData.housingInfo_sb || ''}
+                onChange={(e) => handleInputChange('housingInfo_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalContact_sb">Дополнительный номер (СБ) *</Label>
+              <Input
+                id="additionalContact_sb"
+                type="tel"
+                value={formData.additionalContact_sb || ''}
+                onChange={(e) => handleInputChange('additionalContact_sb', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="relativesContactPermission_sb">Готовы ли предоставить контактный номер родителей, брата или сестры до 40 лет? (СБ)</Label>
+              <Textarea
+                id="relativesContactPermission_sb"
+                value={formData.relativesContactPermission_sb || ''}
+                onChange={(e) => handleInputChange('relativesContactPermission_sb', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="localFeedback_sb">Информация от других людей с местности клиента. (У кого спросили, что сказали, дословно) (СБ) *</Label>
+              <Textarea
+                id="localFeedback_sb"
+                value={formData.localFeedback_sb || ''}
+                onChange={(e) => handleInputChange('localFeedback_sb', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="psychologicalAssessment_sb">Психологическая оценка клиента (подробный текст) (СБ) *</Label>
+              <Textarea
+                id="psychologicalAssessment_sb"
+                value={formData.psychologicalAssessment_sb || ''}
+                onChange={(e) => handleInputChange('psychologicalAssessment_sb', e.target.value)}
+                rows={5}
+                required
+              />
+            </div>
           </div>
         )
       case 'guarantor1':
@@ -446,6 +812,27 @@ export function InstallmentApplicationForm() {
                 id="responsibleAgent_p1"
                 value={formData.responsibleAgent_p1 || ''}
                 onChange={(e) => handleInputChange('responsibleAgent_p1', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fsspInfo_p1">Информация из ФССП, и других баз 2 (П1) *</Label>
+              <Textarea
+                id="fsspInfo_p1"
+                value={formData.fsspInfo_p1 || ''}
+                onChange={(e) => handleInputChange('fsspInfo_p1', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="getcontactInfo_p1">Информация из Гетконтакт (П1) *</Label>
+              <Textarea
+                id="getcontactInfo_p1"
+                value={formData.getcontactInfo_p1 || ''}
+                onChange={(e) => handleInputChange('getcontactInfo_p1', e.target.value)}
+                rows={3}
+                required
               />
             </div>
             <div className="space-y-2">
@@ -454,16 +841,295 @@ export function InstallmentApplicationForm() {
                 id="relationship_p1"
                 value={formData.relationship_p1 || ''}
                 onChange={(e) => handleInputChange('relationship_p1', e.target.value)}
+                required
               />
             </div>
-            {/* Additional П1 fields can be added here */}
+            <div className="space-y-2">
+              <Label htmlFor="fullName_p1">ФИО поручителя (П1)</Label>
+              <Input
+                id="fullName_p1"
+                value={formData.fullName_p1 || ''}
+                onChange={(e) => handleInputChange('fullName_p1', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="passportPhoto_p1">Фото паспорта (П1)</Label>
+              <Input
+                id="passportPhoto_p1"
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || [])
+                  handleInputChange('passportPhoto_p1', files as File[])
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber_p1">Номер телефона поручителя (спросить есть ли еще номер) (П1)</Label>
+              <Input
+                id="phoneNumber_p1"
+                type="tel"
+                value={formData.phoneNumber_p1 || ''}
+                onChange={(e) => handleInputChange('phoneNumber_p1', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address_p1">Фактическое место жительства (П1) *</Label>
+              <Textarea
+                id="address_p1"
+                value={formData.address_p1 || ''}
+                onChange={(e) => handleInputChange('address_p1', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employmentIncome_p1">Офиц. трудоустройство и сумма доходов отдельно (П1)</Label>
+              <Textarea
+                id="employmentIncome_p1"
+                value={formData.employmentIncome_p1 || ''}
+                onChange={(e) => handleInputChange('employmentIncome_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maritalStatus_p1">Семейное положение поручителя (П1) *</Label>
+              <Input
+                id="maritalStatus_p1"
+                value={formData.maritalStatus_p1 || ''}
+                onChange={(e) => handleInputChange('maritalStatus_p1', e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="childrenInfo_p1">Дети (количество детей) клиента и их возраст (в диапазоне 0-10-20-30 лет) (П1)</Label>
+              <Textarea
+                id="childrenInfo_p1"
+                value={formData.childrenInfo_p1 || ''}
+                onChange={(e) => handleInputChange('childrenInfo_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalIncome_p1">Пенсии, выплаты и другие доп. доходы (П1) *</Label>
+              <Textarea
+                id="additionalIncome_p1"
+                value={formData.additionalIncome_p1 || ''}
+                onChange={(e) => handleInputChange('additionalIncome_p1', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="creditHistory_p1">Имеются ли действующие кредиты/рассрочки? Где? Суммы платежей? А до этого были? (П1)</Label>
+              <Textarea
+                id="creditHistory_p1"
+                value={formData.creditHistory_p1 || ''}
+                onChange={(e) => handleInputChange('creditHistory_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="collateralInfo_p1">Есть ли имущество, чтобы при необходимости использовать в качестве залога? (П1)</Label>
+              <Textarea
+                id="collateralInfo_p1"
+                value={formData.collateralInfo_p1 || ''}
+                onChange={(e) => handleInputChange('collateralInfo_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="housingInfo_p1">Имеется ли собственное жилье? Или съемное, или с родителями? (П1)</Label>
+              <Textarea
+                id="housingInfo_p1"
+                value={formData.housingInfo_p1 || ''}
+                onChange={(e) => handleInputChange('housingInfo_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="isNewClient_p1">Клиент новый? Если нет, то какая оценка клиента в базе Эснад? (П1)</Label>
+              <Textarea
+                id="isNewClient_p1"
+                value={formData.isNewClient_p1 || ''}
+                onChange={(e) => handleInputChange('isNewClient_p1', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="psychologicalAssessment_p1">Психологическая оценка клиента (подробный текст) (П1)</Label>
+              <Textarea
+                id="psychologicalAssessment_p1"
+                value={formData.psychologicalAssessment_p1 || ''}
+                onChange={(e) => handleInputChange('psychologicalAssessment_p1', e.target.value)}
+                rows={5}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalPhoneNumber_p1">Имеется ли доп. номер (П1)</Label>
+              <Input
+                id="additionalPhoneNumber_p1"
+                type="tel"
+                value={formData.additionalPhoneNumber_p1 || ''}
+                onChange={(e) => handleInputChange('additionalPhoneNumber_p1', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
           </div>
         )
       case 'guarantor2':
         return (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Информация о втором поручителе</p>
-            {/* П2 fields can be added here */}
+            <div className="space-y-2">
+              <Label htmlFor="fsspInfo_p2">Информация из ФССП, и других баз. 3 (П2)</Label>
+              <Textarea
+                id="fsspInfo_p2"
+                value={formData.fsspInfo_p2 || ''}
+                onChange={(e) => handleInputChange('fsspInfo_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="getcontactInfo_p2">Информация из Гетконтакт (П2)</Label>
+              <Textarea
+                id="getcontactInfo_p2"
+                value={formData.getcontactInfo_p2 || ''}
+                onChange={(e) => handleInputChange('getcontactInfo_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fullName_p2">ФИО поручителя 2 (П2)</Label>
+              <Input
+                id="fullName_p2"
+                value={formData.fullName_p2 || ''}
+                onChange={(e) => handleInputChange('fullName_p2', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="passportPhoto_p2">Фото паспорта (П2)</Label>
+              <Input
+                id="passportPhoto_p2"
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || [])
+                  handleInputChange('passportPhoto_p2', files as File[])
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber_p2">Номер телефона поручителя 2 (П2)</Label>
+              <Input
+                id="phoneNumber_p2"
+                type="tel"
+                value={formData.phoneNumber_p2 || ''}
+                onChange={(e) => handleInputChange('phoneNumber_p2', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="relationship_p2">Кем приходится клиенту? (П2)</Label>
+              <Input
+                id="relationship_p2"
+                value={formData.relationship_p2 || ''}
+                onChange={(e) => handleInputChange('relationship_p2', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="address_p2">Фактическое место жительства 2 (П2)</Label>
+              <Textarea
+                id="address_p2"
+                value={formData.address_p2 || ''}
+                onChange={(e) => handleInputChange('address_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employmentIncome_p2">Офиц. трудоустройство и суммы доходов отдельно (П2) *</Label>
+              <Textarea
+                id="employmentIncome_p2"
+                value={formData.employmentIncome_p2 || ''}
+                onChange={(e) => handleInputChange('employmentIncome_p2', e.target.value)}
+                rows={3}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maritalStatus_p2">Семейное положение 2 (П2)</Label>
+              <Input
+                id="maritalStatus_p2"
+                value={formData.maritalStatus_p2 || ''}
+                onChange={(e) => handleInputChange('maritalStatus_p2', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="childrenInfo_p2">Дети, количество, их возраст (П2)</Label>
+              <Textarea
+                id="childrenInfo_p2"
+                value={formData.childrenInfo_p2 || ''}
+                onChange={(e) => handleInputChange('childrenInfo_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="creditHistory_p2">Имеются ли действующие кредиты,рассрочки? Где? суммы платежей? А до этого были? (П2)</Label>
+              <Textarea
+                id="creditHistory_p2"
+                value={formData.creditHistory_p2 || ''}
+                onChange={(e) => handleInputChange('creditHistory_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalIncome_p2">Пенсии, выплаты, другие доп. доходы (П2)</Label>
+              <Textarea
+                id="additionalIncome_p2"
+                value={formData.additionalIncome_p2 || ''}
+                onChange={(e) => handleInputChange('additionalIncome_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="relativesContact_p2">Номер родителей, брата (П2)</Label>
+              <Input
+                id="relativesContact_p2"
+                type="tel"
+                value={formData.relativesContact_p2 || ''}
+                onChange={(e) => handleInputChange('relativesContact_p2', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="isNewClient_p2">Клиент новый? Если нет, то какая оценка в нашей базе? (П2)</Label>
+              <Textarea
+                id="isNewClient_p2"
+                value={formData.isNewClient_p2 || ''}
+                onChange={(e) => handleInputChange('isNewClient_p2', e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="psychologicalAssessment_p2">Психологическая оценка и другое описание (П2)</Label>
+              <Textarea
+                id="psychologicalAssessment_p2"
+                value={formData.psychologicalAssessment_p2 || ''}
+                onChange={(e) => handleInputChange('psychologicalAssessment_p2', e.target.value)}
+                rows={5}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="additionalPhoneNumber_p2">Имеется ли доп. номер? (П2)</Label>
+              <Input
+                id="additionalPhoneNumber_p2"
+                type="tel"
+                value={formData.additionalPhoneNumber_p2 || ''}
+                onChange={(e) => handleInputChange('additionalPhoneNumber_p2', e.target.value)}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
           </div>
         )
       case 'finalDocs':
@@ -515,17 +1181,31 @@ export function InstallmentApplicationForm() {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         {sections.map((section, index) => (
-          <Card
+          <Collapsible
             key={section.id}
-            className={index === currentSection ? 'border-primary' : ''}>
-            <CardHeader>
-              <CardTitle>{section.title}</CardTitle>
-              <CardDescription>{section.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {(index === currentSection || index < currentSection) && renderSection(section.id)}
-            </CardContent>
-          </Card>
+            open={openSections[section.id] || false}
+            onOpenChange={() => toggleSection(section.id)}>
+            <Card className={index === currentSection ? 'border-primary' : ''}>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <CardTitle>{section.title}</CardTitle>
+                      <CardDescription>{section.description}</CardDescription>
+                    </div>
+                    <ChevronDown
+                      className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                        openSections[section.id] ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>{renderSection(section.id)}</CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         ))}
       </div>
 

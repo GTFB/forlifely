@@ -40,20 +40,127 @@ export default function DealDetailPageClient() {
     const fetchDeal = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/c/deals/${dealId}`, {
-          credentials: 'include',
-        })
+        // TODO: Replace with actual API endpoint
+        // const response = await fetch(`/api/c/deals/${dealId}`, {
+        //   credentials: 'include',
+        // })
 
-        if (!response.ok) {
-          throw new Error('Failed to load deal')
-        }
+        // Mock data
+        setTimeout(() => {
+          const mockDeals: Record<string, DealDetail> = {
+            'DEAL-001': {
+              deal: {
+                id: 'DEAL-001',
+                uuid: 'uuid-deal-001',
+                title: 'Смартфон Samsung Galaxy S24',
+                status: 'Активна',
+                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                dataIn: {
+                  purchasePrice: 150000,
+                  downPayment: 30000,
+                  installmentTerm: 12,
+                  monthlyPayment: 12500,
+                  totalAmount: 150000,
+                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
+                    const paymentDate = new Date()
+                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
+                    return {
+                      date: paymentDate.toISOString(),
+                      amount: 12500,
+                      status: i < 2 ? 'Оплачен' : i === 2 ? 'Ожидается' : 'Ожидается',
+                    }
+                  }),
+                },
+              },
+            },
+            'DEAL-002': {
+              deal: {
+                id: 'DEAL-002',
+                uuid: 'uuid-deal-002',
+                title: 'Ноутбук ASUS VivoBook 15',
+                status: 'Активна',
+                createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+                dataIn: {
+                  purchasePrice: 85000,
+                  downPayment: 17000,
+                  installmentTerm: 10,
+                  monthlyPayment: 8500,
+                  totalAmount: 85000,
+                  paymentSchedule: Array.from({ length: 10 }, (_, i) => {
+                    const paymentDate = new Date()
+                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
+                    return {
+                      date: paymentDate.toISOString(),
+                      amount: 8500,
+                      status: i < 1 ? 'Оплачен' : i === 1 ? 'Ожидается' : 'Ожидается',
+                    }
+                  }),
+                },
+              },
+            },
+            'DEAL-003': {
+              deal: {
+                id: 'DEAL-003',
+                uuid: 'uuid-deal-003',
+                title: 'Телевизор LG OLED 55"',
+                status: 'Активна',
+                createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+                dataIn: {
+                  purchasePrice: 200000,
+                  downPayment: 40000,
+                  installmentTerm: 12,
+                  monthlyPayment: 16667,
+                  totalAmount: 200000,
+                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
+                    const paymentDate = new Date()
+                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
+                    return {
+                      date: paymentDate.toISOString(),
+                      amount: 16667,
+                      status: i < 1 ? 'Оплачен' : i === 1 ? 'Ожидается' : 'Ожидается',
+                    }
+                  }),
+                },
+              },
+            },
+            'DEAL-005': {
+              deal: {
+                id: 'DEAL-005',
+                uuid: 'uuid-deal-005',
+                title: 'Стиральная машина Indesit IWSC 5105',
+                status: 'Активна',
+                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+                dataIn: {
+                  purchasePrice: 95000,
+                  downPayment: 19000,
+                  installmentTerm: 12,
+                  monthlyPayment: 7917,
+                  totalAmount: 95000,
+                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
+                    const paymentDate = new Date()
+                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
+                    return {
+                      date: paymentDate.toISOString(),
+                      amount: 7917,
+                      status: i < 2 ? 'Оплачен' : i === 2 ? 'Ожидается' : 'Ожидается',
+                    }
+                  }),
+                },
+              },
+            },
+          }
 
-        const data = await response.json() as DealDetail
-        setDealData(data)
+          const dealData = mockDeals[dealId]
+          if (dealData) {
+            setDealData(dealData)
+          } else {
+            setError('Сделка не найдена')
+          }
+          setLoading(false)
+        }, 500)
       } catch (err) {
         console.error('Deal fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load deal')
-      } finally {
         setLoading(false)
       }
     }
@@ -108,7 +215,7 @@ export default function DealDetailPageClient() {
   const chartConfig = {
     amount: {
       label: 'Сумма',
-      color: 'hsl(var(--chart-1))',
+      color: 'var(--chart-2)',
     },
   }
 

@@ -10,7 +10,7 @@ const getHeaderForPath = (pathname: string) => {
     return { title: 'Обзор' }
   }
   if (pathname === '/c/deals') {
-    return { title: 'Мои рассрочки' }
+    return { title: 'Рассрочки' }
   }
   if (pathname.startsWith('/c/deals/')) {
     const match = pathname.match(/\/c\/deals\/(.+)$/)
@@ -20,7 +20,7 @@ const getHeaderForPath = (pathname: string) => {
         title: `Сделка ${dealId}`,
         breadcrumbItems: [
           { label: 'Кабинет Потребителя', href: '/c/dashboard' },
-          { label: 'Мои рассрочки', href: '/c/deals' },
+          { label: 'Рассрочки', href: '/c/deals' },
           { label: `Сделка ${dealId}` },
         ],
       }

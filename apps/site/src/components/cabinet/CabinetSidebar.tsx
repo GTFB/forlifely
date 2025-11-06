@@ -26,7 +26,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Logo } from '@/components/misc/logo/logo'
 import { useResizableSidebar } from '@/packages/hooks/use-resizable-sidebar'
-import { User } from 'lucide-react'
+import { useTheme } from '@/packages/hooks/use-theme'
+import { User, Sun, Moon } from 'lucide-react'
 
 export interface NavigationItem {
   title: string
@@ -48,13 +49,18 @@ interface CabinetSidebarProps {
 export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/profile' }: CabinetSidebarProps) {
   const pathname = usePathname()
   const { handleMouseDown } = useResizableSidebar()
+  const { theme, setTheme } = useTheme()
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light')
+  }
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-6">
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-start gap-2 pl-2">
           <Logo className="h-8" />
-          <span className="text-sm font-semibold text-center">{title}</span>
+          <span className="text-sm font-semibold">{title}</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -114,6 +120,19 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
                   <User className="mr-2 h-4 w-4" />
                   <span>Профиль</span>
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={toggleTheme}>
+                {theme === 'light' ? (
+                  <>
+                    <Moon className="mr-2 h-4 w-4" />
+                    <span>Темная тема</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="mr-2 h-4 w-4" />
+                    <span>Светлая тема</span>
+                  </>
+                )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
