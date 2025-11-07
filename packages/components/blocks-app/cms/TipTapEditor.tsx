@@ -229,7 +229,7 @@ export function TipTapEditor({
         throw new Error("File upload error");
       }
 
-      const result = await response.json();
+      const result = await response.json() as { fullFileName?: string };
       const fullFileName = result.fullFileName;
 
       if (fullFileName) {

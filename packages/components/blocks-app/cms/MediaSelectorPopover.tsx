@@ -59,7 +59,7 @@ export function MediaSelectorPopover({
     setIsLoadingMedia(true);
     try {
       const response = await fetch("/api/admin/media");
-      const data = await response.json();
+      const data = await response.json() as { media?: Media[] };
       if (data.media) {
         setMediaList(data.media);
       }
@@ -115,9 +115,11 @@ export function MediaSelectorPopover({
             throw new Error("File upload error");
           }
 
-          const result = await response.json();
+          const result = await response.json() as { fileName?: string };
           const fileName = result.fileName;
-          onChange(fileName);
+          if (fileName) {
+            onChange(fileName);
+          }
           await loadMediaList();
         } catch (error) {
           console.error("Error uploading file:", error);
