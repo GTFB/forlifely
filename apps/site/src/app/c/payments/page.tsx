@@ -72,22 +72,22 @@ export default function PaymentsPage() {
         setTimeout(() => {
           const mockDeals: Deal[] = [
             {
-              id: 'DEAL-001',
+              id: 'deal-001',
               title: 'Смартфон Samsung Galaxy S24',
               status: 'Активна',
             },
             {
-              id: 'DEAL-002',
+              id: 'deal-002',
               title: 'Ноутбук ASUS VivoBook 15',
               status: 'Активна',
             },
             {
-              id: 'DEAL-003',
+              id: 'deal-003',
               title: 'Телевизор LG OLED 55"',
               status: 'Активна',
             },
             {
-              id: 'DEAL-005',
+              id: 'deal-005',
               title: 'Стиральная машина Indesit IWSC 5105',
               status: 'Активна',
             },
@@ -96,7 +96,7 @@ export default function PaymentsPage() {
           const mockPayments: Payment[] = [
             {
               id: 'PAY-001',
-              dealId: 'DEAL-001',
+              dealId: 'deal-001',
               dealTitle: 'Смартфон Samsung Galaxy S24',
               amount: 12500,
               date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
@@ -105,7 +105,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-002',
-              dealId: 'DEAL-002',
+              dealId: 'deal-002',
               dealTitle: 'Ноутбук ASUS VivoBook 15',
               amount: 8500,
               date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
@@ -114,7 +114,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-003',
-              dealId: 'DEAL-003',
+              dealId: 'deal-003',
               dealTitle: 'Телевизор LG OLED 55"',
               amount: 16667,
               date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
@@ -123,7 +123,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-004',
-              dealId: 'DEAL-001',
+              dealId: 'deal-001',
               dealTitle: 'Смартфон Samsung Galaxy S24',
               amount: 12500,
               date: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(),
@@ -132,7 +132,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-005',
-              dealId: 'DEAL-005',
+              dealId: 'deal-005',
               dealTitle: 'Стиральная машина Indesit IWSC 5105',
               amount: 7917,
               date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
@@ -141,7 +141,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-006',
-              dealId: 'DEAL-002',
+              dealId: 'deal-002',
               dealTitle: 'Ноутбук ASUS VivoBook 15',
               amount: 8500,
               date: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
@@ -150,7 +150,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-007',
-              dealId: 'DEAL-003',
+              dealId: 'deal-003',
               dealTitle: 'Телевизор LG OLED 55"',
               amount: 16667,
               date: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
@@ -159,7 +159,7 @@ export default function PaymentsPage() {
             },
             {
               id: 'PAY-008',
-              dealId: 'DEAL-001',
+              dealId: 'deal-001',
               dealTitle: 'Смартфон Samsung Galaxy S24',
               amount: 12500,
               date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),

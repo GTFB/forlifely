@@ -59,7 +59,7 @@ export default function DealsPage() {
       setTimeout(() => {
         const mockDeals: Deal[] = [
           {
-            id: 'DEAL-001',
+            id: 'deal-001',
             uuid: 'uuid-deal-001',
             title: 'Смартфон Samsung Galaxy S24',
             status: 'Активна',
@@ -67,7 +67,7 @@ export default function DealsPage() {
             dataIn: { totalAmount: 150000 },
           },
           {
-            id: 'DEAL-002',
+            id: 'deal-002',
             uuid: 'uuid-deal-002',
             title: 'Ноутбук ASUS VivoBook 15',
             status: 'Активна',
@@ -75,7 +75,7 @@ export default function DealsPage() {
             dataIn: { totalAmount: 85000 },
           },
           {
-            id: 'DEAL-003',
+            id: 'deal-003',
             uuid: 'uuid-deal-003',
             title: 'Телевизор LG OLED 55"',
             status: 'Активна',
@@ -83,7 +83,7 @@ export default function DealsPage() {
             dataIn: { totalAmount: 200000 },
           },
           {
-            id: 'DEAL-004',
+            id: 'deal-004',
             uuid: 'uuid-deal-004',
             title: 'Холодильник Bosch KGN39VI306',
             status: 'Закрыта',
@@ -91,7 +91,7 @@ export default function DealsPage() {
             dataIn: { totalAmount: 120000 },
           },
           {
-            id: 'DEAL-005',
+            id: 'deal-005',
             uuid: 'uuid-deal-005',
             title: 'Стиральная машина Indesit IWSC 5105',
             status: 'Активна',
@@ -99,7 +99,7 @@ export default function DealsPage() {
             dataIn: { totalAmount: 95000 },
           },
           {
-            id: 'DEAL-006',
+            id: 'deal-006',
             uuid: 'uuid-deal-006',
             title: 'Пылесос Dyson V15 Detect',
             status: 'Закрыта',

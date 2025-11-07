@@ -48,9 +48,9 @@ export default function DealDetailPageClient() {
         // Mock data
         setTimeout(() => {
           const mockDeals: Record<string, DealDetail> = {
-            'DEAL-001': {
+            'deal-001': {
               deal: {
-                id: 'DEAL-001',
+                id: 'deal-001',
                 uuid: 'uuid-deal-001',
                 title: 'Смартфон Samsung Galaxy S24',
                 status: 'Активна',
@@ -73,9 +73,9 @@ export default function DealDetailPageClient() {
                 },
               },
             },
-            'DEAL-002': {
+            'deal-002': {
               deal: {
-                id: 'DEAL-002',
+                id: 'deal-002',
                 uuid: 'uuid-deal-002',
                 title: 'Ноутбук ASUS VivoBook 15',
                 status: 'Активна',
@@ -98,9 +98,9 @@ export default function DealDetailPageClient() {
                 },
               },
             },
-            'DEAL-003': {
+            'deal-003': {
               deal: {
-                id: 'DEAL-003',
+                id: 'deal-003',
                 uuid: 'uuid-deal-003',
                 title: 'Телевизор LG OLED 55"',
                 status: 'Активна',
@@ -123,9 +123,9 @@ export default function DealDetailPageClient() {
                 },
               },
             },
-            'DEAL-005': {
+            'deal-005': {
               deal: {
-                id: 'DEAL-005',
+                id: 'deal-005',
                 uuid: 'uuid-deal-005',
                 title: 'Стиральная машина Indesit IWSC 5105',
                 status: 'Активна',
