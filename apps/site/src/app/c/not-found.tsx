@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex-1 flex items-center justify-center px-6">
+    <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center max-w-md">
         <h1 className="text-6xl md:text-8xl font-bold mb-4">404</h1>
         <h2 className="text-2xl md:text-3xl font-semibold mb-4">
