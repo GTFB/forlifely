@@ -135,7 +135,7 @@ export default function AdminSupportPage() {
   if (loading) {
     return (
       <>
-        <AdminHeader title="Управление поддержкой" />
+        <AdminHeader title="Поддержка" />
         <main className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -148,7 +148,7 @@ export default function AdminSupportPage() {
   if (error) {
     return (
       <>
-        <AdminHeader title="Управление поддержкой" />
+        <AdminHeader title="Поддержка" />
         <main className="flex-1 overflow-y-auto">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
@@ -160,10 +160,10 @@ export default function AdminSupportPage() {
 
   return (
     <>
-      <AdminHeader title="Управление поддержкой" />
+      <AdminHeader title="Поддержка" />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
-        <h1 className="text-3xl font-bold">Управление поддержкой</h1>
+        <h1 className="text-3xl font-bold">Поддержка</h1>
 
         <div className="flex gap-4">
           <div className="relative flex-1">

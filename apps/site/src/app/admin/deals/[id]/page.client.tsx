@@ -95,7 +95,7 @@ export default function DealDetailPageClient() {
         // Mock data
         setTimeout(() => {
           setDeal({
-            id: dealId || 'DEAL-001',
+            id: dealId || 'deal-001',
             clientName: 'Иванов Иван Иванович',
             clientPhone: '+7 (999) 123-45-67',
             clientEmail: 'ivanov@example.com',

@@ -9,6 +9,14 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
+import { BottomNavigation } from "@/components/cabinet/BottomNavigation"
+import {
+  LayoutDashboard,
+  FileText,
+  BookOpen,
+  CheckSquare,
+} from 'lucide-react'
+import type { NavigationItem } from "@/components/cabinet/BottomNavigation"
 
 // Global state to preserve sidebar open state across remounts
 let globalSidebarOpen: boolean | null = null
@@ -85,15 +93,39 @@ const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
 
 SidebarWrapper.displayName = 'SidebarWrapper'
 
+const adminNavigationItems: NavigationItem[] = [
+  {
+    title: 'Сводка',
+    url: '/admin/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    title: 'Заявки',
+    url: '/admin/deals',
+    icon: FileText,
+  },
+  {
+    title: 'Блог',
+    url: '/admin/content/blog',
+    icon: BookOpen,
+  },
+  {
+    title: 'Задачи',
+    url: '/admin/tasks',
+    icon: CheckSquare,
+  },
+]
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen w-full bg-background overflow-hidden">
       <AdminStateProvider>
         <SidebarWrapper>
           <AdminAuthGuard>
             {children}
           </AdminAuthGuard>
         </SidebarWrapper>
+        <BottomNavigation navigationItems={adminNavigationItems} />
       </AdminStateProvider>
     </div>
   )

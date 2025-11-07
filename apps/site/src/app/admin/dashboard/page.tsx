@@ -68,13 +68,13 @@ export default function AdminDashboardPage() {
               {
                 id: 'EVT-001',
                 type: 'Новая заявка',
-                description: 'Заявка #DEAL-001 от Иванов Иван Иванович',
+                description: 'Заявка #deal-001 от Иванов Иван Иванович',
                 date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
               },
               {
                 id: 'EVT-002',
                 type: 'Одобрение',
-                description: 'Заявка #DEAL-002 одобрена менеджером Петрова М.С.',
+                description: 'Заявка #deal-002 одобрена менеджером Петрова М.С.',
                 date: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
               },
               {
@@ -86,13 +86,13 @@ export default function AdminDashboardPage() {
               {
                 id: 'EVT-004',
                 type: 'Отказ',
-                description: 'Заявка #DEAL-003 отклонена менеджером Иванов И.И.',
+                description: 'Заявка #deal-003 отклонена менеджером Иванов И.И.',
                 date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
               },
               {
                 id: 'EVT-005',
                 type: 'Новая заявка',
-                description: 'Заявка #DEAL-004 от Козлова Анна Дмитриевна',
+                description: 'Заявка #deal-004 от Козлова Анна Дмитриевна',
                 date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
               },
             ],
@@ -149,8 +149,8 @@ export default function AdminDashboardPage() {
   if (loading) {
     return (
       <>
-        <AdminHeader title="Операционная сводка" />
-        <main className="flex-1 overflow-y-auto">
+        <AdminHeader title="Общая сводка" />
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -162,8 +162,8 @@ export default function AdminDashboardPage() {
   if (error) {
     return (
       <>
-        <AdminHeader title="Операционная сводка" />
-        <main className="flex-1 overflow-y-auto">
+        <AdminHeader title="Общая сводка" />
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
           </div>
@@ -174,23 +174,25 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      <AdminHeader title="Операционная сводка" />
-      <main className="flex-1 overflow-y-auto">
+      <AdminHeader title="Общая сводка" />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20 md:pb-0">
         <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Операционная сводка</h1>
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold flex-shrink-0">Общая сводка</h1>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
             <DateTimePicker
               mode="date"
               value={dateRange.start}
               onChange={(date) => setDateRange((prev) => ({ ...prev, start: date }))}
               placeholder="Начало периода"
+              className="w-[180px]"
             />
             <DateTimePicker
               mode="date"
               value={dateRange.end}
               onChange={(date) => setDateRange((prev) => ({ ...prev, end: date }))}
               placeholder="Конец периода"
+              className="w-[180px]"
             />
           </div>
         </div>
@@ -241,64 +243,66 @@ export default function AdminDashboardPage() {
           </Card>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
+        <div className="grid gap-4 md:grid-cols-2 min-w-0">
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Общий портфель инвесторов
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{formatCurrency(metrics.investorPortfolio)}</div>
+            <CardContent className="min-w-0">
+              <div className="text-3xl font-bold break-words overflow-wrap-anywhere">{formatCurrency(metrics.investorPortfolio)}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Заявки по менеджерам</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0 overflow-x-auto">
               {metrics.applicationsByManager.length > 0 ? (
-                <ChartContainer
-                  config={{
-                    applications: {
-                      label: 'Заявки',
-                      color: 'var(--chart-2)',
-                    },
-                  } satisfies ChartConfig}
-                  className="h-[250px] w-full">
-                  <BarChart data={metrics.applicationsByManager}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="manager"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      className="text-xs"
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      className="text-xs"
-                    />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value) => `${value} заявок`}
-                        />
-                      }
-                    />
-                    <Bar
-                      dataKey="count"
-                      fill="var(--color-applications)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ChartContainer>
+                <div className="min-w-[300px]">
+                  <ChartContainer
+                    config={{
+                      applications: {
+                        label: 'Заявки',
+                        color: 'var(--chart-2)',
+                      },
+                    } satisfies ChartConfig}
+                    className="h-[250px] w-full">
+                    <BarChart data={metrics.applicationsByManager}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="manager"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        className="text-xs"
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        className="text-xs"
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value) => `${value} заявок`}
+                          />
+                        }
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="var(--color-applications)"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
               ) : (
                 <div className="h-[250px] flex items-center justify-center text-muted-foreground">
                   Нет данных

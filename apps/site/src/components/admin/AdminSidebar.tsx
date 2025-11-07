@@ -60,7 +60,7 @@ const navigationGroups: NavigationGroup[] = [
     title: 'Операции',
     items: [
       {
-        title: 'Операционная сводка',
+        title: 'Общая сводка',
         url: '/admin/dashboard',
         icon: LayoutDashboard,
       },
@@ -75,7 +75,7 @@ const navigationGroups: NavigationGroup[] = [
     title: 'Пользователи',
     items: [
       {
-        title: 'Управление пользователями',
+        title: 'Пользователи',
         url: '/admin/users',
         icon: Users,
       },
@@ -86,17 +86,17 @@ const navigationGroups: NavigationGroup[] = [
     items: [
       {
         title: 'Блог',
-        url: '/admin/content?tab=blog',
+        url: '/admin/content/blog',
         icon: BookOpen,
       },
       {
         title: 'Страницы',
-        url: '/admin/content?tab=pages',
+        url: '/admin/content/pages',
         icon: FileText,
       },
       {
         title: 'FAQ',
-        url: '/admin/content?tab=faq',
+        url: '/admin/content/faq',
         icon: FileQuestion,
       },
     ],
@@ -105,7 +105,7 @@ const navigationGroups: NavigationGroup[] = [
     title: 'Поддержка',
     items: [
       {
-        title: 'Управление поддержкой',
+        title: 'Поддержка',
         url: '/admin/support',
         icon: MessageSquare,
       },

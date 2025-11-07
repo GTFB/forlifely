@@ -162,7 +162,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <>
-        <AdminHeader title="Управление пользователями" />
+        <AdminHeader title="Пользователи" />
         <main className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -175,7 +175,7 @@ export default function AdminUsersPage() {
   if (error) {
     return (
       <>
-        <AdminHeader title="Управление пользователями" />
+        <AdminHeader title="Пользователи" />
         <main className="flex-1 overflow-y-auto">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
@@ -187,11 +187,11 @@ export default function AdminUsersPage() {
 
   return (
     <>
-      <AdminHeader title="Управление пользователями" />
+      <AdminHeader title="Пользователи" />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Управление пользователями</h1>
+          <h1 className="text-3xl font-bold">Пользователи</h1>
           <div className="flex gap-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

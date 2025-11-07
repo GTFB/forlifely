@@ -57,7 +57,7 @@ export default function AdminDealsPage() {
         setTimeout(() => {
           setDeals([
             {
-              id: 'DEAL-001',
+              id: 'deal-001',
               clientName: 'Иванов Иван Иванович',
               amount: 150000,
               status: 'На рассмотрении',
@@ -68,7 +68,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-002',
+              id: 'deal-002',
               clientName: 'Петрова Мария Сергеевна',
               amount: 85000,
               status: 'Одобрена',
@@ -79,7 +79,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-003',
+              id: 'deal-003',
               clientName: 'Сидоров Петр Александрович',
               amount: 200000,
               status: 'Отклонена',
@@ -90,7 +90,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-004',
+              id: 'deal-004',
               clientName: 'Козлова Анна Дмитриевна',
               amount: 120000,
               status: 'Одобрена',
@@ -101,7 +101,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-005',
+              id: 'deal-005',
               clientName: 'Морозов Дмитрий Викторович',
               amount: 95000,
               status: 'На рассмотрении',
@@ -112,7 +112,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-006',
+              id: 'deal-006',
               clientName: 'Волкова Елена Игоревна',
               amount: 180000,
               status: 'Одобрена',
@@ -123,7 +123,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-007',
+              id: 'deal-007',
               clientName: 'Новиков Сергей Петрович',
               amount: 110000,
               status: 'На рассмотрении',
@@ -134,7 +134,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-008',
+              id: 'deal-008',
               clientName: 'Лебедева Ольга Владимировна',
               amount: 165000,
               status: 'Отклонена',
@@ -145,7 +145,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-009',
+              id: 'deal-009',
               clientName: 'Соколов Андрей Николаевич',
               amount: 140000,
               status: 'Одобрена',
@@ -156,7 +156,7 @@ export default function AdminDealsPage() {
               createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
             },
             {
-              id: 'DEAL-010',
+              id: 'deal-010',
               clientName: 'Павлова Татьяна Александровна',
               amount: 130000,
               status: 'На рассмотрении',
@@ -227,7 +227,7 @@ export default function AdminDealsPage() {
     return (
       <>
         <AdminHeader title="Управление заявками" />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -240,7 +240,7 @@ export default function AdminDealsPage() {
     return (
       <>
         <AdminHeader title="Управление заявками" />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
           </div>
