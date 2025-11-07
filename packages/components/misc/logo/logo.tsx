@@ -16,8 +16,15 @@ export function Logo({ className }: LogoProps) {
   
   const logoSrc = theme === "dark" ? "/images/logo_dark.svg" : "/images/logo.svg";
   
+  // Check if justify class is provided in className
+  const hasJustify = className?.match(/justify-(start|end|center|between|around|evenly)/);
+  
   return (
-    <div className={cn("flex items-center justify-center", className)}>
+    <div className={cn(
+      "flex items-center",
+      hasJustify ? "" : "justify-center",
+      className
+    )}>
       <Image 
         src={logoSrc}
         alt="Sun Day Logo" 

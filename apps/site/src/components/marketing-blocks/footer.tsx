@@ -105,18 +105,16 @@ export default function FooterSection() {
         <footer className="border-b bg-white pt-20 dark:bg-transparent">
             <div className="mx-auto max-w-5xl px-6">
                 <div className="grid gap-12 md:grid-cols-5">
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1 flex justify-start">
                         <Link
                             href="/"
                             aria-label="go home"
-                            className="block size-fit">
-                            <div className="flex justify-start">
-                                <Logo className="scale-50" />
-                            </div>
+                            className="block">
+                            <Logo className="w-36 h-12" />
                         </Link>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 md:col-span-3">
+                    <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 md:col-span-4">
                         {links.map((link, index) => (
                             <div
                                 key={index}
