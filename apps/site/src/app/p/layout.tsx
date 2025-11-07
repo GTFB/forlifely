@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation'
 import PartnerAuthGuard from '@/components/cabinet/PartnerAuthGuard'
 import { PartnerLayout } from '@/components/cabinet/PartnerLayout'
 
-const getHeaderForPath = (pathname: string) => {
+const getHeaderForPath = (pathname: string): {
+  title: string
+  breadcrumbItems?: Array<{ label: string; href?: string }>
+} => {
   if (pathname === '/p/dashboard') {
     return { title: 'Дашборд' }
   }
@@ -33,7 +36,7 @@ export default function PartnerCabinetLayout({ children }: { children: ReactNode
       <PartnerAuthGuard>
         <PartnerLayout
           headerTitle={header.title}
-          headerBreadcrumbs={header.breadcrumbItems || undefined}>
+          headerBreadcrumbs={header.breadcrumbItems}>
           {children}
         </PartnerLayout>
       </PartnerAuthGuard>
