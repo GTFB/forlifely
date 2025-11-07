@@ -330,13 +330,16 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     return () => controller.abort()
   }, [])
 
+  // Collections that have tables and should be shown
+  const allowedCollections = ['deals']
+  
   // Memoize items structure separately from active state to prevent full re-renders
   const itemsStructure = React.useMemo(() => {
     return groups.map((group) => ({
       category: group.category,
-      collections: group.collections,
+      collections: group.collections.filter((collection) => allowedCollections.includes(collection)),
       icon: categoryIcon[group.category] || SquareTerminal,
-    }))
+    })).filter((group) => group.collections.length > 0) // Remove groups with no collections
   }, [groups])
 
   // Use global refs to preserve state across component remounts

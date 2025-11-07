@@ -3,7 +3,7 @@
 import { ReactNode } from "react"
 import * as React from "react"
 import AdminAuthGuard from "@/components/admin/AdminAuthGuard"
-import { AppSidebar } from "@/components/application-blocks/app-sidebar"
+import { AdminSidebar } from "@/components/admin/AdminSidebar"
 import {
   SidebarInset,
   SidebarProvider,
@@ -28,6 +28,28 @@ function getSidebarStateFromStorage(): boolean {
 
 // Stable wrapper component that preserves identity across renders
 const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
+  const [user, setUser] = React.useState<{
+    name: string
+    email: string
+    avatar?: string
+  } | null>(null)
+
+  React.useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        const response = data as { user?: { name?: string; email: string; avatar?: string } }
+        if (response.user) {
+          setUser({
+            name: response.user.name || response.user.email,
+            email: response.user.email,
+            avatar: response.user.avatar,
+          })
+        }
+      })
+      .catch(console.error)
+  }, [])
+
   // Initialize from storage on mount
   const [sidebarOpen, setSidebarOpen] = React.useState(() => {
     if (globalSidebarOpen !== null) {
@@ -49,7 +71,7 @@ const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
         open={sidebarOpen} 
         onOpenChange={handleSidebarOpenChange}
       >
-        <AppSidebar />
+        <AdminSidebar user={user || undefined} />
         <SidebarInset className="flex flex-col flex-1 overflow-hidden">
           {children}
         </SidebarInset>
@@ -58,8 +80,6 @@ const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
   )
 }, (prevProps, nextProps) => {
   // Only re-render if children actually changed (different page)
-  // Children are different React elements for different pages, so we need to compare by key or content
-  // But for now, always re-render - the important part is that AppSidebar is stable
   return false // Always re-render - let React handle optimization
 })
 
