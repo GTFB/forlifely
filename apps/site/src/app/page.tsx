@@ -6,6 +6,7 @@ import AudienceSegments from "@/components/home/audience-segments";
 import { LogoCloud } from "@/components/home/logo-cloud";
 import FeaturesSection from "@/components/home/features";
 import Testimonials from "@/components/home/testimonials";
+import FooterSection from "@/components/marketing-blocks/footer";
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
@@ -16,6 +17,7 @@ export default function Home() {
         <LogoCloud />
         <FeaturesSection />
         <Testimonials />
+        <FooterSection />
       </div>
   );
 }
