@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation'
 import InvestorAuthGuard from '@/components/cabinet/InvestorAuthGuard'
 import { InvestorLayout } from '@/components/cabinet/InvestorLayout'
 
-const getHeaderForPath = (pathname: string) => {
+const getHeaderForPath = (pathname: string): {
+  title: string
+  breadcrumbItems?: Array<{ label: string; href?: string }>
+} => {
   if (pathname === '/i/dashboard') {
     return { title: 'Портфель' }
   }
@@ -33,7 +36,7 @@ export default function InvestorCabinetLayout({ children }: { children: ReactNod
       <InvestorAuthGuard>
         <InvestorLayout
           headerTitle={header.title}
-          headerBreadcrumbs={header.breadcrumbItems || undefined}>
+          headerBreadcrumbs={header.breadcrumbItems}>
           {children}
         </InvestorLayout>
       </InvestorAuthGuard>
