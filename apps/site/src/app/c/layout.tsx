@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation'
 import ConsumerAuthGuard from '@/components/cabinet/ConsumerAuthGuard'
 import { ConsumerLayout } from '@/components/cabinet/ConsumerLayout'
 
-const getHeaderForPath = (pathname: string) => {
+const getHeaderForPath = (pathname: string): {
+  title: string
+  breadcrumbItems?: Array<{ label: string; href?: string }>
+} => {
   if (pathname === '/c/dashboard') {
     return { title: 'Обзор' }
   }
