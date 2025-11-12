@@ -63,9 +63,9 @@ export const onRequestPost = async ({ request, env }: RequestContext) => {
         }
 
         const dealsRepository = new DealsRepository(env.DB)
-        const deal = await dealsRepository.createInvestorsFormDeal(formData)
+        await dealsRepository.createInvestorsFormDeal(formData)
 
-        return new Response(JSON.stringify({ ok: true, deal }), {
+        return new Response(JSON.stringify({ ok: true }), {
             status: 201,
             headers: corsHeaders,
         })
