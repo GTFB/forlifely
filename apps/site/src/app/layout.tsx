@@ -3,10 +3,6 @@ import { Geist } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
-import { ScriptOptimizer } from "@/components/ui/script-optimizer";
-import { AccessibilityEnhancer } from "@/components/ui/accessibility-enhancer";
-import { PerformanceMonitor } from "@/components/ui/performance-monitor";
-import { PageTransition } from "@/components/ui/page-transition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -86,9 +82,6 @@ export default function RootLayout({
       </head>
 
       <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>
-        <ScriptOptimizer />
-        <AccessibilityEnhancer />
-        <PerformanceMonitor />
         <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
             {children}
         </ThemeProvider>
