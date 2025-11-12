@@ -4,7 +4,7 @@ import { requireAdmin, } from '../../../_shared/middleware'
 import { Context, AuthenticatedContext } from '../../../_shared/types'
 import { COLLECTION_GROUPS } from '../../../_shared/collections'
 import { getCollection } from '../../../_shared/collections/getCollection'
-import { hashPassword, validatePassword, validatePasswordMatch } from '../../../_shared/password'
+import { preparePassword, validatePassword, validatePasswordMatch } from '../../../_shared/password'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -89,7 +89,16 @@ async function hashPasswordFields(collection: string, data: Record<string, any>,
       
       // Hash the password if it's provided
       if (value != null && value !== '') {
-        data[fieldName] = await hashPassword(String(value))
+        // For users collection, use preparePassword to generate hash and salt
+        if (collection === 'users' && fieldName === 'password_hash') {
+          const { hashedPassword, salt } = await preparePassword(String(value))
+          data[fieldName] = hashedPassword
+          data['salt'] = salt
+        } else {
+          // For other collections or fields, use preparePassword but only save hash
+          const { hashedPassword } = await preparePassword(String(value))
+          data[fieldName] = hashedPassword
+        }
         // Remove confirmation field from data (it shouldn't be saved to DB)
         delete data[`${fieldName}_confirm`]
       }
@@ -219,6 +228,21 @@ async function handlePut(context: AuthenticatedContext): Promise<Response> {
       }
     }
     
+    // Parse JSON fields in processedBody to objects for beforeSave hooks (especially virtual fields)
+    for (const key in processedBody) {
+      const fieldConfig = (collectionConfig as any)[key]
+      if (fieldConfig?.options?.type === 'json' && processedBody[key] != null) {
+        const value = processedBody[key]
+        if (typeof value === 'string') {
+          try {
+            processedBody[key] = JSON.parse(value)
+          } catch {
+            // Not valid JSON, keep as is
+          }
+        }
+      }
+    }
+    
     // Execute beforeSave hooks for all fields (including virtual ones that modify other fields)
     for (const key in collectionConfig) {
       const fieldConfig = (collectionConfig as any)[key]
@@ -253,9 +277,15 @@ async function handlePut(context: AuthenticatedContext): Promise<Response> {
       assignments.push(`${q(key)} = ?`)
       let value = processedBody[key]
       
-      // Stringify JSON fields
+      // Stringify JSON fields based on collection config
+      const fieldConfig = (collectionConfig as any)[key]
+      const isJsonField = fieldConfig?.options?.type === 'json'
       const colInfo = columnsInfo.find(c => c.name === key)
-      if (value && typeof value === 'object' && colInfo?.type === 'TEXT') {
+      
+      if (isJsonField && value != null && typeof value === 'object') {
+        value = JSON.stringify(value)
+      } else if (!isJsonField && value && typeof value === 'object' && colInfo?.type === 'TEXT') {
+        // Fallback: stringify object fields in TEXT columns (for backward compatibility)
         value = JSON.stringify(value)
       }
       

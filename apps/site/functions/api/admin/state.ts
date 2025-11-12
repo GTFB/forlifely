@@ -134,6 +134,70 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       whereParts.push(`${q('deleted_at')} IS NULL`)
     }
     
+    // Apply column filters from state.filters (only real DB columns are supported)
+    if (Array.isArray(state.filters) && state.filters.length > 0) {
+      const allowedOps = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "like", "in"])
+      const realColumnNames = new Set(columns.map((c) => c.name))
+
+      for (const f of state.filters) {
+        if (!f || typeof f.field !== "string" || !allowedOps.has(f.op)) continue
+        if (!realColumnNames.has(f.field)) continue // skip virtual/non-existent fields
+
+        const colExpr = q(f.field)
+
+        switch (f.op) {
+          case "eq":
+            whereParts.push(`${colExpr} = ?`)
+            bindings.push(f.value)
+            break
+          case "neq":
+            whereParts.push(`${colExpr} != ?`)
+            bindings.push(f.value)
+            break
+          case "gt":
+            whereParts.push(`${colExpr} > ?`)
+            bindings.push(f.value)
+            break
+          case "gte":
+            whereParts.push(`${colExpr} >= ?`)
+            bindings.push(f.value)
+            break
+          case "lt":
+            whereParts.push(`${colExpr} < ?`)
+            bindings.push(f.value)
+            break
+          case "lte":
+            whereParts.push(`${colExpr} <= ?`)
+            bindings.push(f.value)
+            break
+          case "like": {
+            whereParts.push(`${colExpr} LIKE ?`)
+            // Default to contains match
+            const v = typeof f.value === "string" ? `%${f.value}%` : String(f.value)
+            bindings.push(v)
+            break
+          }
+          case "in": {
+            // Support array or comma-separated string
+            const valuesArray = Array.isArray(f.value)
+              ? (f.value as any[])
+              : typeof f.value === "string"
+                ? (f.value as string).split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+                : []
+            if (valuesArray.length === 0) {
+              // No values -> force false condition to avoid SQL error
+              whereParts.push("1 = 0")
+              break
+            }
+            const placeholders = valuesArray.map(() => "?").join(", ")
+            whereParts.push(`${colExpr} IN (${placeholders})`)
+            bindings.push(...valuesArray)
+            break
+          }
+        }
+      }
+    }
+
     // Add search condition if search is provided
     if (state.search) {
       // Get all TEXT columns for search
@@ -172,9 +236,23 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
       (dataResult.results || []).map(async (row: any) => {
         const processed = { ...row }
         
-        // Parse JSON fields
+        // Parse JSON fields based on collection config
         for (const col of columns) {
-          if (col.type === 'TEXT' && processed[col.name]) {
+          const fieldConfig = (collectionConfig as any)[col.name]
+          const isJsonField = fieldConfig?.options?.type === 'json'
+          
+          if (isJsonField && processed[col.name] != null) {
+            try {
+              const value = processed[col.name]
+              if (typeof value === 'string') {
+                processed[col.name] = JSON.parse(value)
+              }
+            } catch {
+              // Not valid JSON, keep as is
+              console.warn(`Failed to parse JSON field ${col.name} for collection ${state.collection}`)
+            }
+          } else if (col.type === 'TEXT' && processed[col.name]) {
+            // Fallback: try parsing TEXT fields that look like JSON (for backward compatibility)
             try {
               const value = processed[col.name]
               if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {

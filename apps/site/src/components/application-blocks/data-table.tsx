@@ -20,6 +20,8 @@ import {
   IconArrowsSort,
 } from "@tabler/icons-react"
 import { getCollection } from "../../../functions/_shared/collections/getCollection"
+import type { AdminFilter } from "../../../functions/_shared/types"
+import { useLocale } from "@/packages/hooks/use-locale"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
 import qs from "qs"
@@ -111,6 +113,8 @@ type RelationConfig = {
   valueField: string
   labelField: string
   labelFields?: string[]
+  filters?: AdminFilter[]
+  inheritSearch?: boolean
 }
 
 type SelectOption = {
@@ -127,7 +131,12 @@ type ColumnSchemaExtended = ColumnSchema & {
   virtual?: boolean
   defaultCell?: any
   format?: (value: any, locale?: string) => string
-  fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'select'
+
+  fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'price' | 'enum' | 'select'
+  enum?: {
+    values: string[]
+    labels: string[]
+  }
   relation?: RelationConfig
   selectOptions?: SelectOption[]
 }
@@ -140,7 +149,7 @@ type StateResponse = {
     collection: string
     page: number
     pageSize: number
-    filters: any[]
+    filters: AdminFilter[]
   }
   schema: {
     columns: ColumnSchema[]
@@ -242,14 +251,22 @@ function RelationSelect({
   onChange,
   disabled,
   required,
+<<<<<<< HEAD
   translations,
+=======
+  search,
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
 }: {
   relation: RelationConfig
   value: any
   onChange: (value: any) => void
   disabled?: boolean
   required?: boolean
+<<<<<<< HEAD
   translations?: any
+=======
+  search?: string
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
 }) {
   const [options, setOptions] = React.useState<Array<{ value: any; label: string }>>([])
   const [loading, setLoading] = React.useState(false)
@@ -258,10 +275,18 @@ function RelationSelect({
     const loadOptions = async () => {
       setLoading(true)
       try {
+        // Compose relation filters: defaults from schema
+        const relationFilters: AdminFilter[] = []
+        if (Array.isArray(relation.filters)) {
+          relationFilters.push(...relation.filters)
+        }
+
         const queryParams = qs.stringify({
           c: relation.collection,
           p: 1,
           ps: 1000, // Load more items for select
+          ...(relation.inheritSearch && search && { s: search }),
+          ...(relationFilters.length > 0 && { filters: relationFilters }),
         })
 
         const res = await fetch(`/api/admin/state?${queryParams}`, {
@@ -288,7 +313,7 @@ function RelationSelect({
     }
 
     loadOptions()
-  }, [relation])
+  }, [relation, search])
 
   return (
     <Select value={value ? String(value) : ""} onValueChange={onChange} disabled={disabled || loading} required={required}>
@@ -405,7 +430,23 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             </div>
           )
         }
-        
+        // For price type (stored as integer cents), show as decimal with 2 digits
+        if (col.fieldType === 'price') {
+          const cents =
+            value === null || value === undefined || value === ''
+              ? NaN
+              : Number(value)
+          const amount = isFinite(cents) ? (cents / 100).toFixed(2) : '-'
+          return <div className={`${col.primary ? "font-mono font-medium" : "font-mono"}`}>{amount}</div>
+        }
+
+        // For enum type, show label instead of value
+        if (col.fieldType === 'enum' && col.enum) {
+          const valueIndex = col.enum.values.indexOf(String(value))
+          const label = valueIndex >= 0 ? col.enum.labels[valueIndex] : value || "-"
+          return <div>{label}</div>
+        }
+
         // For relation fields, show label instead of value
         if (col.relation && relationData[col.name]) {
           const label = relationData[col.name][value] || value || "-"
@@ -524,6 +565,9 @@ export function DataTable() {
   
   // Local search state for input (debounced before updating global state)
   const [searchInput, setSearchInput] = React.useState(state.search)
+  
+  // Local state for price inputs to allow free input without formatting interference
+  const [priceInputs, setPriceInputs] = React.useState<Record<string, string>>({})
 
   // Load Taxonomy config when collection is taxonomy
   React.useEffect(() => {
@@ -751,7 +795,12 @@ export function DataTable() {
           virtual: options.virtual || false,
           defaultCell: options.defaultCell,
           format: options.format,
+<<<<<<< HEAD
           fieldType: options.type || fieldConfig?.type || (columnConfig?.type === 'select' ? 'select' : columnConfig?.type),
+=======
+          fieldType: options.type,
+          enum: options.enum,
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
           relation: options.relation,
           selectOptions,
         }
@@ -765,10 +814,30 @@ export function DataTable() {
         if (!col.relation) continue
         
         try {
+          // Limit relation fetch to only values actually used in current page data
+          const valuesInUse = Array.from(
+            new Set(
+              (json.data || [])
+                .map((row: any) => row[col.name])
+                .filter((v: any) => v !== null && v !== undefined && v !== "")
+            )
+          )
+
+          // Compose relation filters: defaults from schema + limit to values in current page
+          const relationFilters: AdminFilter[] = []
+          if (Array.isArray(col.relation.filters)) {
+            relationFilters.push(...col.relation.filters)
+          }
+          if (valuesInUse.length > 0) {
+            relationFilters.push({ field: col.relation.valueField, op: 'in', value: valuesInUse.join(',') })
+          }
+
           const queryParams = qs.stringify({
             c: col.relation.collection,
             p: 1,
             ps: 1000,
+            ...(col.relation.inheritSearch && state.search && { s: state.search }),
+            ...(relationFilters.length > 0 && { filters: relationFilters }),
           })
           
           const relRes = await fetch(`/api/admin/state?${queryParams}`, {
@@ -888,7 +957,11 @@ export function DataTable() {
   React.useEffect(() => {
     setFormData({})
     setCreateError(null)
+<<<<<<< HEAD
     setJsonFieldLanguage({}) // Reset language selectors
+=======
+    setPriceInputs({})
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
   }, [state.collection])
 
   // Fields to skip (auto-generated): id, uuid, {x}aid (but not relation fields), created_at, updated_at, deleted_at, data_in
@@ -921,7 +994,11 @@ export function DataTable() {
     setEditData({})
     setEditError(null)
     setRecordToEdit(null)
+<<<<<<< HEAD
     setJsonFieldLanguage({}) // Reset language selectors
+=======
+    setPriceInputs({})
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
   }, [state.collection])
 
   const onEditRequest = React.useCallback((row: Row<CollectionData>) => {
@@ -934,6 +1011,7 @@ export function DataTable() {
           initial[col.name] = record[col.name] === 1 || record[col.name] === true || record[col.name] === '1' || record[col.name] === 'true'
         } else if (col.fieldType === 'date' || col.fieldType === 'time' || col.fieldType === 'datetime') {
           initial[col.name] = record[col.name] ? new Date(record[col.name]) : null
+<<<<<<< HEAD
         } else if (col.fieldType === 'json' && state.collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) {
           // For title and category JSON fields, parse and extract en/ru values
           let jsonValue = record[col.name]
@@ -968,6 +1046,26 @@ export function DataTable() {
           initial[`${col.name}_ru`] = jsonValue.ru || ''
           // Initialize language selector to current locale
           setJsonFieldLanguage(prev => ({ ...prev, [col.name]: locale as 'en' | 'ru' }))
+=======
+        } else if (col.fieldType === 'price') {
+          const cents = record[col.name]
+          initial[col.name] = cents == null ? null : Number(cents)
+        } else if (col.fieldType === 'json') {
+          // Keep JSON fields as objects (or parse from string if needed)
+          if (record[col.name] != null) {
+            if (typeof record[col.name] === 'string') {
+              try {
+                initial[col.name] = JSON.parse(record[col.name])
+              } catch {
+                initial[col.name] = {}
+              }
+            } else {
+              initial[col.name] = record[col.name]
+            }
+          } else {
+            initial[col.name] = {}
+          }
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
         } else {
           initial[col.name] = record[col.name] != null ? String(record[col.name]) : ''
         }
@@ -977,7 +1075,7 @@ export function DataTable() {
     setEditOpen(true)
   }, [schema, isAutoGeneratedField, state.collection, locale])
 
-  const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | null) => {
+  const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | number | null) => {
     setEditData((prev) => ({ ...prev, [fieldName]: value }))
   }, [])
 
@@ -1063,6 +1161,7 @@ export function DataTable() {
     e.preventDefault()
     setCreateError(null)
     try {
+<<<<<<< HEAD
       // Convert Date objects to ISO strings for API and handle JSON fields
       const payload = Object.entries(formData).reduce((acc, [key, value]) => {
         // Handle title_en/title_ru and category_en/category_ru for taxonomy collection
@@ -1079,6 +1178,26 @@ export function DataTable() {
         } else if (!key.match(/_(en|ru)$/)) {
           // Skip title_en/title_ru/category_en/category_ru as they're already processed above
           acc[key] = value instanceof Date ? value.toISOString() : value
+=======
+      // Convert Date objects to ISO strings and serialize JSON fields for API
+      const payload = Object.entries(formData).reduce((acc, [key, value]) => {
+        const field = schema.find(f => f.name === key)
+        if (field?.fieldType === 'json' && value != null && typeof value === 'object') {
+          acc[key] = value // Keep as object, server will stringify
+        } else if (field?.fieldType === 'price') {
+          // For price fields, include value if it's a number, or null if nullable
+          // Price is stored as integer cents in DB
+          if (value != null && typeof value === 'number') {
+            acc[key] = value
+          } else if (value === null && field.nullable) {
+            acc[key] = null
+          }
+          // If null/undefined and not nullable, skip (validation should catch this)
+        } else if (value instanceof Date) {
+          acc[key] = value.toISOString()
+        } else {
+          acc[key] = value
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
         }
         return acc
       }, {} as Record<string, any>)
@@ -1095,13 +1214,23 @@ export function DataTable() {
       }
       setCreateOpen(false)
       setFormData({})
+      // Clear price inputs for create form
+      setPriceInputs(prev => {
+        const newInputs = { ...prev }
+        editableFields.forEach(field => {
+          if (field.fieldType === 'price') {
+            delete newInputs[`create-${field.name}`]
+          }
+        })
+        return newInputs
+      })
       await fetchData()
     } catch (e) {
       setCreateError((e as Error).message)
     }
   }
 
-  const handleFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | null) => {
+  const handleFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | number | null) => {
     setFormData((prev: Record<string, any>) => ({ ...prev, [fieldName]: value }))
   }, [])
 
@@ -1110,6 +1239,7 @@ export function DataTable() {
     if (!recordToEdit) return
     setEditError(null)
     try {
+<<<<<<< HEAD
       // Convert Date objects to ISO strings for API and handle JSON fields
       const payload = Object.entries(editData).reduce((acc, [key, value]) => {
         // Handle title_en/title_ru and category_en/category_ru for taxonomy collection
@@ -1126,6 +1256,26 @@ export function DataTable() {
         } else if (!key.match(/_(en|ru)$/)) {
           // Skip title_en/title_ru/category_en/category_ru as they're already processed above
           acc[key] = value instanceof Date ? value.toISOString() : value
+=======
+      // Convert Date objects to ISO strings and keep JSON fields as objects for API
+      const payload = Object.entries(editData).reduce((acc, [key, value]) => {
+        const field = schema.find(f => f.name === key)
+        if (field?.fieldType === 'json' && value != null && typeof value === 'object') {
+          acc[key] = value // Keep as object, server will stringify
+        } else if (field?.fieldType === 'price') {
+          // For price fields, include value if it's a number, or null if nullable
+          // Price is stored as integer cents in DB
+          if (value != null && typeof value === 'number') {
+            acc[key] = value
+          } else if (value === null && field.nullable) {
+            acc[key] = null
+          }
+          // If null/undefined and not nullable, skip (validation should catch this)
+        } else if (value instanceof Date) {
+          acc[key] = value.toISOString()
+        } else {
+          acc[key] = value
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
         }
         return acc
       }, {} as Record<string, any>)
@@ -1144,6 +1294,16 @@ export function DataTable() {
       setEditOpen(false)
       setRecordToEdit(null)
       setEditData({})
+      // Clear price inputs for edit form
+      setPriceInputs(prev => {
+        const newInputs = { ...prev }
+        schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
+          if (field.fieldType === 'price') {
+            delete newInputs[`edit-${field.name}`]
+          }
+        })
+        return newInputs
+      })
       await fetchData()
     } catch (e) {
       setEditError((e as Error).message)
@@ -1266,6 +1426,8 @@ export function DataTable() {
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
+                        onDoubleClick={() => onEditRequest(row)}
+                        className="cursor-pointer"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
@@ -1407,7 +1569,23 @@ export function DataTable() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={createOpen} onOpenChange={setCreateOpen}>
+      <ResponsiveDialog open={createOpen} onOpenChange={(open) => {
+        setCreateOpen(open)
+        if (!open) {
+          // Clear form data and price inputs when dialog closes
+          setFormData({})
+          setCreateError(null)
+          setPriceInputs(prev => {
+            const newInputs = { ...prev }
+            editableFields.forEach(field => {
+              if (field.fieldType === 'price') {
+                delete newInputs[`create-${field.name}`]
+              }
+            })
+            return newInputs
+          })
+        }
+      }}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{(() => {
@@ -1518,6 +1696,7 @@ export function DataTable() {
                       <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
                   </>
+<<<<<<< HEAD
                 ) : field.fieldType === 'json' && state.collection === 'taxonomy' && (field.name === 'title' || field.name === 'category') ? (
                   <>
                     <div className="flex items-center justify-between">
@@ -1564,11 +1743,15 @@ export function DataTable() {
                     </Tabs>
                   </>
                 ) : field.fieldType === 'select' && field.selectOptions ? (
+=======
+                ) : (field as any).fieldType === 'price' ? (
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
                       {field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
+<<<<<<< HEAD
                     <ComboboxSelect
                       id={`field-${field.name}`}
                       options={field.selectOptions}
@@ -1580,6 +1763,76 @@ export function DataTable() {
                       translations={t}
                     />
                   </>
+=======
+                    <Input
+                      id={`field-${field.name}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      required={!field.nullable}
+                      value={
+                        priceInputs[`create-${field.name}`] !== undefined
+                          ? priceInputs[`create-${field.name}`]
+                          : formData[field.name] === undefined || formData[field.name] === null
+                            ? ""
+                            : (Number(formData[field.name]) / 100).toFixed(2)
+                      }
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/,/g, '.')
+                        // Store raw input value for free editing
+                        setPriceInputs(prev => ({ ...prev, [`create-${field.name}`]: v }))
+                        // limit to two decimals
+                        if (v.includes('.')) {
+                          const [i, d] = v.split('.')
+                          v = `${i}.${d.slice(0, 2)}`
+                        }
+                        const num = v === '' ? NaN : Number(v)
+                        const cents = !isFinite(num) ? null : Math.round(num * 100)
+                        handleFieldChange(field.name, cents)
+                      }}
+                      onBlur={(e) => {
+                        let v = e.target.value.replace(/,/g, '.')
+                        // Format on blur
+                        if (v.includes('.')) {
+                          const [i, d] = v.split('.')
+                          v = `${i}.${d.slice(0, 2)}`
+                        }
+                        const num = v === '' ? NaN : Number(v)
+                        if (isFinite(num)) {
+                          const formatted = num.toFixed(2)
+                          setPriceInputs(prev => ({ ...prev, [`create-${field.name}`]: formatted }))
+                          const cents = Math.round(num * 100)
+                          handleFieldChange(field.name, cents)
+                        }
+                      }}
+                      placeholder={`Enter ${field.title || field.name}`}
+                    />
+                  </>
+                ) : field.fieldType === 'enum' && field.enum ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Select
+                      value={formData[field.name] || ""}
+                      onValueChange={(value) => handleFieldChange(field.name, value)}
+                      required={!field.nullable}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select ${field.title || field.name}`} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] z-[9999]" position="popper" sideOffset={5}>
+                        {field.enum.values.map((val, index) => (
+                          <SelectItem key={val} value={val}>
+                            {field.enum!.labels[index] || val}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                 ) : field.relation ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -1591,7 +1844,11 @@ export function DataTable() {
                       value={formData[field.name]}
                       onChange={(value) => handleFieldChange(field.name, value)}
                       required={!field.nullable}
+<<<<<<< HEAD
                       translations={t}
+=======
+                      search={state.search}
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                     />
                   </>
                 ) : (
@@ -1628,7 +1885,24 @@ export function DataTable() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={editOpen} onOpenChange={setEditOpen}>
+      <ResponsiveDialog open={editOpen} onOpenChange={(open) => {
+        setEditOpen(open)
+        if (!open) {
+          // Clear edit data and price inputs when dialog closes
+          setEditData({})
+          setEditError(null)
+          setRecordToEdit(null)
+          setPriceInputs(prev => {
+            const newInputs = { ...prev }
+            schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
+              if (field.fieldType === 'price') {
+                delete newInputs[`edit-${field.name}`]
+              }
+            })
+            return newInputs
+          })
+        }
+      }}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{(() => {
@@ -1740,6 +2014,7 @@ export function DataTable() {
                       <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
                   </>
+<<<<<<< HEAD
                 ) : field.fieldType === 'json' && state.collection === 'taxonomy' && (field.name === 'title' || field.name === 'category') ? (
                   <>
                     <div className="flex items-center justify-between">
@@ -1788,11 +2063,15 @@ export function DataTable() {
                     </Tabs>
                   </>
                 ) : field.fieldType === 'select' && field.selectOptions ? (
+=======
+                ) : (field as any).fieldType === 'price' ? (
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
                       {field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
+<<<<<<< HEAD
                     <ComboboxSelect
                       id={`edit-field-${field.name}`}
                       options={field.selectOptions}
@@ -1804,6 +2083,77 @@ export function DataTable() {
                       translations={t}
                     />
                   </>
+=======
+                    <Input
+                      id={`edit-field-${field.name}`}
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      required={!field.nullable}
+                      value={
+                        priceInputs[`edit-${field.name}`] !== undefined
+                          ? priceInputs[`edit-${field.name}`]
+                          : editData[field.name] === undefined || editData[field.name] === null
+                            ? ""
+                            : (Number(editData[field.name]) / 100).toFixed(2)
+                      }
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/,/g, '.')
+                        // Store raw input value for free editing
+                        setPriceInputs(prev => ({ ...prev, [`edit-${field.name}`]: v }))
+                        // limit to two decimals
+                        if (v.includes('.')) {
+                          const [i, d] = v.split('.')
+                          v = `${i}.${d.slice(0, 2)}`
+                        }
+                        const num = v === '' ? NaN : Number(v)
+                        const cents = !isFinite(num) ? null : Math.round(num * 100)
+                        handleEditFieldChange(field.name, cents)
+                      }}
+                      onBlur={(e) => {
+                        let v = e.target.value.replace(/,/g, '.')
+                        // Format on blur
+                        if (v.includes('.')) {
+                          const [i, d] = v.split('.')
+                          v = `${i}.${d.slice(0, 2)}`
+                        }
+                        const num = v === '' ? NaN : Number(v)
+                        if (isFinite(num)) {
+                          const formatted = num.toFixed(2)
+                          setPriceInputs(prev => ({ ...prev, [`edit-${field.name}`]: formatted }))
+                          const cents = Math.round(num * 100)
+                          handleEditFieldChange(field.name, cents)
+                        }
+                      }}
+                      disabled={field.readOnly}
+                    />
+                  </>
+                ) : field.fieldType === 'enum' && field.enum ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Select
+                      value={editData[field.name] || ""}
+                      onValueChange={(value) => handleEditFieldChange(field.name, value)}
+                      required={!field.nullable}
+                      disabled={field.readOnly}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select ${field.title || field.name}`} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px] z-[9999]" position="popper" sideOffset={5}>
+                        {field.enum.values.map((val, index) => (
+                          <SelectItem key={val} value={val}>
+                            {field.enum!.labels[index] || val}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                 ) : field.relation ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
@@ -1816,7 +2166,11 @@ export function DataTable() {
                       onChange={(value) => handleEditFieldChange(field.name, value)}
                       required={!field.nullable}
                       disabled={field.readOnly}
+<<<<<<< HEAD
                       translations={t}
+=======
+                      search={state.search}
+>>>>>>> 204496219e9b854a27930a418936c21a3b6098e4
                     />
                   </>
                 ) : (

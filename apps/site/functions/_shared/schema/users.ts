@@ -6,12 +6,15 @@ export const users = sqliteTable('users', {
   humanAid: text('human_aid'),
   email: text('email').notNull(),
   passwordHash: text('password_hash').notNull(),
+  salt: text('salt').notNull(),
   isActive: integer('is_active', { mode: 'boolean' }).default(true),
   lastLoginAt: text('last_login_at'),
   emailVerifiedAt: text('email_verified_at'),
   createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
   updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
   deletedAt: text('deleted_at'),
-  dataIn: text('data_in'),
+  dataIn: text('data_in', {
+    mode: 'json'
+  }),
 })
 

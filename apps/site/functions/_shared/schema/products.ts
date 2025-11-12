@@ -9,14 +9,22 @@ export const products = sqliteTable('products', {
 	type: text('type'),
 	statusName: text('status_name'),
 	isPublic: integer('is_public', { mode: 'boolean' }).default(true),
-	order: numeric('order').default(0),
+	order: numeric('order').default('0'),
 	xaid: text('xaid'),
 	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
 	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
 	deletedAt: numeric('deleted_at'),
-	gin: text('gin'),
-	fts: text('fts'),
-	dataIn: text('data_in'),
-	dataOut: text('data_out'),
+	gin: text('gin', {
+		mode: 'json'
+	}),
+	fts: text('fts', {
+		mode: 'json'
+	}),
+	dataIn: text('data_in', {
+		mode: 'json'
+	}),
+	dataOut: text('data_out', {
+		mode: 'json'
+	}),
 });
 

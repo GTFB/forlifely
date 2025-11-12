@@ -50,14 +50,20 @@
         "./src/shared/*",
         "./functions/_shared/*"
       ]
-    }
+    },
+    "types": ["@cloudflare/workers-types", "bun-types"]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "src/**/*.d.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    "dist/types/**/*.ts"
+    "dist/types/**/*.ts",
+    "dist/types/**/*.d.ts",
+    "functions/**/*.ts",
+    "functions/**/*.d.ts",
+    "test/**/*.ts"       
   ],
   "exclude": [
     "node_modules"

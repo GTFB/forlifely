@@ -1,8 +1,19 @@
-import { Context } from '../types'
+import { Context, AdminFilter } from '../types'
 export default class BaseColumn {   
     constructor(public options: BaseColumnOptions) {
 
     }
+    async prepare(value: any): Promise<any> {
+        if(this.options.prepare) {
+            return await this.options.prepare(value, this)
+        }
+        if(this.options.type === 'json' && typeof value === 'object') {
+            return JSON.stringify(value)
+        }
+        return value
+    }
+
+
 }
 
 export type RelationConfig = {
@@ -10,6 +21,10 @@ export type RelationConfig = {
     valueField: string;      // Field to use as value (e.g., 'uuid')
     labelField: string;      // Field to display as label (e.g., 'email')
     labelFields?: string[];  // Multiple fields for composite label (e.g., ['first_name', 'last_name'])
+    // Optional default filters to apply when fetching relation options
+    filters?: AdminFilter[];
+    // If true, propagate parent table search (s) to relation fetch
+    inheritSearch?: boolean;
 }
 
 export type BaseColumnOptions = {
@@ -19,9 +34,14 @@ export type BaseColumnOptions = {
     required?: boolean;
     readOnly?: boolean;
     unique?: boolean;
+    prepare?: (value: any, column: BaseColumn) => any;
     virtual?: boolean;  // Virtual field, computed on backend
     value?: (instance: any) => Promise<any> | any;  // Required if virtual = true
-    type?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object';
+    type?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'price' | 'enum';
+    enum?: {
+        values: string[];
+        labels: string[];
+    };
     relation?: RelationConfig;
     index?: boolean;
     defaultValue?: any;
