@@ -8,10 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Building2, Calendar, HandCoins, TrendingUp, Shield } from "lucide-react";
 import Link from "next/link";
-import ContentSection from "@/components/marketing-blocks/content04";
+import {InvestorsFormData} from '@/shared/types/esnad'
+import dynamic from "next/dynamic";
+import type { Value as E164Number } from "react-phone-number-input";
+
+const PhoneInput = dynamic(
+  () => import("@/components/ui/phone-input").then((mod) => mod.PhoneInput),
+  { ssr: false }
+);
 
 const steps = [
   {
@@ -89,17 +95,46 @@ const products = [
 ];
 
 export default function InvestorsPage() {
-  const [formData, setFormData] = React.useState({
+  const [formData, setFormData] = React.useState<InvestorsFormData>({
     name: "",
     phone: "",
     email: "",
   });
+  const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Mock submission
-    console.log("Form submitted:", formData);
-    alert("Заявка отправлена! Мы свяжемся с вами в ближайшее время.");
+    setStatus("loading");
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/esnad/v1/investor-form", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = (await response.json().catch(() => null)) as
+        | { ok?: boolean; message?: string }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.message || "Не удалось отправить заявку");
+      }
+
+      setStatus("success");
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+      });
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Неизвестная ошибка");
+    }
   };
 
   return (
@@ -231,13 +266,13 @@ export default function InvestorsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Телефон *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
+                  <PhoneInput
+                    defaultCountry="RU"
                     placeholder="+7 (999) 999-99-99"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
+                    value={(formData.phone || "") as E164Number}
+                    onChange={(value) =>
+                      setFormData({ ...formData, phone: value ?? "" })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -251,8 +286,18 @@ export default function InvestorsPage() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" size="lg">
-                  Отправить
+                {status === "success" && (
+                  <p className="text-sm text-green-600" role="status">
+                    Заявка отправлена! Мы свяжемся с вами в ближайшее время.
+                  </p>
+                )}
+                {status === "error" && (
+                  <p className="text-sm text-destructive" role="alert">
+                    {errorMessage ?? "Произошла ошибка при отправке заявки."}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" size="lg" disabled={status === "loading"}>
+                  {status === "loading" ? "Отправляем..." : "Отправить"}
                 </Button>
               </form>
             </CardContent>

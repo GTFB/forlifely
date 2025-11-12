@@ -1,3 +1,4 @@
+import { systemSeed } from './system'
 
 export type SeedMeta = {
   name: string
@@ -19,8 +20,10 @@ export type SeedDefinition = {
 }
 
 export const seeds: SeedDefinition[] = [
-  
+  {
+    id: 'system',
+    data: systemSeed as unknown as SeedData,
+  },
 ]
 
-export {  }
 

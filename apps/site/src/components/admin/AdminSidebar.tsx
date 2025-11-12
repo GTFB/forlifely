@@ -153,7 +153,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       <SidebarHeader className="border-b px-4 py-6">
         <div className="flex flex-col items-start gap-2 pl-2">
           <Logo className="h-8" />
-          <span className="text-sm font-semibold">Админ-панель</span>
+          <Link className="text-sm font-semibold" href='/'>Админ-панель</Link>
         </div>
       </SidebarHeader>
       <SidebarContent>

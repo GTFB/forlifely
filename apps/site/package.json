@@ -25,12 +25,12 @@
     "d1:query:local": "wrangler d1 execute altrp-site-db --local",
     "d1:query:remote": "wrangler d1 execute altrp-site-db --remote",
     "hash-password": "node scripts/hash-password.mjs",
-    "test:int": "vitest run --config ./vitest.config.ts -- test/int",
-    "test:int:repo": "vitest run --config ./vitest.config.ts  --pool workers"
+    "test:int": "bun test --config ./tsconfig.json test/int/"
   },
   "dependencies": {
     "@cloudflare/vitest-pool-workers": "^0.10.5",
     "@dnd-kit/modifiers": "^9.0.0",
+    "@faker-js/faker": "^10.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
