@@ -87,7 +87,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         
         if (!hasUsers) {
           // No users exist, redirect to create first user
-          router.replace('/admin/create-new-user')
+          location.href = '/admin/create-new-user'
           isCheckingRef.current = false
           return
         }

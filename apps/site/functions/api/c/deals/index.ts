@@ -104,7 +104,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           status: deal.statusName,
           createdAt: deal.createdAt,
           updatedAt: deal.updatedAt,
-          dataIn: deal.dataIn ? JSON.parse(deal.dataIn) : null,
+          dataIn: deal.dataIn ? deal.dataIn : null,
         })),
         pagination: {
           page,

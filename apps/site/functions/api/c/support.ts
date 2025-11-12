@@ -100,8 +100,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
-    const body = await request.json()
-    const { subject, message } = body
+    const { subject, message } = await request.json() as {
+      subject: string,
+      message:string,
+    }
 
     if (!subject || !message) {
       return new Response(JSON.stringify({ error: 'Subject and message are required' }), {

@@ -17,9 +17,14 @@ import {
   CheckSquare,
 } from 'lucide-react'
 import type { NavigationItem } from "@/components/cabinet/BottomNavigation"
+import { usePathname } from "next/navigation"
 
 // Global state to preserve sidebar open state across remounts
 let globalSidebarOpen: boolean | null = null
+const HIDE_SIDEBAR_ROUTES = new Set([
+  "/admin/create-new-user",
+  "/admin/create-new-user/",
+])
 
 function getSidebarStateFromStorage(): boolean {
   if (typeof window === 'undefined') return true
@@ -72,14 +77,17 @@ const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
     globalSidebarOpen = open
     setSidebarOpen(open)
   }, [])
-  
+
+  const pathname = usePathname()
+  const shouldHideSidebar = pathname ? HIDE_SIDEBAR_ROUTES.has(pathname) : false
+
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      <SidebarProvider 
-        open={sidebarOpen} 
+      <SidebarProvider
+        open={sidebarOpen}
         onOpenChange={handleSidebarOpenChange}
       >
-        <AdminSidebar user={user || undefined} />
+        {!shouldHideSidebar && <AdminSidebar user={user || undefined} />}
         <SidebarInset className="flex flex-col flex-1 overflow-hidden">
           {children}
         </SidebarInset>
@@ -120,12 +128,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="h-screen w-full bg-background overflow-hidden">
       <AdminStateProvider>
-        <SidebarWrapper>
-          <AdminAuthGuard>
+        <AdminAuthGuard>
+          <SidebarWrapper>
             {children}
-          </AdminAuthGuard>
-        </SidebarWrapper>
-        <BottomNavigation navigationItems={adminNavigationItems} />
+          </SidebarWrapper>
+          <BottomNavigation navigationItems={adminNavigationItems} />
+        </AdminAuthGuard>
       </AdminStateProvider>
     </div>
   )

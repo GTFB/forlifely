@@ -28,7 +28,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
-    const body = await request.json()
+    const body = await request.json() as any
     
     // Validate required fields
     const requiredFields = [

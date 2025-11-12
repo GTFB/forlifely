@@ -7,6 +7,30 @@ import { createDb } from '../../_shared/repositories/utils'
 import { schema } from '../../_shared/schema/schema'
 import { eq } from 'drizzle-orm'
 
+type HumanData = {
+  phone?: string | null
+  address?: string | null
+  kycStatus?: string | null
+  kycDocuments?: unknown[]
+  [key: string]: unknown
+}
+
+const parseHumanData = (data: unknown): HumanData => {
+  if (!data) return {}
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data)
+      return typeof parsed === 'object' && parsed !== null ? (parsed as HumanData) : {}
+    } catch {
+      return {}
+    }
+  }
+  if (typeof data === 'object') {
+    return data as HumanData
+  }
+  return {}
+}
+
 /**
  * GET /api/c/profile
  * Returns consumer profile
@@ -42,6 +66,8 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     }
 
     const { user, human } = userWithRoles
+    const humanData = parseHumanData(human?.dataIn)
+    const kycDocuments = Array.isArray(humanData.kycDocuments) ? humanData.kycDocuments : []
 
     return new Response(
       JSON.stringify({
@@ -49,11 +75,11 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           id: user.id,
           email: user.email,
           name: human?.fullName || user.email,
-          phone: human?.phone || null,
-          address: human?.address || null,
-          kycStatus: human?.kycStatus || 'not_started',
-          kycDocuments: human?.dataIn ? JSON.parse(human.dataIn).kycDocuments || [] : [],
-          dataIn: human?.dataIn ? JSON.parse(human.dataIn) : null,
+          phone: (humanData.phone ?? null) as string | null,
+          address: (humanData.address ?? null) as string | null,
+          kycStatus: (humanData.kycStatus as string | null) ?? 'not_started',
+          kycDocuments,
+          dataIn: Object.keys(humanData).length ? humanData : null,
         },
       }),
       {
@@ -97,7 +123,11 @@ export const onRequestPut = async (context: { request: Request; env: Env }) => {
   }
 
   try {
-    const body = await request.json()
+    const body = (await request.json()) as {
+      name?: string
+      phone?: string | null
+      address?: string | null
+    }
     const { name, phone, address } = body
 
     const meRepository = MeRepository.getInstance(env.DB)
@@ -113,15 +143,29 @@ export const onRequestPut = async (context: { request: Request; env: Env }) => {
     const db = createDb(env.DB)
     
     // Update human profile
-    const updateData: any = {}
-    if (name !== undefined) updateData.fullName = name
-    if (phone !== undefined) updateData.phone = phone
-    if (address !== undefined) updateData.address = address
+    const humanData = parseHumanData(userWithRoles.human.dataIn)
+    const updatedDataIn: HumanData = { ...humanData }
+    const updateColumns: Record<string, unknown> = {}
 
-    await db
-      .update(schema.humans)
-      .set(updateData)
-      .where(eq(schema.humans.haid, userWithRoles.human.haid))
+    if (name !== undefined) {
+      updateColumns.fullName = name
+    }
+    if (phone !== undefined) {
+      updatedDataIn.phone = phone
+    }
+    if (address !== undefined) {
+      updatedDataIn.address = address
+    }
+    if (phone !== undefined || address !== undefined) {
+      updateColumns.dataIn = JSON.stringify(updatedDataIn)
+    }
+
+    if (Object.keys(updateColumns).length) {
+      await db
+        .update(schema.humans)
+        .set(updateColumns)
+        .where(eq(schema.humans.haid, userWithRoles.human.haid))
+    }
 
     return new Response(
       JSON.stringify({ 

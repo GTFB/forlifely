@@ -74,7 +74,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     for (const deal of deals) {
       if (deal.dataIn) {
         try {
-          const data = JSON.parse(deal.dataIn)
+          const data = deal.dataIn as any
           if (data.payments && Array.isArray(data.payments)) {
             allPayments.push(...data.payments.map((payment: any) => ({
               ...payment,
@@ -149,7 +149,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   }
 
   try {
-    const body = await request.json()
+    const body = (await request.json()) as {
+      dealId?: string
+      amount?: number
+      comment?: string
+    }
     const { dealId, amount, comment } = body
 
     if (!dealId || !amount) {
