@@ -8,6 +8,16 @@ export const systemSeed = {
                 description: "Заявка Инвестора added",
                 created_at: "2025-11-12 15:54",
             },
+            {
+                version: "1.0.1",
+                description: "Заявка на кредит added",
+                created_at: "2025-11-13 15:54",
+            },
+            {
+                version: "1.0.2",
+                description: "Deal statuses added",
+                created_at: "2025-11-13 16:10",
+            },
         ],
     },
     roles: [],
@@ -20,7 +30,38 @@ export const systemSeed = {
             title: "Заявка Инвестора",
             sort_order: 100,
         },
+        {
+            entity: "deal.dataIn.type",
+            name: "LOAN_APPLICATION",
+            title: "Заявка на кредит",
+            sort_order: 200,
+        },
 
+        // Deal statuses
+        {
+            entity: "deal.statusName",
+            name: "NEW",
+            title: "новая заявка",
+            sort_order: 300,
+        },
+        {
+            entity: "deal.statusName",
+            name: "SCORING",
+            title: "скоринг",
+            sort_order: 310,
+        },
+        {
+            entity: "deal.statusName",
+            name: "ACTIVE",
+            title: "активна",
+            sort_order: 320,
+        },
+        {
+            entity: "deal.statusName",
+            name: "COMPLETED",
+            title: "закрыта",
+            sort_order: 330,
+        },
     ]
 } as const
 

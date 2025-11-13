@@ -57,15 +57,19 @@ const steps = [
   },
 ];
 
+const initialFormState = {
+  firstName: "",
+  lastName: "",
+  phone: "",
+  email: "",
+  productPrice: "50000",
+  term: [6] as number[],
+};
+
 export default function ConsumersPage() {
-  const [formData, setFormData] = React.useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    productPrice: "50000",
-    term: [6] as number[],
-  });
+  const [formData, setFormData] = React.useState(initialFormState);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const price = parseFloat(formData.productPrice) || 0;
   const months = formData.term[0] || 6;
@@ -80,11 +84,51 @@ export default function ConsumersPage() {
     }).format(value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock submission
-    console.log("Form submitted:", formData);
-    alert("Заявка отправлена! Мы свяжемся с вами в ближайшее время.");
+
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/esnad/v1/consumers-form", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          email: formData.email,
+          productPrice: formData.productPrice,
+          term: formData.term,
+        }),
+      });
+
+      const result = (await response.json().catch(() => ({
+        success: false,
+        message: "Не удалось обработать ответ сервера",
+      }))) as { success: boolean; message?: string };
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message ?? "Не удалось отправить заявку");
+      }
+
+      setFeedback({
+        type: "success",
+        message: "Заявка отправлена! Мы свяжемся с вами в ближайшее время.",
+      });
+      setFormData({ ...initialFormState });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Не удалось отправить заявку. Попробуйте позже.";
+      setFeedback({ type: "error", message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -222,8 +266,20 @@ export default function ConsumersPage() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" size="lg">
-                  Подать заявку
+                {feedback && (
+                  <div
+                    className={`rounded-md border p-4 text-sm ${
+                      feedback.type === "success"
+                        ? "border-green-200 bg-green-50 text-green-800"
+                        : "border-red-200 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    {feedback.message}
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? "Отправляем..." : "Подать заявку"}
                 </Button>
               </form>
             </CardContent>

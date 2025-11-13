@@ -87,8 +87,8 @@ echo "🔍 Running code validation..."
 #     exit 1
 # fi
 
-echo "🧪 Running build site..."
-if ! bun run build:site; then
+echo "🧪 Running type-check for site..."
+if ! bun run type-check:site; then
     echo "❌ Running build failed. Aborting commit."
     exit 1
 fi
