@@ -62,6 +62,7 @@ export interface NewClient extends NewEsnadHuman{
 export interface LoanApplication  extends Deal{
     dataIn: LoanApplicationDataIn
     dealStatusTransitions?: LoanApplicationJournal[]
+    documents?: any[]
 }
 
 export interface NewLoanApplication extends NewDeal{
@@ -131,3 +132,19 @@ export interface DealStatusTransition{
     source?: 'MANUAL' | 'SYSTEM' | 'AUTO_RULE'
     journalId?: Journal['id']
 }
+/**
+ * taxonomy
+ */
+
+export interface TaxonomyOption {
+    id: number
+    entity: string
+    name: string
+    title: string | null
+    sortOrder: number | null
+  }
+  
+  export interface TaxonomyResponse {
+    docs: TaxonomyOption[]
+  }
+  

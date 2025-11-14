@@ -56,7 +56,7 @@ describe("DealsRepository", () => {
             const rawLastName = ` ${faker.person.lastName()} `;
             const rawPhone = ` ${faker.phone.number({ style: "international" })} `;
             const rawEmail = ` ${faker.internet.email().toLowerCase()} `;
-            const rawProductPrice = ` ${faker.commerce.price()} `;
+            const rawProductPrice = ` ${faker.commerce.price({ min: 10000, max: 1000000 })} `;
             const rawTerm: number[] = [12, 24];
 
             const deal = await dealsRepository.createLoanApplicationDealPublic({

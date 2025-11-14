@@ -41,26 +41,26 @@ export const systemSeed = {
         {
             entity: "deal.statusName",
             name: "NEW",
-            title: "новая заявка",
-            sort_order: 300,
+            title: "Новая Заявка",
+            sort_order: 100,
         },
         {
             entity: "deal.statusName",
             name: "SCORING",
-            title: "скоринг",
-            sort_order: 310,
+            title: "Скоринг",
+            sort_order: 200,
         },
         {
             entity: "deal.statusName",
             name: "ACTIVE",
-            title: "активна",
-            sort_order: 320,
+            title: "Активна",
+            sort_order: 300,
         },
         {
             entity: "deal.statusName",
             name: "COMPLETED",
-            title: "закрыта",
-            sort_order: 330,
+            title: "Закрыта",
+            sort_order: 400,
         },
     ]
 } as const

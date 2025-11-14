@@ -21,154 +21,83 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 
-interface Deal {
-  id: string
-  clientName: string
-  amount: number
-  status: string
-  manager: {
-    name: string
-    avatar?: string
-  }
-  createdAt: string
-}
+import type { 
+  TaxonomyOption, 
+  TaxonomyResponse,
+  LoanApplication,
+  
+ } from '@/shared/types/esnad'
+ import type { 
+    DbPaginatedResult,
+    DbPaginationResult,
+  } from '@/shared/types/shared'
+ 
+
+const INITIAL_LIMIT = 10
 
 export default function AdminDealsPage() {
   const router = useRouter()
-  const [deals, setDeals] = React.useState<Deal[]>([])
+  const [deals, setDeals] = React.useState<LoanApplication[]>([])
+  const [pagination, setPagination] = React.useState<DbPaginationResult>({
+    total: 0,
+    page: 1,
+    limit: INITIAL_LIMIT,
+    totalPages: 1,
+    
+  })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
   const [managerFilter, setManagerFilter] = React.useState<string>('all')
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const [statusOptions, setStatusOptions] = React.useState<TaxonomyOption[]>([])
 
   React.useEffect(() => {
     const fetchDeals = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/admin/deals', { credentials: 'include' })
-        
-        // Mock data
-        setTimeout(() => {
-          setDeals([
-            {
-              id: 'deal-001',
-              clientName: 'Иванов Иван Иванович',
-              amount: 150000,
-              status: 'На рассмотрении',
-              manager: {
-                name: 'Петрова М.С.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-002',
-              clientName: 'Петрова Мария Сергеевна',
-              amount: 85000,
-              status: 'Одобрена',
-              manager: {
-                name: 'Иванов И.И.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-003',
-              clientName: 'Сидоров Петр Александрович',
-              amount: 200000,
-              status: 'Отклонена',
-              manager: {
-                name: 'Сидоров П.А.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-004',
-              clientName: 'Козлова Анна Дмитриевна',
-              amount: 120000,
-              status: 'Одобрена',
-              manager: {
-                name: 'Козлова А.Д.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-005',
-              clientName: 'Морозов Дмитрий Викторович',
-              amount: 95000,
-              status: 'На рассмотрении',
-              manager: {
-                name: 'Петрова М.С.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-006',
-              clientName: 'Волкова Елена Игоревна',
-              amount: 180000,
-              status: 'Одобрена',
-              manager: {
-                name: 'Иванов И.И.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-007',
-              clientName: 'Новиков Сергей Петрович',
-              amount: 110000,
-              status: 'На рассмотрении',
-              manager: {
-                name: 'Сидоров П.А.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-008',
-              clientName: 'Лебедева Ольга Владимировна',
-              amount: 165000,
-              status: 'Отклонена',
-              manager: {
-                name: 'Козлова А.Д.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-009',
-              clientName: 'Соколов Андрей Николаевич',
-              amount: 140000,
-              status: 'Одобрена',
-              manager: {
-                name: 'Петрова М.С.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'deal-010',
-              clientName: 'Павлова Татьяна Александровна',
-              amount: 130000,
-              status: 'На рассмотрении',
-              manager: {
-                name: 'Иванов И.И.',
-                avatar: undefined,
-              },
-              createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-          ])
-          setLoading(false)
-        }, 500)
+
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: pagination.limit.toString(),
+        })
+
+        const filtersPayload = statusFilter !== 'all'
+          ? {
+              conditions: [
+                {
+                  field: 'statusName',
+                  operator: 'eq',
+                  values: [statusFilter],
+                },
+              ],
+            }
+          : undefined
+
+        if (filtersPayload) {
+          params.append('filters', JSON.stringify(filtersPayload))
+        }
+
+        const response = await fetch(`/api/admin/loan-application?${params.toString()}`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(message || 'Не удалось загрузить заявки')
+        }
+
+        const data = (await response.json()) as DbPaginatedResult<LoanApplication>
+        setDeals(
+          data.docs
+        )
+        setPagination(data.pagination)
+        setError(null)
+        setLoading(false)
       } catch (err) {
         console.error('Deals fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load deals')
@@ -177,6 +106,49 @@ export default function AdminDealsPage() {
     }
 
     fetchDeals()
+  }, [currentPage, statusFilter, pagination.limit])
+
+  React.useEffect(() => {
+    const fetchStatuses = async () => {
+      try {
+        const params = new URLSearchParams({
+          limit: '100',
+        })
+
+        const filtersPayload = {
+          conditions: [
+            {
+              field: 'entity',
+              operator: 'eq',
+              values: ['deal.statusName'],
+            },
+          ],
+        }
+
+        params.append('filters', JSON.stringify(filtersPayload))
+        params.append(
+          'orders',
+          JSON.stringify({
+            orders: [{ field: 'sortOrder', direction: 'asc' }],
+          }),
+        )
+
+        const response = await fetch(`/api/admin/taxonomies?${params.toString()}`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error(await response.text())
+        }
+
+        const data = (await response.json()) as TaxonomyResponse
+        setStatusOptions(data.docs ?? [])
+      } catch (err) {
+        console.error('Failed to load status taxonomies', err)
+      }
+    }
+
+    fetchStatuses()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -197,32 +169,81 @@ export default function AdminDealsPage() {
     }).format(date)
   }
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status?: string | null) => {
     switch (status) {
-      case 'Одобрена':
+      case 'APPROVED':
+      case 'ACTIVE':
         return 'default'
-      case 'На рассмотрении':
+      case 'NEW':
+      case 'SCORING':
         return 'secondary'
-      case 'Отклонена':
+      case 'REJECTED':
+      case 'OVERDUE':
         return 'destructive'
+      case 'COMPLETED':
+        return 'outline'
       default:
         return 'outline'
     }
   }
 
-  const filteredDeals = deals.filter((deal) => {
-    const matchesSearch =
-      deal.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      deal.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || deal.status === statusFilter
-    const matchesManager = managerFilter === 'all' || deal.manager.name === managerFilter
+  const getStatusLabel = (status?: string | null) => {
+    if (status) {
+      const option = statusOptions.find((opt) => opt.name === status)
+      if (option) {
+        return option.title ?? option.name
+      }
+    }
 
-    return matchesSearch && matchesStatus && matchesManager
-  })
+    switch (status) {
+      case 'NEW':
+        return 'Новая заявка'
+      case 'SCORING':
+        return 'Скоринг'
+      case 'INFO_REQUESTED':
+        return 'Запрошены данные'
+      case 'APPROVED':
+        return 'Одобрена'
+      case 'REJECTED':
+        return 'Отклонена'
+      case 'ACTIVE':
+        return 'Активна'
+      case 'COMPLETED':
+        return 'Завершена'
+      case 'OVERDUE':
+        return 'Просрочена'
+      default:
+        return status ?? 'Неизвестно'
+    }
+  }
 
-  const uniqueManagers = Array.from(new Set(deals.map((deal) => deal.manager.name)))
-  const uniqueStatuses = Array.from(new Set(deals.map((deal) => deal.status)))
+  const normalizeManager = (name: string | null | undefined) => (name?.trim() ? name.trim() : 'Не назначен')
 
+
+  const uniqueStatuses = statusOptions
+    .filter((option) => option.name)
+    .map((option) => ({
+      value: option.name,
+      label: option.title ?? option.name,
+    }))
+
+  const uniqueManagers = Array.from(
+    new Set(
+      deals.map(() => normalizeManager("")),
+    ),
+  )
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < pagination.totalPages) {
+      setCurrentPage((prev) => prev + 1)
+    }
+  }
   if (loading) {
     return (
       <>
@@ -273,8 +294,8 @@ export default function AdminDealsPage() {
             <SelectContent>
               <SelectItem value="all">Все статусы</SelectItem>
               {uniqueStatuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status}
+                <SelectItem key={status.value} value={status.value}>
+                  {status.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -299,7 +320,7 @@ export default function AdminDealsPage() {
             <CardTitle>Заявки</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredDeals.length === 0 ? (
+            {deals.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
                 Нет заявок
               </p>
@@ -307,7 +328,7 @@ export default function AdminDealsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead className="w-[160px]">ID</TableHead>
                     <TableHead>Клиент</TableHead>
                     <TableHead>Сумма</TableHead>
                     <TableHead>Статус</TableHead>
@@ -315,40 +336,46 @@ export default function AdminDealsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredDeals.map((deal) => (
+                  {deals.map((deal) => (
                     <TableRow
-                      key={deal.id}
+                      key={deal.daid} 
                       className="cursor-pointer"
-                      onClick={() => router.push(`/admin/deals/${deal.id}`)}>
-                      <TableCell className="font-medium">{deal.id}</TableCell>
-                      <TableCell>{deal.clientName}</TableCell>
-                      <TableCell>{formatCurrency(deal.amount)}</TableCell>
+                      onClick={() => router.push(`/admin/deals/view?uuid=${deal.uuid}`)}>
+                      <TableCell className="font-medium">{deal.daid}</TableCell>
+                      <TableCell>{`${deal.dataIn.firstName} ${deal.dataIn.lastName}`.trim()}</TableCell>
+                      <TableCell>{formatCurrency(Number(deal.dataIn.productPrice))}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(deal.status)}>
-                          {deal.status}
+                        <Badge variant={getStatusVariant(deal.statusName)}>
+                          {getStatusLabel(deal.statusName)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={deal.manager.avatar} alt={deal.manager.name} />
-                            <AvatarFallback className="text-xs">
-                              {deal.manager.name
-                                .split(' ')
-                                .map((n) => n[0])
-                                .join('')
-                                .toUpperCase()
-                                .slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{deal.manager.name}</span>
-                        </div>
-                      </TableCell>
+                      <TableCell>{normalizeManager('')}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             )}
+
+            <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+              <div>
+                Показано {deals.length} из {pagination.total} заявок
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1}>
+                  Предыдущая
+                </Button>
+                <span>
+                  Страница {pagination.page} из {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage >= pagination.totalPages}>
+                  Следующая
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
         </div>
