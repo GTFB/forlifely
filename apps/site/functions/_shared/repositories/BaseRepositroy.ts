@@ -19,6 +19,9 @@ export default class BaseRepository<T> {
     public static getInstance(db: D1Database, schema: any): BaseRepository<any> {
         return new BaseRepository(db, schema);
     }
+    public getSelectQuery(){
+        return this.db.select().from(this.schema)   
+    }
     async findByUuid(uuid: string): Promise<T> {
         const [row] = await this.db.select().from(this.schema).where(eq(this.schema.uuid, uuid)).execute();
         return row;
