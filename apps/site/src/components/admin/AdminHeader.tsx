@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -266,7 +267,7 @@ export const AdminHeader = React.memo(function AdminHeader({
                   {isLast ? (
                     <BreadcrumbPage>{item.label}</BreadcrumbPage>
                   ) : (
-                    <BreadcrumbLink href={item.href || "#"}>{item.label}</BreadcrumbLink>
+                    <BreadcrumbLink asChild><Link href={item.href || "#"}>{item.label}</Link></BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
               </React.Fragment>

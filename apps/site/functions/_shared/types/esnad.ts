@@ -6,6 +6,7 @@ import {
     NewHuman,
     Journal,
     NewJournal,
+    Employee,
 } from '../schema/types'
 export interface EsnadHuman extends Human{
     
@@ -61,13 +62,16 @@ export interface NewClient extends NewEsnadHuman{
 
 export interface LoanApplication  extends Deal{
     dataIn: LoanApplicationDataIn
-    dealStatusTransitions?: LoanApplicationJournal[]
+    statusName: LoanApplicationStatus
+    //dealStatusTransitions?: LoanApplicationJournal[]
     documents?: any[]
 }
 
 export interface NewLoanApplication extends NewDeal{
     dataIn: LoanApplicationDataIn
-
+    statusName: LoanApplicationStatus
+    //dealStatusTransitions?: LoanApplicationJournal[]
+    documents?: any[]
 }
 
 export interface LoanApplicationDataIn{
@@ -78,6 +82,23 @@ export interface LoanApplicationDataIn{
     email: string
     productPrice: string
     term: number[]
+    decision?: LoanApplicationDecision
+}
+
+export interface JournalLoanApplicationSnapshot extends Journal{
+    action: 'LOAN_APPLICATION_SNAPSHOT'
+    userId?: User['id']
+    details: LoanApplicationSnapshotDetails
+}
+export interface NewJournalLoanApplicationSnapshot extends NewJournal{
+    action: 'LOAN_APPLICATION_SNAPSHOT'
+    userId?: User['id']
+    details: LoanApplicationSnapshotDetails
+}
+
+export interface LoanApplicationSnapshotDetails{
+    snapshot: LoanApplication
+    previousSnapshot: LoanApplication | null
 }
 
 export type LoanApplicationDeal = LoanApplication
@@ -92,9 +113,17 @@ export type DealStatus =
     | 'ACTIVE'
     | 'COMPLETED'
     | 'OVERDUE'
+// Deal lifecycle statuses
+export type LoanApplicationStatus =
+    | 'NEW'
+    | 'SCORING'
+    | 'APPROVED'
+    | 'CANCELLED'
+    | 'ACTIVE'
 
-export interface DealApprovalDecision{
-
+export interface LoanApplicationDecision{
+    securityServiceComment?: string
+    responsibleEmployeeUuid: Employee['uuid']
 }
 export interface FinanceParameters{
 
@@ -112,26 +141,26 @@ export interface GenerateFinanceScheduleResult{
 
 }
 
-export interface LoanApplicationJournal extends Journal{
-    action: 'DEAL_STATUS_TRANSITION'
-    details: DealStatusTransition
-}
-export interface NewLoanApplicationJournal extends NewJournal{
-    action: 'DEAL_STATUS_TRANSITION'
-    details: DealStatusTransition
-}
-export interface DealStatusTransition{
-    type: 'DEAL_STATUS_TRANSITION'
-    dealId: Deal['id']
-    from: DealStatus
-    to: DealStatus
-    performedByUserId: User['id']
-    performedAt: string // ISO datetime
-    reason?: string
-    comment?: string
-    source?: 'MANUAL' | 'SYSTEM' | 'AUTO_RULE'
-    journalId?: Journal['id']
-}
+// export interface LoanApplicationJournal extends Journal{
+//     action: 'DEAL_STATUS_TRANSITION'
+//     details: DealStatusTransition
+// }
+// export interface NewLoanApplicationJournal extends NewJournal{
+//     action: 'DEAL_STATUS_TRANSITION'
+//     details: DealStatusTransition
+// }
+// export interface DealStatusTransition{
+//     type: 'DEAL_STATUS_TRANSITION'
+//     dealId: Deal['id']
+//     from: DealStatus
+//     to: DealStatus
+//     performedByUserId: User['id']
+//     performedAt: string // ISO datetime
+//     reason?: string
+//     comment?: string
+//     source?: 'MANUAL' | 'SYSTEM' | 'AUTO_RULE'
+//     journalId?: Journal['id']
+// }
 /**
  * taxonomy
  */

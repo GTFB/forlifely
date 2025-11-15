@@ -78,16 +78,12 @@ export const onRequestPost = async ({ request, env }: RequestContext) => {
     try {
         const data = await parseRequestBody(request)
         const dealsRepository = new DealsRepository(env.DB)
-        const createdDeal = await dealsRepository.createLoanApplicationDealPublic(data)
+        await dealsRepository.createLoanApplicationDealPublic(data)
 
         return new Response(
             JSON.stringify({
                 success: true,
-                deal: {
-                    uuid: createdDeal.uuid,
-                    statusName: createdDeal.statusName,
-                    dataIn: createdDeal.dataIn,
-                },
+                message: 'Заявка на кредит успешно создана',
             }),
             { status: 201, headers: corsHeaders },
         )

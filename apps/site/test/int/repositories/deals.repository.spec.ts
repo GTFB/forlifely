@@ -1,9 +1,15 @@
 import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { faker } from "@faker-js/faker";
-
+import { eq, like } from "drizzle-orm";
 import { DealsRepository } from "../../../functions/_shared/repositories/deals.repository";
-import { LoanApplicationDataIn } from "../../../functions/_shared/types/esnad";
+import { JournalsRepository } from "../../../functions/_shared/repositories/journals.repository";
+import {
+    LoanApplicationDataIn,
+    LoanApplicationDecision,
+    LoanApplicationSnapshotDetails,
+    LoanApplicationStatus,
+} from "../../../functions/_shared/types/esnad";
 
 describe("DealsRepository", () => {
     let db: D1Database;
@@ -56,10 +62,10 @@ describe("DealsRepository", () => {
             const rawLastName = ` ${faker.person.lastName()} `;
             const rawPhone = ` ${faker.phone.number({ style: "international" })} `;
             const rawEmail = ` ${faker.internet.email().toLowerCase()} `;
-            const rawProductPrice = ` ${faker.commerce.price({ min: 10000, max: 1000000 })} `;
+            const rawProductPrice = ` ${faker.commerce.price({ min: 10000, max: 1000000, dec: 0 })} `;
             const rawTerm: number[] = [12, 24];
 
-            const deal = await dealsRepository.createLoanApplicationDealPublic({
+            const { createdDeal, journal } = await dealsRepository.createLoanApplicationDealPublic({
                 type: "LOAN_APPLICATION",
                 firstName: rawFirstName,
                 lastName: rawLastName,
@@ -69,17 +75,17 @@ describe("DealsRepository", () => {
                 term: rawTerm,
             } satisfies LoanApplicationDataIn);
 
-            expect(deal).toBeDefined();
-            expect(deal.uuid).toBeDefined();
-            expect(deal.daid).toMatch(/^d-/);
-            expect(deal.fullDaid).toMatch(/^d-/);
-            expect(deal.statusName).toBe("NEW");
+            expect(createdDeal).toBeDefined();
+            expect(createdDeal.uuid).toBeDefined();
+            expect(createdDeal.daid).toMatch(/^d-/);
+            expect(createdDeal.fullDaid).toMatch(/^d-/);
+            expect(createdDeal.statusName).toBe("NEW");
 
             const expectedName = `${rawFirstName.trim()} ${rawLastName.trim()}`.trim();
             const expectedTitle = expectedName ? `Loan application - ${expectedName}` : "Loan application";
-            expect(deal.title).toBe(expectedTitle);
+            expect(createdDeal.title).toBe(expectedTitle);
 
-            const dataIn = typeof deal.dataIn === "string" ? JSON.parse(deal.dataIn) : deal.dataIn;
+            const dataIn = typeof createdDeal.dataIn === "string" ? JSON.parse(createdDeal.dataIn) : createdDeal.dataIn;
 
             expect(dataIn).toEqual({
                 type: "LOAN_APPLICATION",
@@ -90,6 +96,11 @@ describe("DealsRepository", () => {
                 productPrice: rawProductPrice.trim(),
                 term: rawTerm,
             });
+
+            expect(journal).toBeDefined();
+            expect(journal.action).toBe("LOAN_APPLICATION_SNAPSHOT");
+            expect(journal.details.previousSnapshot).toBeNull();
+            expect(journal.details.snapshot).toEqual(createdDeal);
         });
 
         it("бросает ошибку, если отсутствуют обязательные поля", async () => {
@@ -104,7 +115,7 @@ describe("DealsRepository", () => {
             } satisfies LoanApplicationDataIn;
 
             await expect(dealsRepository.createLoanApplicationDealPublic(incompleteData)).rejects.toThrow(
-                "LoanApplicationDataIn is missing required fields: lastName, phone, term",
+                "Отсутствуют обязательные поля LoanApplicationDataIn: lastName, phone, term. Пожалуйста, свяжитесь с администратором системы.",
             );
         });
     });
@@ -132,6 +143,172 @@ describe("DealsRepository", () => {
                 pagination: { page: 1, limit: 5 },
             });
             expect(afterDelete.docs.find((deal) => deal.uuid === createdDeal.uuid)).toBeUndefined();
+        });
+    });
+
+    describe("updateLoanApplicationDeal", () => {
+        it("создает цепочку снимков в журнале при изменении статуса", async () => {
+            const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: faker.internet.email(),
+                productPrice: faker.commerce.price({ min: 10000, max: 1000000, dec: 0 }),
+                term: [12, 24],
+            } satisfies LoanApplicationDataIn);
+
+            const firstStatus: LoanApplicationStatus = "SCORING";
+            const secondStatus: LoanApplicationStatus = "ACTIVE";
+
+            const firstUpdate = await dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                statusName: firstStatus,
+            });
+            const firstUpdatedDeal = firstUpdate.updatedDeal;
+            expect(firstUpdatedDeal.statusName).toEqual(firstStatus);
+
+            const secondUpdate = await dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                statusName: secondStatus,
+            });
+            const secondUpdatedDeal = secondUpdate.updatedDeal;
+            expect(secondUpdatedDeal.statusName).toEqual(secondStatus);
+
+            const journalsRepository = JournalsRepository.getInstance(db);
+            const relatedJournals = await journalsRepository.getSelectQuery()
+                .where(    like(journalsRepository.schema.details, `%${createdDeal.uuid}%`)).orderBy(journalsRepository.schema.createdAt);
+
+                
+            expect(relatedJournals).toHaveLength(3);
+
+            const snapshots = relatedJournals.map(
+                (journal) =>
+                    (typeof journal.details === "string"
+                        ? JSON.parse(journal.details)
+                        : journal.details) as LoanApplicationSnapshotDetails,
+            );
+
+            expect(snapshots[0].previousSnapshot).toBeNull();
+            expect(snapshots[0].snapshot).toEqual(createdDeal);
+
+            expect(snapshots[1].previousSnapshot).toEqual(createdDeal);
+            expect(snapshots[1].snapshot).toEqual(firstUpdatedDeal);
+
+            expect(snapshots[2].previousSnapshot).toEqual(firstUpdatedDeal);
+            expect(snapshots[2].snapshot).toEqual(secondUpdatedDeal);
+
+            const allDeals = await dealsRepository.findAll();
+            const relatedDeals = allDeals.filter((deal) => deal.uuid === createdDeal.uuid);
+            expect(relatedDeals).toHaveLength(1);
+        });
+
+        it("бросает ошибку, если decision без responsibleEmployeeUuid", async () => {
+            const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: faker.internet.email(),
+                productPrice: faker.commerce.price({ min: 10000, max: 1000000, dec: 0 }),
+                term: [12, 24],
+            } satisfies LoanApplicationDataIn);
+
+            const currentDataIn =
+                typeof createdDeal.dataIn === "string"
+                    ? (JSON.parse(createdDeal.dataIn) as LoanApplicationDataIn)
+                    : createdDeal.dataIn;
+
+            await expect(
+                dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                    dataIn: {
+                        ...currentDataIn,
+                        decision: {
+                            securityServiceComment: "Needs more info",
+                        } as LoanApplicationDecision,
+                    },
+                }),
+            ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
+        });
+
+        it("бросает ошибку, если responsibleEmployeeUuid пустой или не строка", async () => {
+            const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: faker.internet.email(),
+                productPrice: faker.commerce.price({ min: 10000, max: 1000000, dec: 0 }),
+                term: [12, 24],
+            } satisfies LoanApplicationDataIn);
+
+            const currentDataIn =
+                typeof createdDeal.dataIn === "string"
+                    ? (JSON.parse(createdDeal.dataIn) as LoanApplicationDataIn)
+                    : createdDeal.dataIn;
+
+            await expect(
+                dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                    dataIn: {
+                        ...currentDataIn,
+                        decision: {
+                            securityServiceComment: "Empty uuid",
+                            responsibleEmployeeUuid: "   ",
+                        } as LoanApplicationDecision,
+                    },
+                }),
+            ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
+
+            await expect(
+                dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                    dataIn: {
+                        ...currentDataIn,
+                        decision: {
+                            securityServiceComment: "Non string uuid",
+                            responsibleEmployeeUuid: 123 as unknown as string,
+                        } as unknown as LoanApplicationDecision,
+                    },
+                }),
+            ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
+        });
+
+        it("бросает ошибку, если responsibleEmployeeUuid невалидный или сотрудник не найден", async () => {
+            const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: faker.internet.email(),
+                productPrice: faker.commerce.price({ min: 10000, max: 1000000, dec: 0 }),
+                term: [12, 24],
+            } satisfies LoanApplicationDataIn);
+
+            const currentDataIn =
+                typeof createdDeal.dataIn === "string"
+                    ? (JSON.parse(createdDeal.dataIn) as LoanApplicationDataIn)
+                    : createdDeal.dataIn;
+
+            await expect(
+                dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                    dataIn: {
+                        ...currentDataIn,
+                        decision: {
+                            securityServiceComment: "Invalid uuid format",
+                            responsibleEmployeeUuid: "invalid-uuid",
+                        } as LoanApplicationDecision,
+                    },
+                }),
+            ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
+
+            await expect(
+                dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
+                    dataIn: {
+                        ...currentDataIn,
+                        decision: {
+                            securityServiceComment: "Employee not found",
+                            responsibleEmployeeUuid: crypto.randomUUID(),
+                        } as LoanApplicationDecision,
+                    },
+                }),
+            ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
         });
     });
 });

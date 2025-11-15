@@ -23,7 +23,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
-
+import Link from 'next/link'
 import type { 
   TaxonomyOption, 
   TaxonomyResponse,
@@ -232,6 +232,13 @@ export default function AdminDealsPage() {
       deals.map(() => normalizeManager("")),
     ),
   )
+  const breadcrumbs = React.useMemo(
+    () => [
+      { label: 'Панель администратора', href: '/admin/dashboard' },
+      { label: 'Управление заявками', href: '/admin/deals' },
+    ],
+    [],
+  )
 
   const handlePrevPage = () => {
     if (currentPage > 1) {
@@ -247,7 +254,7 @@ export default function AdminDealsPage() {
   if (loading) {
     return (
       <>
-        <AdminHeader title="Управление заявками" />
+        <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -260,7 +267,7 @@ export default function AdminDealsPage() {
   if (error) {
     return (
       <>
-        <AdminHeader title="Управление заявками" />
+        <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
@@ -272,7 +279,7 @@ export default function AdminDealsPage() {
 
   return (
     <>
-      <AdminHeader title="Управление заявками" />
+      <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
         <h1 className="text-3xl font-bold">Управление заявками</h1>
@@ -341,7 +348,7 @@ export default function AdminDealsPage() {
                       key={deal.daid} 
                       className="cursor-pointer"
                       onClick={() => router.push(`/admin/deals/view?uuid=${deal.uuid}`)}>
-                      <TableCell className="font-medium">{deal.daid}</TableCell>
+                      <TableCell className="font-medium"><Link href={`/admin/deals/view?uuid=${deal.uuid}`}>{deal.daid}</Link></TableCell>
                       <TableCell>{`${deal.dataIn.firstName} ${deal.dataIn.lastName}`.trim()}</TableCell>
                       <TableCell>{formatCurrency(Number(deal.dataIn.productPrice))}</TableCell>
                       <TableCell>

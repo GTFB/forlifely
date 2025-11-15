@@ -14,10 +14,16 @@ import {
     LoanApplicationDataIn,
     NewInvestorsFormDeal,
     NewLoanApplication,
+    LoanApplication,
+    JournalLoanApplicationSnapshot,
 } from "../types/esnad";
 import { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 import { buildDbFilters, buildDbOrders, withNotDeleted } from "./utils";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { JournalsRepository } from "./journals.repository";
+
+const ADMIN_CONTACT_MESSAGE = ' Пожалуйста, свяжитесь с администратором системы.';
+const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя ошибка при обработке решения.${ADMIN_CONTACT_MESSAGE}`;
 
 export class DealsRepository extends BaseRepository<Deal>{
     
@@ -63,7 +69,10 @@ export class DealsRepository extends BaseRepository<Deal>{
     /**
      * прием заявки с формы на сайте
      */
-    public async createLoanApplicationDealPublic(formData: LoanApplicationDataIn): Promise<LoanApplicationDeal> {
+    public async createLoanApplicationDealPublic(formData: LoanApplicationDataIn): Promise<{
+        createdDeal: LoanApplicationDeal
+        journal: JournalLoanApplicationSnapshot
+    }> {
         const sanitizedFormData: LoanApplicationDataIn = {
             type: 'LOAN_APPLICATION',
             firstName: formData.firstName?.trim() ?? '',
@@ -88,7 +97,7 @@ export class DealsRepository extends BaseRepository<Deal>{
         if (!sanitizedFormData.term.length) missingFields.push('term')
 
         if (missingFields.length) {
-            throw new Error(`LoanApplicationDataIn is missing required fields: ${missingFields.join(', ')}`)
+            throw new Error(`Отсутствуют обязательные поля LoanApplicationDataIn: ${missingFields.join(', ')}.${ADMIN_CONTACT_MESSAGE}`)
         }
 
         const applicantName = `${sanitizedFormData.firstName} ${sanitizedFormData.lastName}`.trim()
@@ -102,9 +111,90 @@ export class DealsRepository extends BaseRepository<Deal>{
             dataIn: sanitizedFormData,
         }
 
-        const createdDeal = await this.create(newDeal)
+        const createdDeal = await this.create(newDeal) as LoanApplication
+        const journalsRepository = JournalsRepository.getInstance(this.d1DB)
+        const journal = await journalsRepository.createLoanApplicationSnapshot(createdDeal as LoanApplication,   null, null)
+        return {
+            createdDeal,
+            journal,
+        }
+    }
 
-        return createdDeal as LoanApplicationDeal
+    /**
+     * обновление заявки на кредит
+     * @param uuid - uuid заявки на кредит
+     */
+    private normalizeLoanApplicationDataIn(rawDataIn: LoanApplication['dataIn']): LoanApplicationDataIn {
+        if (typeof rawDataIn === 'string') {
+            try {
+                return JSON.parse(rawDataIn) as LoanApplicationDataIn;
+            } catch {
+                throw new Error(`Поле dataIn должно содержать корректный JSON.${ADMIN_CONTACT_MESSAGE}`);
+            }
+        }
+
+        if (rawDataIn && typeof rawDataIn === 'object') {
+            return rawDataIn as LoanApplicationDataIn;
+        }
+
+        throw new Error(`Поле dataIn должно быть объектом.${ADMIN_CONTACT_MESSAGE}`);
+    }
+    private isValidUuid(value: string): boolean {
+        const uuid = value.trim();
+        const uuidV4Regex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        return uuidV4Regex.test(uuid);
+    }
+
+    private async ensureEmployeeExists(uuid: string): Promise<void> {
+        const [employee] = await this.db
+            .select({ uuid: schema.employees.uuid })
+            .from(schema.employees)
+            .where(eq(schema.employees.uuid, uuid))
+            .limit(1)
+            .execute();
+
+        if (!employee) {
+            throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
+        }
+    }
+
+    public async updateLoanApplicationDeal(uuid: string, data: Partial<LoanApplication>): Promise<{
+        updatedDeal: LoanApplication
+        journal: JournalLoanApplicationSnapshot
+    }> {
+        if (Object.prototype.hasOwnProperty.call(data, 'dataIn')) {
+            const normalizedDataIn = this.normalizeLoanApplicationDataIn(data.dataIn as LoanApplication['dataIn']);
+
+            if (Object.prototype.hasOwnProperty.call(normalizedDataIn, 'decision')) {
+                const decision = normalizedDataIn.decision;
+
+                let responsibleEmployeeUuid = decision?.responsibleEmployeeUuid;
+
+                if (typeof responsibleEmployeeUuid !== 'string' || !responsibleEmployeeUuid.trim()) {
+                    throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
+                }
+
+                responsibleEmployeeUuid = responsibleEmployeeUuid.trim();
+
+                if (!this.isValidUuid(responsibleEmployeeUuid)) {
+                    throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
+                }
+
+                await this.ensureEmployeeExists(responsibleEmployeeUuid);
+            }
+        }
+        const deal = await this.findByUuid(uuid) as LoanApplication
+        if(! deal) {
+            throw new Error(`Сделка не найдена.${ADMIN_CONTACT_MESSAGE}`)
+        }
+        const updatedDeal = await this.update(uuid, data) as LoanApplication
+        const journalsRepository = JournalsRepository.getInstance(this.d1DB)
+        const journal = await journalsRepository.createLoanApplicationSnapshot(updatedDeal as LoanApplication, deal, null)
+        return {
+            updatedDeal,
+            journal,
+        }
     }
     /**
      * получение deal с фильтрацией

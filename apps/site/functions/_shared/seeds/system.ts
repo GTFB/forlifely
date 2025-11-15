@@ -58,9 +58,22 @@ export const systemSeed = {
         },
         {
             entity: "deal.statusName",
-            name: "COMPLETED",
+            name: "APPROVED",
             title: "Закрыта",
             sort_order: 400,
+        },
+        {
+            entity: "deal.statusName",
+            name: "CANCELLED",
+            title: "Отклонена",
+            sort_order: 500,
+        },
+        // Journal actions
+        {
+            entity: "journal.action",
+            name: "LOAN_APPLICATION_SNAPSHOT",
+            title: "Снимок Заявки на кредит",
+            sort_order: 100,
         },
     ]
 } as const

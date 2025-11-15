@@ -3,6 +3,7 @@ import { schema } from '../schema'
 import type { Journal } from '../schema/types'
 import BaseRepository from './BaseRepositroy'
 import { stringifyJson } from './utils'
+import { JournalLoanApplicationSnapshot, LoanApplication, LoanApplicationSnapshotDetails, NewJournalLoanApplicationSnapshot } from '../types/esnad'
 
 type JournalStatus = 'info' | 'success' | 'error'
 
@@ -97,6 +98,19 @@ export class JournalsRepository extends BaseRepository<Journal> {
         timestamp
       )
       .run()
+  }
+  public async createLoanApplicationSnapshot(snapshot: LoanApplication, previousSnapshot: LoanApplication | null, userId: number | string | null): Promise<JournalLoanApplicationSnapshot> {
+    const details: LoanApplicationSnapshotDetails = {
+      snapshot,
+      previousSnapshot,
+    }
+    const journal: NewJournalLoanApplicationSnapshot = {
+      action: 'LOAN_APPLICATION_SNAPSHOT',
+      uuid: crypto.randomUUID(),
+      details,
+      userId: userId as number | undefined,
+    }
+    return await this.create(journal) as JournalLoanApplicationSnapshot
   }
 }
 

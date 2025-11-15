@@ -59,6 +59,7 @@ export default function DealDetailPageClient() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
+  const [actionError, setActionError] = React.useState<string | null>(null)
   const [requestDialogOpen, setRequestDialogOpen] = React.useState(false)
   const [formData, setFormData] = React.useState({
     comment: '',
@@ -122,30 +123,66 @@ export default function DealDetailPageClient() {
     }
   }, [dealUuid])
 
-  const handleApprove = async () => {
+  const submitLoanDecision = async (endpoint: string) => {
+    if (!deal) {
+      setActionError('Заявка не найдена')
+      return
+    }
+
+    if (!formData.comment.trim()) {
+      setActionError('Комментарий обязателен')
+      return
+    }
+
+    if (!formData.manager.trim()) {
+      setActionError('Необходимо выбрать ответственного сотрудника')
+      return
+    }
+
     try {
       setSubmitting(true)
-      // TODO: Implement approve API
+      setActionError(null)
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          uuid: deal.uuid,
+          securityServiceComment: formData.comment.trim(),
+          responsibleEmployeeUuid: formData.manager,
+        }),
+      })
+
+      type LoanDecisionResponse = {
+        success?: boolean
+        message?: string
+      }
+
+      const payload = (await response.json().catch(() => null)) as LoanDecisionResponse | null
+
+      if (!response.ok || (payload && payload.success === false)) {
+        const message = payload?.message ?? 'Не удалось выполнить действие'
+        throw new Error(message)
+      }
+
       router.push('/admin/deals')
     } catch (err) {
-      console.error('Approve error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to approve')
+      console.error('Loan decision error:', err)
+      setActionError(err instanceof Error ? err.message : 'Не удалось выполнить действие')
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleApprove = async () => {
+    await submitLoanDecision('/api/esnad/v1/admin/loans/approve')
+  }
+
   const handleReject = async () => {
-    try {
-      setSubmitting(true)
-      // TODO: Implement reject API
-      router.push('/admin/deals')
-    } catch (err) {
-      console.error('Reject error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to reject')
-    } finally {
-      setSubmitting(false)
-    }
+    await submitLoanDecision('/api/esnad/v1/admin/loans/cancel')
   }
 
   const handleRequestInfo = async () => {
@@ -406,6 +443,11 @@ export default function DealDetailPageClient() {
                   </div>
 
                   <div className="flex flex-col gap-2">
+                    {actionError && (
+                      <p className="text-sm text-destructive">
+                        {actionError}
+                      </p>
+                    )}
                     <Button
                       onClick={handleApprove}
                       disabled={submitting}

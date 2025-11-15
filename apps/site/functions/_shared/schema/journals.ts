@@ -7,7 +7,7 @@ export const journals = sqliteTable('journals', {
     details: text('details', { mode: 'json' }).notNull(),
     action: text('action').notNull(),
     xaid: text('xaid'),
-    created_at: text('created_at'),
-    updated_at: text('updated_at'),
+    createdAt: text('created_at'),
+    updatedAt: text('updated_at'),
 })
 
