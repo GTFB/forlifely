@@ -83,6 +83,11 @@ export interface LoanApplicationDataIn{
     productPrice: string
     term: number[]
     decision?: LoanApplicationDecision
+    additionalInfoRequest?: AdditionalInfoRequest
+}
+
+export interface AdditionalInfoRequest{
+    comment: string
 }
 
 export interface JournalLoanApplicationSnapshot extends Journal{
@@ -120,6 +125,7 @@ export type LoanApplicationStatus =
     | 'APPROVED'
     | 'CANCELLED'
     | 'ACTIVE'
+    | 'ADDITIONAL_INFO_REQUESTED'
 
 export interface LoanApplicationDecision{
     securityServiceComment?: string

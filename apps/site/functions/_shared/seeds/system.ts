@@ -68,6 +68,12 @@ export const systemSeed = {
             title: "Отклонена",
             sort_order: 500,
         },
+        {
+            entity: "deal.statusName",
+            name: "ADDITIONAL_INFO_REQUESTED",
+            title: "Дополнительная информация запрошена",
+            sort_order: 600,
+        },
         // Journal actions
         {
             entity: "journal.action",

@@ -186,14 +186,52 @@ export default function DealDetailPageClient() {
   }
 
   const handleRequestInfo = async () => {
+    if (!deal) {
+      setActionError('Заявка не найдена')
+      return
+    }
+
+    if (!formData.requestMessage.trim()) {
+      setActionError('Необходимо указать текст запроса')
+      return
+    }
+
     try {
       setSubmitting(true)
-      // TODO: Implement request info API
+      setActionError(null)
+
+      const response = await fetch('/api/esnad/v1/admin/loans/request-additional-info', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          uuid: deal.uuid,
+          comment: formData.requestMessage.trim(),
+        }),
+      })
+
+      type RequestInfoResponse = {
+        success?: boolean
+        message?: string
+      }
+
+      const payload = (await response.json().catch(() => null)) as RequestInfoResponse | null
+
+      if (!response.ok || (payload && payload.success === false)) {
+        const message = payload?.message ?? 'Не удалось отправить запрос дополнительной информации'
+        throw new Error(message)
+      }
+
       setRequestDialogOpen(false)
       setFormData((prev) => ({ ...prev, requestMessage: '' }))
+      router.push('/admin/deals')
     } catch (err) {
       console.error('Request info error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to request info')
+      setActionError(
+        err instanceof Error ? err.message : 'Не удалось отправить запрос дополнительной информации',
+      )
     } finally {
       setSubmitting(false)
     }

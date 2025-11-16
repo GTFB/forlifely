@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
+import qs from 'qs'
 import type { 
   TaxonomyOption, 
   TaxonomyResponse,
@@ -111,10 +112,6 @@ export default function AdminDealsPage() {
   React.useEffect(() => {
     const fetchStatuses = async () => {
       try {
-        const params = new URLSearchParams({
-          limit: '100',
-        })
-
         const filtersPayload = {
           conditions: [
             {
@@ -125,15 +122,20 @@ export default function AdminDealsPage() {
           ],
         }
 
-        params.append('filters', JSON.stringify(filtersPayload))
-        params.append(
-          'orders',
-          JSON.stringify({
-            orders: [{ field: 'sortOrder', direction: 'asc' }],
-          }),
-        )
+        const ordersPayload = {
+          orders: [{ field: 'sortOrder', direction: 'asc' }],
+        }
 
-        const response = await fetch(`/api/admin/taxonomies?${params.toString()}`, {
+        const queryParams = qs.stringify({
+          limit: 100,
+          filters: JSON.stringify(filtersPayload),
+          orders: JSON.stringify(ordersPayload),
+        }, {
+          encode: true,
+          arrayFormat: 'brackets',
+        })
+
+        const response = await fetch(`/api/admin/taxonomies?${queryParams}`, {
           credentials: 'include',
         })
 
