@@ -16,11 +16,13 @@ import {
     NewLoanApplication,
     LoanApplication,
     JournalLoanApplicationSnapshot,
+    Client,
 } from "../types/esnad";
 import { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 import { buildDbFilters, buildDbOrders, withNotDeleted } from "./utils";
 import { eq, sql } from "drizzle-orm";
 import { JournalsRepository } from "./journals.repository";
+import { HumanRepository } from "./human.repository";
 
 const ADMIN_CONTACT_MESSAGE = ' Пожалуйста, свяжитесь с администратором системы.';
 const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя ошибка при обработке решения.${ADMIN_CONTACT_MESSAGE}`;
@@ -72,6 +74,7 @@ export class DealsRepository extends BaseRepository<Deal>{
     public async createLoanApplicationDealPublic(formData: LoanApplicationDataIn): Promise<{
         createdDeal: LoanApplicationDeal
         journal: JournalLoanApplicationSnapshot
+        client: Client
     }> {
         const sanitizedFormData: LoanApplicationDataIn = {
             type: 'LOAN_APPLICATION',
@@ -111,12 +114,21 @@ export class DealsRepository extends BaseRepository<Deal>{
             dataIn: sanitizedFormData,
         }
 
+        const humanRepository = HumanRepository.getInstance(this.d1DB)
+        const client = await humanRepository.generateClientByEmail(sanitizedFormData.email, {
+            fullName: applicantName,
+            dataIn: {
+                phone: sanitizedFormData.phone,
+            }
+        }) as Client
+        newDeal.clientAid = client.haid
         const createdDeal = await this.create(newDeal) as LoanApplication
         const journalsRepository = JournalsRepository.getInstance(this.d1DB)
         const journal = await journalsRepository.createLoanApplicationSnapshot(createdDeal as LoanApplication,   null, null)
         return {
             createdDeal,
             journal,
+            client,
         }
     }
 

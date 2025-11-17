@@ -18,6 +18,11 @@ export const systemSeed = {
                 description: "Deal statuses added",
                 created_at: "2025-11-13 16:10",
             },
+            {
+                version: "1.0.3",
+                description: "Human and Contractor statuses added",
+                created_at: "2025-11-17 10:00",
+            },
         ],
     },
     roles: [],
@@ -73,6 +78,56 @@ export const systemSeed = {
             name: "ADDITIONAL_INFO_REQUESTED",
             title: "Дополнительная информация запрошена",
             sort_order: 600,
+        },
+        // Human KYC statuses
+        {
+            entity: "human.statusName",
+            name: "PENDING",
+            title: "Ожидает KYC",
+            sort_order: 100,
+        },
+        {
+            entity: "human.statusName",
+            name: "VERIFIED",
+            title: "Верифицирован",
+            sort_order: 200,
+        },
+        {
+            entity: "human.statusName",
+            name: "REJECTED",
+            title: "KYC отклонен",
+            sort_order: 300,
+        },
+        {
+            entity: "human.type",
+            name: "INVESTOR",
+            title: "Инвестор",
+            sort_order: 100,
+        },
+        {
+            entity: "human.type",
+            name: "CLIENT",
+            title: "Клиент (Потребитель)",
+            sort_order: 200,
+        },
+        {
+            entity: "human.type",
+            name: "GUARANTOR",
+            title: "Поручитель",
+            sort_order: 300,
+        },
+        // Contractor partnership statuses
+        {
+            entity: "contractor.statusName",
+            name: "PROSPECT",
+            title: "Потенциальный партнер",
+            sort_order: 100,
+        },
+        {
+            entity: "contractor.statusName",
+            name: "ACTIVE",
+            title: "Активный партнер",
+            sort_order: 200,
         },
         // Journal actions
         {

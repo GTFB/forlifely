@@ -8,50 +8,45 @@ import {
     NewJournal,
     Employee,
 } from '../schema/types'
-export interface EsnadHuman extends Human{
-    
-}
-
-
-export interface NewEsnadHuman extends NewHuman{
+export interface EsnadHuman extends Human {
+    dataIn: EsnadHumanData
 
 }
 
-export interface DealDataIn{
+
+export interface NewEsnadHuman extends NewHuman {
+    dataIn: EsnadHumanData
+}
+
+export interface EsnadHumanData {
+    phone?: string
+}
+
+export interface DealDataIn {
     type: string
 }
 /**
  * форма на странице инвестора
  */
-export interface InvestorsFormDeal extends Deal{
+export interface InvestorsFormDeal extends Deal {
     dataIn: InvestorsFormDealDataIn
 }
 
-export interface NewInvestorsFormDeal extends NewDeal{
+export interface NewInvestorsFormDeal extends NewDeal {
     dataIn: InvestorsFormDealDataIn
 }
-export interface InvestorsFormDealDataIn{
-    type: 'INVESTORS_FORM'       
+export interface InvestorsFormDealDataIn {
+    type: 'INVESTORS_FORM'
     formData: InvestorsFormData
 }
 /**
  * Данный из формы на странице /investors
  * 
  */
-export interface InvestorsFormData{
+export interface InvestorsFormData {
     name: string
     phone: string
     email: string
-}
-/**
- * клиент
- */
-
-export interface Client extends EsnadHuman{
-
-}
-export interface NewClient extends NewEsnadHuman{
-
 }
 
 /**
@@ -60,21 +55,21 @@ export interface NewClient extends NewEsnadHuman{
 
 
 
-export interface LoanApplication  extends Deal{
+export interface LoanApplication extends Deal {
     dataIn: LoanApplicationDataIn
     statusName: LoanApplicationStatus
     //dealStatusTransitions?: LoanApplicationJournal[]
     documents?: any[]
 }
 
-export interface NewLoanApplication extends NewDeal{
+export interface NewLoanApplication extends NewDeal {
     dataIn: LoanApplicationDataIn
     statusName: LoanApplicationStatus
     //dealStatusTransitions?: LoanApplicationJournal[]
     documents?: any[]
 }
 
-export interface LoanApplicationDataIn{
+export interface LoanApplicationDataIn {
     type: 'LOAN_APPLICATION'
     firstName: string
     lastName: string
@@ -86,22 +81,22 @@ export interface LoanApplicationDataIn{
     additionalInfoRequest?: AdditionalInfoRequest
 }
 
-export interface AdditionalInfoRequest{
+export interface AdditionalInfoRequest {
     comment: string
 }
 
-export interface JournalLoanApplicationSnapshot extends Journal{
+export interface JournalLoanApplicationSnapshot extends Journal {
     action: 'LOAN_APPLICATION_SNAPSHOT'
     userId?: User['id']
     details: LoanApplicationSnapshotDetails
 }
-export interface NewJournalLoanApplicationSnapshot extends NewJournal{
+export interface NewJournalLoanApplicationSnapshot extends NewJournal {
     action: 'LOAN_APPLICATION_SNAPSHOT'
     userId?: User['id']
     details: LoanApplicationSnapshotDetails
 }
 
-export interface LoanApplicationSnapshotDetails{
+export interface LoanApplicationSnapshotDetails {
     snapshot: LoanApplication
     previousSnapshot: LoanApplication | null
 }
@@ -127,23 +122,23 @@ export type LoanApplicationStatus =
     | 'ACTIVE'
     | 'ADDITIONAL_INFO_REQUESTED'
 
-export interface LoanApplicationDecision{
+export interface LoanApplicationDecision {
     securityServiceComment?: string
     responsibleEmployeeUuid: Employee['uuid']
 }
-export interface FinanceParameters{
+export interface FinanceParameters {
 
 }
-export interface PaymentScheduleItem{
+export interface PaymentScheduleItem {
 
 }
-export interface FinanceSchedule{
+export interface FinanceSchedule {
 
 }
-export interface GenerateFinanceScheduleInput{
+export interface GenerateFinanceScheduleInput {
 
 }
-export interface GenerateFinanceScheduleResult{
+export interface GenerateFinanceScheduleResult {
 
 }
 
@@ -177,9 +172,28 @@ export interface TaxonomyOption {
     name: string
     title: string | null
     sortOrder: number | null
-  }
-  
-  export interface TaxonomyResponse {
+}
+
+export interface TaxonomyResponse {
     docs: TaxonomyOption[]
-  }
-  
+}
+
+/**
+ * клиент
+ */
+
+export type ClientStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
+
+export interface Client extends EsnadHuman {
+    dataIn: ClientDataIn
+    statusName: ClientStatus
+    type: 'CLIENT'
+}
+export interface NewClient extends NewEsnadHuman {
+    dataIn: ClientDataIn
+    statusName: ClientStatus
+    type: 'CLIENT'
+}
+export interface ClientDataIn extends EsnadHumanData {
+
+}

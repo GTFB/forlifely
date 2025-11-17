@@ -65,7 +65,7 @@ describe("DealsRepository", () => {
             const rawProductPrice = ` ${faker.commerce.price({ min: 10000, max: 1000000, dec: 0 })} `;
             const rawTerm: number[] = [12, 24];
 
-            const { createdDeal, journal } = await dealsRepository.createLoanApplicationDealPublic({
+            const { createdDeal, journal, client } = await dealsRepository.createLoanApplicationDealPublic({
                 type: "LOAN_APPLICATION",
                 firstName: rawFirstName,
                 lastName: rawLastName,
@@ -101,6 +101,14 @@ describe("DealsRepository", () => {
             expect(journal.action).toBe("LOAN_APPLICATION_SNAPSHOT");
             expect(journal.details.previousSnapshot).toBeNull();
             expect(journal.details.snapshot).toEqual(createdDeal);
+
+            expect(client).toBeDefined();
+            expect(client.uuid).toBeDefined();
+            expect(client.haid).toMatch(/^h-/);
+            expect(client.type).toBe("CLIENT");
+            expect(client.statusName).toBe("PENDING");
+            expect(client.email).toBe(rawEmail.trim().toLowerCase());
+            expect(client.fullName).toBe(expectedName);
         });
 
         it("бросает ошибку, если отсутствуют обязательные поля", async () => {

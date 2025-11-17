@@ -47,10 +47,107 @@ export default function AdminDashboardPage() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
+        // TODO: Replace with actual API endpoint for other metrics
         // const response = await fetch('/api/admin/dashboard', { credentials: 'include' })
         
-        // Mock data
+        // Fetch recent journal events
+        const journalsResponse = await fetch('/api/esnad/v1/admin/journals?limit=5&orderBy=createdAt&orderDirection=desc', {
+          credentials: 'include',
+        })
+        
+        if (!journalsResponse.ok) {
+          throw new Error('Failed to fetch journals')
+        }
+        
+        const journalsData = (await journalsResponse.json()) as {
+          success: boolean
+          data?: {
+            docs: Array<{
+              uuid?: string
+              id: number
+              action: string
+              details: string | Record<string, unknown>
+              createdAt?: string
+            }>
+          }
+        }
+        const journals = journalsData.success && journalsData.data ? journalsData.data.docs : []
+        
+        // Transform journals to events format
+        const recentEvents = journals.map((journal) => {
+          const rawDetails =
+            typeof journal.details === 'string'
+              ? (JSON.parse(journal.details) as Record<string, unknown>)
+              : (journal.details as Record<string, unknown> | undefined)
+
+          const actionType = journal.action || 'Событие'
+
+          // Map action types to readable names
+          const actionNames: Record<string, string> = {
+            LOAN_APPLICATION_SNAPSHOT: 'Заявка на рассрочку',
+            DEAL_STATUS_CHANGE: 'Изменение статуса',
+            DEAL_APPROVED: 'Одобрение',
+            DEAL_REJECTED: 'Отказ',
+            DEAL_CANCELLED: 'Отмена',
+            INVESTOR_REGISTERED: 'Новый инвестор',
+            PAYMENT_RECEIVED: 'Получен платеж',
+          }
+
+          const type = actionNames[journal.action] || actionType
+
+          let description: string
+
+          if (journal.action === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
+            const snapshot = rawDetails.snapshot as {
+              dataIn?: unknown
+            }
+
+            let dataIn = snapshot?.dataIn as
+              | {
+                  firstName?: string
+                  lastName?: string
+                  productPrice?: string | number
+                }
+              | undefined
+
+            if (typeof snapshot?.dataIn === 'string') {
+              try {
+                dataIn = JSON.parse(snapshot.dataIn) as typeof dataIn
+              } catch {
+                // ignore parse error, fallback below
+              }
+            }
+
+            const firstName = dataIn?.firstName?.trim() ?? ''
+            const lastName = dataIn?.lastName?.trim() ?? ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'клиента'
+
+            const rawPrice = dataIn?.productPrice
+            let amountText = ''
+            if (rawPrice !== undefined) {
+              const numeric =
+                typeof rawPrice === 'number'
+                  ? rawPrice
+                  : Number(String(rawPrice).replace(/[^\d.-]/g, ''))
+              amountText = Number.isFinite(numeric) ? formatCurrency(numeric) : String(rawPrice)
+            }
+
+            description = `Заявка на рассрочку от ${fullName}${amountText ? ` на сумму ${amountText}` : ''}`
+          } else {
+            const details = rawDetails as { message?: string; context?: string } | undefined
+            const message = details?.message || details?.context || actionType
+            description = message || `${actionType} #${journal.uuid?.substring(0, 8) || journal.id}`
+          }
+          
+          return {
+            id: journal.uuid || `journal-${journal.id}`,
+            type,
+            description,
+            date: journal.createdAt || new Date().toISOString(),
+          }
+        })
+        
+        // Mock data for other metrics (TODO: replace with actual API)
         setTimeout(() => {
           setMetrics({
             newApplicationsToday: 12,
@@ -64,41 +161,10 @@ export default function AdminDashboardPage() {
               { manager: 'Сидоров П.А.', count: 32 },
               { manager: 'Козлова А.Д.', count: 30 },
             ],
-            recentEvents: [
-              {
-                id: 'EVT-001',
-                type: 'Новая заявка',
-                description: 'Заявка #deal-001 от Иванов Иван Иванович',
-                date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-              },
-              {
-                id: 'EVT-002',
-                type: 'Одобрение',
-                description: 'Заявка #deal-002 одобрена менеджером Петрова М.С.',
-                date: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-              },
-              {
-                id: 'EVT-003',
-                type: 'Новый инвестор',
-                description: 'Зарегистрирован новый инвестор: Сидоров Петр',
-                date: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-              },
-              {
-                id: 'EVT-004',
-                type: 'Отказ',
-                description: 'Заявка #deal-003 отклонена менеджером Иванов И.И.',
-                date: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-              },
-              {
-                id: 'EVT-005',
-                type: 'Новая заявка',
-                description: 'Заявка #deal-004 от Козлова Анна Дмитриевна',
-                date: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-              },
-            ],
+            recentEvents,
           })
           setLoading(false)
-        }, 500)
+        }, 100)
       } catch (err) {
         console.error('Dashboard fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')

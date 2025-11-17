@@ -2,8 +2,9 @@ import type { D1Database } from '@cloudflare/workers-types'
 import { schema } from '../schema'
 import type { Journal } from '../schema/types'
 import BaseRepository from './BaseRepositroy'
-import { stringifyJson } from './utils'
+import { buildDbFilters, buildDbOrders, stringifyJson } from './utils'
 import { JournalLoanApplicationSnapshot, LoanApplication, LoanApplicationSnapshotDetails, NewJournalLoanApplicationSnapshot } from '../types/esnad'
+import { DbFilters, DbOrders, DbPaginatedResult, DbPagination } from '../types/shared'
 
 type JournalStatus = 'info' | 'success' | 'error'
 
@@ -111,6 +112,37 @@ export class JournalsRepository extends BaseRepository<Journal> {
       userId: userId as number | undefined,
     }
     return await this.create(journal) as JournalLoanApplicationSnapshot
+  }
+  public async getFiltered(filters: DbFilters, orders: DbOrders, pagination: DbPagination): Promise<DbPaginatedResult<Journal>> {
+    const query = this.getSelectQuery()
+    const where = buildDbFilters(this.schema, filters)
+    const order = buildDbOrders(this.schema, orders)
+    
+    const limit = Math.max(1, Math.min(pagination.limit ?? 10, 100))
+    const page = Math.max(1, pagination.page ?? 1)
+    const offset = (page - 1) * limit
+
+    // Get total count
+    const countQuery = this.getSelectQuery()
+    const totalRows = where 
+      ? await countQuery.where(where).execute()
+      : await countQuery.execute()
+    const total = totalRows.length
+
+    const resultQuery = where 
+      ? query.where(where).orderBy(...order).limit(limit).offset(offset)
+      : query.orderBy(...order).limit(limit).offset(offset)
+    const result = await resultQuery.execute() as Journal[]
+
+    return {
+      docs: result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    }
   }
 }
 

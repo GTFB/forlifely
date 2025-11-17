@@ -69,7 +69,6 @@ export const AdminHeader = React.memo(function AdminHeader({
         if (cached) {
           try {
             const cachedTranslations = JSON.parse(cached) as { dataTable?: { adminPanel?: string }; taxonomy?: { entityOptions?: Record<string, string> } }
-            console.log('[AdminHeader] Using cached translations for locale:', locale, cachedTranslations?.dataTable)
             setTranslations(cachedTranslations)
             // Continue to fetch fresh translations in background to ensure we have latest
             // Don't return here, let it fetch fresh data
@@ -84,7 +83,6 @@ export const AdminHeader = React.memo(function AdminHeader({
           throw new Error(`Failed to load translations: ${response.status}`)
         }
         const translationsData = await response.json() as { dataTable?: { adminPanel?: string }; taxonomy?: { entityOptions?: Record<string, string> } }
-        console.log('[AdminHeader] Translations loaded for locale:', locale, translationsData?.dataTable)
         setTranslations(translationsData)
         
         // Cache translations
@@ -110,7 +108,6 @@ export const AdminHeader = React.memo(function AdminHeader({
 
   const adminPanelLabel = React.useMemo(() => {
     const label = translations?.dataTable?.adminPanel || "Admin Panel"
-    console.log('[AdminHeader] Admin panel label:', { hasTranslations: !!translations, label })
     return label
   }, [translations?.dataTable?.adminPanel])
 
