@@ -35,7 +35,6 @@ export type Taxonomy = InferSelectModel<typeof taxonomy>
 export type Journal = InferSelectModel<typeof journals>
 export type Employee = InferSelectModel<typeof employees>
 
-
 export type NewBaseMove = InferInsertModel<typeof baseMoves>
 export type NewProduct = InferInsertModel<typeof products>
 export type NewProductVariant = InferInsertModel<typeof productVariants>
