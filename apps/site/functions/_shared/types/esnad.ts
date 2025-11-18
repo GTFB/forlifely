@@ -7,6 +7,7 @@ import {
     Journal,
     NewJournal,
     Employee,
+    NewUser,
 } from '../schema/types'
 export interface EsnadHuman extends Human {
     dataIn: EsnadHumanData
@@ -25,7 +26,19 @@ export interface EsnadHumanData {
 export interface DealDataIn {
     type: string
 }
+
 /**
+ * пользователь
+ */
+export interface EsnadUser extends User {
+    dataIn: EsnadUserData
+}
+export interface NewEsnadUser extends NewUser {
+    dataIn: EsnadUserData
+}
+export interface EsnadUserData {
+
+}/**
  * форма на странице инвестора
  */
 export interface InvestorsFormDeal extends Deal {

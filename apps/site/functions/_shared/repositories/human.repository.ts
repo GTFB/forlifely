@@ -28,15 +28,21 @@ export class HumanRepository extends BaseRepository<Human>{
     async generateClientByEmail(email: string, data: Partial<Client>): Promise<Client> {
         let [human] = await this.db.select().from(schema.humans).where(eq(schema.humans.email, email)).execute() as Client[]
         if(! human) {
-            human = await this.create({
-                email: email,
+
+            const _data = {
+                email,
                 statusName: 'PENDING' as ClientStatus,
                 haid: generateAid('h'),
                 type: 'CLIENT',
                 dataIn: {
                 },
                 ...data,
-            }) as Client
+            }
+
+            if(! _data.fullName) {
+                _data.fullName = email
+            }
+            human = await this.create(_data) as Client
         }
         return human
     }

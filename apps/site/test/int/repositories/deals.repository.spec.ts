@@ -97,6 +97,8 @@ describe("DealsRepository", () => {
                 term: rawTerm,
             });
 
+            expect(createdDeal.clientAid).toBeDefined();
+
             expect(journal).toBeDefined();
             expect(journal.action).toBe("LOAN_APPLICATION_SNAPSHOT");
             expect(journal.details.previousSnapshot).toBeNull();
@@ -105,10 +107,12 @@ describe("DealsRepository", () => {
             expect(client).toBeDefined();
             expect(client.uuid).toBeDefined();
             expect(client.haid).toMatch(/^h-/);
+            expect(client.haid).toEqual(createdDeal.clientAid as string);
             expect(client.type).toBe("CLIENT");
             expect(client.statusName).toBe("PENDING");
             expect(client.email).toBe(rawEmail.trim().toLowerCase());
             expect(client.fullName).toBe(expectedName);
+
         });
 
         it("бросает ошибку, если отсутствуют обязательные поля", async () => {

@@ -40,6 +40,7 @@ export default class BaseRepository<T> {
         if(this.schema.updatedAt){
             data.updatedAt = new Date().toISOString()
         }
+
         await this.beforeCreate(data as Partial<T>);
         await this.db.insert(this.schema).values(data).execute();
         const entity = await this.findByUuid(data.uuid);
