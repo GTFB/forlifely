@@ -84,6 +84,7 @@ export interface NewLoanApplication extends NewDeal {
 
 export interface LoanApplicationDataIn {
     type: 'LOAN_APPLICATION'
+    managerUuid?: EsnadUser['uuid']
     firstName: string
     lastName: string
     phone: string
@@ -137,7 +138,6 @@ export type LoanApplicationStatus =
 
 export interface LoanApplicationDecision {
     securityServiceComment?: string
-    responsibleEmployeeUuid: Employee['uuid']
 }
 export interface FinanceParameters {
 

@@ -152,7 +152,7 @@ export default function DealDetailPageClient() {
         body: JSON.stringify({
           uuid: deal.uuid,
           securityServiceComment: formData.comment.trim(),
-          responsibleEmployeeUuid: formData.manager,
+          managerUuid: formData.manager,
         }),
       })
 

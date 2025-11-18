@@ -69,3 +69,9 @@ export interface AdminState {
     filters: AdminFilter[]
     search: string
 }
+
+type RequestContext = {
+    request: Request
+    env: Env
+  }
+export type { RequestContext }

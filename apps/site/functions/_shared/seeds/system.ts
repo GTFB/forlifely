@@ -2,7 +2,7 @@ export const systemSeed = {
     __meta__: {
         name: "System Data",
         versions: [
-            
+
             {
                 version: "1.0.0",
                 description: "Заявка Инвестора added",
@@ -23,9 +23,47 @@ export const systemSeed = {
                 description: "Human and Contractor statuses added",
                 created_at: "2025-11-17 10:00",
             },
+            {
+                version: "1.0.4",
+                description: "User roles added",
+                created_at: "2025-11-18 12:00",
+            },
         ],
     },
-    roles: [],
+    roles: [
+        {
+            uuid: "948c9eb8-0ab6-4dba-9bdb-8decf45abed4",
+            name: "client",
+            title: "Потребитель",
+            description: "External consumer who applies for installment and manages their repayments.",
+            is_system: 1,
+            order: 100,
+        },
+        {
+            uuid: "e03c5ef0-bbb1-4c2c-8c04-937298048913",
+            name: "investor",
+            title: "Инвестор",
+            description: "External investor who provides capital for financing deals.",
+            is_system: 1,
+            order: 200,
+        },
+        {
+            uuid: "3ce5a435-0792-4aa1-8ac2-b1de6fa42d60",
+            name: "partner",
+            title: "Партнер",
+            description: "Retail partner representative who creates applications and tracks deals.",
+            is_system: 1,
+            order: 300,
+        },
+        {
+            uuid: "4a053faa-6c17-4e3a-85fc-23840cb11f0e",
+            name: "admin",
+            title: "Админ",
+            description: "User with full access to all system functions and settings.",
+            is_system: 1,
+            order: 1000,
+        },
+    ],
 
     taxonomy: [
 

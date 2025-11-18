@@ -9,4 +9,5 @@ export class UsersRepository extends BaseRepository<EsnadUser> {
     public static getInstance(db: D1Database): UsersRepository {
         return new UsersRepository(db);
     }
+    
 }

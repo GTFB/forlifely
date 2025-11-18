@@ -179,21 +179,20 @@ export class DealsRepository extends BaseRepository<Deal>{
             const normalizedDataIn = this.normalizeLoanApplicationDataIn(data.dataIn as LoanApplication['dataIn']);
 
             if (Object.prototype.hasOwnProperty.call(normalizedDataIn, 'decision')) {
-                const decision = normalizedDataIn.decision;
+                // Validate managerUuid from dataIn (not from decision)
+                let managerUuid = normalizedDataIn.managerUuid;
 
-                let responsibleEmployeeUuid = decision?.responsibleEmployeeUuid;
-
-                if (typeof responsibleEmployeeUuid !== 'string' || !responsibleEmployeeUuid.trim()) {
+                if (typeof managerUuid !== 'string' || !managerUuid.trim()) {
                     throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
                 }
 
-                responsibleEmployeeUuid = responsibleEmployeeUuid.trim();
+                managerUuid = managerUuid.trim();
 
-                if (!this.isValidUuid(responsibleEmployeeUuid)) {
+                if (!this.isValidUuid(managerUuid)) {
                     throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
                 }
 
-                await this.ensureEmployeeExists(responsibleEmployeeUuid);
+                await this.ensureEmployeeExists(managerUuid);
             }
         }
         const deal = await this.findByUuid(uuid) as LoanApplication

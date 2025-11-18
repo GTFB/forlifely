@@ -52,10 +52,52 @@ export default function AdminDealsPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [statusFilter, setStatusFilter] = React.useState<string>('all')
-  const [managerFilter, setManagerFilter] = React.useState<string>('all')
-  const [currentPage, setCurrentPage] = React.useState(1)
+  
+  // Initialize filters from URL params
+  const [statusFilter, setStatusFilter] = React.useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('status') || 'all'
+    }
+    return 'all'
+  })
+  const [managerFilter, setManagerFilter] = React.useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('manager') || 'all'
+    }
+    return 'all'
+  })
+  const [currentPage, setCurrentPage] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return parseInt(params.get('page') || '1', 10)
+    }
+    return 1
+  })
   const [statusOptions, setStatusOptions] = React.useState<TaxonomyOption[]>([])
+  const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
+  const [loadingManagers, setLoadingManagers] = React.useState(false)
+
+  // Update URL when filters change
+  React.useEffect(() => {
+    const params = new URLSearchParams()
+    if (statusFilter !== 'all') {
+      params.set('status', statusFilter)
+    }
+    if (managerFilter !== 'all') {
+      params.set('manager', managerFilter)
+    }
+    if (currentPage > 1) {
+      params.set('page', currentPage.toString())
+    }
+    if (searchQuery) {
+      params.set('search', searchQuery)
+    }
+
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
+    window.history.replaceState({}, '', newUrl)
+  }, [statusFilter, managerFilter, currentPage, searchQuery])
 
   React.useEffect(() => {
     const fetchDeals = async () => {
@@ -67,20 +109,30 @@ export default function AdminDealsPage() {
           limit: pagination.limit.toString(),
         })
 
-        const filtersPayload = statusFilter !== 'all'
-          ? {
-              conditions: [
-                {
-                  field: 'statusName',
-                  operator: 'eq',
-                  values: [statusFilter],
-                },
-              ],
-            }
-          : undefined
+        const filtersConditions: Array<{
+          field: string
+          operator: string
+          values: string[]
+        }> = []
 
-        if (filtersPayload) {
-          params.append('filters', JSON.stringify(filtersPayload))
+        if (statusFilter !== 'all') {
+          filtersConditions.push({
+            field: 'statusName',
+            operator: 'eq',
+            values: [statusFilter],
+          })
+        }
+
+        if (managerFilter !== 'all') {
+          filtersConditions.push({
+            field: 'dataIn.managerUuid',
+            operator: 'eq',
+            values: [managerFilter],
+          })
+        }
+
+        if (filtersConditions.length > 0) {
+          params.append('filters', JSON.stringify({ conditions: filtersConditions }))
         }
 
         const response = await fetch(`/api/admin/loan-application?${params.toString()}`, {
@@ -107,7 +159,7 @@ export default function AdminDealsPage() {
     }
 
     fetchDeals()
-  }, [currentPage, statusFilter, pagination.limit])
+  }, [currentPage, statusFilter, managerFilter, pagination.limit])
 
   React.useEffect(() => {
     const fetchStatuses = async () => {
@@ -151,6 +203,36 @@ export default function AdminDealsPage() {
     }
 
     fetchStatuses()
+  }, [])
+
+  React.useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        setLoadingManagers(true)
+        const response = await fetch('/api/esnad/v1/admin/users/managers', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch managers')
+        }
+
+        const result = await response.json() as { docs?: Array<{ uuid: string; fullName?: string | null; email: string }> }
+        const managersList = (result.docs || []).map((manager) => ({
+          uuid: manager.uuid,
+          fullName: manager.fullName || null,
+          email: manager.email,
+        }))
+        setManagers(managersList)
+      } catch (err) {
+        console.error('Failed to load managers', err)
+        setManagers([])
+      } finally {
+        setLoadingManagers(false)
+      }
+    }
+
+    fetchManagers()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -221,7 +303,6 @@ export default function AdminDealsPage() {
 
   const normalizeManager = (name: string | null | undefined) => (name?.trim() ? name.trim() : 'Не назначен')
 
-
   const uniqueStatuses = statusOptions
     .filter((option) => option.name)
     .map((option) => ({
@@ -229,11 +310,10 @@ export default function AdminDealsPage() {
       label: option.title ?? option.name,
     }))
 
-  const uniqueManagers = Array.from(
-    new Set(
-      deals.map(() => normalizeManager("")),
-    ),
-  )
+  const managerOptions = managers.map((manager) => ({
+    value: manager.uuid,
+    label: manager.fullName || manager.email,
+  }))
   const breadcrumbs = React.useMemo(
     () => [
       { label: 'Панель администратора', href: '/admin/dashboard' },
@@ -296,7 +376,12 @@ export default function AdminDealsPage() {
               className="pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => {
+              setStatusFilter(value)
+              setCurrentPage(1) // Reset to first page when filter changes
+            }}>
             <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Статус" />
             </SelectTrigger>
@@ -309,15 +394,21 @@ export default function AdminDealsPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={managerFilter} onValueChange={setManagerFilter}>
+          <Select
+            value={managerFilter}
+            onValueChange={(value) => {
+              setManagerFilter(value)
+              setCurrentPage(1) // Reset to first page when filter changes
+            }}
+            disabled={loadingManagers}>
             <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Менеджер" />
+              <SelectValue placeholder={loadingManagers ? 'Загрузка...' : 'Менеджер'} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все менеджеры</SelectItem>
-              {uniqueManagers.map((manager) => (
-                <SelectItem key={manager} value={manager}>
-                  {manager}
+              {managerOptions.map((manager) => (
+                <SelectItem key={manager.value} value={manager.value}>
+                  {manager.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -358,7 +449,10 @@ export default function AdminDealsPage() {
                           {getStatusLabel(deal.statusName)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{normalizeManager('')}</TableCell>
+                      <TableCell>
+                        {(deal as LoanApplication & { managerName?: string | null }).managerName ||
+                          normalizeManager(null)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

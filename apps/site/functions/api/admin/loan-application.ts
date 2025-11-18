@@ -1,6 +1,7 @@
 import qs from 'qs'
 import type { Env } from '../../_shared/types'
 import { DealsRepository } from '../../_shared/repositories/deals.repository'
+import { MeRepository } from '../../_shared/repositories/me.repository'
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '../../_shared/types/shared'
 import type { LoanApplication, LoanApplicationDataIn } from '../../_shared/types/esnad'
 
@@ -39,9 +40,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         }
 
         const dealsRepository = new DealsRepository(env.DB)
+        
+        // Extract managerUuid filter if present
+        let managerUuidFilter: string | undefined
+        const managerFilterCondition = filters?.conditions?.find(
+            (cond) => cond.field === 'managerUuid' || cond.field === 'dataIn.managerUuid'
+        )
+        if (managerFilterCondition && managerFilterCondition.values && managerFilterCondition.values.length > 0) {
+            managerUuidFilter = String(managerFilterCondition.values[0])
+        }
+
+        // Use single LIKE pattern for type to avoid SQLite complexity error
+        // We'll filter by managerUuid after fetching the data
         const combinedFilters: DbFilters = {
             conditions: [
-                ...(filters?.conditions ?? []),
+                ...(filters?.conditions?.filter(
+                    (cond) => cond.field !== 'managerUuid' && cond.field !== 'dataIn.managerUuid'
+                ) ?? []),
                 {
                     field: 'dataIn',
                     operator: 'like',
@@ -56,7 +71,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
             pagination,
         })
 
-        const applications: LoanApplication[] = dealsResult.docs
+        let applications: LoanApplication[] = dealsResult.docs
             .map((deal) => {
                 let dataIn: unknown = deal.dataIn
 
@@ -79,8 +94,51 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
             })
             .filter((deal): deal is LoanApplication => deal !== null)
 
-        const response: DbPaginatedResult<LoanApplication> = {
-            docs: applications,
+        // Filter by managerUuid if specified (after parsing JSON to avoid SQLite LIKE complexity)
+        if (managerUuidFilter) {
+            applications = applications.filter(
+                (app) => (app.dataIn as LoanApplicationDataIn)?.managerUuid === managerUuidFilter
+            )
+        }
+
+        // Load manager information for each application
+        const meRepository = MeRepository.getInstance(env.DB as D1Database)
+        const applicationsWithManagers = await Promise.all(
+            applications.map(async (app) => {
+                const managerUuid = (app.dataIn as LoanApplicationDataIn)?.managerUuid
+                let managerName: string | null = null
+
+                if (managerUuid) {
+                    try {
+                        // Find user by UUID
+                        const user = await env.DB.prepare(
+                            'SELECT id FROM users WHERE uuid = ? AND deleted_at IS NULL LIMIT 1'
+                        )
+                            .bind(managerUuid)
+                            .first<{ id: number }>()
+
+                        if (user) {
+                            const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
+                                includeHuman: true,
+                            })
+                            if (userWithRoles?.human) {
+                                managerName = userWithRoles.human.fullName || null
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`Failed to load manager for application ${app.uuid}:`, err)
+                    }
+                }
+
+                return {
+                    ...app,
+                    managerName,
+                }
+            })
+        )
+
+        const response: DbPaginatedResult<LoanApplication & { managerName?: string | null }> = {
+            docs: applicationsWithManagers,
             pagination: dealsResult.pagination,
         }
 

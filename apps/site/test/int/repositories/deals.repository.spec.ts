@@ -213,7 +213,7 @@ describe("DealsRepository", () => {
             expect(relatedDeals).toHaveLength(1);
         });
 
-        it("бросает ошибку, если decision без responsibleEmployeeUuid", async () => {
+        it("бросает ошибку, если decision без managerUuid в dataIn", async () => {
             const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
                 type: "LOAN_APPLICATION",
                 firstName: faker.person.firstName(),
@@ -233,6 +233,7 @@ describe("DealsRepository", () => {
                 dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
                     dataIn: {
                         ...currentDataIn,
+                        managerUuid: "", // Empty managerUuid
                         decision: {
                             securityServiceComment: "Needs more info",
                         } as LoanApplicationDecision,
@@ -241,7 +242,7 @@ describe("DealsRepository", () => {
             ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
         });
 
-        it("бросает ошибку, если responsibleEmployeeUuid пустой или не строка", async () => {
+        it("бросает ошибку, если managerUuid пустой или не строка", async () => {
             const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
                 type: "LOAN_APPLICATION",
                 firstName: faker.person.firstName(),
@@ -261,9 +262,9 @@ describe("DealsRepository", () => {
                 dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
                     dataIn: {
                         ...currentDataIn,
+                        managerUuid: "   ", // Empty/whitespace uuid
                         decision: {
                             securityServiceComment: "Empty uuid",
-                            responsibleEmployeeUuid: "   ",
                         } as LoanApplicationDecision,
                     },
                 }),
@@ -273,16 +274,16 @@ describe("DealsRepository", () => {
                 dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
                     dataIn: {
                         ...currentDataIn,
+                        managerUuid: 123 as unknown as string, // Non string uuid
                         decision: {
                             securityServiceComment: "Non string uuid",
-                            responsibleEmployeeUuid: 123 as unknown as string,
-                        } as unknown as LoanApplicationDecision,
+                        } as LoanApplicationDecision,
                     },
                 }),
             ).rejects.toThrow("Произошла внутренняя ошибка при обработке решения. Пожалуйста, свяжитесь с администратором системы.");
         });
 
-        it("бросает ошибку, если responsibleEmployeeUuid невалидный или сотрудник не найден", async () => {
+        it("бросает ошибку, если managerUuid невалидный или сотрудник не найден", async () => {
             const { createdDeal } = await dealsRepository.createLoanApplicationDealPublic({
                 type: "LOAN_APPLICATION",
                 firstName: faker.person.firstName(),
@@ -302,9 +303,9 @@ describe("DealsRepository", () => {
                 dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
                     dataIn: {
                         ...currentDataIn,
+                        managerUuid: "invalid-uuid", // Invalid uuid format
                         decision: {
                             securityServiceComment: "Invalid uuid format",
-                            responsibleEmployeeUuid: "invalid-uuid",
                         } as LoanApplicationDecision,
                     },
                 }),
@@ -314,9 +315,9 @@ describe("DealsRepository", () => {
                 dealsRepository.updateLoanApplicationDeal(createdDeal.uuid, {
                     dataIn: {
                         ...currentDataIn,
+                        managerUuid: crypto.randomUUID(), // Valid UUID but employee not found
                         decision: {
                             securityServiceComment: "Employee not found",
-                            responsibleEmployeeUuid: crypto.randomUUID(),
                         } as LoanApplicationDecision,
                     },
                 }),

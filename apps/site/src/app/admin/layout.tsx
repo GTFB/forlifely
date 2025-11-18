@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { NavigationItem } from "@/components/cabinet/BottomNavigation"
 import { usePathname } from "next/navigation"
+import { MeProvider } from "@/providers/MeProvider"
 
 // Global state to preserve sidebar open state across remounts
 let globalSidebarOpen: boolean | null = null
@@ -127,14 +128,16 @@ const adminNavigationItems: NavigationItem[] = [
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="h-screen w-full bg-background overflow-hidden">
-      <AdminStateProvider>
-        <AdminAuthGuard>
-          <SidebarWrapper>
-            {children}
-          </SidebarWrapper>
-          <BottomNavigation navigationItems={adminNavigationItems} />
-        </AdminAuthGuard>
-      </AdminStateProvider>
+      <MeProvider refetchInterval={6000000} refetchOnFocus={true}>
+        <AdminStateProvider>
+          <AdminAuthGuard>
+            <SidebarWrapper>
+              {children}
+            </SidebarWrapper>
+            <BottomNavigation navigationItems={adminNavigationItems} />
+          </AdminAuthGuard>
+        </AdminStateProvider>
+      </MeProvider>
     </div>
   )
 }

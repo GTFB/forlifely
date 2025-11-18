@@ -123,7 +123,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
           roleUuid, 
           roleAid,
           'Administrator',
-          'Administrator', 
+          'Суперадминистратор', 
           1, 
           0
         )

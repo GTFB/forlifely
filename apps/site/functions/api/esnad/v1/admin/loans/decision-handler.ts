@@ -16,7 +16,7 @@ type RequestContext = {
 type LoanDecisionPayload = {
     uuid: string
     securityServiceComment: string
-    responsibleEmployeeUuid: string
+    managerUuid: string
 }
 
 type HandleLoanDecisionOptions = {
@@ -56,13 +56,13 @@ const parseLoanDecisionPayload = async (request: Request): Promise<LoanDecisionP
     const uuid = typeof body.uuid === "string" ? body.uuid.trim() : ""
     const securityServiceComment =
         typeof body.securityServiceComment === "string" ? body.securityServiceComment.trim() : ""
-    const responsibleEmployeeUuid =
-        typeof body.responsibleEmployeeUuid === "string" ? body.responsibleEmployeeUuid.trim() : ""
+    const managerUuid =
+        typeof body.managerUuid === "string" ? body.managerUuid.trim() : ""
 
     const missingFields = []
     if (!uuid) missingFields.push("uuid")
     if (!securityServiceComment) missingFields.push("securityServiceComment")
-    if (!responsibleEmployeeUuid) missingFields.push("responsibleEmployeeUuid")
+    if (!managerUuid) missingFields.push("managerUuid")
 
     if (missingFields.length) {
         throw new BadRequestError(`Missing required fields: ${missingFields.join(", ")}`)
@@ -71,7 +71,7 @@ const parseLoanDecisionPayload = async (request: Request): Promise<LoanDecisionP
     return {
         uuid,
         securityServiceComment,
-        responsibleEmployeeUuid,
+        managerUuid,
     }
 }
 
@@ -119,13 +119,13 @@ export const handleLoanDecision = async (
 
         const decision: LoanApplicationDecision = {
             securityServiceComment: payload.securityServiceComment,
-            responsibleEmployeeUuid: payload.responsibleEmployeeUuid,
         }
 
         const result = await dealsRepository.updateLoanApplicationDeal(payload.uuid, {
             statusName: options.statusName,
             dataIn: {
                 ...currentDataIn,
+                managerUuid: payload.managerUuid,
                 decision,
             },
         })
