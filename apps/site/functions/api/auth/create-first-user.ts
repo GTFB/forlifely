@@ -134,8 +134,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // Insert user into database
     await env.DB.prepare(
-      `INSERT INTO users (uuid, human_aid, email, password_hash, salt, is_active, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
+      `INSERT INTO users (uuid, human_aid, email, password_hash, salt, is_active, email_verified_at, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
     )
       .bind(userUuid, humanAid, email, hashedPassword, salt, 1)
       .run()

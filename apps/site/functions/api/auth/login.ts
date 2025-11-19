@@ -4,6 +4,9 @@ import { createSession, jsonWithSession } from '../../_shared/session'
 import { verifyPassword } from '../../_shared/password'
 import { Env } from '../../_shared/types'
 import { MeRepository } from '../../_shared/repositories/me.repository'
+import { UsersRepository } from '../../_shared/repositories/users.repository'
+import { getNextResendAvailableAt } from '../../_shared/services/email-verification.service'
+import { logUserJournalEvent } from '../../_shared/services/user-journal.service'
 interface LoginRequest {
   email: string
   password: string
@@ -36,6 +39,15 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
 
     // Initialize repository
     const meRepository = MeRepository.getInstance(env.DB)
+    const usersRepository = UsersRepository.getInstance(env.DB)
+
+    const persistedUser = await usersRepository.findByEmail(email)
+    if (!persistedUser) {
+      return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
     // Query user from database with roles
     const userWithRoles = await meRepository.findByEmailWithRoles(email)
@@ -47,10 +59,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       })
     }
 
-    const { user, roles, human } = userWithRoles
+    const { roles, human } = userWithRoles
 
     // Verify password
-    const isValidPassword = await verifyPassword(user.salt, password, user.passwordHash)
+    const isValidPassword = await verifyPassword(persistedUser.salt, password, persistedUser.passwordHash)
     if (!isValidPassword) {
       return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
         status: 401,
@@ -58,28 +70,53 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       })
     }
 
+    if (!persistedUser.emailVerifiedAt) {
+      const resendAvailableAt = getNextResendAvailableAt(persistedUser)
+      return new Response(
+        JSON.stringify({
+          error: 'Email is not verified',
+          code: 'EMAIL_NOT_VERIFIED',
+          resendAvailableAt,
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
     // Determine if user is admin (has any system role)
     const isAdmin = roles.some((role) => role.isSystem === true)
+
+    await usersRepository.update(persistedUser.uuid, {
+      lastLoginAt: new Date().toISOString(),
+    })
 
     // Create session
     const sessionCookie = await createSession(
       {
-        id: String(user.id),
-        email: user.email,
-        name: human?.fullName || email,
+        id: String(persistedUser.id),
+        email: persistedUser.email,
+        name: human?.fullName || persistedUser.email,
         role: isAdmin ? 'admin' : 'user',
       },
       env.AUTH_SECRET
     )
 
+    try {
+      await logUserJournalEvent(env, 'USER_JOURNAL_LOGIN', persistedUser)
+    } catch (journalError) {
+      console.error('Failed to log user login action', journalError)
+    }
+
     return jsonWithSession(
       {
         success: true,
         user: {
-          id: user.id,
-          uuid: user.uuid,
-          email: user.email,
-          name: human?.fullName || email,
+          id: persistedUser.id,
+          uuid: persistedUser.uuid,
+          email: persistedUser.email,
+          name: human?.fullName || persistedUser.email,
           role: isAdmin ? 'admin' : 'user',
           roles: roles.map((role) => ({
             uuid: role.uuid,

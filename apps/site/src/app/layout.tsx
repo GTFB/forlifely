@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
 import PwaLoader from "@/components/PwaLoader";
+import { MeProvider } from "@/providers/MeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,10 +84,13 @@ export default function RootLayout({
       </head>
 
       <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>
-        <PwaLoader/>
-        <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
+        <PwaLoader />
+        <MeProvider refetchInterval={6000000} refetchOnFocus={true}>
+
+          <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
             {children}
-        </ThemeProvider>
+          </ThemeProvider>
+        </MeProvider>
       </body>
     </html>
   );

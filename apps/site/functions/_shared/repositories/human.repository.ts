@@ -43,6 +43,51 @@ export class HumanRepository extends BaseRepository<Human>{
                 _data.fullName = email
             }
             human = await this.create(_data) as Client
+        } else {
+            const updatedFields: Partial<Client> = {}
+
+            if (data) {
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'dataIn') {
+                        continue
+                    }
+                    const currentValue = (human as unknown as Record<string, unknown>)[key]
+                    // Only update if current value is empty/null/undefined or equals email (for fullName default)
+                    const shouldUpdate = (
+                        value !== undefined &&
+                        value !== null &&
+                        (currentValue === undefined ||
+                         currentValue === null ||
+                         currentValue === '' ||
+                         (key === 'fullName' && currentValue === email))
+                    )
+                    if (shouldUpdate) {
+                        (updatedFields as Record<string, unknown>)[key] = value
+                    }
+                }
+
+                if (data.dataIn) {
+                    const currentDataIn =
+                        typeof human.dataIn === 'string'
+                            ? (JSON.parse(human.dataIn) as Record<string, unknown>)
+                            : (human.dataIn as Record<string, unknown>) || {}
+
+                    const mergedDataIn = {
+                        ...currentDataIn,
+                        ...data.dataIn,
+                    }
+
+                    const dataInChanged = JSON.stringify(currentDataIn) !== JSON.stringify(mergedDataIn)
+
+                    if (dataInChanged) {
+                        updatedFields.dataIn = mergedDataIn as Client['dataIn']
+                    }
+                }
+            }
+
+            if (Object.keys(updatedFields).length > 0) {
+                human = await this.update(human.uuid, updatedFields) as Client
+            }
         }
         return human
     }

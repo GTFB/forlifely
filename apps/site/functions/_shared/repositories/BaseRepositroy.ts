@@ -28,6 +28,10 @@ export default class BaseRepository<T> {
         const [row] = await this.db.select().from(this.schema).where(eq(this.schema.uuid, uuid)).execute();
         return row;
     }
+    async findById(id: number): Promise<T> {
+        const [row] = await this.db.select().from(this.schema).where(eq(this.schema.id, id)).execute();
+        return row;
+    }
     async findAll(): Promise<T[]> {
         const rows = await this.db.select().from(this.schema).execute();
         return rows;
@@ -44,9 +48,9 @@ export default class BaseRepository<T> {
         }
 
         await this.beforeCreate(data as Partial<T>);
-        await this.db.insert(this.schema).values(data).execute();
-        const entity = await this.findByUuid(data.uuid);
-        await this.afterCreate(entity);
+        const result = await this.db.insert(this.schema).values(data).execute();
+        const entity = await this.findById(result.meta.last_row_id);
+        await this.afterCreate(entity as T);
         return entity;
     }
     async update(uuid: string, data: any, collection: BaseCollection | null = null): Promise<T> {

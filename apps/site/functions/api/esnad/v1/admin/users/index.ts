@@ -3,6 +3,7 @@
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
+import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { Env } from '@/shared/types'
 import { parseQueryParams } from '@/shared/utils/http'
 import { RequestContext } from '@/shared/types'
@@ -10,6 +11,8 @@ import type { EsnadUser } from '@/shared/types/esnad'
 import { getSession } from '@/shared/session'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { generateAid } from '@/shared/generate-aid'
+import { sendVerificationEmail } from '@/shared/services/email-verification.service'
+import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 
 const corsHeaders = {
   'access-control-allow-origin': '*',
@@ -280,14 +283,20 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
 
     // Assign roles if provided
     if (roleUuids && Array.isArray(roleUuids) && roleUuids.length > 0) {
-      for (let i = 0; i < roleUuids.length; i++) {
-        await env.DB.prepare(
-          `INSERT INTO user_roles (user_uuid, role_uuid, "order", created_at) 
-           VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`
-        )
-          .bind(createdUser.uuid, roleUuids[i], i)
-          .run()
-      }
+      const userRolesRepository = UserRolesRepository.getInstance(env.DB as D1Database)
+      await userRolesRepository.assignRolesToUser(createdUser.uuid, roleUuids)
+    }
+
+    try {
+      await sendVerificationEmail(env, createdUser, { request, force: true })
+    } catch (verificationError) {
+      console.error('Failed to send verification email to new user', verificationError)
+    }
+
+    try {
+      await logUserJournalEvent(env, 'USER_JOURNAL_REGISTRATION', createdUser)
+    } catch (journalError) {
+      console.error('Failed to log admin user registration', journalError)
     }
 
     return new Response(

@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import React from 'react'
 import { cn } from '@/lib/utils'
+import { useMe } from '@/providers/MeProvider'
 
 const menuItems = [
     { name: 'Инвесторам', href: '/investors' },
@@ -16,6 +17,7 @@ const menuItems = [
 export const HeroHeader = () => {
     const [menuState, setMenuState] = React.useState(false)
     const [isScrolled, setIsScrolled] = React.useState(false)
+    const { user } = useMe()
 
     React.useEffect(() => {
         const handleScroll = () => {
@@ -24,6 +26,17 @@ export const HeroHeader = () => {
         window.addEventListener('scroll', handleScroll)
         return () => window.removeEventListener('scroll', handleScroll)
     }, [])
+
+    const cabinetUrl = React.useMemo(() => {
+        if (!user) return null
+        const isAdmin = user.roles.some(
+            (role) => role.name === 'Administrator' || role.name === 'admin'
+        )
+        const isConsumer = user.roles.some(
+            (role) => role.name === 'Consumer' || role.name === 'Потребитель'
+        )
+        return isAdmin ? '/admin' : isConsumer ? '/c' : null
+    }, [user])
     return (
         <header>
             <nav
@@ -76,35 +89,60 @@ export const HeroHeader = () => {
                                     ))}
                                 </ul>
                             </div>
-                            <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                                <Button
-                                    asChild
-                                    variant="ghost"
-                                    size="sm"
-                                    className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="/login">
-                                        <span>Войти</span>
-                                    </Link>
-                                </Button>
-                                <Button
-                                    asChild
-                                    variant="default"
-                                    size="sm"
-                                    className={cn(isScrolled && 'lg:hidden')}>
-                                    <Link href="/login">
-                                        <span>Регистрация</span>
-                                    </Link>
-                                </Button>
-                                <Button
-                                    asChild
-                                    variant="default"
-                                    size="sm"
-                                    className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
-                                    <Link href="#">
-                                        <span>Регистрация</span>
-                                    </Link>
-                                </Button>
-                            </div>
+                            {!user && (
+                                <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
+                                    <Button
+                                        asChild
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <Link href="/login">
+                                            <span>Войти</span>
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        variant="default"
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <Link href="/register">
+                                            <span>Регистрация</span>
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        variant="default"
+                                        size="sm"
+                                        className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
+                                        <Link href="/register">
+                                            <span>Регистрация</span>
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
+                            {cabinetUrl && (
+                                <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
+
+<Button
+                                        asChild
+                                        variant="default"
+                                        size="sm"
+                                        className={cn(isScrolled && 'lg:hidden')}>
+                                        <Link href={cabinetUrl}>
+                                            <span>Личный кабинет</span>
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        asChild
+                                        variant="default"
+                                        size="sm"
+                                        className={cn(isScrolled ? 'lg:inline-flex' : 'hidden')}>
+                                        <Link href={cabinetUrl}>
+                                            <span>Личный кабинет</span>
+                                        </Link>
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

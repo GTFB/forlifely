@@ -19,6 +19,11 @@ export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState('')
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null)
   const [locale, setLocale] = useState<'en' | 'ru'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar-locale')
@@ -59,6 +64,17 @@ export default function LoginPage() {
     loadTranslations()
   }, [locale])
 
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      return
+    }
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [resendCooldown])
+
+
   const handleLocaleChange = (newLocale: 'en' | 'ru') => {
     setLocale(newLocale)
     if (typeof window !== 'undefined') {
@@ -94,6 +110,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNeedsVerification(false)
+    setResendSuccess(null)
     setLoading(true)
 
     try {
@@ -134,6 +152,19 @@ export default function LoginPage() {
       } = await response.json()
 
       if (!response.ok) {
+        if ((data as any)?.code === 'EMAIL_NOT_VERIFIED') {
+          setNeedsVerification(true)
+          setPendingEmail(formData.email)
+          setError('Email не подтвержден. Проверьте почту и подтвердите адрес.')
+          if ((data as any)?.resendAvailableAt) {
+            const availableAt = new Date((data as any).resendAvailableAt).getTime()
+            const seconds = Math.max(0, Math.ceil((availableAt - Date.now()) / 1000))
+            setResendCooldown(seconds > 0 ? seconds : 60)
+          } else {
+            setResendCooldown(60)
+          }
+          return
+        }
         throw new Error(data.error || t.errors.loginFailed)
       }
 
@@ -181,6 +212,48 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : t.errors.unknownError)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    const targetEmail = (pendingEmail || formData.email).trim()
+    if (!targetEmail) {
+      setError('Укажите email, чтобы отправить письмо повторно.')
+      return
+    }
+
+    setResendLoading(true)
+    setError(null)
+    setResendSuccess(null)
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: targetEmail }),
+      })
+
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as { success?: boolean; error?: string; resendAvailableAt?: string }
+      if (!response.ok) {
+        throw new Error(data.error || 'Не удалось отправить письмо повторно')
+      }
+
+      if (data.resendAvailableAt) {
+        const targetTime = new Date(data.resendAvailableAt).getTime()
+        const seconds = Math.max(0, Math.ceil((targetTime - Date.now()) / 1000))
+        setResendCooldown(seconds > 0 ? seconds : 60)
+      } else {
+        setResendCooldown(60)
+      }
+      setResendSuccess('Письмо для подтверждения отправлено повторно.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.errors.unknownError)
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -269,6 +342,33 @@ export default function LoginPage() {
                 t.loginButton
               )}
             </Button>
+
+            {needsVerification && (
+              <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-primary-foreground/80 dark:text-primary-foreground">
+                <p>Для входа подтвердите email. Отправим письмо повторно по запросу.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={resendLoading || resendCooldown > 0}
+                  onClick={handleResendVerification}
+                >
+                  {resendLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Отправляем...
+                    </>
+                  ) : resendCooldown > 0 ? (
+                    `Отправить повторно через ${resendCooldown} c`
+                  ) : (
+                    'Отправить письмо повторно'
+                  )}
+                </Button>
+                {resendSuccess && (
+                  <p className="text-xs text-muted-foreground">{resendSuccess}</p>
+                )}
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

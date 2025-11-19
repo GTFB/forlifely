@@ -36,9 +36,42 @@ export interface EsnadUser extends User {
 export interface NewEsnadUser extends NewUser {
     dataIn: EsnadUserData
 }
-export interface EsnadUserData {
+export interface EmailVerificationState {
+    tokenHash?: string
+    expiresAt?: string
+    lastSentAt?: string
+}
 
-}/**
+export interface EsnadUserData {
+    emailVerification?: EmailVerificationState
+    [key: string]: unknown
+}
+export interface EsnadUserJournal extends Journal {
+    action: EsnadUserJournalActions
+    details: EsnadUserJournalDetails
+
+}
+export interface NewEsnadUserJournal extends NewJournal {
+    action: EsnadUserJournalActions
+    details: EsnadUserJournalDetails
+}
+export type EsnadUserJournalActions = 
+    'USER_JOURNAL_REGISTRATION' |
+    'USER_JOURNAL_LOGIN' |
+    'USER_JOURNAL_LOGOUT' |
+    'USER_JOURNAL_EMAIL_VERIFICATION' |
+    'USER_JOURNAL_PASSWORD_RESET_REQUEST' |
+    'USER_JOURNAL_PASSWORD_RESET_CONFIRM' |
+    'USER_JOURNAL_PASSWORD_RESET'
+export interface EsnadUserJournalDetails {
+    user: {
+        uuid: string
+        email: string
+        humanAid?: string | null
+    }
+    [key: string]: unknown
+}
+/**
  * форма на странице инвестора
  */
 export interface InvestorsFormDeal extends Deal {
@@ -71,14 +104,12 @@ export interface InvestorsFormData {
 export interface LoanApplication extends Deal {
     dataIn: LoanApplicationDataIn
     statusName: LoanApplicationStatus
-    //dealStatusTransitions?: LoanApplicationJournal[]
     documents?: any[]
 }
 
 export interface NewLoanApplication extends NewDeal {
     dataIn: LoanApplicationDataIn
     statusName: LoanApplicationStatus
-    //dealStatusTransitions?: LoanApplicationJournal[]
     documents?: any[]
 }
 

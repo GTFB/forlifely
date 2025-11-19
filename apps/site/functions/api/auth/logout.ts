@@ -1,12 +1,32 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { clearSession } from '../../_shared/session'
+import { clearSession, getSession } from '../../_shared/session'
+import type { Env } from '../../_shared/types'
+import { UsersRepository } from '../../_shared/repositories/users.repository'
+import { logUserJournalEvent } from '../../_shared/services/user-journal.service'
 
 /**
  * POST /api/auth/logout
  * Clears session cookie
  */
-export const onRequestPost = async () => {
+export const onRequestPost = async (context: { request: Request; env: Env }) => {
+  const { request, env } = context
+
+  if (env.AUTH_SECRET) {
+    try {
+      const session = await getSession(request, env.AUTH_SECRET)
+      if (session?.email) {
+        const usersRepository = UsersRepository.getInstance(env.DB)
+        const user = await usersRepository.findByEmail(session.email)
+        if (user) {
+          await logUserJournalEvent(env, 'USER_JOURNAL_LOGOUT', user)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to log logout action', error)
+    }
+  }
+
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers: {

@@ -37,9 +37,11 @@ export default function ConsumerAuthGuard({ children }: ConsumerAuthGuardProps) 
       const data: { user: { roles: { name: string }[] } } = await response.json()
 
       // Check if user has Consumer role or is admin (for development)
-      const hasConsumerRole = data.user.roles.some(
-        (role) => role.name === 'Consumer' || role.name === 'Потребитель'
-      )
+      const hasConsumerRole = data.user.roles.some((role) => {
+        if (!role.name) return false
+        const normalized = role.name.toLowerCase()
+        return normalized === 'consumer' || normalized === 'потребитель' || normalized === 'client'
+      })
       const isAdmin = data.user.roles.some((role) => role.name === 'Administrator')
 
       // Allow admin access to consumer cabinet for testing
