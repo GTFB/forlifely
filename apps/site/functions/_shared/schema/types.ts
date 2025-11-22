@@ -1,4 +1,5 @@
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm'
+import { assets } from './assets'
 import { baseMoves } from './base-moves'
 import { bases } from './bases'
 import { contractors } from './contractors'
@@ -16,7 +17,14 @@ import { humans } from './humans'
 import { taxonomy } from './taxonomy'
 import { journals } from './journals'
 import { employees } from './employees'
+import { finances } from './finances'
+import { goals } from './goals'
+import { settings } from './settings'
+import { media } from './media'
+import { relations } from './relations'
+import { notices } from './notices'
 
+export type Asset = InferSelectModel<typeof assets>
 export type BaseMove = InferSelectModel<typeof baseMoves>
 export type Product = InferSelectModel<typeof products>
 export type ProductVariant = InferSelectModel<typeof productVariants>
@@ -34,7 +42,14 @@ export type Human = InferSelectModel<typeof humans>
 export type Taxonomy = InferSelectModel<typeof taxonomy>
 export type Journal = InferSelectModel<typeof journals>
 export type Employee = InferSelectModel<typeof employees>
+export type Finance = InferSelectModel<typeof finances>
+export type Goal = InferSelectModel<typeof goals>
+export type Setting = InferSelectModel<typeof settings>
+export type Media = InferSelectModel<typeof media>
+export type Relation = InferSelectModel<typeof relations>
+export type Notice = InferSelectModel<typeof notices>
 
+export type NewAsset = InferInsertModel<typeof assets>
 export type NewBaseMove = InferInsertModel<typeof baseMoves>
 export type NewProduct = InferInsertModel<typeof products>
 export type NewProductVariant = InferInsertModel<typeof productVariants>
@@ -52,3 +67,9 @@ export type NewHuman = InferInsertModel<typeof humans>
 export type NewTaxonomy = InferInsertModel<typeof taxonomy>
 export type NewJournal = InferInsertModel<typeof journals>
 export type NewEmployee = InferInsertModel<typeof employees>
+export type NewFinance = InferInsertModel<typeof finances>
+export type NewGoal = InferInsertModel<typeof goals>
+export type NewSetting = InferInsertModel<typeof settings>
+export type NewMedia = InferInsertModel<typeof media>
+export type NewRelation = InferInsertModel<typeof relations>
+export type NewNotice = InferInsertModel<typeof notices>

@@ -36,17 +36,25 @@ export function createDb(db: D1Database | SiteDb): SiteDb {
   return drizzle(db as D1Database, { schema }) as SiteDb;
 }
 
-export function parseJson<T>(value: string | null | undefined, fallback: T): T {
-  if (!value) {
+export function parseJson<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) {
     return fallback;
   }
 
-  try {
-    return JSON.parse(value) as T;
-  } catch (error) {
-    console.error("Failed to parse JSON from repository", error);
-    return fallback;
+  if (typeof value === 'object') {
+    return value as T;
   }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch (error) {
+      console.error("Failed to parse JSON from repository", error);
+      return fallback;
+    }
+  }
+
+  return fallback;
 }
 
 export function stringifyJson<T>(value: T | null | undefined): string | null {
