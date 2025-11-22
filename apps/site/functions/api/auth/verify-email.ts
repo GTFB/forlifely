@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import type { Env } from '../../_shared/types'
-import { UsersRepository } from '../../_shared/repositories/users.repository'
-import { EmailVerificationError, verifyEmailToken } from '../../_shared/services/email-verification.service'
-import { logUserJournalEvent } from '../../_shared/services/user-journal.service'
+import type { Env } from '@/shared/types'
+import { UsersRepository } from '@/shared/repositories/users.repository'
+import { EmailVerificationError, verifyEmailToken } from '@/shared/services/email-verification.service'
+import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 
 type VerifyEmailRequest = {
   email?: string

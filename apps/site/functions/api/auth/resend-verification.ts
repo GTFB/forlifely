@@ -1,12 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import type { Env } from '../../_shared/types'
-import { UsersRepository } from '../../_shared/repositories/users.repository'
+import type { Env } from '@/shared/types'
+import { UsersRepository } from '@/shared/repositories/users.repository'
 import {
   EmailVerificationError,
   sendVerificationEmail,
   getNextResendAvailableAt,
-} from '../../_shared/services/email-verification.service'
+} from '@/shared/services/email-verification.service'
 
 type ResendRequest = {
   email?: string

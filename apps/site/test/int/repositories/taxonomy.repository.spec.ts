@@ -1,7 +1,7 @@
 import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 
-import { TaxonomyRepository } from "../../../functions/_shared/repositories/taxonomy.repository";
+import { TaxonomyRepository } from "@/shared/repositories/taxonomy.repository";
 
 describe("TaxonomyRepository", () => {
     let db: D1Database;

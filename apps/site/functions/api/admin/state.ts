@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { Env } from "../../_shared/types"
-import { COLLECTION_GROUPS } from "../../_shared/collections"
-import { getCollection } from "../../_shared/collections/getCollection"
+import { Env } from "@/shared/types"
+import { COLLECTION_GROUPS } from "@/shared/collections"
+import { getCollection } from "@/shared/collections/getCollection"
 import qs from "qs"
 
 interface AdminFilter {

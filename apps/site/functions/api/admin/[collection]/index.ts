@@ -1,11 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { requireAdmin,  } from '../../../_shared/middleware'
-import { Context, AuthenticatedContext } from '../../../_shared/types'
-import { COLLECTION_GROUPS } from '../../../_shared/collections'
-import { generateAid } from '../../../_shared/generate-aid'
-import { getCollection } from '../../../_shared/collections/getCollection'
-import { preparePassword, validatePassword, validatePasswordMatch } from '../../../_shared/password'
+import { requireAdmin,  } from '@/shared/middleware'
+import { Context, AuthenticatedContext } from '@/shared/types'
+import { COLLECTION_GROUPS } from '@/shared/collections'
+import { generateAid } from '@/shared/generate-aid'
+import { getCollection } from '@/shared/collections/getCollection'
+import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()

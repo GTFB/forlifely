@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { requireAdmin, } from '../../_shared/middleware'
-import { Context, AuthenticatedContext, CollectionStats } from '../../_shared/types'
+import { requireAdmin, } from '@/shared/middleware'
+import { Context, AuthenticatedContext, CollectionStats } from '@/shared/types'
 
 /**
  * GET /api/admin/collection-stats?name=users

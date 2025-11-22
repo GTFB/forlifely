@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { Env } from '../../_shared/types'
+import { Env } from '@/shared/types'
 /**
  * GET /api/auth/check-users
  * Checks if any users exist in the database

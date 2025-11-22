@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { getSession } from '../../_shared/session'
-import { Env } from '../../_shared/types'
-import { MeRepository } from '../../_shared/repositories/me.repository'
+import { getSession } from '@/shared/session'
+import { Env } from '@/shared/types'
+import { MeRepository } from '@/shared/repositories/me.repository'
 
 /**
  * POST /api/c/installment-application

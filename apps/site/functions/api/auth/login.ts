@@ -1,12 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { createSession, jsonWithSession } from '../../_shared/session'
-import { verifyPassword } from '../../_shared/password'
-import { Env } from '../../_shared/types'
-import { MeRepository } from '../../_shared/repositories/me.repository'
-import { UsersRepository } from '../../_shared/repositories/users.repository'
-import { getNextResendAvailableAt } from '../../_shared/services/email-verification.service'
-import { logUserJournalEvent } from '../../_shared/services/user-journal.service'
+import { createSession, jsonWithSession } from '@/shared/session'
+import { verifyPassword } from '@/shared/password'
+import { Env } from '@/shared/types'
+import { MeRepository } from '@/shared/repositories/me.repository'
+import { UsersRepository } from '@/shared/repositories/users.repository'
+import { getNextResendAvailableAt } from '@/shared/services/email-verification.service'
+import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 interface LoginRequest {
   email: string
   password: string

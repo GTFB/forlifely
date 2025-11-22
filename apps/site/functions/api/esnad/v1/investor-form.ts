@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { DealsRepository } from "../../../_shared/repositories/deals.repository"
-import { InvestorsFormData } from "../../../_shared/types/esnad"
+import { DealsRepository } from "@/shared/repositories/deals.repository"
+import { InvestorsFormData } from "@/shared/types/esnad"
 
 interface Env {
     DB: D1Database

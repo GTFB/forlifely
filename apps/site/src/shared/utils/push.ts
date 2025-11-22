@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { Env } from '../../_shared/types'
+import { Env } from '../types'
 import { HumanRepository } from '../repositories/human.repository'
 import {
   JournalsRepository,

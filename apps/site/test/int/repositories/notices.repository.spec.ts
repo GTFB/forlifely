@@ -1,12 +1,12 @@
 import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { faker } from "@faker-js/faker";
-import { NoticesRepository } from "../../../functions/_shared/repositories/notices.repository";
-import { DealsRepository } from "../../../functions/_shared/repositories/deals.repository";
-import { HumanRepository } from "../../../functions/_shared/repositories/human.repository";
-import { FinancesRepository } from "../../../functions/_shared/repositories/finances.repository";
-import { NoticeDataIn, MediaDataIn } from "../../../functions/_shared/types/esnad-finance";
-import { LoanApplicationDataIn } from "../../../functions/_shared/types/esnad";
+import { NoticesRepository } from "@/shared/repositories/notices.repository";
+import { DealsRepository } from "@/shared/repositories/deals.repository";
+import { HumanRepository } from "@/shared/repositories/human.repository";
+import { FinancesRepository } from "@/shared/repositories/finances.repository";
+import { NoticeDataIn, MediaDataIn } from "@/shared/types/esnad-finance";
+import { LoanApplicationDataIn } from "@/shared/types/esnad";
 
 describe("NoticesRepository", () => {
   let db: D1Database;

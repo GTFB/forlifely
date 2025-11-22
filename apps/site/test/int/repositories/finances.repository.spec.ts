@@ -1,17 +1,17 @@
 import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { faker } from "@faker-js/faker";
-import { FinancesRepository } from "../../../functions/_shared/repositories/finances.repository";
-import { DealsRepository } from "../../../functions/_shared/repositories/deals.repository";
-import { HumanRepository } from "../../../functions/_shared/repositories/human.repository";
-import { MediaRepository } from "../../../functions/_shared/repositories/media.repository";
+import { FinancesRepository } from "@/shared/repositories/finances.repository";
+import { DealsRepository } from "@/shared/repositories/deals.repository";
+import { HumanRepository } from "@/shared/repositories/human.repository";
+import { MediaRepository } from "@/shared/repositories/media.repository";
 import {
   PaymentScheduleInput,
   PaymentLimitsConfig,
   FinanceDataIn,
   MediaDataIn,
-} from "../../../functions/_shared/types/esnad-finance";
-import { LoanApplicationDataIn } from "../../../functions/_shared/types/esnad";
+} from "@/shared/types/esnad-finance";
+import { LoanApplicationDataIn } from "@/shared/types/esnad";
 
 describe("FinancesRepository", () => {
   let db: D1Database;

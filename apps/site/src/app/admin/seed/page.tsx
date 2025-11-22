@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Database, Loader2, CheckCircle2, XCircle, AlertCircle, Eye } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { seeds, type SeedMeta } from "../../../../functions/_shared/seeds"
+import { seeds, type SeedMeta } from "@/shared/seeds"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 type SeedItem = {

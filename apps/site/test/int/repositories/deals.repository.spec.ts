@@ -2,14 +2,14 @@ import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { faker } from "@faker-js/faker";
 import { eq, like } from "drizzle-orm";
-import { DealsRepository } from "../../../functions/_shared/repositories/deals.repository";
-import { JournalsRepository } from "../../../functions/_shared/repositories/journals.repository";
+import { DealsRepository } from "@/shared/repositories/deals.repository";
+import { JournalsRepository } from "@/shared/repositories/journals.repository";
 import {
     LoanApplicationDataIn,
     LoanApplicationDecision,
     LoanApplicationSnapshotDetails,
     LoanApplicationStatus,
-} from "../../../functions/_shared/types/esnad";
+} from "@/shared/types/esnad";
 
 describe("DealsRepository", () => {
     let db: D1Database;

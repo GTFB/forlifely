@@ -1,9 +1,9 @@
 import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { eq, and } from "drizzle-orm";
-import { UserRolesRepository } from "../../../functions/_shared/repositories/user-roles.repository";
-import { UsersRepository } from "../../../functions/_shared/repositories/users.repository";
-import { RolesRepository } from "../../../functions/_shared/repositories/roles.repository";
+import { UserRolesRepository } from "@/shared/repositories/user-roles.repository";
+import { UsersRepository } from "@/shared/repositories/users.repository";
+import { RolesRepository } from "@/shared/repositories/roles.repository";
 
 describe("UserRolesRepository", () => {
     let db: D1Database;

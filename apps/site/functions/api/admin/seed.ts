@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import type { Env } from '../../_shared/types'
-import { SeedRepository } from '../../_shared/repositories/seed.repository'
-import { seeds, type SeedDefinition } from '../../_shared/seeds'
+import type { Env } from '@/shared/types'
+import { SeedRepository } from '@/shared/repositories/seed.repository'
+import { seeds, type SeedDefinition } from '@/shared/seeds'
 
 type SeedData = {
   [collection: string]: Array<Record<string, unknown> & { uuid: string }>

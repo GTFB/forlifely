@@ -19,8 +19,8 @@ import {
   IconArrowDown,
   IconArrowsSort,
 } from "@tabler/icons-react"
-import { getCollection } from "../../../functions/_shared/collections/getCollection"
-import type { AdminFilter } from "../../../functions/_shared/types"
+import { getCollection } from "@/shared/collections/getCollection"
+import type { AdminFilter } from "@/shared/types"
 import { useLocale } from "@/packages/hooks/use-locale"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"

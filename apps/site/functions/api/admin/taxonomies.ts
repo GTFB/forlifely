@@ -1,8 +1,8 @@
 import qs from 'qs'
-import type { Env } from '../../_shared/types'
-import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '../../_shared/types/shared'
-import { TaxonomyRepository } from '../../_shared/repositories/taxonomy.repository'
-import type { Taxonomy } from '../../_shared/schema/types'
+import type { Env } from '@/shared/types'
+import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '@/shared/types/shared'
+import { TaxonomyRepository } from '@/shared/repositories/taxonomy.repository'
+import type { Taxonomy } from '@/shared/schema/types'
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     try {

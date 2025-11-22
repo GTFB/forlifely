@@ -1,9 +1,9 @@
 import qs from 'qs'
-import type { Env } from '../../_shared/types'
-import { DealsRepository } from '../../_shared/repositories/deals.repository'
-import { MeRepository } from '../../_shared/repositories/me.repository'
-import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '../../_shared/types/shared'
-import type { LoanApplication, LoanApplicationDataIn } from '../../_shared/types/esnad'
+import type { Env } from '@/shared/types'
+import { DealsRepository } from '@/shared/repositories/deals.repository'
+import { MeRepository } from '@/shared/repositories/me.repository'
+import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '@/shared/types/shared'
+import type { LoanApplication, LoanApplicationDataIn } from '@/shared/types/esnad'
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     try {

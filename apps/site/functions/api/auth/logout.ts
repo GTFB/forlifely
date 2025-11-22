@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { clearSession, getSession } from '../../_shared/session'
-import type { Env } from '../../_shared/types'
-import { UsersRepository } from '../../_shared/repositories/users.repository'
-import { logUserJournalEvent } from '../../_shared/services/user-journal.service'
+import { clearSession, getSession } from '@/shared/session'
+import type { Env } from '@/shared/types'
+import { UsersRepository } from '@/shared/repositories/users.repository'
+import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 
 /**
  * POST /api/auth/logout

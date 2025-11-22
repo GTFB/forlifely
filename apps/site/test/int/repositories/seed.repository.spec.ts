@@ -2,7 +2,7 @@ import assert from "node:assert";
 import { it, describe, beforeAll, afterAll, expect } from "bun:test";
 import { unstable_startWorker,getPlatformProxy } from "wrangler";
 
-import { SeedRepository } from '../../../functions/_shared/repositories/seed.repository';
+import { SeedRepository } from '@/shared/repositories/seed.repository';
 
 describe('Simple Seed Repository Test', () => {
 

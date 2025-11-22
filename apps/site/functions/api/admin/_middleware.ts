@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { MeRepository } from '../../_shared/repositories/me.repository'
-import { getSession, isAdmin, forbiddenResponse, unauthorizedResponse } from '../../_shared/session'
-import { Env } from '../../_shared/types'
+import { MeRepository } from '@/shared/repositories/me.repository'
+import { getSession, isAdmin, forbiddenResponse, unauthorizedResponse } from '@/shared/session'
+import { Env } from '@/shared/types'
 /**
  * Middleware for all /api/admin/* routes
  * Ensures only admin users can access these endpoints
