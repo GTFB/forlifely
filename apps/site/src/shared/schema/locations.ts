@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, serial, numeric, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export const locations = sqliteTable('locations', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const locations = pgTable('locations', {
+	id: serial('id').primaryKey(),
 	uuid: text('uuid').notNull(),
 	laid: text('laid').notNull(),
 	fullLaid: text('full_laid'),
@@ -9,23 +10,15 @@ export const locations = sqliteTable('locations', {
 	city: text('city'),
 	type: text('type'),
 	statusName: text('status_name'),
-	isPublic: integer('is_public', { mode: 'boolean' }).default(true),
+	isPublic: boolean('is_public').default(true),
 	order: numeric('order').default('0'),
 	xaid: text('xaid'),
-	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+	updatedAt: text('updated_at').notNull().default(sql`now()`),
+	createdAt: text('created_at').notNull().default(sql`now()`),
 	deletedAt: numeric('deleted_at'),
-	gin: text('gin', {
-		mode: 'json'
-	}),
-	fts: text('fts', {
-		mode: 'json'
-	}),
-	dataIn: text('data_in', {
-		mode: 'json'
-	}),
-	dataOut: text('data_out', {
-		mode: 'json'
-	}),
+	gin: jsonb('gin'),
+	fts: jsonb('fts'),
+	dataIn: jsonb('data_in'),
+	dataOut: jsonb('data_out'),
 });
 

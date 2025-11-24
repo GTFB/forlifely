@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export const contractors = sqliteTable('contractors', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const contractors = pgTable('contractors', {
+	id: serial('id').primaryKey(),
 	uuid: text('uuid').notNull(),
 	caid: text('caid').notNull(),
 	title: text('title').notNull(),
@@ -13,20 +14,12 @@ export const contractors = sqliteTable('contractors', {
 	order: numeric('order').default('0'),
 	xaid: text('xaid'),
 	mediaId: text('media_id'),
-	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+	updatedAt: text('updated_at').notNull().default(sql`now()`),
+	createdAt: text('created_at').notNull().default(sql`now()`),
 	deletedAt: numeric('deleted_at'),
-	gin: text('gin', {
-		mode: 'json'
-	}),
-	fts: text('fts', {
-		mode: 'json'
-	}),
-	dataIn: text('data_in', {
-		mode: 'json'
-	}),
-	dataOut: text('data_out', {
-		mode: 'json'
-	}),
+	gin: jsonb('gin'),
+	fts: jsonb('fts'),
+	dataIn: jsonb('data_in'),
+	dataOut: jsonb('data_out'),
 });
 

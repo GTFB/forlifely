@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import type { User, Role, Human, Employee, Location } from '../schema/types'
+import type { User, Role, Human, Employee, Location, UserRole } from '../schema/types'
 import { schema } from '../schema/schema'
 import { notDeleted, withNotDeleted, type SiteDb } from './utils'
 import { db } from '../db'
@@ -108,6 +108,27 @@ export class MeRepository {
     }
 
     return user
+  }
+
+  /**
+   * Find user by UUID with their roles
+   */
+  async findByUuidWithRoles(uuid: string, options?: { includeHuman?: boolean }): Promise<UserWithRoles | null> {
+    const user = await this.findByUuid(uuid)
+    
+    if (!user) {
+      return null
+    }
+
+    const roles = await this.getUserRoles(user.uuid)
+    const human = user.humanAid && options?.includeHuman !== false ? await this.getHuman(user.humanAid) : undefined
+
+    return {
+      ...user,
+      user,
+      roles,
+      human,
+    }
   }
 
   /**

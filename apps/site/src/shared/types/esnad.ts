@@ -46,12 +46,19 @@ export interface EsnadUserData {
     emailVerification?: EmailVerificationState
     [key: string]: unknown
 }
-export interface EsnadUserJournal extends Journal {
+export interface EsnadJournal extends Journal {
+}
+export interface NewEsnadJournal extends NewJournal {
+}
+export interface EsnadJournalDataIn {
+    [key: string]: unknown
+}
+export interface EsnadUserJournal extends EsnadJournal {
     action: EsnadUserJournalActions
     details: EsnadUserJournalDetails
 
 }
-export interface NewEsnadUserJournal extends NewJournal {
+export interface NewEsnadUserJournal extends NewEsnadJournal {
     action: EsnadUserJournalActions
     details: EsnadUserJournalDetails
 }

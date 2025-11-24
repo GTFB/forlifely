@@ -1,10 +1,9 @@
-/// <reference types="@cloudflare/workers-types" />
-
 import { User, Role, Human, Employee } from './schema/types'
-export interface Env {
-    AUTH_SECRET: string
-    DB: D1Database
-    [key: string]: any
+import { SiteDb } from './db'
+
+export type Env = NodeJS.ProcessEnv & {
+    AUTH_SECRET?: string
+    DB?: SiteDb
 }
 
 export interface TableInfo {

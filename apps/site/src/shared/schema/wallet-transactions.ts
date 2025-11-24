@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export const walletTransactions = sqliteTable('wallet_transactions', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const walletTransactions = pgTable('wallet_transactions', {
+	id: serial('id').primaryKey(),
 	uuid: text('uuid'),
 	wcaid: text('wcaid').notNull(),
 	fullWaid: text('full_waid'),
@@ -10,11 +11,9 @@ export const walletTransactions = sqliteTable('wallet_transactions', {
 	statusName: text('status_name'),
 	order: numeric('order').default('0'),
 	xaid: text('xaid'),
-	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+	createdAt: text('created_at').notNull().default(sql`now()`),
+	updatedAt: text('updated_at').notNull().default(sql`now()`),
 	deletedAt: numeric('deleted_at'),
-	dataIn: text('data_in', {
-		mode: 'json'
-	}),
+	dataIn: jsonb('data_in'),
 });
 

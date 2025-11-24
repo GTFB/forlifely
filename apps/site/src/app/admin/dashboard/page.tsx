@@ -97,7 +97,13 @@ export default function AdminDashboardPage() {
 
           let description: string
 
-          if (journal.action === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
+          // Use description from details if available (enriched by parseJournals)
+          if (rawDetails && 'description' in rawDetails && typeof rawDetails.description === 'string') {
+            description = rawDetails.description
+          } else {
+            // Check originalAction from details if available, otherwise use journal.action
+            const originalAction = (rawDetails as { originalAction?: string } | undefined)?.originalAction || journal.action
+            if (originalAction === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
             const snapshot = rawDetails.snapshot as {
               dataIn?: unknown
             }
@@ -132,11 +138,12 @@ export default function AdminDashboardPage() {
               amountText = Number.isFinite(numeric) ? formatCurrency(numeric) : String(rawPrice)
             }
 
-            description = `Заявка на рассрочку от ${fullName}${amountText ? ` на сумму ${amountText}` : ''}`
-          } else {
-            const details = rawDetails as { message?: string; context?: string } | undefined
-            const message = details?.message || details?.context || actionType
-            description = message || `${actionType} #${journal.uuid?.substring(0, 8) || journal.id}`
+              description = `Заявка на рассрочку от ${fullName}${amountText ? ` на сумму ${amountText}` : ''}`
+            } else {
+              const details = rawDetails as { message?: string; context?: string } | undefined
+              const message = details?.message || details?.context || actionType
+              description = message || `${actionType} #${journal.uuid?.substring(0, 8) || journal.id}`
+            }
           }
           
           return {

@@ -51,10 +51,10 @@ export default class BaseRepository<T> {
 
         let entity: T;
         if (isPostgresDb) {
-            const insertedRows = await (this.db.insert(this.schema) as any).values(data).returning().execute();
-            entity = (insertedRows?.[0] as T) ?? (await this.findByUuid(data.uuid));
+            const insertedRows = await this.db.insert(this.schema).values(data).returning() as T[];
+            entity = insertedRows && insertedRows.length > 0 ? insertedRows[0] : (await this.findByUuid(data.uuid));
         } else {
-            const result = await this.db.insert(this.schema).values(data).execute();
+            const result = await this.db.insert(this.schema).values(data).execute() as any;
             entity = await this.findById(result.lastInsertRowid as unknown as number);
         }
 

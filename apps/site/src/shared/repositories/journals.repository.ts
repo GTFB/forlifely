@@ -59,7 +59,7 @@ export class JournalsRepository extends BaseRepository<Journal> {
     const timestamp = new Date().toISOString()
 
     await this.db
-      .run(sql`INSERT INTO journals (uuid, user_id, action, details, xaid, created_at, updated_at)
+      .execute(sql`INSERT INTO journals (uuid, user_id, action, details, xaid, created_at, updated_at)
          VALUES (${uuid}, ${userId}, ${step}, ${detailsString}, ${xaid}, ${timestamp}, ${timestamp})`
       )
   }

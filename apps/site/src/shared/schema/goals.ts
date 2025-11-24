@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, serial, numeric, jsonb, integer } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
-export const goals = sqliteTable('goals', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const goals = pgTable('goals', {
+  id: serial('id').primaryKey(),
   uuid: text('uuid').notNull(),
   gaid: text('gaid').notNull(),
   fullGaid: text('full_gaid'),
@@ -15,15 +16,15 @@ export const goals = sqliteTable('goals', {
   xaid: text('xaid'),
   updatedAt: text('updated_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    .default(sql`now()`),
   createdAt: text('created_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    .default(sql`now()`),
   deletedAt: numeric('deleted_at'),
-  gin: text('gin', { mode: 'json' }),
-  fts: text('fts', { mode: 'json' }),
-  dataIn: text('data_in', { mode: 'json' }),
-  dataOut: text('data_out', { mode: 'json' }),
+  gin: jsonb('gin'),
+  fts: jsonb('fts'),
+  dataIn: jsonb('data_in'),
+  dataOut: jsonb('data_out'),
 })
 
 

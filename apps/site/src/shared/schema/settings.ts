@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
-export const settings = sqliteTable('settings', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const settings = pgTable('settings', {
+  id: serial('id').primaryKey(),
   uuid: text('uuid'),
   attribute: text('attribute').notNull(),
   value: text('value'),
@@ -10,11 +11,11 @@ export const settings = sqliteTable('settings', {
   xaid: text('xaid'),
   createdAt: text('created_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    .default(sql`now()`),
   updatedAt: text('updated_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-  dataIn: text('data_in', { mode: 'json' }),
+    .default(sql`now()`),
+  dataIn: jsonb('data_in'),
 })
 
 

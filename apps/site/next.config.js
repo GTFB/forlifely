@@ -47,4 +47,4 @@ if (STATIC_EXPORT) {
   nextConfig.distDir = 'dist'
   nextConfig.reactStrictMode = true
 }
-module.exports = STATIC_EXPORT ? withPWA(nextConfig) : nextConfig
+module.exports = withPWA(nextConfig) 

@@ -51,21 +51,25 @@
         "./functions/_shared/*"
       ]
     },
-    "types": ["@cloudflare/workers-types", "bun-types"]
+    "types": [
+      "@cloudflare/workers-types",
+      "bun-types"
+    ]
   },
   "include": [
+    "dist/types/**/*.d.ts",
+    "dist/types/**/*.ts",
+    "functions/**/*.d.ts",
+    "functions/**/*.ts",
+    "next-env.d.ts",
+    "src/**/*.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.d.ts",
-    ".next/types/**/*.ts",
-    "next-env.d.ts",
-    "dist/types/**/*.ts",
-    "dist/types/**/*.d.ts",
-    "functions/**/*.ts",
-    "functions/**/*.d.ts",
-    "test/**/*.ts"       
+    "test/**/*.ts",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next"
   ]
 }

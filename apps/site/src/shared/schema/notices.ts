@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, serial, numeric, jsonb, integer } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
-export const notices = sqliteTable('notices', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const notices = pgTable('notices', {
+  id: serial('id').primaryKey(),
   uuid: text('uuid'),
   naid: text('naid'),
   targetAid: text('target_aid'),
@@ -12,12 +13,12 @@ export const notices = sqliteTable('notices', {
   xaid: text('xaid'),
   updatedAt: text('updated_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    .default(sql`now()`),
   createdAt: text('created_at')
     .notNull()
-    .default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+    .default(sql`now()`),
   deletedAt: numeric('deleted_at'),
-  dataIn: text('data_in', { mode: 'json' }),
+  dataIn: jsonb('data_in'),
 })
 
 

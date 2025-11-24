@@ -1,10 +1,11 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
-export const userRoles = sqliteTable('user_roles', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const userRoles = pgTable('user_roles', {
+  id: serial('id').primaryKey(),
   userUuid: text('user_uuid').notNull(),
   roleUuid: text('role_uuid').notNull(),
   order: integer('order').default(0),
-  createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+  createdAt: text('created_at').notNull().default(sql`now()`),
 })
 

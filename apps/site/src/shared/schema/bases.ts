@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
-export const bases = sqliteTable('bases', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
+export const bases = pgTable('bases', {
+	id: serial('id').primaryKey(),
 	uuid: text('uuid').notNull(),
 	baid: text('baid').notNull(),
 	fullBaid: text('full_baid'),
@@ -13,20 +14,12 @@ export const bases = sqliteTable('bases', {
 	statusName: text('status_name'),
 	order: numeric('order').default('0'),
 	xaid: text('xaid'),
-	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+	updatedAt: text('updated_at').notNull().default(sql`now()`),
+	createdAt: text('created_at').notNull().default(sql`now()`),
 	deletedAt: numeric('deleted_at'),
-	gin: text('gin', {
-		mode: 'json'
-	}),
-	fts: text('fts', {
-		mode: 'json'
-	}),
-	dataIn: text('data_in', {
-		mode: 'json'
-	}),
-	dataOut: text('data_out', {
-		mode: 'json'
-	}),
+	gin: jsonb('gin'),
+	fts: jsonb('fts'),
+	dataIn: jsonb('data_in'),
+	dataOut: jsonb('data_out'),
 });
 

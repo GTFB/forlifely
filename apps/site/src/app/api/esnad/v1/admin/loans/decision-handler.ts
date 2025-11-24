@@ -6,11 +6,11 @@ import {
     LoanApplicationStatus,
 } from "@/shared/types/esnad"
 
+import type { Env } from '@/shared/types'
+
 type RequestContext = {
     request: Request
-    env: {
-        DB: D1Database
-    }
+    env: Env
 }
 
 type LoanDecisionPayload = {

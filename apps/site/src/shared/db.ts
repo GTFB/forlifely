@@ -16,23 +16,13 @@ const sqliteDbPath =
 
 const isBunRuntime = typeof Bun !== 'undefined';
 
-type NodeDrizzle = typeof import('drizzle-orm/better-sqlite3');
 type BunDrizzle = typeof import('drizzle-orm/bun-sqlite');
 type PostgresDrizzle = typeof import('drizzle-orm/node-postgres');
 type PgModule = typeof import('pg');
 
-function createNodeDb() {
-  const BetterSqlite = require('better-sqlite3') as typeof import('better-sqlite3');
-  const { drizzle } = require('drizzle-orm/better-sqlite3') as NodeDrizzle;
-  const sqlite = new BetterSqlite(sqliteDbPath);
-  return drizzle(sqlite, { schema });
-}
 
 function createBunDb() {
-  const { Database } = require('bun:sqlite') as typeof import('bun:sqlite');
-  const { drizzle } = require('drizzle-orm/bun-sqlite') as BunDrizzle;
-  const sqlite = new Database(sqliteDbPath, { create: true });
-  return drizzle(sqlite, { schema });
+  // TODO: Implement Bun database connection
 }
 
 function createPostgresDb() {
@@ -61,12 +51,10 @@ function createPostgresDb() {
   return drizzle(pool, { schema });
 }
 
-const dbFactory = isPostgresConnection ? createPostgresDb : isBunRuntime ? createBunDb : createNodeDb;
-const dbInstance = dbFactory();
+const dbInstance = createPostgresDb();
 
-type SqliteDbInstance = ReturnType<typeof createNodeDb>;
+type PostgresDbInstance = ReturnType<typeof createPostgresDb>;
 
-export type SiteDb = SqliteDbInstance;
+export type SiteDb =  PostgresDbInstance;
 export const db = dbInstance as SiteDb;
 export const isPostgresDb = isPostgresConnection;
-

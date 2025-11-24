@@ -1,33 +1,21 @@
-import { sqliteTable, text, integer, numeric } from 'drizzle-orm/sqlite-core'
+import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
-export const employees = sqliteTable('employees', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const employees = pgTable('employees', {
+  id: serial('id').primaryKey(),
   uuid: text('uuid').notNull(),
   eaid: text('eaid'),
   fullEaid: text('full_eaid'),
   haid: text('haid'),
-  position: text('position'),
-  department: text('department'),
-  salary: numeric('salary'),
-  hireDate: text('hire_date'),
-  terminationDate: text('termination_date'),
   statusName: text('status_name'),
   email: text('email'),
   order: numeric('order').default('0'),
   xaid: text('xaid'),
-  updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-  createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
+  updatedAt: text('updated_at').notNull().default(sql`now()`),
+  createdAt: text('created_at').notNull().default(sql`now()`),
   deletedAt: numeric('deleted_at'),
-  gin: text('gin', {
-    mode: 'json'
-  }),
-  fts: text('fts', {
-    mode: 'json'
-  }),
-  dataIn: text('data_in', {
-    mode: 'json'
-  }),
-  dataOut: text('data_out', {
-    mode: 'json'
-  }),
+  gin: jsonb('gin'),
+  fts: jsonb('fts'),
+  dataIn: jsonb('data_in'),
+  dataOut: jsonb('data_out'),
 })
