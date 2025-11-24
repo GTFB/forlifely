@@ -17,9 +17,9 @@ describe("UserRolesRepository", () => {
         });
 
         db = platformProxy.env.DB as D1Database;
-        userRolesRepository = UserRolesRepository.getInstance(db);
-        usersRepository = UsersRepository.getInstance(db);
-        rolesRepository = RolesRepository.getInstance(db);
+        userRolesRepository = UserRolesRepository.getInstance();
+        usersRepository = UsersRepository.getInstance();
+        rolesRepository = RolesRepository.getInstance();
     });
 
     describe("assignRolesToUser and removeRolesFromUser", () => {

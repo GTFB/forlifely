@@ -26,10 +26,10 @@ describe("GoalsRepository", () => {
     });
 
     db = platformProxy.env.DB as D1Database;
-    goalsRepository = GoalsRepository.getInstance(db);
-    financesRepository = FinancesRepository.getInstance(db);
-    dealsRepository = new DealsRepository(db);
-    humanRepository = HumanRepository.getInstance(db);
+    goalsRepository = GoalsRepository.getInstance();
+    financesRepository = FinancesRepository.getInstance();
+    dealsRepository = new DealsRepository();
+    humanRepository = HumanRepository.getInstance();
   });
 
   async function createFinance(overdueDays: number): Promise<{ finance: EsnadFinance; dealAid: string; clientAid: string | null }> {

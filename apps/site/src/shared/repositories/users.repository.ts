@@ -4,12 +4,12 @@ import { schema } from "../schema";
 import { eq } from "drizzle-orm";
 
 export class UsersRepository extends BaseRepository<EsnadUser> {
-    constructor(db: D1Database) {
-        super(db, schema.users);
+    constructor() {
+        super(schema.users);
     }
 
-    public static getInstance(db: D1Database): UsersRepository {
-        return new UsersRepository(db);
+    public static getInstance(): UsersRepository {
+        return new UsersRepository();
     }
 
     public async findByEmail(email: string): Promise<EsnadUser | undefined> {

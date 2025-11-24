@@ -15,7 +15,7 @@ describe('Simple Seed Repository Test', () => {
             configPath: "wrangler.test.toml"
         });
         db = platformProxy.env.DB;
-        seedRepository = SeedRepository.getInstance(db);
+        seedRepository = SeedRepository.getInstance();
     });
     describe('seedMultiple', () => {
         it('should seed a collection', async () => {

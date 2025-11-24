@@ -1,8 +1,8 @@
-import type { D1Database } from '@cloudflare/workers-types'
 import { eq } from 'drizzle-orm'
 import type { User, Role, Human, Employee, Location } from '../schema/types'
 import { schema } from '../schema/schema'
-import { createDb, notDeleted, withNotDeleted, type SiteDb } from './utils'
+import { notDeleted, withNotDeleted, type SiteDb } from './utils'
+import { db } from '../db'
 
 export interface UserWithRoles extends User {
   user: User
@@ -16,13 +16,13 @@ export class MeRepository {
   private db: SiteDb
   private static instance: MeRepository | null = null
 
-  private constructor(db: D1Database) {
-    this.db = createDb(db)
+  private constructor() {
+    this.db = db
   }
 
-  public static getInstance(db: D1Database): MeRepository {
+  public static getInstance(): MeRepository {
     if (!MeRepository.instance) {
-      MeRepository.instance = new MeRepository(db)
+      MeRepository.instance = new MeRepository()
     }
     return MeRepository.instance
   }

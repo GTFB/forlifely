@@ -29,8 +29,12 @@ const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя
 
 export class DealsRepository extends BaseRepository<Deal>{
     
-    constructor(db: D1Database) {
-        super(db, schema.deals)
+    constructor() {
+        super(schema.deals)
+    }
+
+    public static getInstance(): DealsRepository {
+        return new DealsRepository();
     }
 
     protected async beforeCreate(data: Partial<NewDeal>): Promise<void> {
@@ -114,7 +118,7 @@ export class DealsRepository extends BaseRepository<Deal>{
             dataIn: sanitizedFormData,
         }
 
-        const humanRepository = HumanRepository.getInstance(this.d1DB)
+        const humanRepository = HumanRepository.getInstance()
         const client = await humanRepository.generateClientByEmail(sanitizedFormData.email, {
             fullName: applicantName,
             dataIn: {
@@ -123,7 +127,7 @@ export class DealsRepository extends BaseRepository<Deal>{
         }) as Client
         newDeal.clientAid = client.haid
         const createdDeal = await this.create(newDeal) as LoanApplication
-        const journalsRepository = JournalsRepository.getInstance(this.d1DB)
+        const journalsRepository = JournalsRepository.getInstance()
         const journal = await journalsRepository.createLoanApplicationSnapshot(createdDeal as LoanApplication,   null, null)
         return {
             createdDeal,
@@ -200,7 +204,7 @@ export class DealsRepository extends BaseRepository<Deal>{
             throw new Error(`Сделка не найдена.${ADMIN_CONTACT_MESSAGE}`)
         }
         const updatedDeal = await this.update(uuid, data) as LoanApplication
-        const journalsRepository = JournalsRepository.getInstance(this.d1DB)
+        const journalsRepository = JournalsRepository.getInstance()
         const journal = await journalsRepository.createLoanApplicationSnapshot(updatedDeal as LoanApplication, deal, null)
         return {
             updatedDeal,

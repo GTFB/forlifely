@@ -13,7 +13,7 @@ describe("TaxonomyRepository", () => {
         });
 
         db = platformProxy.env.DB as D1Database;
-        taxonomyRepository = new TaxonomyRepository(db);
+        taxonomyRepository = new TaxonomyRepository();
     });
 
     describe("getTaxonomies", () => {

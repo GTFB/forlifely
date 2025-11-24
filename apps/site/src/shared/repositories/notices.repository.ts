@@ -10,12 +10,12 @@ import {
 } from '../types/esnad-finance'
 
 export class NoticesRepository extends BaseRepository<Notice> {
-  constructor(db: D1Database) {
-    super(db, schema.notices)
+  constructor() {
+    super(schema.notices)
   }
 
-  public static getInstance(db: D1Database): NoticesRepository {
-    return new NoticesRepository(db)
+  public static getInstance(): NoticesRepository {
+    return new NoticesRepository()
   }
 
   protected async beforeCreate(data: Partial<NewEsnadNotice>): Promise<void> {

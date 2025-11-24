@@ -22,12 +22,12 @@ import { DealsRepository } from './deals.repository'
 import { MediaRepository } from './media.repository'
 
 export class FinancesRepository extends BaseRepository<Finance> {
-  constructor(db: D1Database) {
-    super(db, schema.finances)
+  constructor() {
+    super(schema.finances)
   }
 
-  public static getInstance(db: D1Database): FinancesRepository {
-    return new FinancesRepository(db)
+  public static getInstance(): FinancesRepository {
+    return new FinancesRepository()
   }
 
   protected async beforeCreate(data: Partial<NewEsnadFinance>): Promise<void> {
@@ -50,7 +50,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
     dealUuid: string,
     input: PaymentScheduleInput
   ): Promise<PaymentScheduleResult> {
-    const dealsRepo = new DealsRepository(this.d1DB)
+    const dealsRepo = new DealsRepository()
     const deal = (await dealsRepo.findByUuid(dealUuid)) as Deal | null
 
     if (!deal) {
@@ -174,7 +174,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
     const receipts: FinanceReceipt[] = dataOut.receipts ?? []
 
     if (payload.receipts?.length) {
-      const mediaRepo = MediaRepository.getInstance(this.d1DB)
+      const mediaRepo = MediaRepository.getInstance()
 
       for (const receiptData of payload.receipts) {
         const media = await mediaRepo.create({

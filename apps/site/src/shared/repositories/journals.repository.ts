@@ -5,6 +5,7 @@ import BaseRepository from './BaseRepositroy'
 import { buildDbFilters, buildDbOrders, stringifyJson } from './utils'
 import { JournalLoanApplicationSnapshot, LoanApplication, LoanApplicationSnapshotDetails, NewJournalLoanApplicationSnapshot } from '../types/esnad'
 import { DbFilters, DbOrders, DbPaginatedResult, DbPagination } from '../types/shared'
+import { sql } from 'drizzle-orm'
 
 type JournalStatus = 'info' | 'success' | 'error'
 
@@ -21,43 +22,16 @@ export type JournalLogInput = {
 }
 
 export class JournalsRepository extends BaseRepository<Journal> {
-  private ensureTablePromise?: Promise<void>
 
-  private constructor(db: D1Database) {
-    super(db, schema.journals)
+  private constructor() {
+    super(schema.journals)
   }
 
-  public static getInstance(db: D1Database): JournalsRepository {
-    return new JournalsRepository(db)
-  }
-
-  private ensureTable(): Promise<void> {
-    if (!this.ensureTablePromise) {
-      this.ensureTablePromise = (async () => {
-        await this.d1DB
-          .prepare(
-            `
-            CREATE TABLE IF NOT EXISTS journals (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              user_id INTEGER,
-              uuid TEXT NOT NULL,
-              details TEXT NOT NULL,
-              action TEXT NOT NULL,
-              xaid TEXT,
-              created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-              updated_at TEXT
-            )
-            `
-          )
-          .run()
-      })()
-    }
-    return this.ensureTablePromise
+  public static getInstance(): JournalsRepository {
+    return new JournalsRepository()
   }
 
   public async log(entry: JournalLogInput): Promise<void> {
-    await this.ensureTable()
-
     const {
       context,
       step,
@@ -84,21 +58,10 @@ export class JournalsRepository extends BaseRepository<Journal> {
 
     const timestamp = new Date().toISOString()
 
-    await this.d1DB
-      .prepare(
-        `INSERT INTO journals (uuid, user_id, action, details, xaid, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+    await this.db
+      .run(sql`INSERT INTO journals (uuid, user_id, action, details, xaid, created_at, updated_at)
+         VALUES (${uuid}, ${userId}, ${step}, ${detailsString}, ${xaid}, ${timestamp}, ${timestamp})`
       )
-      .bind(
-        uuid,
-        userId,
-        step,
-        detailsString,
-        xaid,
-        timestamp,
-        timestamp
-      )
-      .run()
   }
   public async createLoanApplicationSnapshot(snapshot: LoanApplication, previousSnapshot: LoanApplication | null, userId: number | string | null): Promise<JournalLoanApplicationSnapshot> {
     const details: LoanApplicationSnapshotDetails = {
@@ -145,4 +108,3 @@ export class JournalsRepository extends BaseRepository<Journal> {
     }
   }
 }
-

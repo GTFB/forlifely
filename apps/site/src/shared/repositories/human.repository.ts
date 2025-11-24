@@ -6,12 +6,12 @@ import { Client, ClientStatus, EsnadHuman } from "../types/esnad";
 import { generateAid } from "../generate-aid";
 
 export class HumanRepository extends BaseRepository<Human>{
-    constructor(db: D1Database) {
-        super(db, schema.humans);
+    constructor() {
+        super(schema.humans);
     }
     
-    public static getInstance(db: D1Database): HumanRepository {
-        return new HumanRepository(db);
+    public static getInstance(): HumanRepository {
+        return new HumanRepository();
     }
     async findByHaid(haid: string): Promise<any | null> {
         const human = await this.db.select().from(schema.humans).where(eq(schema.humans.haid, haid)).execute()

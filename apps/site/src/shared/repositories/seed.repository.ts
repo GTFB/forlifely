@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm'
-import type { D1Database } from '@cloudflare/workers-types'
 import { schema } from '../schema'
-import { createDb, stringifyJson, type SiteDb } from './utils'
+import { stringifyJson, type SiteDb } from './utils'
+import { db } from '../db'
 
 type SeedRecord = Record<string, unknown> & { uuid: string }
 
@@ -15,13 +15,13 @@ export class SeedRepository {
   private static instance: SeedRepository | null = null
   private readonly db: SiteDb
 
-  private constructor(db: D1Database) {
-    this.db = createDb(db)
+  private constructor() {
+    this.db = db
   }
 
-  public static getInstance(db: D1Database): SeedRepository {
+  public static getInstance(): SeedRepository {
     if (!SeedRepository.instance) {
-      SeedRepository.instance = new SeedRepository(db)
+      SeedRepository.instance = new SeedRepository()
     }
     return SeedRepository.instance
   }

@@ -21,7 +21,7 @@ describe("DealsRepository", () => {
         });
 
         db = platformProxy.env.DB as D1Database;
-        dealsRepository = new DealsRepository(db);
+        dealsRepository = new DealsRepository();
     });
 
     describe("createInvestorsFormDeal", () => {
@@ -185,7 +185,7 @@ describe("DealsRepository", () => {
             const secondUpdatedDeal = secondUpdate.updatedDeal;
             expect(secondUpdatedDeal.statusName).toEqual(secondStatus);
 
-            const journalsRepository = JournalsRepository.getInstance(db);
+            const journalsRepository = JournalsRepository.getInstance();
             const relatedJournals = await journalsRepository.getSelectQuery()
                 .where(    like(journalsRepository.schema.details, `%${createdDeal.uuid}%`)).orderBy(journalsRepository.schema.createdAt);
 

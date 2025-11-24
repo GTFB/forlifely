@@ -21,10 +21,10 @@ describe("NoticesRepository", () => {
     });
 
     db = platformProxy.env.DB as D1Database;
-    noticesRepository = NoticesRepository.getInstance(db);
-    dealsRepository = new DealsRepository(db);
-    humanRepository = HumanRepository.getInstance(db);
-    financesRepository = FinancesRepository.getInstance(db);
+    noticesRepository = NoticesRepository.getInstance();
+    dealsRepository = new DealsRepository();
+    humanRepository = HumanRepository.getInstance();
+    financesRepository = FinancesRepository.getInstance();
   });
 
   async function createDeal() {

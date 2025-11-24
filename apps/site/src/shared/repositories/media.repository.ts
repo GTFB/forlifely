@@ -4,12 +4,12 @@ import { Media, NewMedia } from '../schema/types'
 import { generateAid } from '../generate-aid'
 
 export class MediaRepository extends BaseRepository<Media> {
-  constructor(db: D1Database) {
-    super(db, schema.media)
+  constructor() {
+    super(schema.media)
   }
 
-  public static getInstance(db: D1Database): MediaRepository {
-    return new MediaRepository(db)
+  public static getInstance(): MediaRepository {
+    return new MediaRepository()
   }
 
   protected async beforeCreate(data: Partial<NewMedia>): Promise<void> {

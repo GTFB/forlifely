@@ -49,7 +49,7 @@ export async function requireAdmin(
     return unauthorizedResponse()
   }
   
-  const meRepository = MeRepository.getInstance(context.env.DB)
+  const meRepository = MeRepository.getInstance()
   const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
     includeHuman: false,
     includeEmployee: false,

@@ -6,12 +6,12 @@ import BaseRepository from "./BaseRepositroy";
 
 export class BasesRepository extends BaseRepository<Base> {
   private static instance: BasesRepository | null = null;
-  private constructor(db: D1Database) {
-    super(db, schema.bases);
+  private constructor() {
+    super(schema.bases);
   }
-  public static getInstance(db: D1Database): BasesRepository {
+  public static getInstance(): BasesRepository {
     if (!BasesRepository.instance) {
-      BasesRepository.instance = new BasesRepository(db);
+      BasesRepository.instance = new BasesRepository();
     }
     return BasesRepository.instance;
   }

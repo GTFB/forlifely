@@ -20,8 +20,8 @@ import { sql } from "drizzle-orm";
 
 export class TaxonomyRepository extends BaseRepository<Taxonomy>{
     
-    constructor(db: D1Database) {
-        super(db, schema.taxonomy)
+    constructor() {
+        super(schema.taxonomy)
     }
 
     /**

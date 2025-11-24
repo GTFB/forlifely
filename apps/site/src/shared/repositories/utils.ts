@@ -1,5 +1,4 @@
-import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
-import type { D1Database } from "@cloudflare/workers-types";
+import { type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { schema } from "../schema/schema";
 import {
   SQL,
@@ -21,19 +20,18 @@ import {
   isNotNull,
 } from "drizzle-orm";
 import type { DbFilters, DbOrders } from "../types/shared";
+import { SiteDb } from "../db";
 
-export type SiteDb = DrizzleD1Database<typeof schema>;
+// We re-export SiteDb from db.ts or define it here compatible with better-sqlite3
+// SiteDb is already exported from ../db.ts so we can use it.
 
+export type { SiteDb };
 
-function isSiteDb(db: D1Database | SiteDb): db is SiteDb {
-  return typeof db === "object" && db !== null && "select" in db && typeof (db as SiteDb).select === "function";
-}
-
-export function createDb(db: D1Database | SiteDb): SiteDb {
-  if (isSiteDb(db)) {
-    return db;
-  }
-  return drizzle(db as D1Database, { schema }) as SiteDb;
+export function createDb(dbInstance: any): SiteDb {
+  // In the new architecture, we expect the db instance to be passed or imported.
+  // If it's already the correct type, return it.
+  // This function might become redundant but we keep it for compatibility during migration.
+  return dbInstance as SiteDb;
 }
 
 export function parseJson<T>(value: unknown, fallback: T): T {

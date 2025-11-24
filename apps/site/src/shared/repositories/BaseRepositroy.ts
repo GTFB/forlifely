@@ -1,15 +1,15 @@
 import { eq, } from "drizzle-orm";
-import { createDb, SiteDb, buildDbFilters, buildDbOrders } from "./utils";
+import { SiteDb, buildDbFilters, buildDbOrders } from "./utils";
+import { db, isPostgresDb } from "../db";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 
 
 export default class BaseRepository<T> {
     protected db: SiteDb;
-    protected d1DB: D1Database;
-    constructor(db: D1Database, public schema: any) {
-        this.db = createDb(db);
-        this.d1DB = db;
+
+    constructor(public schema: any) {
+        this.db = db;
     }
     protected async beforeCreate(data: Partial<T>): Promise<void> { }
     protected async afterCreate(entity: T): Promise<void> { }
@@ -18,11 +18,11 @@ export default class BaseRepository<T> {
     protected async beforeDelete(uuid: string, force: boolean): Promise<void> { }
     protected async afterDelete(uuid: string, force: boolean): Promise<void> { }
 
-    public static getInstance(db: D1Database, schema: any): BaseRepository<any> {
-        return new BaseRepository(db, schema);
+    public static getInstance(schema: any): BaseRepository<any> {
+        return new BaseRepository(schema);
     }
-    public getSelectQuery(){
-        return this.db.select().from(this.schema)   
+    public getSelectQuery() {
+        return this.db.select().from(this.schema)
     }
     async findByUuid(uuid: string): Promise<T> {
         const [row] = await this.db.select().from(this.schema).where(eq(this.schema.uuid, uuid)).execute();
@@ -48,8 +48,16 @@ export default class BaseRepository<T> {
         }
 
         await this.beforeCreate(data as Partial<T>);
-        const result = await this.db.insert(this.schema).values(data).execute();
-        const entity = await this.findById(result.meta.last_row_id);
+
+        let entity: T;
+        if (isPostgresDb) {
+            const insertedRows = await (this.db.insert(this.schema) as any).values(data).returning().execute();
+            entity = (insertedRows?.[0] as T) ?? (await this.findByUuid(data.uuid));
+        } else {
+            const result = await this.db.insert(this.schema).values(data).execute();
+            entity = await this.findById(result.lastInsertRowid as unknown as number);
+        }
+
         await this.afterCreate(entity as T);
         return entity;
     }
@@ -68,11 +76,14 @@ export default class BaseRepository<T> {
         await this.afterUpdate(entity);
         return entity;
     }
-    async deleteByUuid(uuid: string, force: boolean = false): Promise<D1Result> {
+    async deleteByUuid(uuid: string, force: boolean = false): Promise<void> {
         await this.beforeDelete(uuid, force);
-        const result = force ? await this._forceDeleteByUuid(uuid) : await this._softDeleteByUuid(uuid);
+        if (force) {
+            await this._forceDeleteByUuid(uuid);
+        } else {
+            await this._softDeleteByUuid(uuid);
+        }
         await this.afterDelete(uuid, force);
-        return result;
     }
     protected async _forceDeleteByUuid(uuid: string) {
         return await this.db.delete(this.schema).where(eq(this.schema.uuid, uuid)).execute();
@@ -85,36 +96,36 @@ export default class BaseRepository<T> {
 
         return await this.db.delete(this.schema).where(eq(this.schema.uuid, uuid)).execute();
     }
-    
+
     public async getFiltered(filters: DbFilters, orders: DbOrders, pagination: DbPagination): Promise<DbPaginatedResult<T>> {
         const query = this.getSelectQuery()
         const where = buildDbFilters(this.schema, filters)
         const order = buildDbOrders(this.schema, orders)
-        
+
         const limit = Math.max(1, Math.min(pagination.limit ?? 10, 100))
         const page = Math.max(1, pagination.page ?? 1)
         const offset = (page - 1) * limit
-    
+
         // Get total count
         const countQuery = this.getSelectQuery()
-        const totalRows = where 
-          ? await countQuery.where(where).execute()
-          : await countQuery.execute()
+        const totalRows = where
+            ? await countQuery.where(where).execute()
+            : await countQuery.execute()
         const total = totalRows.length
-    
-        const resultQuery = where 
-          ? query.where(where).orderBy(...order).limit(limit).offset(offset)
-          : query.orderBy(...order).limit(limit).offset(offset)
+
+        const resultQuery = where
+            ? query.where(where).orderBy(...order).limit(limit).offset(offset)
+            : query.orderBy(...order).limit(limit).offset(offset)
         const result = await resultQuery.execute() as T[]
-    
+
         return {
-          docs: result,
-          pagination: {
-            total,
-            page,
-            limit,
-            totalPages: Math.max(1, Math.ceil(total / limit)),
-          },
+            docs: result,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+            },
         }
-      }
+    }
 }

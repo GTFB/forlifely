@@ -14,12 +14,12 @@ import {
 import { parseJson } from './utils'
 
 export class GoalsRepository extends BaseRepository<Goal> {
-  constructor(db: D1Database) {
-    super(db, schema.goals)
+  constructor() {
+    super(schema.goals)
   }
 
-  public static getInstance(db: D1Database): GoalsRepository {
-    return new GoalsRepository(db)
+  public static getInstance(): GoalsRepository {
+    return new GoalsRepository()
   }
 
   protected async beforeCreate(data: Partial<NewEsnadGoal>): Promise<void> {

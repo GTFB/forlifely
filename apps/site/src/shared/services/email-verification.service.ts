@@ -97,7 +97,7 @@ export const sendVerificationEmail = async (
     throw new EmailVerificationError('ALREADY_VERIFIED', 'Email already verified')
   }
 
-  const usersRepository = UsersRepository.getInstance(env.DB as D1Database)
+  const usersRepository = UsersRepository.getInstance()
   const dataIn = parseUserData(user)
   if (!options.force) {
     ensureCooldown(dataIn.emailVerification)
@@ -144,7 +144,7 @@ export const verifyEmailToken = async (
     throw new EmailVerificationError('ALREADY_VERIFIED', 'Email already verified')
   }
 
-  const usersRepository = UsersRepository.getInstance(env.DB as D1Database)
+  const usersRepository = UsersRepository.getInstance()
   const dataIn = parseUserData(user)
   const metadata = dataIn.emailVerification
 

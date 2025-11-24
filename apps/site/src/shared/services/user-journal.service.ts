@@ -10,7 +10,7 @@ export const logUserJournalEvent = async (
   user: MinimalUser,
   extraDetails?: Record<string, unknown>,
 ): Promise<void> => {
-  const journalsRepository = JournalsRepository.getInstance(env.DB as D1Database)
+  const journalsRepository = JournalsRepository.getInstance()
 
   const entry: NewEsnadUserJournal = {
     uuid: crypto.randomUUID(),

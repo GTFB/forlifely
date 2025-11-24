@@ -5,12 +5,12 @@ import { eq, and, inArray } from "drizzle-orm"
 import { RolesRepository } from "./roles.repository"
 
 export class UserRolesRepository extends BaseRepository<UserRole> {
-    constructor(db: D1Database) {
-        super(db, schema.userRoles)
+    constructor() {
+        super(schema.userRoles)
     }
 
-    public static getInstance(db: D1Database): UserRolesRepository {
-        return new UserRolesRepository(db)
+    public static getInstance(): UserRolesRepository {
+        return new UserRolesRepository()
     }
 
     public async assignRoleToUser(userUuid: string, roleUuid: string, order: number = 0): Promise<UserRole> {
@@ -72,7 +72,7 @@ export class UserRolesRepository extends BaseRepository<UserRole> {
         }
 
         // Находим роли по именам
-        const rolesRepository = RolesRepository.getInstance(this.d1DB)
+        const rolesRepository = RolesRepository.getInstance()
         const allRoles = await rolesRepository.findAll()
         
         const roleUuids: string[] = []

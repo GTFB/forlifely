@@ -502,8 +502,8 @@ export const sendPushNotificationToHuman = async (
   url?: string
 ) => {
   const { env } = context
-  const humanRepository = HumanRepository.getInstance(env.DB as D1Database)
-  const journalsRepository = JournalsRepository.getInstance(env.DB as D1Database)
+  const humanRepository = HumanRepository.getInstance()
+  const journalsRepository = JournalsRepository.getInstance()
 
   const log: PushLogger = async (step, entry) => {
     try {

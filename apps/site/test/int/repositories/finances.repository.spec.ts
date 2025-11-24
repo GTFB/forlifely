@@ -26,10 +26,10 @@ describe("FinancesRepository", () => {
     });
 
     db = platformProxy.env.DB as D1Database;
-    financesRepository = FinancesRepository.getInstance(db);
-    dealsRepository = new DealsRepository(db);
-    humanRepository = HumanRepository.getInstance(db);
-    mediaRepository = MediaRepository.getInstance(db);
+    financesRepository = FinancesRepository.getInstance();
+    dealsRepository = new DealsRepository();
+    humanRepository = HumanRepository.getInstance();
+    mediaRepository = MediaRepository.getInstance();
   });
 
   const defaultLimits: PaymentLimitsConfig = {

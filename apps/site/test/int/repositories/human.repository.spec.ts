@@ -14,7 +14,7 @@ describe("HumanRepository", () => {
         });
 
         db = platformProxy.env.DB as D1Database;
-        humanRepository = HumanRepository.getInstance(db);
+        humanRepository = HumanRepository.getInstance();
     });
 
     describe("generateClientByEmail", () => {
