@@ -1,1 +1,1 @@
-ALTER TABLE `users` DROP COLUMN `hash`;
+ALTER TABLE "users" DROP COLUMN "hash";

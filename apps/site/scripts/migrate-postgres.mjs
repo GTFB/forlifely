@@ -15,8 +15,7 @@ const { Client } = pg;
 // Determine migrations directory based on execution context
 // In Docker: /app/migrations (from Dockerfile, copied from migrations/site)
 // In development: ../../migrations/site (from project root)
-const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR || 
-  (process.cwd().includes('/app') ? '/app/migrations' : join(process.cwd(), '../../migrations/site'));
+const MIGRATIONS_DIR = join(process.cwd(), 'migrations/site-postgres');
 
 console.log(`📁 Migrations directory: ${MIGRATIONS_DIR}`);
 

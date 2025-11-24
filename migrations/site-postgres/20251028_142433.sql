@@ -1,1 +1,1 @@
-ALTER TABLE `users` DROP COLUMN `role_uuid`;
+ALTER TABLE "users" DROP COLUMN "role_uuid";
