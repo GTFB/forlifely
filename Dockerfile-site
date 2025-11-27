@@ -29,7 +29,7 @@ COPY scripts ./scripts
 COPY migrations ./migrations
 
 # Copy all site files
-COPY apps/site ./apps/site
+COPY apps ./apps
 
 # Migrate the database
 
