@@ -12,8 +12,10 @@ import {
   FileQuestion,
   MessageSquare,
   CheckSquare,
+  Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useMe } from '@/providers/MeProvider'
 import {
   Sidebar,
   SidebarContent,
@@ -135,6 +137,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname()
   const { handleMouseDown } = useResizableSidebar()
   const { theme, setTheme } = useTheme()
+  const { user: meUser } = useMe()
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light')
@@ -148,6 +151,31 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     return pathname === url || pathname?.startsWith(url + '/')
   }
 
+  // Check if user is super admin (has Administrator role)
+  const isSuperAdmin = meUser?.roles?.some((role) => role.name === 'Administrator') || false
+  console.log('isSuperAdmin', isSuperAdmin)
+
+  // Build navigation groups dynamically based on user role
+  const getNavigationGroups = (): NavigationGroup[] => {
+    const groups: NavigationGroup[] = [...navigationGroups]
+
+    // Add seed link for super admin only
+    if (isSuperAdmin) {
+      groups.push({
+        title: 'Система',
+        items: [
+          {
+            title: 'Seed',
+            url: '/admin/seed',
+            icon: Database,
+          },
+        ],
+      })
+    }
+
+    return groups
+  }
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-6">
@@ -159,7 +187,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       <SidebarContent>
         <div className="p-4">
           <Accordion type="multiple" className="w-full">
-            {navigationGroups.map((group) => (
+            {getNavigationGroups().map((group) => (
               <AccordionItem key={group.title} value={group.title} className="border-none">
                 <AccordionTrigger className="py-2 text-sm font-medium">
                   {group.title}

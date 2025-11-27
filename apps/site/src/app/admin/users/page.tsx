@@ -156,7 +156,6 @@ export default function AdminUsersPage() {
         if (debouncedSearchQuery) {
           params.append('search', debouncedSearchQuery)
         }
-        console.log('searchQuery', params.toString())
 
         const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
           credentials: 'include',
@@ -167,7 +166,6 @@ export default function AdminUsersPage() {
         }
 
         const result: DbPaginatedResult<UserWithRoles> = await response.json()
-        console.log('searchQuery', result)
 
         setData(result)
       } catch (err) {
