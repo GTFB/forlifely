@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import  qs  from 'qs'
 import {
   Table,
   TableBody,
@@ -38,6 +39,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
+import { useEffect } from 'react'
 import {
   Popover,
   PopoverContent,
@@ -80,16 +82,30 @@ interface Role {
 }
 
 export default function AdminUsersPage() {
+
+
   const [data, setData] = React.useState<DbPaginatedResult<UserWithRoles> | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = React.useState('')
+  const urlParams = new URLSearchParams(window.location.search)
+  const search = urlParams.get('search')
+  const [searchQuery, setSearchQuery] = React.useState(search)
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set())
   const [pagination, setPagination] = React.useState({
     page: 1,
     limit: 20,
   })
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const search = urlParams.get('search')
+
+    if (search) {
+      setSearchQuery(search)
+    }
+  }, [])
+
+
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [roles, setRoles] = React.useState<Role[]>([])
   const [loadingRoles, setLoadingRoles] = React.useState(false)
@@ -104,16 +120,28 @@ export default function AdminUsersPage() {
   const [submitting, setSubmitting] = React.useState(false)
 
   // Debounce search query
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
+      setDebouncedSearchQuery(searchQuery || '')
       setPagination((prev) => ({ ...prev, page: 1 }))
+      
+      const params = qs.parse(window.location.search.replace('?', '').split('#')[0])
+      if(params.search === searchQuery) {
+        return
+      }
+      if (searchQuery) {
+        params.search = searchQuery
+      } else {
+        delete params.search
+      }
+      const newUrl = `/admin/users?${qs.stringify(params)}`
+      window.history.replaceState({}, '', newUrl)
     }, 500)
 
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true)
@@ -125,10 +153,10 @@ export default function AdminUsersPage() {
           orderBy: 'createdAt',
           orderDirection: 'desc',
         })
-
         if (debouncedSearchQuery) {
           params.append('search', debouncedSearchQuery)
         }
+        console.log('searchQuery', params.toString())
 
         const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
           credentials: 'include',
@@ -139,6 +167,8 @@ export default function AdminUsersPage() {
         }
 
         const result: DbPaginatedResult<UserWithRoles> = await response.json()
+        console.log('searchQuery', result)
+
         setData(result)
       } catch (err) {
         console.error('Users fetch error:', err)
@@ -299,18 +329,18 @@ export default function AdminUsersPage() {
     .filter((role) => formData.roleUuids.includes(role.uuid))
     .map((role) => role.title || role.name || role.raid || 'Роль')
 
-  if (loading) {
-    return (
-      <>
-        <AdminHeader title="Пользователи" />
-        <main className="flex-1 overflow-y-auto">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </main>
-      </>
-    )
-  }
+  // if (loading) {
+  //   return (
+  //     <>
+  //       <AdminHeader title="Пользователи" />
+  //       <main className="flex-1 overflow-y-auto">
+  //         <div className="flex items-center justify-center py-12">
+  //           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+  //         </div>
+  //       </main>
+  //     </>
+  //   )
+  // }
 
   if (error) {
     return (
@@ -337,8 +367,11 @@ export default function AdminUsersPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Поиск..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchQuery || ''}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                  }
+                }
                 className="pl-10 w-[300px]"
               />
             </div>

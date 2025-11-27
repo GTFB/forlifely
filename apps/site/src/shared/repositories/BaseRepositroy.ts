@@ -16,8 +16,8 @@ export default class BaseRepository<T> {
     protected async afterCreate(entity: T): Promise<void> { }
     protected async beforeUpdate(uuid: string, data: Partial<T>): Promise<void> { }
     protected async afterUpdate(entity: T): Promise<void> { }
-    protected async beforeDelete(uuid: string, force: boolean): Promise<void> { }
-    protected async afterDelete(uuid: string, force: boolean): Promise<void> { }
+    protected async beforeDelete(uuid: string, force: boolean, entity: T): Promise<void> { }
+    protected async afterDelete(uuid: string, force: boolean, entity: T ): Promise<void> { }
 
     public static getInstance(schema: any): BaseRepository<any> {
         return new BaseRepository(schema);
@@ -78,13 +78,17 @@ export default class BaseRepository<T> {
         return entity;
     }
     async deleteByUuid(uuid: string, force: boolean = false): Promise<void> {
-        await this.beforeDelete(uuid, force);
+        const entity = await this.findByUuid(uuid);
+        if (!entity) {
+            throw new Error('Entity not found');
+        }
+        await this.beforeDelete(uuid, force, entity);
         if (force) {
             await this._forceDeleteByUuid(uuid);
         } else {
             await this._softDeleteByUuid(uuid);
         }
-        await this.afterDelete(uuid, force);
+        await this.afterDelete(uuid, force, entity);
     }
     protected async _forceDeleteByUuid(uuid: string) {
         return await this.db.delete(this.schema).where(eq(this.schema.uuid, uuid)).execute();

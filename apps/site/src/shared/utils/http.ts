@@ -60,6 +60,16 @@ export const parseQueryParams = (url: URL): { filters: DbFilters; orders: DbOrde
     return { filters, orders, pagination }
   }
 
+// Helper function to format currency
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
 export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJournal[]> => {
   // Map action types to readable names
   const actionNames: Record<string, string> = {
@@ -95,14 +105,15 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
         }
       }
 
+      // Parse details
+      const rawDetails =
+        typeof journal.details === 'string'
+          ? (JSON.parse(journal.details) as Record<string, unknown>)
+          : (journal.details as Record<string, unknown> | undefined)
+
       // For USER_JOURNAL_LOGIN, enrich description with user info and roles
       if (originalAction === 'USER_JOURNAL_LOGIN') {
         try {
-          const rawDetails =
-            typeof journal.details === 'string'
-              ? (JSON.parse(journal.details) as Record<string, unknown>)
-              : (journal.details as Record<string, unknown> | undefined)
-
           const userDetails = rawDetails?.user as
             | {
                 uuid?: string
@@ -140,6 +151,91 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
           }
         } catch (error) {
           console.error('Failed to enrich journal description:', error)
+          // Continue with original journal if enrichment fails
+        }
+      }
+
+      // For LOAN_APPLICATION_SNAPSHOT, enrich description with client info and amount
+      if (originalAction === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
+        try {
+          const snapshot = rawDetails.snapshot as {
+            dataIn?: unknown
+          }
+
+          let dataIn = snapshot?.dataIn as
+            | {
+                firstName?: string
+                lastName?: string
+                middleName?: string
+                fullName?: string
+                productPrice?: string | number
+                productName?: string
+                phoneNumber?: string
+              }
+            | undefined
+
+          // Parse dataIn if it's a string
+          if (typeof snapshot?.dataIn === 'string') {
+            try {
+              dataIn = JSON.parse(snapshot.dataIn) as typeof dataIn
+            } catch {
+              // ignore parse error
+            }
+          }
+
+          // Extract client name
+          let fullName = ''
+          if (dataIn?.fullName) {
+            fullName = dataIn.fullName.trim()
+          } else if (dataIn?.firstName || dataIn?.lastName || dataIn?.middleName) {
+            const nameParts = [
+              dataIn.lastName,
+              dataIn.firstName,
+              dataIn.middleName,
+            ].filter(Boolean) as string[]
+            fullName = nameParts.join(' ').trim()
+          }
+
+          const clientName = fullName || 'клиента'
+
+          // Extract and format amount
+          let amountText = ''
+          if (dataIn?.productPrice !== undefined) {
+            const rawPrice = dataIn.productPrice
+            const numeric =
+              typeof rawPrice === 'number'
+                ? rawPrice
+                : Number(String(rawPrice).replace(/[^\d.-]/g, ''))
+            if (Number.isFinite(numeric) && numeric > 0) {
+              amountText = formatCurrency(numeric)
+            }
+          }
+
+          // Extract product name if available
+          const productName = dataIn?.productName?.trim()
+
+          // Build description
+          let description = `Заявка на рассрочку от ${clientName}`
+          if (productName) {
+            description += ` на товар "${productName}"`
+          }
+          if (amountText) {
+            description += ` на сумму ${amountText}`
+          }
+
+          // Add description and originalAction to details
+          const enrichedDetails = {
+            ...rawDetails,
+            description,
+            originalAction,
+          }
+
+          updatedJournal = {
+            ...updatedJournal,
+            details: enrichedDetails,
+          }
+        } catch (error) {
+          console.error('Failed to enrich loan application description:', error)
           // Continue with original journal if enrichment fails
         }
       }

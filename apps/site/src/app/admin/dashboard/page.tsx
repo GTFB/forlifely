@@ -203,14 +203,50 @@ export default function AdminDashboardPage() {
   }
 
   const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
+    if (!dateString) return ''
+    
+    // Time from DB is in UTC format like "2025-11-27 14:07:31.194" (without timezone indicator)
+    // We need to explicitly treat it as UTC, otherwise JavaScript parses it as local time
+    let utcDateString = dateString.trim()
+    
+    // Convert PostgreSQL timestamp format to ISO format with UTC indicator
+    // "2025-11-27 14:07:31.194" -> "2025-11-27T14:07:31.194Z"
+    if (utcDateString.includes(' ') && !utcDateString.includes('T')) {
+      // Replace space with 'T' and add 'Z' to mark as UTC
+      utcDateString = utcDateString.replace(' ', 'T') + 'Z'
+    } else if (utcDateString.includes('T') && !utcDateString.includes('Z') && !utcDateString.match(/[+-]\d{2}:?\d{2}$/)) {
+      // ISO format without timezone - add 'Z' to mark as UTC
+      utcDateString = utcDateString + 'Z'
+    }
+    // If it already has 'Z' or timezone offset, use as is
+    
+    // Parse as UTC - JavaScript will automatically convert to browser's local timezone
+    const parsedDate = new Date(utcDateString)
+    
+    // Check if date is valid
+    if (isNaN(parsedDate.getTime())) {
+      return 'неизвестно'
+    }
+    
+    // Get current time (in local timezone)
     const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
+    
+    // Calculate difference in milliseconds
+    // Both getTime() return milliseconds since epoch (UTC), so difference accounts for timezone
+    const diffMs = now.getTime() - parsedDate.getTime()
+    
+    // Handle negative differences (future dates)
+    if (diffMs < 0) {
+      return 'только что'
+    }
+    
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 60) {
+    if (diffMins < 1) {
+      return 'только что'
+    } else if (diffMins < 60) {
       return `${diffMins} мин. назад`
     } else if (diffHours < 24) {
       return `${diffHours} ч. назад`
