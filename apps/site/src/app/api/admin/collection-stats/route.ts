@@ -3,6 +3,7 @@
 import { withAdminGuard } from '@/shared/api-guard'
 import { AuthenticatedContext, CollectionStats } from '@/shared/types'
 import { buildRequestEnv } from '@/shared/env'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 /**
  * GET /api/admin/collection-stats?name=users
@@ -32,15 +33,18 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
       )
     }
 
+    const client = getPostgresClient(env.DB)
+    
     // Validate table exists
-    const tableExistsResult = await env.DB.$client.query<{ table_name: string }>(
+    const tableExistsResult = await executeRawQuery<{ table_name: string }>(
+      client,
       `SELECT table_name 
        FROM information_schema.tables 
        WHERE table_schema = 'public' AND table_name = $1`,
       [collectionName]
     )
 
-    if (!tableExistsResult.rows || tableExistsResult.rows.length === 0) {
+    if (!tableExistsResult || tableExistsResult.length === 0) {
       return new Response(
         JSON.stringify({ error: 'Collection not found' }),
         {
@@ -51,32 +55,35 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
     }
 
     // Get total count
-    const totalResult = await env.DB.$client.query<{ count: string | number }>(
+    const totalResult = await executeRawQuery<{ count: string | number }>(
+      client,
       `SELECT COUNT(*) as count FROM "${collectionName}"`
     )
 
-    const total = Number(totalResult.rows[0]?.count) || 0
+    const total = Number(totalResult[0]?.count) || 0
 
     // Check if table has deleted_at column
-    const columnsResult = await env.DB.$client.query<{ column_name: string; data_type: string }>(
+    const columnsResult = await executeRawQuery<{ column_name: string; data_type: string }>(
+      client,
       `SELECT column_name, data_type 
        FROM information_schema.columns 
        WHERE table_name = $1`,
       [collectionName]
     )
 
-    const hasDeletedAt = columnsResult.rows?.some((col) => col.column_name === 'deleted_at')
-    const hasUuid = columnsResult.rows?.some((col) => col.column_name === 'uuid')
+    const hasDeletedAt = columnsResult?.some((col: { column_name: string }) => col.column_name === 'deleted_at')
+    const hasUuid = columnsResult?.some((col: { column_name: string }) => col.column_name === 'uuid')
 
     let activeCount = total
     let deletedCount = 0
 
     if (hasDeletedAt) {
-      const activeResult = await env.DB.$client.query<{ count: string | number }>(
+      const activeResult = await executeRawQuery<{ count: string | number }>(
+        client,
         `SELECT COUNT(*) as count FROM "${collectionName}" WHERE deleted_at IS NULL`
       )
 
-      activeCount = Number(activeResult.rows[0]?.count) || 0
+      activeCount = Number(activeResult[0]?.count) || 0
       deletedCount = total - activeCount
     }
 
@@ -94,7 +101,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
         total,
         active: activeCount,
         deleted: deletedCount,
-        columns: columnsResult.rows?.length || 0,
+        columns: columnsResult?.length || 0,
       }),
       {
         status: 200,

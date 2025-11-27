@@ -27,15 +27,15 @@ export default class BaseRepository<T> {
     }
     async findByUuid(uuid: string): Promise<T> {
         const [row] = await this.db.select().from(this.schema).where(eq(this.schema.uuid, uuid)).execute();
-        return row;
+        return row as T;
     }
     async findById(id: number): Promise<T> {
         const [row] = await this.db.select().from(this.schema).where(eq(this.schema.id, id)).execute();
-        return row;
+        return row as T;
     }
     async findAll(): Promise<T[]> {
         const rows = await this.db.select().from(this.schema).execute();
-        return rows;
+        return rows as T[];
     }
     async create(data: any): Promise<T> {
         if (!data.uuid) {

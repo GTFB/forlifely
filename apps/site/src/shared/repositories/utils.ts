@@ -1,6 +1,7 @@
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePostgres, PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type { D1Database } from "@cloudflare/workers-types";
+import type { Pool } from "pg";
 import { schema } from "../schema/schema";
 
 import {
@@ -53,7 +54,6 @@ export function createDb(dbOrEnv?: any): SiteDbPostgres {
 
 }
 
-let globalConnectionPostgres: postgres.Sql | undefined;
 
 export function createDbPostgres(dbOrEnv?: any): SiteDbPostgres {
   // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
@@ -62,15 +62,15 @@ export function createDbPostgres(dbOrEnv?: any): SiteDbPostgres {
   }
 
   // If we already have a connection, reuse it (optional optimization)
-  if (!globalConnectionPostgres) {
+  if (!globalConnection) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL environment variable is not defined");
     }
-    globalConnectionPostgres = postgres(connectionString);
+    globalConnection = postgres(connectionString);
   }
 
-  return drizzlePostgres(globalConnectionPostgres, { schema }) as SiteDbPostgres;
+  return drizzlePostgres(globalConnection, { schema }) as SiteDbPostgres;
 }
 
 export function parseJson<T>(value: string | null | undefined | any, fallback: T): T {
@@ -262,4 +262,54 @@ export function buildDbOrders(schema: Record<string, any>, orders?: DbOrders){
   })
   .filter((expr): expr is ReturnType<typeof asc> => Boolean(expr));
   return (orderExpressions.length ? orderExpressions : [desc(schema.id)])
+}
+
+/**
+ * Get the underlying postgres client from a Drizzle instance
+ * This is needed for raw SQL queries that can't be done with Drizzle's query builder
+ * Supports both NodePgDatabase (node-postgres) and PostgresJsDatabase (postgres-js)
+ */
+export function getPostgresClient(db: SiteDbPostgres | NodePgDatabase<typeof schema>): postgres.Sql | Pool {
+  // Try to get client from postgres-js (PostgresJsDatabase)
+  if ((db as any).client) {
+    return (db as any).client;
+  }
+  if ((db as any)._?.client) {
+    return (db as any)._?.client;
+  }
+  
+  // Try to get pool/client from node-postgres (NodePgDatabase)
+  if ((db as any)._?.session?.client) {
+    return (db as any)._?.session?.client;
+  }
+  if ((db as any)._?.session?.pool) {
+    return (db as any)._?.session?.pool;
+  }
+  
+  // Fallback to global connection
+  if (globalConnection) {
+    return globalConnection;
+  }
+  
+  throw new Error('Unable to get postgres client from Drizzle instance');
+}
+
+/**
+ * Execute a raw SQL query using the appropriate client API
+ * Works with both node-postgres (Pool) and postgres-js (Sql)
+ */
+export async function executeRawQuery<T extends Record<string, any> = Record<string, any>>(
+  client: postgres.Sql | Pool,
+  sql: string,
+  params: any[] = []
+): Promise<T[]> {
+  // Check if it's postgres-js (has unsafe method)
+  if ('unsafe' in client && typeof (client as any).unsafe === 'function') {
+    const result = await (client as postgres.Sql).unsafe<T[]>(sql, params);
+    return Array.isArray(result) ? result : [];
+  }
+  
+  // Otherwise it's node-postgres Pool
+  const result = await (client as Pool).query<T>(sql, params);
+  return result.rows || [];
 }

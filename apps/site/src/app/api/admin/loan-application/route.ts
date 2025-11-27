@@ -5,6 +5,7 @@ import { MeRepository } from '@/shared/repositories/me.repository'
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '@/shared/types/shared'
 import type { LoanApplication, LoanApplicationDataIn } from '@/shared/types/esnad'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 const onRequestGet = async (context: AuthenticatedRequestContext) => {
     const { request, env } = context
@@ -117,12 +118,14 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
                         }
 
                         // Find user by UUID
-                        const userResult = await env.DB.$client.query<{ id: number }>(
+                        const client = getPostgresClient(env.DB)
+                        const userResult = await executeRawQuery<{ id: number }>(
+                            client,
                             'SELECT id FROM users WHERE uuid = $1 AND deleted_at IS NULL LIMIT 1',
                             [managerUuid]
                         )
 
-                        const user = userResult.rows[0]
+                        const user = userResult[0]
 
                         if (user) {
                             const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {

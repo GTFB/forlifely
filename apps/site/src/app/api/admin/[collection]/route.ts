@@ -6,6 +6,7 @@ import { generateAid } from '@/shared/generate-aid'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -117,34 +118,39 @@ async function handleGet(context: AuthenticatedRequestContext): Promise<Response
   }
 
   try {
+    const client = getPostgresClient(env.DB)
+    
     // Detect if collection has deleted_at
-    const pragmaResult = await env.DB.$client.query<{ column_name: string; data_type: string }>(
+    const pragmaResult = await executeRawQuery<{ column_name: string; data_type: string }>(
+      client,
       `SELECT column_name, data_type
        FROM information_schema.columns
        WHERE table_name = $1`,
       [collection]
     )
-    const hasDeletedAt = Boolean(pragmaResult.rows?.some((c) => c.column_name.toLowerCase() === 'deleted_at'))
+    const hasDeletedAt = Boolean(pragmaResult?.some((c: { column_name: string }) => c.column_name.toLowerCase() === 'deleted_at'))
     const where = hasDeletedAt ? `WHERE ${q('deleted_at')} IS NULL` : ''
 
-    const countResult = await env.DB.$client.query<{ total: string | number }>(
+    const countResult = await executeRawQuery<{ total: string | number }>(
+      client,
       `SELECT COUNT(*) as total FROM ${q(collection)} ${where}`
     )
-    const total = Number(countResult.rows[0]?.total) || 0
+    const total = Number(countResult[0]?.total) || 0
 
     const offset = (page - 1) * pageSize
-    const rowsResult = await env.DB.$client.query(
+    const rowsResult = await executeRawQuery(
+      client,
       `SELECT * FROM ${q(collection)} ${where} LIMIT $1 OFFSET $2`,
       [pageSize, offset]
     )
 
     // Parse JSON fields based on collection config
     const collectionConfig = getCollection(collection)
-    const processedData = (rowsResult.rows || []).map((row: any) => {
+    const processedData = (rowsResult || []).map((row: any) => {
       const processed = { ...row }
       
       // Get column info for type checking
-      const columnsInfo = pragmaResult.rows as { column_name: string; data_type: string }[] || []
+      const columnsInfo = pragmaResult as { column_name: string; data_type: string }[] || []
       
       for (const col of columnsInfo) {
         const fieldConfig = (collectionConfig as any)[col.column_name]
@@ -298,12 +304,15 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
       })
     }
 
+    const client = getPostgresClient(env.DB)
+    
     // Get table schema to detect auto-generated fields
-    const pragmaResult = await env.DB.$client.query<{
+    const pragmaResult = await executeRawQuery<{
       column_name: string;
       data_type: string;
       ordinal_position: number;
     }>(
+      client,
       `SELECT column_name, data_type, ordinal_position
        FROM information_schema.columns
        WHERE table_name = $1
@@ -312,7 +321,8 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
     )
     
     // Get primary key from information_schema
-    const pkResult = await env.DB.$client.query<{ column_name: string }>(
+    const pkResult = await executeRawQuery<{ column_name: string }>(
+      client,
       `SELECT column_name
        FROM information_schema.table_constraints tc
        JOIN information_schema.key_column_usage kcu
@@ -323,9 +333,9 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
        LIMIT 1`,
       [collection]
     )
-    
-    const pkColumn = pkResult.rows[0]?.column_name || 'id'
-    const columns = pragmaResult.rows || []
+
+    const pkColumn = pkResult[0]?.column_name || 'id'
+    const columns = pragmaResult || []
     const data: Record<string, any> = { ...processedBody }
     
     // Stringify JSON fields based on collection config
@@ -366,12 +376,14 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
     }
 
     const keys = Object.keys(data)
+    const values = keys.map((k) => data[k])
+    
+    // Build SQL with parameterized query
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ')
     const sql = `INSERT INTO ${q(collection)} (${keys.map(q).join(', ')}) VALUES (${placeholders}) RETURNING id`
-    const values = keys.map((k) => data[k])
 
-    const result = await env.DB.$client.query<{ id: number }>(sql, values)
-    const lastRowId = result.rows[0]?.id
+    const result = await executeRawQuery<{ id: number }>(client, sql, values)
+    const lastRowId = result[0]?.id
 
     // Auto-assign sort_order = id * 100 for taxonomy collection if sort_order is empty/null/0
     if (collection === 'taxonomy' && lastRowId) {
@@ -380,7 +392,8 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
       
       if (needsAutoOrder) {
         const autoSortOrder = lastRowId * 100
-        await env.DB.$client.query(
+        await executeRawQuery(
+          client,
           `UPDATE ${q(collection)} SET sort_order = $1 WHERE id = $2`,
           [autoSortOrder, lastRowId]
         )

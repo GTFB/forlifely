@@ -6,6 +6,7 @@ import { getCollection } from "@/shared/collections/getCollection"
 import qs from "qs"
 import { sql } from "drizzle-orm"
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 interface AdminFilter {
   field: string
@@ -93,8 +94,11 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       )
     }
 
+    const client = getPostgresClient(env.DB)
+    
     // Get table schema
-    const schemaResult = await env.DB.$client.query<ColumnInfo>(
+    const schemaResult = await executeRawQuery<ColumnInfo>(
+      client,
       `SELECT column_name, data_type, is_nullable, column_default, ordinal_position
        FROM information_schema.columns
        WHERE table_name = $1
@@ -102,7 +106,7 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       [state.collection]
     )
 
-    if (!schemaResult.rows || schemaResult.rows.length === 0) {
+    if (!schemaResult || schemaResult.length === 0) {
       return new Response(
         JSON.stringify({ error: "Collection not found or has no columns", state }),
         {
@@ -115,7 +119,7 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     // Get collection config for virtual fields
     const collectionConfig = getCollection(state.collection)
     
-    const columns = schemaResult.rows.map((col: ColumnInfo) => ({
+    const columns = schemaResult.map((col: ColumnInfo) => ({
       name: col.column_name,
       type: col.data_type.toUpperCase(),
       nullable: col.is_nullable === 'YES',
@@ -140,7 +144,7 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     // Merge real and virtual columns
     const allColumns = [...columns, ...virtualFields]
 
-    const hasDeletedAt = schemaResult.rows.some((c: ColumnInfo) => c.column_name.toLowerCase() === 'deleted_at')
+    const hasDeletedAt = schemaResult.some((c: ColumnInfo) => c.column_name.toLowerCase() === 'deleted_at')
     
     // Build WHERE clause
     const whereParts: string[] = []
@@ -234,24 +238,26 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
 
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM ${q(state.collection)} ${where}`
-    const countResult = await env.DB.$client.query<{ total: string | number }>(
+    const countResult = await executeRawQuery<{ total: string | number }>(
+      client,
       countQuery,
       bindings
     )
 
-    const total = Number(countResult.rows[0]?.total) || 0
+    const total = Number(countResult[0]?.total) || 0
 
     // Get data with pagination
     const offset = (state.page - 1) * state.pageSize
     const dataQuery = `SELECT * FROM ${q(state.collection)} ${where} LIMIT $${bindings.length + 1} OFFSET $${bindings.length + 2}`
-    const dataResult = await env.DB.$client.query(
+    const dataResult = await executeRawQuery(
+      client,
       dataQuery,
       [...bindings, state.pageSize, offset]
     )
 
     // Process data: parse JSON fields and compute virtual fields
     const processedData = await Promise.all(
-      (dataResult.rows || []).map(async (row: any) => {
+      (dataResult || []).map(async (row: any) => {
         const processed = { ...row }
         
         // Parse JSON fields based on collection config

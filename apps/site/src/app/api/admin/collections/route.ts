@@ -4,6 +4,7 @@ import { withAdminGuard } from '@/shared/api-guard'
 import { AuthenticatedContext } from '@/shared/types'
 import { COLLECTION_GROUPS } from '@/shared/collections'
 import { buildRequestEnv } from '@/shared/env'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 interface TableInfo {
   table_name: string
@@ -30,8 +31,11 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
   }
 
   try {
+    const client = getPostgresClient(env.DB)
+    
     // Get all tables from database
-    const tablesResult = await env.DB.$client.query<TableInfo>(
+    const tablesResult = await executeRawQuery<TableInfo>(
+      client,
       `SELECT table_name, table_type 
        FROM information_schema.tables 
        WHERE table_schema = 'public' 
@@ -42,7 +46,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
        ORDER BY table_name`
     )
 
-    if (!tablesResult.rows) {
+    if (!tablesResult) {
       return new Response(
         JSON.stringify({ error: 'Failed to fetch tables' }),
         {
@@ -54,7 +58,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
 
     // Group collections
     const grouped: CollectionGroup[] = []
-    const tableNames = new Set(tablesResult.rows.map((t) => t.table_name))
+    const tableNames = new Set(tablesResult.map((t: TableInfo) => t.table_name))
 
     // Group known collections
     for (const [category, collections] of Object.entries(COLLECTION_GROUPS)) {
@@ -70,7 +74,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
     return new Response(
       JSON.stringify({
         success: true,
-        total: tablesResult.rows.length,
+        total: tablesResult.length,
         groups: grouped,
       }),
       {

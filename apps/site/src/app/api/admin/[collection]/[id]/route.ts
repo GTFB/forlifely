@@ -5,6 +5,7 @@ import { COLLECTION_GROUPS } from '@/shared/collections'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -133,12 +134,15 @@ async function handleDelete(context: AuthenticatedRequestContext): Promise<Respo
   }
 
   try {
+    const client = getPostgresClient(env.DB)
+    
     // Detect primary key column and soft-delete capability
-    const pragmaResult = await env.DB.$client.query<{
+    const pragmaResult = await executeRawQuery<{
       column_name: string;
       data_type: string;
       ordinal_position: number;
     }>(
+      client,
       `SELECT column_name, data_type, ordinal_position
        FROM information_schema.columns
        WHERE table_name = $1
@@ -147,7 +151,8 @@ async function handleDelete(context: AuthenticatedRequestContext): Promise<Respo
     )
     
     // Get primary key from information_schema
-    const pkResult = await env.DB.$client.query<{ column_name: string }>(
+    const pkResult = await executeRawQuery<{ column_name: string }>(
+      client,
       `SELECT column_name
        FROM information_schema.table_constraints tc
        JOIN information_schema.key_column_usage kcu
@@ -159,26 +164,28 @@ async function handleDelete(context: AuthenticatedRequestContext): Promise<Respo
       [collection]
     )
     
-    const pk = pkResult.rows[0]?.column_name || 'id'
-    const hasDeletedAt = Boolean(pragmaResult.rows?.some((c) => c.column_name.toLowerCase() === 'deleted_at'))
+    const pk = pkResult[0]?.column_name || 'id'
+    const hasDeletedAt = Boolean(pragmaResult?.some((c: { column_name: string }) => c.column_name.toLowerCase() === 'deleted_at'))
 
     if (hasDeletedAt) {
-      const stmt = await env.DB.$client.query(
+      const stmt = await executeRawQuery(
+        client,
         `UPDATE ${q(collection)} SET ${q('deleted_at')} = $1 WHERE ${q(pk)} = $2`,
         [new Date().toISOString(), idParam]
       )
-      return new Response(JSON.stringify({ success: true, changes: stmt.rowCount || 0, softDeleted: true }), {
+      return new Response(JSON.stringify({ success: true, changes: Array.isArray(stmt) ? stmt.length : 0, softDeleted: true }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    const stmt = await env.DB.$client.query(
+    const stmt = await executeRawQuery(
+      client,
       `DELETE FROM ${q(collection)} WHERE ${q(pk)} = $1`,
       [idParam]
     )
 
-    return new Response(JSON.stringify({ success: true, changes: stmt.rowCount || 0, softDeleted: false }), {
+    return new Response(JSON.stringify({ success: true, changes: Array.isArray(stmt) ? stmt.length : 0, softDeleted: false }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -301,11 +308,14 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
       }
     }
 
-    const pragmaResult = await env.DB.$client.query<{
+    const client = getPostgresClient(env.DB)
+    
+    const pragmaResult = await executeRawQuery<{
       column_name: string;
       data_type: string;
       ordinal_position: number;
     }>(
+      client,
       `SELECT column_name, data_type, ordinal_position
        FROM information_schema.columns
        WHERE table_name = $1
@@ -314,7 +324,8 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
     )
     
     // Get primary key from information_schema
-    const pkResult = await env.DB.$client.query<{ column_name: string }>(
+    const pkResult = await executeRawQuery<{ column_name: string }>(
+      client,
       `SELECT column_name
        FROM information_schema.table_constraints tc
        JOIN information_schema.key_column_usage kcu
@@ -326,10 +337,10 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
       [collection]
     )
 
-    const columnsInfo = pragmaResult.rows || []
-    const columns = columnsInfo.map((c) => c.column_name)
-    const pk = pkResult.rows[0]?.column_name || 'id'
-    const hasUpdatedAt = columns.some((n) => n.toLowerCase() === 'updated_at')
+    const columnsInfo = pragmaResult || []
+    const columns = columnsInfo.map((c: { column_name: string }) => c.column_name)
+    const pk = pkResult[0]?.column_name || 'id'
+    const hasUpdatedAt = columns.some((n: string) => n.toLowerCase() === 'updated_at')
 
     // Build safe update set from provided body keys that exist in table and are not PK
     const allowedKeys = Object.keys(processedBody).filter((k) => columns.includes(k) && k !== pk)
@@ -343,7 +354,7 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
       // Stringify JSON fields based on collection config
       const fieldConfig = (collectionConfig as any)[key]
       const isJsonField = fieldConfig?.options?.type === 'json'
-      const colInfo = columnsInfo.find(c => c.column_name === key)
+      const colInfo = columnsInfo.find((c: { column_name: string }) => c.column_name === key)
       
       if (isJsonField && value != null && typeof value === 'object') {
         value = JSON.stringify(value)
@@ -367,12 +378,14 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
       })
     }
 
-    const sql = `UPDATE ${q(collection)} SET ${assignments.join(', ')} WHERE ${q(pk)} = $${values.length + 1}`
+    // Build SQL with parameterized query
+    const updateSql = `UPDATE ${q(collection)} SET ${assignments.join(', ')} WHERE ${q(pk)} = $${values.length + 1}`
     values.push(idParam)
+    
+    // Execute query
+    const result = await executeRawQuery(client, updateSql, values)
 
-    const result = await env.DB.$client.query(sql, values)
-
-    return new Response(JSON.stringify({ success: true, changes: result.rowCount || 0 }), {
+    return new Response(JSON.stringify({ success: true, changes: Array.isArray(result) ? result.length : 0 }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
