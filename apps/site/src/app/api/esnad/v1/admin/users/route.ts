@@ -5,13 +5,13 @@ import { HumanRepository } from '@/shared/repositories/human.repository'
 import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { parseQueryParams } from '@/shared/utils/http'
 import type { EsnadUser } from '@/shared/types/esnad'
-import { getSession } from '@/shared/session'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { sendVerificationEmail } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { db } from '@/shared/db'
 import { schema } from '@/shared/schema'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
 
@@ -34,7 +34,8 @@ interface UserWithRoles extends EsnadUser {
   }>
 }
 
-export async function GET(request: NextRequest) {
+const handleGet = async (context: AuthenticatedRequestContext) => {
+  const { request } = context
   try {
     const url = new URL(request.url)
     const { filters, orders, pagination } = parseQueryParams(url)
@@ -144,26 +145,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+const handlePost = async (context: AuthenticatedRequestContext) => {
+  const { request, user: currentUserWithRoles } = context
   try {
-    if (!process.env.AUTH_SECRET) {
-      return NextResponse.json({ error: 'Authentication not configured' }, { status: 500 })
-    }
-
-    // Get current user from session
-    const sessionUser = await getSession(request, process.env.AUTH_SECRET)
-    if (!sessionUser) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
-
-    // Get current user roles to check permissions
-    const meRepository = MeRepository.getInstance()
-    const currentUserWithRoles = await meRepository.findByIdWithRoles(Number(sessionUser.id))
-    
-    if (!currentUserWithRoles) {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
-    }
-
     // Check if current user is admin (has system role)
     const isAdmin = currentUserWithRoles.roles.some((role) => role.isSystem === true)
     if (!isAdmin) {
@@ -269,15 +253,8 @@ export async function POST(request: NextRequest) {
       await userRolesRepository.assignRolesToUser(createdUser.uuid, roleUuids)
     }
 
-    // Note: We can't easily pass the NextRequest to sendVerificationEmail if it expects strict Cloudflare types,
-    // but in Step 1 we should have adapted it. Assuming it works or needs adaptation.
-    // Here we pass 'env' which was context.env. Now we need to pass something else?
-    // sendVerificationEmail usually takes (env, user, options).
-    // We should check sendVerificationEmail signature. 
-    // For now, I'll pass process.env as 'env' if it matches loosely, or null if not used.
-    // Actually, sendVerificationEmail likely uses env.RESEND_API_KEY etc.
     try {
-        // @ts-ignore - Adapt this later if needed
+        // @ts-ignore
       await sendVerificationEmail(process.env as any, createdUser, { request: request as unknown as Request, force: true })
     } catch (verificationError) {
       console.error('Failed to send verification email to new user', verificationError)
@@ -306,3 +283,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export const GET = withAdminGuard(handleGet)
+export const POST = withAdminGuard(handlePost)

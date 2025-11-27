@@ -1,11 +1,10 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { requireAdmin, } from '@/shared/middleware'
-import { Context, AuthenticatedContext } from '@/shared/types'
+import { AuthenticatedContext } from '@/shared/types'
 import { COLLECTION_GROUPS } from '@/shared/collections'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -107,7 +106,7 @@ async function hashPasswordFields(collection: string, data: Record<string, any>,
   }
 }
 
-async function handleDelete(context: AuthenticatedContext): Promise<Response> {
+async function handleDelete(context: AuthenticatedRequestContext): Promise<Response> {
   const { env, params } = context
   const collection = params?.collection as string
   const idParam = params?.id as string
@@ -191,7 +190,7 @@ async function handleDelete(context: AuthenticatedContext): Promise<Response> {
   }
 }
 
-async function handlePut(context: AuthenticatedContext): Promise<Response> {
+async function handlePut(context: AuthenticatedRequestContext): Promise<Response> {
   const { env, params, request } = context
   const collection = params?.collection as string
   const idParam = params?.id as string
@@ -385,21 +384,20 @@ async function handlePut(context: AuthenticatedContext): Promise<Response> {
   }
 }
 
-export const onRequestDelete = (context: Context) => requireAdmin(context, handleDelete)
-export const onRequestPut = (context: Context) => requireAdmin(context, handlePut)
+export const DELETE = withAdminGuard(handleDelete)
+export const PUT = withAdminGuard(handlePut)
 
-export async function DELETE(
-  request: Request,
-  context: { params: { collection: string; id: string } }
-) {
-  const env = buildRequestEnv()
-  return onRequestDelete({ request, env, params: context.params })
-}
+export const onRequestOptions = async () =>
+  new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  })
 
-export async function PUT(
-  request: Request,
-  context: { params: { collection: string; id: string } }
-) {
-  const env = buildRequestEnv()
-  return onRequestPut({ request, env, params: context.params })
+export async function OPTIONS() {
+  return onRequestOptions()
 }

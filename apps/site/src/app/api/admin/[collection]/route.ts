@@ -1,12 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { requireAdmin,  } from '@/shared/middleware'
-import { Context, AuthenticatedContext } from '@/shared/types'
+import { AuthenticatedContext } from '@/shared/types'
 import { COLLECTION_GROUPS } from '@/shared/collections'
 import { generateAid } from '@/shared/generate-aid'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -95,7 +94,7 @@ async function hashPasswordFields(collection: string, data: Record<string, any>)
   }
 }
 
-async function handleGet(context: AuthenticatedContext): Promise<Response> {
+async function handleGet(context: AuthenticatedRequestContext): Promise<Response> {
   const { env, request, params } = context
   const collection = params?.collection as string
 
@@ -196,7 +195,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
   }
 }
 
-async function handlePost(context: AuthenticatedContext): Promise<Response> {
+async function handlePost(context: AuthenticatedRequestContext): Promise<Response> {
   const { env, params, request } = context
   const collection = params?.collection as string
 
@@ -406,21 +405,20 @@ async function handlePost(context: AuthenticatedContext): Promise<Response> {
   }
 }
 
-export const onRequestGet = (context: Context) => requireAdmin(context, handleGet)
-export const onRequestPost = (context: Context) => requireAdmin(context, handlePost)
+export const GET = withAdminGuard(handleGet)
+export const POST = withAdminGuard(handlePost)
 
-export async function GET(
-  request: Request,
-  context: { params: { collection: string } }
-) {
-  const env = buildRequestEnv()
-  return onRequestGet({ request, env, params: context.params })
-}
+export const onRequestOptions = async () =>
+  new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  })
 
-export async function POST(
-  request: Request,
-  context: { params: { collection: string } }
-) {
-  const env = buildRequestEnv()
-  return onRequestPost({ request, env, params: context.params })
+export async function OPTIONS() {
+  return onRequestOptions()
 }

@@ -1,11 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { Env } from "@/shared/types"
-import { buildRequestEnv } from '@/shared/env'
 import { COLLECTION_GROUPS } from "@/shared/collections"
 import { getCollection } from "@/shared/collections/getCollection"
 import qs from "qs"
 import { sql } from "drizzle-orm"
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 interface AdminFilter {
   field: string
@@ -65,7 +65,7 @@ function parseStateFromUrl(url: URL): AdminState {
   return { collection, page, pageSize, filters, search }
 }
 
-export const onRequestGet = async (context: { request: Request; env: Env }) => {
+export const onRequestGet = async (context: AuthenticatedRequestContext) => {
   const { request, env } = context
   const url = new URL(request.url)
 
@@ -350,10 +350,7 @@ export const onRequestOptions = async () =>
     },
   })
 
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestGet({ request, env })
-}
+export const GET = withAdminGuard(onRequestGet)
 
 export async function OPTIONS() {
   return onRequestOptions()

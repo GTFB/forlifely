@@ -1,5 +1,7 @@
-import { type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { schema } from "../schema/schema";
+import type { SiteDb } from "../db";
+
 import {
   SQL,
   and,
@@ -20,39 +22,53 @@ import {
   isNotNull,
 } from "drizzle-orm";
 import type { DbFilters, DbOrders } from "../types/shared";
-import { SiteDb } from "../db";
 
-// We re-export SiteDb from db.ts or define it here compatible with better-sqlite3
-// SiteDb is already exported from ../db.ts so we can use it.
-
+// Re-export SiteDb type from db.ts to ensure consistency
 export type { SiteDb };
 
-export function createDb(dbInstance: any): SiteDb {
-  // In the new architecture, we expect the db instance to be passed or imported.
-  // If it's already the correct type, return it.
-  // This function might become redundant but we keep it for compatibility during migration.
-  return dbInstance as SiteDb;
+// Keep D1Database type for compatibility if needed, but we are moving away from it
+// For now, we'll just accept any compatible object or create a new connection
+// Ideally, we should remove D1 references, but let's make it work first.
+
+// Global connection for reuse in serverless environment (if needed)
+let globalConnection: any;
+
+export function createDb(dbOrEnv?: any): SiteDb {
+  // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
+  if (dbOrEnv && "select" in dbOrEnv) {
+    return dbOrEnv as SiteDb;
+  }
+
+  // If we already have a connection, reuse it (optional optimization)
+  if (!globalConnection) {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error("DATABASE_URL environment variable is not defined");
+    }
+    // Use node-postgres Pool instead of postgres-js
+    const { Pool } = require('pg');
+    globalConnection = new Pool({
+      connectionString,
+    });
+  }
+
+  return drizzle(globalConnection, { schema });
 }
 
-export function parseJson<T>(value: unknown, fallback: T): T {
-  if (value === null || value === undefined) {
+export function parseJson<T>(value: string | null | undefined | any, fallback: T): T {
+  if(typeof value === 'object' && value !== null) {
+    return value as T;
+  }
+  if (!value) {
     return fallback;
   }
 
-  if (typeof value === 'object') {
-    return value as T;
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    console.error("Failed to parse JSON from repository", error);
+    return fallback;
   }
-
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value) as T;
-    } catch (error) {
-      console.error("Failed to parse JSON from repository", error);
-      return fallback;
-    }
-  }
-
-  return fallback;
 }
 
 export function stringifyJson<T>(value: T | null | undefined): string | null {
@@ -96,6 +112,10 @@ export function buildDbFilters(table: Record<string, any>, filters?: DbFilters):
   const conditions: SQL[] = [];
 
   for (const condition of filters.conditions) {
+    if (!condition.values || condition.values.length === 0) {
+      continue;
+    }
+
     const column = table[condition.field];
     if (!column) {
       continue;
@@ -103,6 +123,7 @@ export function buildDbFilters(table: Record<string, any>, filters?: DbFilters):
 
     switch (condition.operator) {
       case "exclude": {
+
         if (!condition.values || condition.values.length === 0) {
           continue;
         }
@@ -209,6 +230,7 @@ export function buildDbFilters(table: Record<string, any>, filters?: DbFilters):
 
   return conditions.length === 1 ? conditions[0] : and(...conditions);
 }
+
 
 export function buildDbOrders(schema: Record<string, any>, orders?: DbOrders){
   

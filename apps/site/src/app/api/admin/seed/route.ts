@@ -1,9 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import type { Env } from '@/shared/types'
+import { Env } from '@/shared/types'
 import { SeedRepository } from '@/shared/repositories/seed.repository'
 import { seeds, type SeedDefinition } from '@/shared/seeds'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 type SeedData = {
   [collection: string]: Array<Record<string, unknown> & { uuid: string }>
@@ -50,7 +50,7 @@ export async function onRequestGet(): Promise<Response> {
  * POST /api/admin/seed
  * Body: { seedId: 'system' } - seeds data from specified seed
  */
-export async function onRequestPost(context: { request: Request; env: Env }): Promise<Response> {
+export async function onRequestPost(context: AuthenticatedRequestContext): Promise<Response> {
   const { request, env } = context
 
   try {
@@ -126,14 +126,8 @@ export const onRequestOptions = async () =>
     },
   })
 
-export async function GET() {
-  return onRequestGet()
-}
-
-export async function POST(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestPost({ request, env })
-}
+export const GET = withAdminGuard(onRequestGet)
+export const POST = withAdminGuard(onRequestPost)
 
 export async function OPTIONS() {
   return onRequestOptions()

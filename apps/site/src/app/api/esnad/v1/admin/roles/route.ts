@@ -7,7 +7,7 @@ import { RequestContext } from '@/shared/types'
 import { getSession } from '@/shared/session'
 import { eq, and, or, isNull } from 'drizzle-orm'
 import { schema } from '@/shared/schema/schema'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 const corsHeaders = {
   'access-control-allow-origin': '*',
@@ -22,37 +22,10 @@ const jsonHeaders = {
 
 const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
 
-export const onRequestGet = async (context: RequestContext): Promise<Response> => {
-  const { request, env } = context
+export const onRequestGet = async (context: AuthenticatedRequestContext): Promise<Response> => {
+  const { user: userWithRoles } = context
 
   try {
-    if (!env.AUTH_SECRET) {
-      return new Response(JSON.stringify({ error: 'Authentication not configured' }), {
-        status: 500,
-        headers: jsonHeaders,
-      })
-    }
-
-    // Get current user from session
-    const sessionUser = await getSession(request, env.AUTH_SECRET)
-    if (!sessionUser) {
-      return new Response(JSON.stringify({ error: 'Not authenticated' }), {
-        status: 401,
-        headers: jsonHeaders,
-      })
-    }
-
-    // Get current user roles
-    const meRepository = MeRepository.getInstance()
-    const userWithRoles = await meRepository.findByIdWithRoles(Number(sessionUser.id))
-    
-    if (!userWithRoles) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 401,
-        headers: jsonHeaders,
-      })
-    }
-
     // Check if current user is super administrator
     const isSuperAdmin = userWithRoles.roles.some(
       (role) => role.name === 'Administrator'
@@ -113,11 +86,7 @@ export const onRequestOptions = async (): Promise<Response> =>
 
 type HandlerContext = Parameters<typeof onRequestGet>[0]
 
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  const context = { request, env } satisfies HandlerContext
-  return onRequestGet(context)
-}
+export const GET = withAdminGuard(onRequestGet)
 
 export async function OPTIONS() {
   return onRequestOptions()

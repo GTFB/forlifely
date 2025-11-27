@@ -3,9 +3,10 @@ import type { Env } from '@/shared/types'
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '@/shared/types/shared'
 import { TaxonomyRepository } from '@/shared/repositories/taxonomy.repository'
 import type { Taxonomy } from '@/shared/schema/types'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestGet = async (context: AuthenticatedRequestContext) => {
+    const { request, env } = context
     try {
         const url = new URL(request.url)
         const parsed = qs.parse(url.search, { ignoreQueryPrefix: true })
@@ -79,13 +80,7 @@ export const onRequestOptions = async () => {
     })
 }
 
-type RequestContext = Parameters<typeof onRequestGet>[0]
-
-export async function GET(request: Request) {
-    const env = buildRequestEnv()
-    const context = { request, env } as RequestContext
-    return onRequestGet(context)
-}
+export const GET = withAdminGuard(onRequestGet)
 
 export async function OPTIONS() {
     return onRequestOptions()

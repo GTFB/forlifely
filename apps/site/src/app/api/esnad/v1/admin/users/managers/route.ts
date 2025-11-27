@@ -5,7 +5,7 @@ import { MeRepository } from '@/shared/repositories/me.repository'
 import { Env } from '@/shared/types'
 import { RequestContext } from '@/shared/types'
 import type { EsnadUser } from '@/shared/types/esnad'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard } from '@/shared/api-guard'
 
 const corsHeaders = {
   'access-control-allow-origin': '*',
@@ -110,11 +110,7 @@ export const onRequestOptions = async (): Promise<Response> =>
 
 type HandlerContext = Parameters<typeof onRequestGet>[0]
 
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  const context = { request, env } satisfies HandlerContext
-  return onRequestGet(context)
-}
+export const GET = withAdminGuard(onRequestGet)
 
 export async function OPTIONS() {
   return onRequestOptions()

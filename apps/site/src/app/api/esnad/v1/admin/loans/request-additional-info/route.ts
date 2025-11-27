@@ -7,7 +7,7 @@ import {
 } from "@/shared/types/esnad"
 import { BadRequestError, loanDecisionCorsHeaders } from "../decision-handler"
 import type { Env } from '@/shared/types'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard } from '@/shared/api-guard'
 
 type RequestContext = {
     request: Request
@@ -142,11 +142,7 @@ export const onRequestOptions = async () =>
 
 type HandlerContext = Parameters<typeof onRequestPut>[0]
 
-export async function PUT(request: Request) {
-    const env = buildRequestEnv()
-    const context = { request, env } satisfies HandlerContext
-    return onRequestPut(context)
-}
+export const PUT = withAdminGuard(onRequestPut)
 
 export async function OPTIONS() {
     return onRequestOptions()

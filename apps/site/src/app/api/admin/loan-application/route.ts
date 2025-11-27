@@ -4,9 +4,10 @@ import { DealsRepository } from '@/shared/repositories/deals.repository'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '@/shared/types/shared'
 import type { LoanApplication, LoanApplicationDataIn } from '@/shared/types/esnad'
-import { buildRequestEnv } from '@/shared/env'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
-export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+const onRequestGet = async (context: AuthenticatedRequestContext) => {
+    const { request, env } = context
     try {
         const url = new URL(request.url)
         const parsed = qs.parse(url.search, { ignoreQueryPrefix: true })
@@ -176,13 +177,7 @@ export const onRequestOptions = async () => {
     })
 }
 
-type RequestContext = Parameters<typeof onRequestGet>[0]
-
-export async function GET(request: Request) {
-    const env = buildRequestEnv()
-    const context = { request, env } as RequestContext
-    return onRequestGet(context)
-}
+export const GET = withAdminGuard(onRequestGet)
 
 export async function OPTIONS() {
     return onRequestOptions()

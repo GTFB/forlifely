@@ -5,6 +5,7 @@ import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { buildRequestEnv } from '@/shared/env'
 import type { RequestContext } from '@/shared/types'
 import { parseJournals } from '@/shared/utils/http'
+import { withAdminGuard } from '@/shared/api-guard'
 const corsHeaders = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, OPTIONS',
@@ -94,11 +95,7 @@ async function handleGet(context: RequestContext): Promise<Response> {
   }
 }
 
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  const context = { request, env } satisfies RequestContext
-  return handleGet(context)
-}
+export const GET = withAdminGuard(handleGet)
 
 export async function OPTIONS() {
   return new Response(null, {

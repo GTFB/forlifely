@@ -72,5 +72,6 @@ export interface AdminState {
 type RequestContext = {
     request: Request
     env: Env
+    params?: Record<string, string>
   }
 export type { RequestContext }

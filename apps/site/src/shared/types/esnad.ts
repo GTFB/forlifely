@@ -245,6 +245,38 @@ export interface NewClient extends NewEsnadHuman {
     statusName: ClientStatus
     type: 'CLIENT'
 }
-export interface ClientDataIn extends EsnadHumanData {
+/**
+ * KYC Status types
+ */
+export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected' | 'more_info'
 
+/**
+ * KYC Document Reference
+ */
+export interface KycDocumentRef {
+    mediaUuid: string
+    type: 'passport_main' | 'passport_registration' | 'selfie' | 'other'
+    uploadedAt: string // ISO string
+}
+
+export interface ClientDataIn extends EsnadHumanData {
+    kycStatus?: KycStatus
+    kycDocuments?: KycDocumentRef[]
+}
+
+/**
+ * API Response types
+ */
+export interface UploadAssetResponse {
+    success: boolean
+    asset: {
+        uuid: string
+        url: string // /api/esnad/v1/c/assets/uuid-filename.ext
+        mimeType: string
+        fileName: string
+    }
+}
+
+export interface UpdateProfileKycRequest {
+    kycDocuments: KycDocumentRef[]
 }

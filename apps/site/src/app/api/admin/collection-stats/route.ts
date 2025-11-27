@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { requireAdmin, } from '@/shared/middleware'
-import { Context, AuthenticatedContext, CollectionStats } from '@/shared/types'
+import { withAdminGuard } from '@/shared/api-guard'
+import { AuthenticatedContext, CollectionStats } from '@/shared/types'
 import { buildRequestEnv } from '@/shared/env'
 
 /**
@@ -116,8 +116,7 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
   }
 }
 
-export const onRequestGet = (context: Context) =>
-  requireAdmin(context, handleGet)
+export const GET = withAdminGuard(handleGet)
 
 export const onRequestOptions = async () =>
   new Response(null, {
@@ -129,11 +128,6 @@ export const onRequestOptions = async () =>
       'Access-Control-Allow-Credentials': 'true',
     },
   })
-
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestGet({ request, env })
-}
 
 export async function OPTIONS() {
   return onRequestOptions()
