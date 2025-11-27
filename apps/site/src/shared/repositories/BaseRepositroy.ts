@@ -3,13 +3,14 @@ import { SiteDb, buildDbFilters, buildDbOrders } from "./utils";
 import { db, isPostgresDb } from "../db";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
+import { createDb } from "./utils";
 
 
 export default class BaseRepository<T> {
     protected db: SiteDb;
 
     constructor(public schema: any) {
-        this.db = db;
+        this.db = createDb();
     }
     protected async beforeCreate(data: Partial<T>): Promise<void> { }
     protected async afterCreate(entity: T): Promise<void> { }

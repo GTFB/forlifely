@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { schema } from '../schema'
-import { stringifyJson, type SiteDb } from './utils'
+import { createDb, stringifyJson, type SiteDb } from './utils'
 import { db } from '../db'
 
 type SeedRecord = Record<string, unknown> & { uuid: string }
@@ -16,7 +16,7 @@ export class SeedRepository {
   private readonly db: SiteDb
 
   private constructor() {
-    this.db = db
+    this.db = createDb()
   }
 
   public static getInstance(): SeedRepository {

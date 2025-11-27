@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle as drizzlePostgres, PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import type { D1Database } from "@cloudflare/workers-types";
 import { schema } from "../schema/schema";
-import type { SiteDb } from "../db";
 
 import {
   SQL,
@@ -22,37 +23,54 @@ import {
   isNotNull,
 } from "drizzle-orm";
 import type { DbFilters, DbOrders } from "../types/shared";
+import  postgres from "postgres";
+import { isPostgres } from "../utils/db";
+
+export type SiteDbPostgres = PostgresJsDatabase<typeof schema>;
+export type SiteDb = SiteDbPostgres;
 
 // Re-export SiteDb type from db.ts to ensure consistency
-export type { SiteDb };
 
 // Keep D1Database type for compatibility if needed, but we are moving away from it
 // For now, we'll just accept any compatible object or create a new connection
 // Ideally, we should remove D1 references, but let's make it work first.
 
+// Helper function to check if db is SiteDb
+function isSiteDb(db: any): db is SiteDb {
+  return db && typeof db === 'object' && 'select' in db;
+}
+
 // Global connection for reuse in serverless environment (if needed)
 let globalConnection: any;
 
-export function createDb(dbOrEnv?: any): SiteDb {
+export function createDb(dbOrEnv?: any): SiteDbPostgres {
   // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
-  if (dbOrEnv && "select" in dbOrEnv) {
+  if (dbOrEnv && isSiteDb(dbOrEnv)) {
     return dbOrEnv as SiteDb;
   }
 
+    return createDbPostgres(dbOrEnv);
+
+}
+
+let globalConnectionPostgres: postgres.Sql | undefined;
+
+export function createDbPostgres(dbOrEnv?: any): SiteDbPostgres {
+  // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
+  if (dbOrEnv && isSiteDb(dbOrEnv)) {
+    return dbOrEnv as SiteDbPostgres;
+  }
+
   // If we already have a connection, reuse it (optional optimization)
-  if (!globalConnection) {
+  if (!globalConnectionPostgres) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL environment variable is not defined");
     }
-    // Use node-postgres Pool instead of postgres-js
-    const { Pool } = require('pg');
-    globalConnection = new Pool({
-      connectionString,
-    });
+    globalConnectionPostgres = postgres(connectionString);
   }
 
-  return drizzle(globalConnection, { schema });
+  return drizzlePostgres(globalConnectionPostgres, { schema }) as SiteDbPostgres;
 }
 
 export function parseJson<T>(value: string | null | undefined | any, fallback: T): T {

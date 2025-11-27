@@ -53,6 +53,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/packages/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -131,8 +132,8 @@ type ColumnSchemaExtended = ColumnSchema & {
   virtual?: boolean
   defaultCell?: any
   format?: (value: any, locale?: string) => string
-
   fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'price' | 'enum' | 'select'
+  textarea?: boolean
   enum?: {
     values: string[]
     labels: string[]
@@ -500,6 +501,16 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             ? col.format(value, locale) 
             : formatCellValue(value)
         
+        // For textarea fields, truncate text in table
+        if (col.textarea) {
+          const textValue = typeof displayValue === 'string' ? displayValue : String(displayValue || '')
+          return (
+            <div className={`${col.primary ? "font-mono font-medium" : ""} truncate max-w-[300px]`} title={textValue}>
+              {textValue || "-"}
+            </div>
+          )
+        }
+        
         return (
           <div className={`${col.primary ? "font-mono font-medium" : ""}`}>
             {displayValue}
@@ -709,7 +720,7 @@ export function DataTable() {
 
   const primaryKey = React.useMemo(() => schema.find((c) => c.primary)?.name || "id", [schema])
 
-  const fetchData = React.useCallback(async (abortSignal?: AbortSignal) => {
+  const fetchData = React.useCallback(async (abortSignal?: AbortSignal, isMountedRef?: { current: boolean }) => {
     setLoading(true)
     setError(null)
     try {
@@ -725,10 +736,17 @@ export function DataTable() {
         signal: abortSignal,
         credentials: "include",
       })
+      
+
+      if (isMountedRef && !isMountedRef.current) return
+      
       if (!res.ok) {
         throw new Error(`Failed to load: ${res.status}`)
       }
       const json: StateResponse = await res.json()
+      
+
+      if (isMountedRef && !isMountedRef.current) return
       
       // Get collection config and apply column settings
       const collection = getCollection(state.collection)
@@ -787,10 +805,8 @@ export function DataTable() {
           readOnly: options.readOnly || false,
           required: options.required || fieldConfig?.required || columnConfig?.required || false,
           virtual: options.virtual || false,
-          defaultCell: options.defaultCell,
-          format: options.format,
           fieldType: options.type || fieldConfig?.type || (columnConfig?.type === 'select' ? 'select' : columnConfig?.type),
-          //fieldType: options.type,
+          textarea: options.textarea || false,
           enum: options.enum,
           relation: options.relation,
           selectOptions,
@@ -803,6 +819,8 @@ export function DataTable() {
       
       for (const col of relationsToLoad) {
         if (!col.relation) continue
+        if (isMountedRef && !isMountedRef.current) break
+
         
         try {
           // Limit relation fetch to only values actually used in current page data
@@ -832,8 +850,11 @@ export function DataTable() {
           })
           
           const relRes = await fetch(`/api/admin/state?${queryParams}`, {
+            signal: abortSignal,
             credentials: "include",
           })
+          
+          if (isMountedRef && !isMountedRef.current) break
           
           if (relRes.ok) {
             const relJson: StateResponse = await relRes.json()
@@ -850,9 +871,16 @@ export function DataTable() {
             relationDataMap[col.name] = map
           }
         } catch (e) {
-          console.error(`Failed to load relation data for ${col.name}:`, e)
+          // Ignore AbortError for relation fetches
+          if ((e as any)?.name !== "AbortError") {
+            console.error(`Failed to load relation data for ${col.name}:`, e)
+          }
         }
       }
+      
+      // Final mount check before state updates
+
+      if (isMountedRef && !isMountedRef.current) return
       
       setRelationData(relationDataMap)
       
@@ -863,18 +891,43 @@ export function DataTable() {
       setTotalPages(json.schema.totalPages)
       setData(json.data)
     } catch (e) {
-      if ((e as any).name !== "AbortError") {
+      // Ignore AbortError - it's expected when component unmounts
+      if (isMountedRef && !isMountedRef.current) return
+      if ((e as any)?.name !== "AbortError") {
+
         setError((e as Error).message)
       }
     } finally {
-      setLoading(false)
+      if (!isMountedRef || isMountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState, taxonomyConfig, translations])
 
   React.useEffect(() => {
     const controller = new AbortController()
-    fetchData(controller.signal)
-    return () => controller.abort()
+    const isMounted = { current: true }
+    let fetchCompleted = false
+    
+    const fetchPromise = fetchData(controller.signal, isMounted)
+      .then(() => {
+        fetchCompleted = true
+      })
+      .catch((e) => {
+        fetchCompleted = true
+        // Silently ignore AbortError
+        if (e?.name !== "AbortError" && isMounted.current) {
+          console.error("Failed to fetch data:", e)
+        }
+      })
+    
+    return () => {
+      isMounted.current = false
+      // Don't call abort() - let requests complete naturally
+      // Results will be ignored due to isMounted check
+      // This prevents AbortError from being thrown
+
+    }
   }, [fetchData])
 
   // Sync searchInput with state.search when collection changes
@@ -1839,6 +1892,21 @@ export function DataTable() {
                       search={state.search}
                     />
                   </>
+                ) : field.textarea ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Textarea
+                      id={`field-${field.name}`}
+                      required={!field.nullable}
+                      value={formData[field.name] || ""}
+                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                      placeholder={`Enter ${field.title || field.name}`}
+                      rows={6}
+                    />
+                  </>
                 ) : (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -2129,6 +2197,21 @@ export function DataTable() {
                       required={!field.nullable}
                       translations={t}
                       search={state.search}
+                    />
+                  </>
+                ) : field.textarea ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Textarea
+                      id={`edit-field-${field.name}`}
+                      required={!field.nullable}
+                      value={editData[field.name] || ''}
+                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                      disabled={field.readOnly}
+                      rows={6}
                     />
                   </>
                 ) : (

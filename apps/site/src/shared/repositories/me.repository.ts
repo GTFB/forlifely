@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { User, Role, Human, Employee, Location, UserRole } from '../schema/types'
 import { schema } from '../schema/schema'
-import { notDeleted, withNotDeleted, type SiteDb } from './utils'
+import { createDb, notDeleted, withNotDeleted, type SiteDb } from './utils'
 import { db } from '../db'
 
 export interface UserWithRoles extends User {
@@ -17,7 +17,7 @@ export class MeRepository {
   private static instance: MeRepository | null = null
 
   private constructor() {
-    this.db = db
+    this.db = createDb()
   }
 
   public static getInstance(): MeRepository {
