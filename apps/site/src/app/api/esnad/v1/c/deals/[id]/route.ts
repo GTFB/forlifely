@@ -3,7 +3,7 @@
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 import { buildRequestEnv } from '@/shared/env'
@@ -54,6 +54,8 @@ export const onRequestGet = async (
       })
     }
     
+    const db = createDb()
+    
     // Get deal by ID
     const [deal] = await db
       .select()
@@ -91,7 +93,7 @@ export const onRequestGet = async (
           updatedAt: deal.updatedAt,
           dataIn: deal.dataIn ? deal.dataIn : null,
           dataOut: deal.dataOut ? deal.dataOut : null,
-          products: products.map(product => ({
+          products: products.map((product: any) => ({
             id: product.uuid,
             quantity: product.quantity,
             status: product.statusName,

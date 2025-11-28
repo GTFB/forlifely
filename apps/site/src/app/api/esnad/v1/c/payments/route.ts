@@ -3,7 +3,7 @@
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { eq, and, isNull, desc, sql } from 'drizzle-orm'
 import { buildRequestEnv } from '@/shared/env'
@@ -55,6 +55,8 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const page = parseInt(url.searchParams.get('page') || '1')
     const limit = parseInt(url.searchParams.get('limit') || '10')
     const offset = (page - 1) * limit
+    
+    const db = createDb()
     
     // Get deals for user
     const deals = await db
@@ -171,6 +173,8 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    
+    const db = createDb()
     
     // Get deal
     const [deal] = await db

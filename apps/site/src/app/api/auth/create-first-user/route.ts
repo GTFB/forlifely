@@ -4,7 +4,7 @@ import { createSession, jsonWithSession } from '@/shared/session'
 import { generateAid } from '@/shared/generate-aid'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { Env } from '@/shared/types'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { sql } from 'drizzle-orm'
 import { HumanRepository } from '@/shared/repositories/human.repository'
@@ -83,7 +83,8 @@ async function handlePost(request: Request, env: Env) {
     }
 
     // Check if this is the first user
-    const [{ count = 0 } = {}] = await (db as any)
+    const db = createDb()
+    const [{ count = 0 } = {}] = await db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(schema.users as any)
       .limit(1)

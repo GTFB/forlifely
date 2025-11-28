@@ -3,7 +3,7 @@
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { eq, and, isNull, desc, sql, or, like } from 'drizzle-orm'
 import { buildRequestEnv } from '@/shared/env'
@@ -58,6 +58,8 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const limit = parseInt(url.searchParams.get('limit') || '10')
     const offset = (page - 1) * limit
     
+    const db = createDb()
+    
     // Build where conditions
     const conditions = [
       eq(schema.deals.clientAid, human.haid),
@@ -96,7 +98,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
     return new Response(
       JSON.stringify({
-        deals: deals.map(deal => ({
+        deals: deals.map((deal: any) => ({
           id: deal.daid,
           uuid: deal.uuid,
           title: deal.title || 'Без названия',

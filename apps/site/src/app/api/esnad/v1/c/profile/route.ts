@@ -3,7 +3,7 @@ import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
 import type { UpdateProfileKycRequest, ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
@@ -146,6 +146,7 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
 
     // If statusName needs to be updated to PENDING
     if (hasDocuments && human.statusName !== 'PENDING' && currentStatus === 'not_started') {
+      const db = createDb()
       await db
         .update(schema.humans)
         .set({ statusName: 'PENDING' })

@@ -2,7 +2,6 @@ import { eq } from 'drizzle-orm'
 import type { User, Role, Human, Employee, Location, UserRole } from '../schema/types'
 import { schema } from '../schema/schema'
 import { createDb, notDeleted, withNotDeleted, type SiteDb } from './utils'
-import { db } from '../db'
 
 export interface UserWithRoles extends User {
   user: User

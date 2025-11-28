@@ -1,4 +1,4 @@
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { sql } from 'drizzle-orm'
 /**
@@ -7,18 +7,12 @@ import { sql } from 'drizzle-orm'
  */
 export async function GET() {
   try {
-    if (!db) {
-      throw new Error('Database is not initialized')
-    }
+    const db = createDb()
 
-    const usersTable = schema.users as unknown as {
-      deletedAt: unknown
-    }
-
-    const [{ count = 0 } = {}] = await (db as any)
+    const [{ count = 0 } = {}] = await db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
-      .from(usersTable)
-      .where(sql`${usersTable.deletedAt} IS NULL`)
+      .from(schema.users)
+      .where(sql`${schema.users.deletedAt} IS NULL`)
       .limit(1)
     const normalizedCount = Number(count) || 0
     const hasUsers = normalizedCount > 0

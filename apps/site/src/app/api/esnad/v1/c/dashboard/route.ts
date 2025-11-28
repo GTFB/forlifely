@@ -3,7 +3,7 @@
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema/schema'
 import { eq, and, desc, isNull, sql } from 'drizzle-orm'
 import { buildRequestEnv } from '@/shared/env'
@@ -50,6 +50,8 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    
+    const db = createDb()
     
     // Get active deals count
     const activeDeals = await db
@@ -112,7 +114,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
         amount: parseFloat(nextPaymentResult[0].amount || '0'),
         date: nextPaymentResult[0].date,
       } : null,
-      recentDeals: recentDeals.map(deal => ({
+      recentDeals: recentDeals.map((deal: any) => ({
         id: deal.daid,
         uuid: deal.uuid,
         title: deal.title || 'Без названия',

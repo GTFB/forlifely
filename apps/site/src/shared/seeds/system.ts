@@ -102,7 +102,7 @@ export const systemSeed = {
         {
             entity: "deal.statusName",
             name: "APPROVED",
-            title: "Закрыта",
+            title: "Одобрена",
             sort_order: 400,
         },
         {
@@ -116,6 +116,18 @@ export const systemSeed = {
             name: "ADDITIONAL_INFO_REQUESTED",
             title: "Дополнительная информация запрошена",
             sort_order: 600,
+        },
+        {
+            entity: "deal.statusName",
+            name: "COMPLETED",
+            title: "Завершена",
+            sort_order: 700,
+        },
+        {
+            entity: "deal.statusName",
+            name: "OVERDUE",
+            title: "Просрочена",
+            sort_order: 800,
         },
         // Human KYC statuses
         {

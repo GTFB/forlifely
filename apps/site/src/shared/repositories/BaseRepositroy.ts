@@ -1,9 +1,7 @@
 import { eq, } from "drizzle-orm";
-import { SiteDb, buildDbFilters, buildDbOrders } from "./utils";
-import { db, isPostgresDb } from "../db";
+import { SiteDb, buildDbFilters, buildDbOrders, createDb } from "./utils";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
-import { createDb } from "./utils";
 
 
 export default class BaseRepository<T> {
@@ -50,14 +48,9 @@ export default class BaseRepository<T> {
 
         await this.beforeCreate(data as Partial<T>);
 
-        let entity: T;
-        if (isPostgresDb) {
-            const insertedRows = await this.db.insert(this.schema).values(data).returning() as T[];
-            entity = insertedRows && insertedRows.length > 0 ? insertedRows[0] : (await this.findByUuid(data.uuid));
-        } else {
-            const result = await this.db.insert(this.schema).values(data).execute() as any;
-            entity = await this.findById(result.lastInsertRowid as unknown as number);
-        }
+        // PostgreSQL supports returning(), SQLite doesn't
+        const insertedRows = await this.db.insert(this.schema).values(data).returning() as T[];
+        const entity = insertedRows && insertedRows.length > 0 ? insertedRows[0] : (await this.findByUuid(data.uuid));
 
         await this.afterCreate(entity as T);
         return entity;

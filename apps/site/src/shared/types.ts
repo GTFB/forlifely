@@ -1,9 +1,9 @@
 import { User, Role, Human, Employee } from './schema/types'
-import { SiteDb } from './db'
+import { SiteDbPostgres } from './repositories/utils'
 
 export type Env = NodeJS.ProcessEnv & {
     AUTH_SECRET?: string
-    DB?: SiteDb
+    DB?: SiteDbPostgres
 }
 
 export interface TableInfo {

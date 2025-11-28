@@ -25,6 +25,8 @@ import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import qs from 'qs'
+import { useCallback, useEffect, useMemo } from 'react'
+import debounce from 'lodash/debounce'
 import type { 
   TaxonomyOption, 
   TaxonomyResponse,
@@ -51,7 +53,12 @@ export default function AdminDealsPage() {
   })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = React.useState('')
+  
+  // Initialize search from URL params
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+  const search = urlParams.get('search')
+  const [searchQuery, setSearchQuery] = React.useState(search || '')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   
   // Initialize filters from URL params
   const [statusFilter, setStatusFilter] = React.useState<string>(() => {
@@ -79,6 +86,39 @@ export default function AdminDealsPage() {
   const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
   const [loadingManagers, setLoadingManagers] = React.useState(false)
 
+  // Initialize search from URL on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const search = urlParams.get('search')
+      if (search) {
+        setSearchQuery(search)
+      }
+    }
+  }, [])
+
+  // Debounce search query and update URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery || '')
+      setCurrentPage(1) // Reset to first page when search changes
+      
+      const params = qs.parse(window.location.search.replace('?', '').split('#')[0])
+      if (params.search === searchQuery) {
+        return
+      }
+      if (searchQuery) {
+        params.search = searchQuery
+      } else {
+        delete params.search
+      }
+      const newUrl = `/admin/deals?${qs.stringify(params)}`
+      window.history.replaceState({}, '', newUrl)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   // Update URL when filters change
   React.useEffect(() => {
     const params = new URLSearchParams()
@@ -91,75 +131,92 @@ export default function AdminDealsPage() {
     if (currentPage > 1) {
       params.set('page', currentPage.toString())
     }
-    if (searchQuery) {
-      params.set('search', searchQuery)
+    if (debouncedSearchQuery) {
+      params.set('search', debouncedSearchQuery)
     }
 
     const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
     window.history.replaceState({}, '', newUrl)
-  }, [statusFilter, managerFilter, currentPage, searchQuery])
+  }, [statusFilter, managerFilter, currentPage, debouncedSearchQuery])
 
-  React.useEffect(() => {
-    const fetchDeals = async () => {
-      try {
-        setLoading(true)
+  // Base fetch function
+  const fetchDealsBase = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-        const params = new URLSearchParams({
-          page: currentPage.toString(),
-          limit: pagination.limit.toString(),
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: pagination.limit.toString(),
+      })
+
+      const filtersConditions: Array<{
+        field: string
+        operator: string
+        values: string[]
+      }> = []
+
+      if (statusFilter !== 'all') {
+        filtersConditions.push({
+          field: 'statusName',
+          operator: 'eq',
+          values: [statusFilter],
         })
-
-        const filtersConditions: Array<{
-          field: string
-          operator: string
-          values: string[]
-        }> = []
-
-        if (statusFilter !== 'all') {
-          filtersConditions.push({
-            field: 'statusName',
-            operator: 'eq',
-            values: [statusFilter],
-          })
-        }
-
-        if (managerFilter !== 'all') {
-          filtersConditions.push({
-            field: 'dataIn.managerUuid',
-            operator: 'eq',
-            values: [managerFilter],
-          })
-        }
-
-        if (filtersConditions.length > 0) {
-          params.append('filters', JSON.stringify({ conditions: filtersConditions }))
-        }
-
-        const response = await fetch(`/api/admin/loan-application?${params.toString()}`, {
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          const message = await response.text()
-          throw new Error(message || 'Не удалось загрузить заявки')
-        }
-
-        const data = (await response.json()) as DbPaginatedResult<LoanApplication>
-        setDeals(
-          data.docs
-        )
-        setPagination(data.pagination)
-        setError(null)
-        setLoading(false)
-      } catch (err) {
-        console.error('Deals fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load deals')
-        setLoading(false)
       }
-    }
 
+      if (managerFilter !== 'all') {
+        filtersConditions.push({
+          field: 'dataIn.managerUuid',
+          operator: 'eq',
+          values: [managerFilter],
+        })
+      }
+
+      if (filtersConditions.length > 0) {
+        params.append('filters', JSON.stringify({ conditions: filtersConditions }))
+      }
+
+      // Add search parameter if exists
+      if (debouncedSearchQuery) {
+        params.append('search', debouncedSearchQuery)
+      }
+
+      const response = await fetch(`/api/esnad/v1/admin/loan-application?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const message = await response.text()
+        throw new Error(message || 'Не удалось загрузить заявки')
+      }
+
+      const data = (await response.json()) as DbPaginatedResult<LoanApplication>
+      setDeals(data.docs)
+      setPagination(data.pagination)
+      setError(null)
+    } catch (err) {
+      console.error('Deals fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load deals')
+      setDeals([])
+    } finally {
+      setLoading(false)
+    }
+  }, [currentPage, statusFilter, managerFilter, pagination.limit, debouncedSearchQuery])
+
+  // Debounced version of fetchDeals
+  const fetchDeals = useMemo(
+    () => debounce(fetchDealsBase, 600),
+    [fetchDealsBase]
+  )
+
+  useEffect(() => {
     fetchDeals()
-  }, [currentPage, statusFilter, managerFilter, pagination.limit])
+
+    // Cleanup debounced function on unmount
+    return () => {
+      fetchDeals.cancel()
+    }
+  }, [fetchDeals])
 
   React.useEffect(() => {
     const fetchStatuses = async () => {

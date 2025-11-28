@@ -100,7 +100,7 @@ export default function DealDetailPageClient() {
           filters
         })
 
-        const response = await fetch(`/api/admin/loan-application?${query}`, {
+        const response = await fetch(`/api/esnad/v1/admin/loan-application?${query}`, {
           credentials: 'include',
           method: 'GET',
         })
@@ -486,22 +486,24 @@ export default function DealDetailPageClient() {
                         {actionError}
                       </p>
                     )}
-                    <Button
-                      onClick={handleApprove}
-                      disabled={submitting}
-                      className="bg-green-600 hover:bg-green-700">
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Обработка...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Одобрить
-                        </>
-                      )}
-                    </Button>
+                    {(deal.statusName === 'SCORING' || deal.statusName === 'ADDITIONAL_INFO_REQUESTED') && (
+                      <Button
+                        onClick={handleApprove}
+                        disabled={submitting}
+                        className="bg-green-600 hover:bg-green-700">
+                        {submitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Обработка...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Одобрить
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                     <Button
                       onClick={handleReject}

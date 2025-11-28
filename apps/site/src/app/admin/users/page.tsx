@@ -39,7 +39,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef, useMemo } from 'react'
 import {
   Popover,
   PopoverContent,
@@ -60,6 +60,14 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import { EsnadUser } from '@/shared/types/esnad'
 import { DbPaginatedResult } from '@/shared/types/shared'
+import debounce from 'lodash/debounce'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface UserWithRoles extends EsnadUser {
   roles?: Array<{
@@ -89,7 +97,9 @@ export default function AdminUsersPage() {
   const [error, setError] = React.useState<string | null>(null)
   const urlParams = new URLSearchParams(window.location.search)
   const search = urlParams.get('search')
+  const roleFilter = urlParams.get('role')
   const [searchQuery, setSearchQuery] = React.useState(search)
+  const [selectedRole, setSelectedRole] = React.useState<string>(roleFilter || '')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set())
   const [pagination, setPagination] = React.useState({
@@ -109,6 +119,32 @@ export default function AdminUsersPage() {
   const [sheetOpen, setSheetOpen] = React.useState(false)
   const [roles, setRoles] = React.useState<Role[]>([])
   const [loadingRoles, setLoadingRoles] = React.useState(false)
+  
+  // Load roles on component mount
+  React.useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        setLoadingRoles(true)
+        const response = await fetch('/api/esnad/v1/admin/roles', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch roles')
+        }
+
+        const result = await response.json() as { docs?: Role[] }
+        setRoles(result.docs || [])
+      } catch (err) {
+        console.error('Failed to fetch roles:', err)
+        setRoles([])
+      } finally {
+        setLoadingRoles(false)
+      }
+    }
+
+    fetchRoles()
+  }, [])
   const [formData, setFormData] = React.useState({
     email: '',
     password: '',
@@ -119,14 +155,14 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
 
-  // Debounce search query
+  // Debounce search query and handle role filter
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery || '')
       setPagination((prev) => ({ ...prev, page: 1 }))
       
       const params = qs.parse(window.location.search.replace('?', '').split('#')[0])
-      if(params.search === searchQuery) {
+      if(params.search === searchQuery && params.role === selectedRole) {
         return
       }
       if (searchQuery) {
@@ -134,51 +170,71 @@ export default function AdminUsersPage() {
       } else {
         delete params.search
       }
+      if (selectedRole) {
+        params.role = selectedRole
+      } else {
+        delete params.role
+      }
       const newUrl = `/admin/users?${qs.stringify(params)}`
       window.history.replaceState({}, '', newUrl)
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, selectedRole])
+
+  // Base fetch function
+  const fetchUsersBase = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        orderBy: 'createdAt',
+        orderDirection: 'desc',
+      })
+      if (debouncedSearchQuery) {
+        params.append('search', debouncedSearchQuery)
+      }
+      if (selectedRole) {
+        params.append('roles', selectedRole)
+      }
+
+      const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch users: ${response.statusText}`)
+      }
+
+      const result: DbPaginatedResult<UserWithRoles> = await response.json()
+
+      setData(result)
+    } catch (err) {
+      console.error('Users fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load users')
+      setData(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [pagination.page, pagination.limit, debouncedSearchQuery, selectedRole])
+
+  // Debounced version of fetchUsers
+  const fetchUsers = useMemo(
+    () => debounce(fetchUsersBase, 600),
+    [fetchUsersBase]
+  )
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const params = new URLSearchParams({
-          page: pagination.page.toString(),
-          limit: pagination.limit.toString(),
-          orderBy: 'createdAt',
-          orderDirection: 'desc',
-        })
-        if (debouncedSearchQuery) {
-          params.append('search', debouncedSearchQuery)
-        }
-
-        const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch users: ${response.statusText}`)
-        }
-
-        const result: DbPaginatedResult<UserWithRoles> = await response.json()
-
-        setData(result)
-      } catch (err) {
-        console.error('Users fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load users')
-        setData(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchUsers()
-  }, [pagination.page, pagination.limit, debouncedSearchQuery])
+
+    // Cleanup debounced function on unmount
+    return () => {
+      fetchUsers.cancel()
+    }
+  }, [fetchUsers])
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ''
@@ -286,25 +342,8 @@ export default function AdminUsersPage() {
       setSheetOpen(false)
 
       // Refresh users list
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        orderBy: 'createdAt',
-        orderDirection: 'desc',
-      })
+      fetchUsers()
 
-      if (debouncedSearchQuery) {
-        params.append('search', debouncedSearchQuery)
-      }
-
-      const usersResponse = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
-        credentials: 'include',
-      })
-
-      if (usersResponse.ok) {
-        const result: DbPaginatedResult<UserWithRoles> = await usersResponse.json()
-        setData(result)
-      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to create user')
     } finally {
@@ -373,6 +412,24 @@ export default function AdminUsersPage() {
                 className="pl-10 w-[300px]"
               />
             </div>
+            <Select
+              value={selectedRole}
+              onValueChange={(value) => {
+                setSelectedRole(value)
+                setPagination((prev) => ({ ...prev, page: 1 }))
+              }}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Все роли" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Все роли</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.uuid} value={role.uuid}>
+                    {role.title || role.name || role.raid || 'Роль'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetContent className="overflow-y-auto">
                 <SheetHeader>
@@ -588,6 +645,7 @@ export default function AdminUsersPage() {
                       <TableHead>Роли</TableHead>
                       <TableHead>Статус</TableHead>
                       <TableHead>Дата регистрации</TableHead>
+                      <TableHead>Дата подтверждения почты</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -633,6 +691,9 @@ export default function AdminUsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(user.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.emailVerifiedAt ? formatDate(user.emailVerifiedAt) : 'Не подтверждена'}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>

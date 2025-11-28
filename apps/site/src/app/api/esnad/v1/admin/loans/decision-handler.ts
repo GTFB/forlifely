@@ -4,6 +4,7 @@ import {
     LoanApplicationDataIn,
     LoanApplicationDecision,
     LoanApplicationStatus,
+    JournalLoanApplicationSnapshot,
 } from "@/shared/types/esnad"
 
 import type { Env } from '@/shared/types'
@@ -115,20 +116,41 @@ export const handleLoanDecision = async (
             throw new BadRequestError("Loan application not found", 404)
         }
 
-        const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
-
-        const decision: LoanApplicationDecision = {
-            securityServiceComment: payload.securityServiceComment,
+        let result: {
+            updatedDeal: LoanApplication
+            journal: JournalLoanApplicationSnapshot
         }
 
-        const result = await dealsRepository.updateLoanApplicationDeal(payload.uuid, {
-            statusName: options.statusName,
-            dataIn: {
-                ...currentDataIn,
-                managerUuid: payload.managerUuid,
-                decision,
-            },
-        })
+        // Use specific methods based on operation type
+        if (options.statusName === 'APPROVED') {
+            result = await dealsRepository.approveLoanApplication(
+                payload.uuid,
+                payload.securityServiceComment,
+                payload.managerUuid
+            )
+        } else if (options.statusName === 'CANCELLED') {
+            result = await dealsRepository.rejectLoanApplication(
+                payload.uuid,
+                payload.securityServiceComment,
+                payload.managerUuid
+            )
+        } else {
+            // Fallback to old method for other statuses
+            const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
+
+            const decision: LoanApplicationDecision = {
+                securityServiceComment: payload.securityServiceComment,
+            }
+
+            result = await dealsRepository.updateLoanApplicationDeal(payload.uuid, {
+                statusName: options.statusName,
+                dataIn: {
+                    ...currentDataIn,
+                    managerUuid: payload.managerUuid,
+                    decision,
+                },
+            })
+        }
 
         return new Response(
             JSON.stringify({

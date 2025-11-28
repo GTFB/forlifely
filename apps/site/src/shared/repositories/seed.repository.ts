@@ -1,7 +1,6 @@
 import { eq, and } from 'drizzle-orm'
 import { schema } from '../schema'
 import { createDb, stringifyJson, type SiteDb } from './utils'
-import { db } from '../db'
 
 type SeedRecord = Record<string, unknown> & { uuid: string }
 

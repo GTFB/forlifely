@@ -8,7 +8,7 @@ import type { EsnadUser } from '@/shared/types/esnad'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { sendVerificationEmail } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
-import { db } from '@/shared/db'
+import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
@@ -46,6 +46,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     let result
     if (roleUuids.length > 0) {
       // Filter users by roles using a custom query
+      const db = createDb()
       const page = pagination.page || 1
       const limit = pagination.limit || 20
       const offset = (page - 1) * limit
@@ -58,6 +59,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           email: schema.users.email,
           humanAid: schema.users.humanAid,
           isActive: schema.users.isActive,
+          emailVerifiedAt: schema.users.emailVerifiedAt,
           createdAt: schema.users.createdAt,
           updatedAt: schema.users.updatedAt,
           deletedAt: schema.users.deletedAt,
@@ -185,6 +187,8 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
       return NextResponse.json({ error: matchValidation.error }, { status: 400 })
     }
 
+    const db = createDb()
+
     // Check if user with this email already exists
     const existingUser = await db.select({ uuid: schema.users.uuid })
       .from(schema.users)
@@ -217,7 +221,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
 
       // If not super admin, check that no admin roles are being assigned
       if (!isSuperAdmin) {
-        const adminRoles = roles.filter((role) =>
+        const adminRoles = roles.filter((role: { name: string | null }) =>
           ADMIN_ROLE_NAMES.includes(role.name || '')
         )
         if (adminRoles.length > 0) {
