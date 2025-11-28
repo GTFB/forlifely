@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
   const search = urlParams.get('search')
   const roleFilter = urlParams.get('role')
   const [searchQuery, setSearchQuery] = React.useState(search)
-  const [selectedRole, setSelectedRole] = React.useState<string>(roleFilter || '')
+  const [selectedRole, setSelectedRole] = React.useState<string>(roleFilter || 'all')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set())
   const [pagination, setPagination] = React.useState({
@@ -162,7 +162,8 @@ export default function AdminUsersPage() {
       setPagination((prev) => ({ ...prev, page: 1 }))
       
       const params = qs.parse(window.location.search.replace('?', '').split('#')[0])
-      if(params.search === searchQuery && params.role === selectedRole) {
+      const currentRoleInUrl = params.role || 'all'
+      if(params.search === searchQuery && currentRoleInUrl === selectedRole) {
         return
       }
       if (searchQuery) {
@@ -170,7 +171,7 @@ export default function AdminUsersPage() {
       } else {
         delete params.search
       }
-      if (selectedRole) {
+      if (selectedRole && selectedRole !== 'all') {
         params.role = selectedRole
       } else {
         delete params.role
@@ -197,7 +198,7 @@ export default function AdminUsersPage() {
       if (debouncedSearchQuery) {
         params.append('search', debouncedSearchQuery)
       }
-      if (selectedRole) {
+      if (selectedRole && selectedRole !== 'all') {
         params.append('roles', selectedRole)
       }
 
@@ -422,7 +423,7 @@ export default function AdminUsersPage() {
                 <SelectValue placeholder="Все роли" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Все роли</SelectItem>
+                <SelectItem value="all">Все роли</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.uuid} value={role.uuid}>
                     {role.title || role.name || role.raid || 'Роль'}
