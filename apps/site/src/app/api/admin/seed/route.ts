@@ -195,8 +195,10 @@ export const onRequestOptions = async () =>
     },
   })
 
+
 export const GET = withAdminGuard(onRequestGet)
 export const POST = withAdminGuard(onRequestPost)
+export const DELETE = withAdminGuard(onRequestDelete)
 
 export async function OPTIONS() {
   return onRequestOptions()
