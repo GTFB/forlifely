@@ -2,6 +2,8 @@ import { eq, } from "drizzle-orm";
 import { SiteDb, buildDbFilters, buildDbOrders, createDb } from "./utils";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
+import { isPostgres } from "../utils/db";
+import type { D1Database } from "@cloudflare/workers-types";
 
 
 export default class BaseRepository<T> {
