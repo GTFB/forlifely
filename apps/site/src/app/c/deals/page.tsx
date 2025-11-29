@@ -44,97 +44,51 @@ export default function DealsPage() {
   const fetchDeals = React.useCallback(async () => {
     try {
       setLoading(true)
-      // TODO: Replace with actual API endpoint
-      // const params = new URLSearchParams({
-      //   page: pagination.page.toString(),
-      //   limit: pagination.limit.toString(),
-      // })
-      // if (search) params.append('search', search)
-      // if (statusFilter) params.append('status', statusFilter)
-      // const response = await fetch(`/api/c/deals?${params.toString()}`, {
-      //   credentials: 'include',
-      // })
+      setError(null)
+      
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+      })
+      if (search) params.append('search', search)
+      if (statusFilter) params.append('status', statusFilter)
+      
+      const response = await fetch(`/api/esnad/v1/c/deals?${params.toString()}`, {
+        credentials: 'include',
+      })
 
-      // Mock data
-      setTimeout(() => {
-        const mockDeals: Deal[] = [
-          {
-            id: 'deal-001',
-            uuid: 'uuid-deal-001',
-            title: 'Смартфон Samsung Galaxy S24',
-            status: 'Активна',
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 150000 },
-          },
-          {
-            id: 'deal-002',
-            uuid: 'uuid-deal-002',
-            title: 'Ноутбук ASUS VivoBook 15',
-            status: 'Активна',
-            createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 85000 },
-          },
-          {
-            id: 'deal-003',
-            uuid: 'uuid-deal-003',
-            title: 'Телевизор LG OLED 55"',
-            status: 'Активна',
-            createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 200000 },
-          },
-          {
-            id: 'deal-004',
-            uuid: 'uuid-deal-004',
-            title: 'Холодильник Bosch KGN39VI306',
-            status: 'Закрыта',
-            createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 120000 },
-          },
-          {
-            id: 'deal-005',
-            uuid: 'uuid-deal-005',
-            title: 'Стиральная машина Indesit IWSC 5105',
-            status: 'Активна',
-            createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 95000 },
-          },
-          {
-            id: 'deal-006',
-            uuid: 'uuid-deal-006',
-            title: 'Пылесос Dyson V15 Detect',
-            status: 'Закрыта',
-            createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-            dataIn: { totalAmount: 65000 },
-          },
-        ]
+      if (!response.ok) {
+        const errorData = (await response.json().catch(() => ({ error: 'Failed to load deals' }))) as { error?: string }
+        throw new Error(errorData.error || 'Failed to load deals')
+      }
 
-        // Apply filters
-        let filteredDeals = mockDeals
-        if (search) {
-          filteredDeals = filteredDeals.filter(
-            (deal) =>
-              deal.id.toLowerCase().includes(search.toLowerCase()) ||
-              deal.title.toLowerCase().includes(search.toLowerCase())
-          )
+      const data = (await response.json()) as {
+        deals: Array<{
+          id: string
+          uuid: string
+          title: string
+          status: string
+          statusName: string
+          createdAt: string
+          updatedAt: string
+          dataIn: { totalAmount?: number; type?: string } | null
+        }>
+        pagination: {
+          total: number
+          page: number
+          limit: number
+          totalPages: number
         }
-        if (statusFilter) {
-          filteredDeals = filteredDeals.filter((deal) => deal.status === statusFilter)
-        }
+      }
 
-        // Apply pagination
-        const startIndex = (pagination.page - 1) * pagination.limit
-        const endIndex = startIndex + pagination.limit
-        const paginatedDeals = filteredDeals.slice(startIndex, endIndex)
-        const totalPages = Math.ceil(filteredDeals.length / pagination.limit)
-
-        setDeals(paginatedDeals)
-        setPagination(prev => ({
-          ...prev,
-          total: filteredDeals.length,
-          totalPages,
-        }))
-        setLoading(false)
-      }, 500)
+      setDeals(data.deals)
+      setPagination({
+        page: data.pagination.page,
+        limit: data.pagination.limit,
+        total: data.pagination.total,
+        totalPages: data.pagination.totalPages,
+      })
+      setLoading(false)
     } catch (err) {
       console.error('Deals fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load deals')

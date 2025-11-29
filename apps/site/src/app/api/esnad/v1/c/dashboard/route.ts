@@ -53,67 +53,126 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     
     const db = createDb()
     
-    // Get active deals count
-    const activeDeals = await db
-      .select({ count: sql<number>`count(*)` })
+    // Get approved deals (statusName = 'APPROVED')
+    const approvedDeals = await db
+      .select()
       .from(schema.deals)
       .where(
         and(
           eq(schema.deals.clientAid, human.haid),
           isNull(schema.deals.deletedAt),
-          eq(schema.deals.statusName, 'Активна')
+          eq(schema.deals.statusName, 'APPROVED')
         )
       )
+    
+    const activeDealsCount = approvedDeals.length
 
-    // Get total debt (sum from active deals)
-    const totalDebtResult = await db
-      .select({ total: sql<number>`sum(cast(json_extract(${schema.deals.dataIn}, '$.totalAmount') as real))` })
-      .from(schema.deals)
-      .where(
-        and(
-          eq(schema.deals.clientAid, human.haid),
-          isNull(schema.deals.deletedAt),
-          eq(schema.deals.statusName, 'Активна')
-        )
-      )
+    // Get finances for approved deals to calculate next payment and total debt
+    const { FinancesRepository } = await import('@/shared/repositories/finances.repository')
+    const financesRepository = FinancesRepository.getInstance()
+    
+    let nextPayment: { amount: number; date: string } | null = null
+    let totalDebt = 0
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
 
-    // Get next payment (from active deals, find minimum payment date)
-    const nextPaymentResult = await db
-      .select({
-        amount: sql<string>`json_extract(${schema.deals.dataIn}, '$.nextPaymentAmount')`,
-        date: sql<string>`json_extract(${schema.deals.dataIn}, '$.nextPaymentDate')`,
-      })
-      .from(schema.deals)
-      .where(
-        and(
-          eq(schema.deals.clientAid, human.haid),
-          isNull(schema.deals.deletedAt),
-          eq(schema.deals.statusName, 'Активна')
-        )
-      )
-      .orderBy(sql`json_extract(${schema.deals.dataIn}, '$.nextPaymentDate')`)
-      .limit(1)
+    for (const deal of approvedDeals) {
+      // Try to get payment schedule from deal.dataIn first
+      let paymentSchedule: Array<{ date: string; amount: number; status?: string }> | null = null
+      
+      if (deal.dataIn) {
+        try {
+          const dataIn = typeof deal.dataIn === 'string' ? JSON.parse(deal.dataIn) : deal.dataIn
+          if (dataIn.paymentSchedule && Array.isArray(dataIn.paymentSchedule)) {
+            paymentSchedule = dataIn.paymentSchedule
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      
+      // If no payment schedule in dataIn, try to get from finances table
+      if (!paymentSchedule && deal.daid) {
+        try {
+          const finances = await db
+            .select()
+            .from(schema.finances)
+            .where(
+              and(
+                eq(schema.finances.fullDaid, deal.daid),
+                isNull(schema.finances.deletedAt),
+                eq(schema.finances.statusName, 'PENDING')
+              )
+            )
+            .orderBy(schema.finances.order)
+            .execute()
+          
+          if (finances.length > 0) {
+            paymentSchedule = finances.map((finance) => {
+              const dataIn = typeof finance.dataIn === 'string' ? JSON.parse(finance.dataIn) : finance.dataIn
+              return {
+                date: dataIn?.paymentDate || '',
+                amount: parseFloat(finance.sum || '0'),
+                status: finance.statusName === 'PAID' ? 'Оплачен' : 'Ожидается',
+              }
+            })
+          }
+        } catch (e) {
+          console.error('Error fetching finances:', e)
+        }
+      }
+      
+      // Process payment schedule
+      if (paymentSchedule && Array.isArray(paymentSchedule)) {
+        for (const payment of paymentSchedule) {
+          if (payment.status !== 'Оплачен' && payment.date) {
+            const paymentDate = new Date(payment.date)
+            paymentDate.setHours(0, 0, 0, 0)
+            
+            // Add to total debt
+            totalDebt += payment.amount || 0
+            
+            // Check if this is the next payment
+            if (paymentDate >= now) {
+              if (!nextPayment || paymentDate < new Date(nextPayment.date)) {
+                nextPayment = {
+                  amount: payment.amount || 0,
+                  date: payment.date,
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback: use product price as debt if no schedule
+        try {
+          const dataIn = typeof deal.dataIn === 'string' ? JSON.parse(deal.dataIn) : deal.dataIn
+          const price = parseFloat(dataIn?.productPrice || dataIn?.purchasePrice || '0')
+          totalDebt += price
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
 
-    // Get recent deals (last 5)
+    // Get last loan application (only 1)
     const recentDeals = await db
       .select()
       .from(schema.deals)
       .where(
         and(
           eq(schema.deals.clientAid, human.haid),
-          isNull(schema.deals.deletedAt)
+          isNull(schema.deals.deletedAt),
+          sql`${schema.deals.dataIn}::jsonb->>'type' = 'LOAN_APPLICATION'`
         )
       )
       .orderBy(desc(schema.deals.createdAt))
-      .limit(5)
+      .limit(1)
 
     const stats = {
-      activeDealsCount: activeDeals[0]?.count || 0,
-      totalDebt: totalDebtResult[0]?.total || 0,
-      nextPayment: nextPaymentResult[0] ? {
-        amount: parseFloat(nextPaymentResult[0].amount || '0'),
-        date: nextPaymentResult[0].date,
-      } : null,
+      activeDealsCount,
+      totalDebt,
+      nextPayment,
       recentDeals: recentDeals.map((deal: any) => ({
         id: deal.daid,
         uuid: deal.uuid,

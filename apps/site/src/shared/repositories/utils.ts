@@ -41,8 +41,24 @@ function isSiteDb(db: any): db is SiteDb {
   return db && typeof db === 'object' && 'select' in db;
 }
 
-// Global connection for reuse in serverless environment (if needed)
-let globalConnection: any;
+// Global connection for reuse in serverless environment
+// Use globalThis to ensure singleton across module reloads in Next.js
+const getGlobalConnection = (): any => {
+  // @ts-ignore
+  if (typeof globalThis !== 'undefined' && globalThis.__dbConnection) {
+    // @ts-ignore
+    return globalThis.__dbConnection;
+  }
+  return null;
+};
+
+const setGlobalConnection = (connection: any): void => {
+  // @ts-ignore
+  if (typeof globalThis !== 'undefined') {
+    // @ts-ignore
+    globalThis.__dbConnection = connection;
+  }
+};
 
 export function createDb(dbOrEnv?: any): SiteDbPostgres {
   // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
@@ -50,10 +66,8 @@ export function createDb(dbOrEnv?: any): SiteDbPostgres {
     return dbOrEnv as SiteDb;
   }
 
-    return createDbPostgres(dbOrEnv);
-
+  return createDbPostgres(dbOrEnv);
 }
-
 
 export function createDbPostgres(dbOrEnv?: any): SiteDbPostgres {
   // If we are passed a Drizzle instance, return it (though typing might be tricky if it was typed as D1)
@@ -61,13 +75,21 @@ export function createDbPostgres(dbOrEnv?: any): SiteDbPostgres {
     return dbOrEnv as SiteDbPostgres;
   }
 
-  // If we already have a connection, reuse it (optional optimization)
+  // Check if we already have a connection in globalThis (survives hot reloads)
+  let globalConnection = getGlobalConnection();
+  
   if (!globalConnection) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL environment variable is not defined");
     }
-    globalConnection = postgres(connectionString);
+    // Create connection with connection pool limits to prevent too many connections
+    globalConnection = postgres(connectionString, {
+      max: 10, // Maximum number of connections in the pool
+      idle_timeout: 20, // Close idle connections after 20 seconds
+      connect_timeout: 10, // Connection timeout
+    });
+    setGlobalConnection(globalConnection);
   }
 
   return drizzlePostgres(globalConnection, { schema }) as SiteDbPostgres;
@@ -287,6 +309,7 @@ export function getPostgresClient(db: SiteDbPostgres | NodePgDatabase<typeof sch
   }
   
   // Fallback to global connection
+  const globalConnection = getGlobalConnection();
   if (globalConnection) {
     return globalConnection;
   }

@@ -156,3 +156,5 @@ external/
 # Tests results
 **/playwright-report/**
 **/test-results/**
+
+data/site

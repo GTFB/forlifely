@@ -15,7 +15,7 @@ export class FileStorageService {
     return new FileStorageService()
   }
 
-  async uploadFile(file: Blob, filename: string, uploaderAid?: string): Promise<any> {
+  async uploadFile(file: Blob, entityUuid: string, filename: string, uploaderAid?: string): Promise<any> {
     // 1. Save physical file
     const savedFile = await this.provider.save(file, filename)
 
@@ -30,7 +30,7 @@ export class FileStorageService {
       uploaderAid: uploaderAid,
       isPublic: 0, // Private by default
       type: savedFile.mimeType.split('/')[0], // image, application, etc.
-      dataIn: {}
+      dataIn: {entityUuid}
     }
 
     const createdMedia = await this.mediaRepository.create(mediaData)

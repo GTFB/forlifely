@@ -111,8 +111,8 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
           ? (JSON.parse(journal.details) as Record<string, unknown>)
           : (journal.details as Record<string, unknown> | undefined)
 
-      // For USER_JOURNAL_LOGIN, enrich description with user info and roles
-      if (originalAction === 'USER_JOURNAL_LOGIN') {
+      // For USER_JOURNAL_LOGIN, USER_JOURNAL_LOGOUT, USER_JOURNAL_REGISTRATION, enrich description with user info and roles
+      if (originalAction === 'USER_JOURNAL_LOGIN' || originalAction === 'USER_JOURNAL_LOGOUT' || originalAction === 'USER_JOURNAL_REGISTRATION') {
         try {
           const userDetails = rawDetails?.user as
             | {

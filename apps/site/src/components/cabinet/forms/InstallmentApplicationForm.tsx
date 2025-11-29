@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Slider } from '@/components/ui/slider'
 import {
   Select,
   SelectContent,
@@ -21,6 +22,9 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Loader2, ChevronDown } from 'lucide-react'
+import { useMe } from '@/providers/MeProvider'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
+import { EsnadHuman } from '@/shared/types/esnad'
 
 interface FormData {
   // Client Primary Info
@@ -121,13 +125,117 @@ interface FormData {
   consentToProcessData: boolean
 }
 
-export function InstallmentApplicationForm() {
+/**
+ * Разбирает полное имя (ФИО) на отдельные компоненты
+ * @param fullName - Полное имя в формате "Фамилия Имя Отчество" или "Фамилия Имя"
+ * @returns Объект с полями firstName, lastName, middleName
+ */
+function parseFullName(fullName: string | undefined | null): {
+  firstName: string
+  lastName: string
+  middleName: string
+} {
+  if (!fullName || typeof fullName !== 'string') {
+    return { firstName: '', lastName: '', middleName: '' }
+  }
+
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+
+  if (parts.length === 0) {
+    return { firstName: '', lastName: '', middleName: '' }
+  }
+
+  if (parts.length === 1) {
+    return { lastName: parts[0], firstName: '', middleName: '' }
+  }
+
+  if (parts.length === 2) {
+    return { lastName: parts[0], firstName: parts[1], middleName: '' }
+  }
+
+  // 3 или более частей: Фамилия Имя Отчество
+  return {
+    lastName: parts[0],
+    firstName: parts[1],
+    middleName: parts.slice(2).join(' '),
+  }
+}
+
+// All sections available in the form
+const ALL_SECTIONS = [
+  {
+    id: 'clientPrimaryInfo',
+    title: 'Основная информация (заполняет клиент)',
+    description: 'Введите ваши основные данные',
+  },
+  {
+    id: 'productAndTerms',
+    title: 'Товар и условия рассрочки',
+    description: 'Информация о товаре и условиях рассрочки',
+  },
+  {
+    id: 'securityReview',
+    title: 'Рассмотрение (СБ)',
+    description: 'Информация для службы безопасности',
+    internalOnly: true, // Only for internal staff
+  },
+  {
+    id: 'guarantor1',
+    title: 'Поручитель 1 (П1)',
+    description: 'Информация о первом поручителе',
+    internalOnly: true, // Only for internal staff
+  },
+  {
+    id: 'guarantor2',
+    title: 'Поручитель 2 (П2)',
+    description: 'Информация о втором поручителе',
+    internalOnly: true, // Only for internal staff
+  },
+  {
+    id: 'finalDocs',
+    title: 'ДКП и другие документы',
+    description: 'Загрузите необходимые документы',
+    internalOnly: true, // Only for internal staff
+  },
+  {
+    id: 'consent',
+    title: 'Согласие',
+    description: 'Подтвердите согласие на обработку данных',
+  },
+] as const
+
+// Helper function to get correct month word form
+function getMonthWord(months: number): string {
+  const lastDigit = months % 10
+  const lastTwoDigits = months % 100
+  
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'месяцев'
+  }
+  
+  if (lastDigit === 1) {
+    return 'месяц'
+  } else if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'месяца'
+  } else {
+    return 'месяцев'
+  }
+}
+
+export function InstallmentApplicationForm({
+  human,
+}: {
+  human?: EsnadHuman
+}) {
   const router = useRouter()
+  const { user: meUser, loading: meLoading } = useMe()
   const [currentSection, setCurrentSection] = React.useState(0)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     clientPrimaryInfo: true, // Первая секция открыта по умолчанию
+    productAndTerms: true, // Секция товара и условий всегда открыта
+    consent: true, // Секция согласия всегда открыта
   })
 
   const [formData, setFormData] = React.useState<Partial<FormData>>({
@@ -135,49 +243,50 @@ export function InstallmentApplicationForm() {
   })
 
   const toggleSection = (sectionId: string) => {
+    // Don't allow closing consent and productAndTerms sections
+    if (sectionId === 'consent' || sectionId === 'productAndTerms') {
+      return
+    }
     setOpenSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }))
   }
 
-  const sections = [
-    {
-      id: 'clientPrimaryInfo',
-      title: 'Основная информация (заполняет клиент)',
-      description: 'Введите ваши основные данные',
-    },
-    {
-      id: 'productAndTerms',
-      title: 'Товар и условия рассрочки',
-      description: 'Информация о товаре и условиях рассрочки',
-    },
-    {
-      id: 'securityReview',
-      title: 'Рассмотрение (СБ)',
-      description: 'Информация для службы безопасности',
-    },
-    {
-      id: 'guarantor1',
-      title: 'Поручитель 1 (П1)',
-      description: 'Информация о первом поручителе',
-    },
-    {
-      id: 'guarantor2',
-      title: 'Поручитель 2 (П2)',
-      description: 'Информация о втором поручителе',
-    },
-    {
-      id: 'finalDocs',
-      title: 'ДКП и другие документы',
-      description: 'Загрузите необходимые документы',
-    },
-    {
-      id: 'consent',
-      title: 'Согласие',
-      description: 'Подтвердите согласие на обработку данных',
-    },
-  ]
+  // Check if user is a client (consumer)
+  const isClient = React.useMemo(() => {
+    if (!meUser || meLoading) return true // Default to client if not loaded
+    
+    const hasConsumerRole = meUser.roles.some((role) => {
+      if (!role.name) return false
+      const normalized = role.name.toLowerCase()
+      return normalized === 'consumer' || normalized === 'потребитель' || normalized === 'client'
+    })
+    
+    const isAdmin = meUser.roles.some((role) => 
+      role.name === 'Administrator' || role.name === 'admin'
+    )
+    
+    // If user has only consumer role and no admin role, they are a client
+    return hasConsumerRole && !isAdmin
+  }, [meUser, meLoading])
+
+  // Filter sections based on user role
+  const sections = React.useMemo(() => {
+    if (isClient) {
+      // For clients, show only non-internal sections
+      return ALL_SECTIONS.filter((section) => !(section as { internalOnly?: boolean }).internalOnly)
+    }
+    // For admin/staff, show all sections
+    return ALL_SECTIONS
+  }, [isClient])
+
+  // Reset currentSection if it's out of bounds after filtering
+  React.useEffect(() => {
+    if (currentSection >= sections.length) {
+      setCurrentSection(Math.max(0, sections.length - 1))
+    }
+  }, [sections.length, currentSection])
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -199,6 +308,277 @@ export function InstallmentApplicationForm() {
     calculateMonthlyPayment()
   }, [calculateMonthlyPayment])
 
+  // Auto-fill form fields from user profile (useMe)
+  React.useEffect(() => {
+    if (meLoading || !meUser) {
+      return
+    }
+
+    setFormData((prev) => {
+      const updated: Partial<FormData> = { ...prev }
+
+      // Fill email from session
+      if (meUser.email && !prev.email) {
+        updated.email = meUser.email
+      }
+
+      // Fill phone from profile if available
+      if (meUser.phone && !prev.phoneNumber) {
+        updated.phoneNumber = meUser.phone
+      }
+
+      // Parse fullName and fill firstName, lastName, middleName
+      if (meUser.name && meUser.name !== meUser.email) {
+        const nameParts = parseFullName(meUser.name)
+        if (nameParts.lastName && !prev.lastName) {
+          updated.lastName = nameParts.lastName
+        }
+        if (nameParts.firstName && !prev.firstName) {
+          updated.firstName = nameParts.firstName
+        }
+        if (nameParts.middleName && !prev.middleName) {
+          updated.middleName = nameParts.middleName
+        }
+      }
+
+      return updated
+    })
+  }, [meUser, meLoading])
+
+  // Auto-fill form fields from human profile
+  React.useEffect(() => {
+    if (!human) {
+      return
+    }
+
+    setFormData((prev) => {
+      const updated: Partial<FormData> = { ...prev }
+
+      // Parse dataIn
+      let dataIn: Record<string, any> = {}
+      if (human.dataIn) {
+        try {
+          dataIn = typeof human.dataIn === 'string' ? JSON.parse(human.dataIn) : human.dataIn
+        } catch (error) {
+          console.error('Ошибка при парсинге human.dataIn:', error)
+          dataIn = {}
+        }
+      }
+
+      // Fill ФИО from fullName
+      if (human.fullName && !prev.lastName && !prev.firstName && !prev.middleName) {
+        const nameParts = parseFullName(human.fullName)
+        if (nameParts.lastName && !prev.lastName) {
+          updated.lastName = nameParts.lastName
+        }
+        if (nameParts.firstName && !prev.firstName) {
+          updated.firstName = nameParts.firstName
+        }
+        if (nameParts.middleName && !prev.middleName) {
+          updated.middleName = nameParts.middleName
+        }
+      }
+
+      // Fill email
+      if (human.email && !prev.email) {
+        updated.email = human.email
+      }
+
+      // Fill date of birth
+      if (human.birthday && !prev.dateOfBirth) {
+        const birthdayDate = new Date(human.birthday)
+        if (!isNaN(birthdayDate.getTime())) {
+          updated.dateOfBirth = birthdayDate.toISOString().split('T')[0]
+        }
+      }
+
+      // Fill phone from dataIn
+      if (dataIn.phone && !prev.phoneNumber) {
+        updated.phoneNumber = dataIn.phone
+      }
+
+      // Fill Личные данные from dataIn
+      if (dataIn.firstName && !prev.firstName) {
+        updated.firstName = dataIn.firstName
+      }
+      if (dataIn.lastName && !prev.lastName) {
+        updated.lastName = dataIn.lastName
+      }
+      if (dataIn.middleName && !prev.middleName) {
+        updated.middleName = dataIn.middleName
+      }
+      if (dataIn.dateOfBirth && !prev.dateOfBirth) {
+        updated.dateOfBirth = dataIn.dateOfBirth
+      }
+      if (dataIn.placeOfBirth && !prev.placeOfBirth) {
+        updated.placeOfBirth = dataIn.placeOfBirth
+      }
+      if (dataIn.citizenship && !prev.citizenship) {
+        updated.citizenship = dataIn.citizenship
+      }
+      if (dataIn.maritalStatus && !prev.maritalStatus) {
+        updated.maritalStatus = dataIn.maritalStatus
+      }
+      if (dataIn.numberOfChildren && !prev.numberOfChildren) {
+        updated.numberOfChildren = String(dataIn.numberOfChildren)
+      }
+
+      // Fill Паспортные данные from dataIn
+      if (dataIn.passportSeries && !prev.passportSeries) {
+        updated.passportSeries = dataIn.passportSeries
+      }
+      if (dataIn.passportNumber && !prev.passportNumber) {
+        updated.passportNumber = dataIn.passportNumber
+      }
+      if (dataIn.passportIssueDate && !prev.passportIssueDate) {
+        updated.passportIssueDate = dataIn.passportIssueDate
+      }
+      if (dataIn.passportIssuedBy && !prev.passportIssuedBy) {
+        updated.passportIssuedBy = dataIn.passportIssuedBy
+      }
+      if (dataIn.passportDivisionCode && !prev.passportDivisionCode) {
+        updated.passportDivisionCode = dataIn.passportDivisionCode
+      }
+      if (dataIn.inn && !prev.inn) {
+        updated.inn = dataIn.inn
+      }
+      if (dataIn.snils && !prev.snils) {
+        updated.snils = dataIn.snils
+      }
+
+      // Fill Финансовая информация from dataIn
+      if (dataIn.employmentInfo_sb && !prev.employmentInfo_sb) {
+        updated.employmentInfo_sb = dataIn.employmentInfo_sb
+      }
+      if (dataIn.officialIncome_sb && !prev.officialIncome_sb) {
+        updated.officialIncome_sb = dataIn.officialIncome_sb
+      }
+      if (dataIn.additionalIncome_sb && !prev.additionalIncome_sb) {
+        updated.additionalIncome_sb = dataIn.additionalIncome_sb
+      }
+
+      // Fill Адреса from dataIn
+      if (dataIn.permanentAddress && !prev.permanentAddress) {
+        updated.permanentAddress = dataIn.permanentAddress
+      }
+      if (dataIn.registrationAddress && !prev.registrationAddress) {
+        updated.registrationAddress = dataIn.registrationAddress
+      }
+
+      return updated
+    })
+  }, [human])
+
+  // Auto-fill empty fields with test data for development (after 5 seconds delay)
+  React.useEffect(() => {
+    // Only in development mode
+    if (process.env.NODE_ENV === 'production') {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setFormData((prev) => {
+        const updated: Partial<FormData> = { ...prev }
+
+        // Only fill fields that are empty or falsy
+        if (!prev.firstName) updated.firstName = 'Иван'
+        if (!prev.lastName) updated.lastName = 'Иванов'
+        if (!prev.middleName) updated.middleName = 'Иванович'
+        if (!prev.phoneNumber) updated.phoneNumber = '+7 (999) 123-45-67'
+        if (!prev.email) updated.email = 'ivanov@example.com'
+        if (!prev.dateOfBirth) updated.dateOfBirth = '1990-01-15'
+        if (!prev.placeOfBirth) updated.placeOfBirth = 'г. Москва'
+        if (!prev.citizenship) updated.citizenship = 'РФ'
+        if (!prev.passportSeries) updated.passportSeries = '1234'
+        if (!prev.passportNumber) updated.passportNumber = '567890'
+        if (!prev.passportIssueDate) updated.passportIssueDate = '2010-05-20'
+        if (!prev.passportIssuedBy) updated.passportIssuedBy = 'УФМС России по г. Москве'
+        if (!prev.passportDivisionCode) updated.passportDivisionCode = '123-456'
+        if (!prev.inn) updated.inn = '123456789012'
+        if (!prev.snils) updated.snils = '123-456-789 12'
+        if (!prev.maritalStatus) updated.maritalStatus = 'married'
+        if (!prev.numberOfChildren) updated.numberOfChildren = '2'
+        if (!prev.productName) updated.productName = 'Смартфон Apple iPhone 15 Pro 256GB'
+        if (!prev.productPrice) updated.productPrice = '95000'
+        if (!prev.purchaseLocation) updated.purchaseLocation = 'М.Видео, г. Москва'
+        if (!prev.permanentAddress) updated.permanentAddress = 'г. Москва, ул. Ленина, д. 1, кв. 10'
+        if (!prev.registrationAddress) updated.registrationAddress = 'г. Москва, ул. Ленина, д. 1, кв. 10'
+
+        // Product and Terms
+        if (!prev.comfortableMonthlyPayment) updated.comfortableMonthlyPayment = '15000'
+        if (!prev.purchasePrice) updated.purchasePrice = '95000'
+        if (!prev.downPayment) updated.downPayment = '20000'
+        if (!prev.installmentTerm) updated.installmentTerm = '12'
+        if (!prev.partnerLocation) updated.partnerLocation = 'М.Видео, ТЦ Мега, г. Москва'
+        if (!prev.convenientPaymentDate) updated.convenientPaymentDate = '15'
+
+        // Security Review (СБ) - only if not a client
+        if (!isClient) {
+          if (!prev.fsspInfo_sb) updated.fsspInfo_sb = 'Проверка ФССП: задолженностей не обнаружено'
+          if (!prev.getcontactInfo_sb) updated.getcontactInfo_sb = 'GetContact: информация проверена, контакты подтверждены'
+          if (!prev.purchasePurpose_sb) updated.purchasePurpose_sb = 'Покупка для личного использования'
+          if (!prev.referralSource_sb) updated.referralSource_sb = 'Реклама в интернете'
+          if (!prev.employmentInfo_sb) updated.employmentInfo_sb = 'ООО "Рога и Копыта", менеджер, стаж 3 года'
+          if (!prev.additionalIncome_sb) updated.additionalIncome_sb = 'Дополнительных доходов не заявлено'
+          if (!prev.officialIncome_sb) updated.officialIncome_sb = 'Официальный доход: 50000 руб/мес'
+          if (!prev.maritalStatus_sb) updated.maritalStatus_sb = 'married'
+          if (!prev.childrenInfo_sb) updated.childrenInfo_sb = '2 ребенка: 5 лет и 8 лет'
+          if (!prev.creditHistory_sb) updated.creditHistory_sb = 'Действующих кредитов нет. Ранее был кредит в Сбербанке, закрыт досрочно'
+          if (!prev.collateralInfo_sb) updated.collateralInfo_sb = 'Не указано'
+          if (!prev.housingInfo_sb) updated.housingInfo_sb = 'Собственное жилье, ипотека'
+          if (!prev.additionalContact_sb) updated.additionalContact_sb = '+7 (999) 765-43-21'
+          if (!prev.relativesContactPermission_sb) updated.relativesContactPermission_sb = 'Готов предоставить контакт родителей'
+          if (!prev.localFeedback_sb) updated.localFeedback_sb = 'Отзыв от соседей: положительный, ответственный человек'
+          if (!prev.psychologicalAssessment_sb) updated.psychologicalAssessment_sb = 'Клиент спокоен, адекватен, коммуникабелен. Рисков не выявлено.'
+        }
+
+        // Guarantor 1 (П1)
+        if (!isClient) {
+          if (!prev.responsibleAgent_p1) updated.responsibleAgent_p1 = 'Иванов Иван Иванович'
+          if (!prev.fsspInfo_p1) updated.fsspInfo_p1 = 'Проверка ФССП: задолженностей не обнаружено'
+          if (!prev.getcontactInfo_p1) updated.getcontactInfo_p1 = 'GetContact: информация проверена'
+          if (!prev.relationship_p1) updated.relationship_p1 = 'Супруг(а)'
+          if (!prev.fullName_p1) updated.fullName_p1 = 'Иванова Мария Ивановна'
+          if (!prev.phoneNumber_p1) updated.phoneNumber_p1 = '+7 (999) 111-22-33'
+          if (!prev.address_p1) updated.address_p1 = 'г. Москва, ул. Ленина, д. 1, кв. 10'
+          if (!prev.employmentIncome_p1) updated.employmentIncome_p1 = 'ООО "Компания", бухгалтер, 40000 руб/мес'
+          if (!prev.maritalStatus_p1) updated.maritalStatus_p1 = 'married'
+          if (!prev.childrenInfo_p1) updated.childrenInfo_p1 = '2 ребенка: 5 лет и 8 лет'
+          if (!prev.additionalIncome_p1) updated.additionalIncome_p1 = 'Дополнительных доходов нет'
+          if (!prev.creditHistory_p1) updated.creditHistory_p1 = 'Действующих кредитов нет'
+          if (!prev.collateralInfo_p1) updated.collateralInfo_p1 = 'Не указано'
+          if (!prev.housingInfo_p1) updated.housingInfo_p1 = 'Собственное жилье'
+          if (!prev.isNewClient_p1) updated.isNewClient_p1 = 'Новый клиент'
+          if (!prev.psychologicalAssessment_p1) updated.psychologicalAssessment_p1 = 'Поручитель надежный, коммуникабельный'
+          if (!prev.additionalPhoneNumber_p1) updated.additionalPhoneNumber_p1 = ''
+        }
+
+        // Guarantor 2 (П2)
+        if (!isClient) {
+          if (!prev.fsspInfo_p2) updated.fsspInfo_p2 = ''
+          if (!prev.getcontactInfo_p2) updated.getcontactInfo_p2 = ''
+          if (!prev.fullName_p2) updated.fullName_p2 = ''
+          if (!prev.phoneNumber_p2) updated.phoneNumber_p2 = ''
+          if (!prev.relationship_p2) updated.relationship_p2 = ''
+          if (!prev.address_p2) updated.address_p2 = ''
+          if (!prev.employmentIncome_p2) updated.employmentIncome_p2 = ''
+          if (!prev.maritalStatus_p2) updated.maritalStatus_p2 = ''
+          if (!prev.childrenInfo_p2) updated.childrenInfo_p2 = ''
+          if (!prev.creditHistory_p2) updated.creditHistory_p2 = ''
+          if (!prev.additionalIncome_p2) updated.additionalIncome_p2 = ''
+          if (!prev.relativesContact_p2) updated.relativesContact_p2 = ''
+          if (!prev.isNewClient_p2) updated.isNewClient_p2 = ''
+          if (!prev.psychologicalAssessment_p2) updated.psychologicalAssessment_p2 = ''
+          if (!prev.additionalPhoneNumber_p2) updated.additionalPhoneNumber_p2 = ''
+        }
+
+        return updated
+      })
+    }, 5000) // 5 seconds delay
+
+    return () => clearTimeout(timer)
+  }, [isClient]) // Re-run if isClient changes
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -211,20 +591,45 @@ export function InstallmentApplicationForm() {
       setSubmitting(true)
       setError(null)
 
-      // Prepare form data
-      const submitData: any = { ...formData }
-
-      // Handle file uploads (would need to be uploaded separately in production)
-      // For now, just include file names
-      if (formData.documentPhotos) {
-        submitData.documentPhotos = formData.documentPhotos.map((f) => f.name)
+      // Validate required files for clients
+      if (isClient && (!formData.documentPhotos || formData.documentPhotos.length === 0)) {
+        setError('Необходимо загрузить фото документов')
+        setSubmitting(false)
+        return
       }
 
-      const response = await fetch('/api/c/installment-application', {
+      // Prepare FormData for multipart/form-data
+      const formDataToSend = new FormData()
+
+      // Add all form fields as strings
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'documentPhotos' || key === 'passportPhoto_p1' || key === 'passportPhoto_p2' || key === 'contractDocuments') {
+          // Skip files, they will be added separately
+          return
+        }
+        if (value !== null && value !== undefined) {
+          if (typeof value === 'boolean') {
+            formDataToSend.append(key, value ? 'true' : 'false')
+          } else if (Array.isArray(value)) {
+            // Skip arrays for now (they might be File arrays)
+            return
+          } else {
+            formDataToSend.append(key, String(value))
+          }
+        }
+      })
+
+      // Add files
+      if (formData.documentPhotos && formData.documentPhotos.length > 0) {
+        formData.documentPhotos.forEach((file) => {
+          formDataToSend.append('documentPhotos', file)
+        })
+      }
+
+      const response = await fetch('/api/esnad/v1/c/installment-application', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(submitData),
+        body: formDataToSend,
       })
 
       if (!response.ok) {
@@ -232,7 +637,8 @@ export function InstallmentApplicationForm() {
         throw new Error(data.error || 'Failed to submit application')
       }
 
-      const data = await response.json() as { applicationId?: string }
+      const data = await response.json() as { dealId?: string; dealUuid?: string }
+      // Redirect to deals list or deal detail page
       router.push(`/c/deals`)
     } catch (err) {
       console.error('Submit error:', err)
@@ -287,12 +693,16 @@ export function InstallmentApplicationForm() {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="dateOfBirth">Дата рождения *</Label>
-          <Input
-            id="dateOfBirth"
-            type="date"
-            value={formData.dateOfBirth || ''}
-            onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-            required
+          <DateTimePicker
+            mode="date"
+            value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : null}
+            onChange={(date) => {
+              const dateString = date ? date.toISOString().split('T')[0] : ''
+              handleInputChange('dateOfBirth', dateString)
+            }}
+            placeholder="Выберите дату рождения"
+            dateFormat="dd.MM.yyyy"
+            className="w-full"
           />
         </div>
         <div className="space-y-2">
@@ -326,6 +736,8 @@ export function InstallmentApplicationForm() {
             type="email"
             value={formData.email || ''}
             onChange={(e) => handleInputChange('email', e.target.value)}
+            disabled={isClient}
+            className={isClient ? "bg-muted cursor-not-allowed" : ""}
             placeholder="example@mail.ru"
           />
         </div>
@@ -401,12 +813,16 @@ export function InstallmentApplicationForm() {
 
       <div className="space-y-2">
         <Label htmlFor="passportIssueDate">Дата выдачи паспорта *</Label>
-        <Input
-          id="passportIssueDate"
-          type="date"
-          value={formData.passportIssueDate || ''}
-          onChange={(e) => handleInputChange('passportIssueDate', e.target.value)}
-          required
+        <DateTimePicker
+          mode="date"
+          value={formData.passportIssueDate ? new Date(formData.passportIssueDate) : null}
+          onChange={(date) => {
+            const dateString = date ? date.toISOString().split('T')[0] : ''
+            handleInputChange('passportIssueDate', dateString)
+          }}
+          placeholder="Выберите дату выдачи"
+          dateFormat="dd.MM.yyyy"
+          className="w-full"
         />
       </div>
 
@@ -484,6 +900,49 @@ export function InstallmentApplicationForm() {
         />
       </div>
 
+      <h3 className="text-lg font-semibold mt-6">Финансовая информация</h3>
+
+      <div className="space-y-2">
+        <Label htmlFor="employmentInfo_sb">
+          Место работы (организация), должность и стаж на текущем месте *
+        </Label>
+        <Textarea
+          id="employmentInfo_sb"
+          value={formData.employmentInfo_sb || ''}
+          onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
+          placeholder="Например: ООО 'Компания', менеджер, стаж 3 года"
+          rows={3}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="officialIncome_sb">
+          Официальное трудоустройство и сумма доходов по отдельности *
+        </Label>
+        <Textarea
+          id="officialIncome_sb"
+          value={formData.officialIncome_sb || ''}
+          onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
+          placeholder="Например: Официальный доход: 50000 руб/мес"
+          rows={3}
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="additionalIncome_sb">
+          Пенсии, выплаты и другие доп. доходы
+        </Label>
+        <Textarea
+          id="additionalIncome_sb"
+          value={formData.additionalIncome_sb || ''}
+          onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
+          placeholder="Дополнительные источники дохода (если есть)"
+          rows={3}
+        />
+      </div>
+
       <h3 className="text-lg font-semibold mt-6">Информация о товаре</h3>
 
       <div className="space-y-2">
@@ -520,24 +979,28 @@ export function InstallmentApplicationForm() {
     </div>
   )
 
-  const renderProductAndTerms = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="documentPhotos">Фото документов *</Label>
-        <Input
-          id="documentPhotos"
-          type="file"
-          multiple
-          accept="image/*,.pdf"
-          onChange={(e) => {
-            const files = Array.from(e.target.files || [])
-            handleInputChange('documentPhotos', files as File[])
-          }}
-          required
-        />
-      </div>
+  const renderProductAndTerms = () => {
+    // Check if productAndTerms section is visible and open
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="documentPhotos">
+            Фото документов *
+          </Label>
+          <Input
+            id="documentPhotos"
+            type="file"
+            multiple
+            accept="image/*,.pdf"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || [])
+              handleInputChange('documentPhotos', files as File[])
+            }}
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
+        <div className="space-y-2">
         <Label htmlFor="comfortableMonthlyPayment">Комфортный ежемесячный платеж</Label>
         <Input
           id="comfortableMonthlyPayment"
@@ -568,17 +1031,29 @@ export function InstallmentApplicationForm() {
             required
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="installmentTerm">Срок рассрочки (в мес.) *</Label>
-          <Input
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="installmentTerm">Срок рассрочки (в мес.) *</Label>
+            <span className="text-sm font-medium">
+              {(() => {
+                const termValue = Math.max(3, Math.min(24, parseInt(formData.installmentTerm || '6')))
+                return `${termValue} ${getMonthWord(termValue)}`
+              })()}
+            </span>
+          </div>
+          <Slider
             id="installmentTerm"
-            type="number"
-            min="1"
-            max="60"
-            value={formData.installmentTerm || ''}
-            onChange={(e) => handleInputChange('installmentTerm', e.target.value)}
-            required
+            min={3}
+            max={24}
+            step={1}
+            value={[Math.max(3, Math.min(24, parseInt(formData.installmentTerm || '6')))]}
+            onValueChange={(value) => handleInputChange('installmentTerm', String(value[0]))}
+            className="w-full"
           />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>3</span>
+            <span>24</span>
+          </div>
         </div>
       </div>
 
@@ -626,7 +1101,8 @@ export function InstallmentApplicationForm() {
         />
       </div>
     </div>
-  )
+    )
+  }
 
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
@@ -1180,33 +1656,49 @@ export function InstallmentApplicationForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
-        {sections.map((section, index) => (
-          <Collapsible
-            key={section.id}
-            open={openSections[section.id] || false}
-            onOpenChange={() => toggleSection(section.id)}>
-            <Card className={index === currentSection ? 'border-primary' : ''}>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <CardTitle>{section.title}</CardTitle>
-                      <CardDescription>{section.description}</CardDescription>
+        {sections.map((section, index) => {
+          const isAlwaysOpenSection = section.id === 'consent' || section.id === 'productAndTerms'
+          const isOpen = isAlwaysOpenSection ? true : (openSections[section.id] || false)
+          
+          return (
+            <Collapsible
+              key={section.id}
+              open={isOpen}
+              onOpenChange={() => toggleSection(section.id)}>
+              <Card className={index === currentSection ? 'border-primary' : ''}>
+                {isAlwaysOpenSection ? (
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <CardTitle>{section.title}</CardTitle>
+                        <CardDescription>{section.description}</CardDescription>
+                      </div>
                     </div>
-                    <ChevronDown
-                      className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                        openSections[section.id] ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <CardContent>{renderSection(section.id)}</CardContent>
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-        ))}
+                  </CardHeader>
+                ) : (
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <CardTitle>{section.title}</CardTitle>
+                          <CardDescription>{section.description}</CardDescription>
+                        </div>
+                        <ChevronDown
+                          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
+                            isOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                )}
+                <CollapsibleContent>
+                  <CardContent>{renderSection(section.id)}</CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )
+        })}
       </div>
 
       {error && (
@@ -1215,22 +1707,9 @@ export function InstallmentApplicationForm() {
         </div>
       )}
 
-      <div className="flex justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setCurrentSection(Math.max(0, currentSection - 1))}
-          disabled={currentSection === 0}>
-          Назад
-        </Button>
-        {currentSection < sections.length - 1 ? (
-          <Button
-            type="button"
-            onClick={() => setCurrentSection(Math.min(sections.length - 1, currentSection + 1))}>
-            Далее
-          </Button>
-        ) : (
-          <Button type="submit" disabled={submitting}>
+      <div className="flex justify-between justify-end">
+        
+      <Button type="submit" disabled={submitting}>
             {submitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1240,7 +1719,6 @@ export function InstallmentApplicationForm() {
               'Отправить заявку'
             )}
           </Button>
-        )}
       </div>
     </form>
   )

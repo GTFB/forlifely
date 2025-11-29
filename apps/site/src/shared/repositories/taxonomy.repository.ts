@@ -24,6 +24,10 @@ export class TaxonomyRepository extends BaseRepository<Taxonomy>{
         super(schema.taxonomy)
     }
 
+    public static getInstance(): TaxonomyRepository {
+        return new TaxonomyRepository()
+    }
+
     /**
      * получение taxonomy с фильтрацией
      */

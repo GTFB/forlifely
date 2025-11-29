@@ -11,7 +11,7 @@ export interface IStorageProvider {
 export class LocalStorageProvider implements IStorageProvider {
   private uploadDir: string
 
-  constructor(uploadDir = 'data/site') {
+  constructor(uploadDir = '../../data/site') {
     this.uploadDir = path.join(process.cwd(), uploadDir)
   }
 

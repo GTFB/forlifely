@@ -8,7 +8,7 @@ type RequestContext = Parameters<typeof handleLoanDecision>[0]
 const handlePut = (context: RequestContext) => {
     return handleLoanDecision(context, {
         statusName: "CANCELLED",
-        successMessage: "Loan application cancelled",
+        successMessage: "Заявка на кредит отменена",
         operation: "cancel",
     })
 }

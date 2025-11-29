@@ -39,6 +39,7 @@ export interface MeUser {
     uuid: string
     email: string
     name: string
+    phone?: string
     roles: Array<{
       uuid: string
       raid: string

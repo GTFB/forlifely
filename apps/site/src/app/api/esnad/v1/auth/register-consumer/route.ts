@@ -5,6 +5,7 @@ import { HumanRepository } from '@/shared/repositories/human.repository'
 import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import type { RequestContext } from '@/shared/types'
+import type { EsnadUser } from '@/shared/types/esnad'
 import { sendVerificationEmail } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { buildRequestEnv } from '@/shared/env'
@@ -70,9 +71,10 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
     const usersRepository = UsersRepository.getInstance()
     const existingUser = await usersRepository.findByEmail(email)
 
-    if (existingUser) {
+    // Check if user exists and email is verified
+    if (existingUser && existingUser.emailVerifiedAt) {
       return new Response(
-        JSON.stringify({ error: 'User with this email already exists' }),
+        JSON.stringify({ error: 'Пользователь с таким email уже существует' }),
         { status: 400, headers: jsonHeaders },
       )
     }
@@ -89,13 +91,27 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
       },
     })
 
-    const createdUser = await usersRepository.create({
-      humanAid: human.haid,
-      email,
-      passwordHash: hashedPassword,
-      salt,
-      isActive: true,
-    })
+    let createdUser: EsnadUser
+
+    // If user exists but email is not verified, update existing user
+    if (existingUser && !existingUser.emailVerifiedAt) {
+      // Update existing user with new password and data
+      createdUser = await usersRepository.update(existingUser.uuid, {
+        passwordHash: hashedPassword,
+        salt,
+        isActive: true,
+        emailVerifiedAt: null, // Reset verification status
+      })
+    } else {
+      // Create new user
+      createdUser = await usersRepository.create({
+        humanAid: human.haid,
+        email,
+        passwordHash: hashedPassword,
+        salt,
+        isActive: true,
+      })
+    }
 
     // Привязываем роль "client" к пользователю по имени
     try {
@@ -121,7 +137,7 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
       JSON.stringify({
         success: true,
         verificationRequired: true,
-        message: 'Account created. Please verify your email address before logging in.',
+        message: 'Аккаунт создан. Пожалуйста, подтвердите ваш email адрес перед входом в систему.',
       }),
       { status: 201, headers: jsonHeaders },
     )

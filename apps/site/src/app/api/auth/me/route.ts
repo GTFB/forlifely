@@ -54,11 +54,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Extract phone from human.dataIn if available
+    let phone: string | undefined
+    if (human?.dataIn) {
+      try {
+        const dataIn = typeof human.dataIn === 'string' ? JSON.parse(human.dataIn) : human.dataIn
+        phone = dataIn?.phone || undefined
+      } catch {
+        // If parsing fails, try to access as object directly
+        phone = (human.dataIn as any)?.phone || undefined
+      }
+    }
+
     const user = {
       id: String(dbUser.id),
       uuid: dbUser.uuid,
       email: dbUser.email,
       name: human?.fullName || dbUser.email,
+      phone,
       roles: roles.map((role) => ({
         uuid: role.uuid,
         raid: role.raid,

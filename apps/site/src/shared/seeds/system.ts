@@ -35,6 +35,9 @@ export const systemSeed = {
             uuid: "948c9eb8-0ab6-4dba-9bdb-8decf45abed4",
             name: "client",
             title: "Потребитель",
+            dataIn: {
+                auth_redirect_url: '/c',
+            },
             description: "External consumer who applies for installment and manages their repayments.",
             is_system: 1,
             order: 100,
@@ -43,6 +46,9 @@ export const systemSeed = {
             uuid: "e03c5ef0-bbb1-4c2c-8c04-937298048913",
             name: "investor",
             title: "Инвестор",
+            dataIn: {
+                auth_redirect_url: '/i',
+            },
             description: "External investor who provides capital for financing deals.",
             is_system: 1,
             order: 200,
@@ -51,6 +57,9 @@ export const systemSeed = {
             uuid: "3ce5a435-0792-4aa1-8ac2-b1de6fa42d60",
             name: "partner",
             title: "Партнер",
+            dataIn: {
+                auth_redirect_url: '/p',
+            },
             description: "Retail partner representative who creates applications and tracks deals.",
             is_system: 1,
             order: 300,
@@ -59,6 +68,9 @@ export const systemSeed = {
             uuid: "4a053faa-6c17-4e3a-85fc-23840cb11f0e",
             name: "admin",
             title: "Админ",
+            dataIn: {
+                auth_redirect_url: '/admin',
+            },
             description: "User with full access to all system functions and settings.",
             is_system: 1,
             order: 1000,
@@ -110,6 +122,12 @@ export const systemSeed = {
             name: "CANCELLED",
             title: "Отклонена",
             sort_order: 500,
+        },
+        {
+            entity: "deal.statusName",
+            name: "REJECTED",
+            title: "Отклонена (автоматически)",
+            sort_order: 510,
         },
         {
             entity: "deal.statusName",
@@ -186,6 +204,11 @@ export const systemSeed = {
             title: "Снимок Заявки на кредит",
             sort_order: 100,
         },
-    ]
+    ],
+
+    settings: [
+        // Scoring weights - веса для расчета скорингового балла
+        
+    ],
 } as const
 

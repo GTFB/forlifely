@@ -150,6 +150,7 @@ export default function AdminUsersPage() {
     password: '',
     confirmPassword: '',
     fullName: '',
+    emailVerified: false,
     roleUuids: [] as string[],
   })
   const [formError, setFormError] = React.useState<string | null>(null)
@@ -338,6 +339,7 @@ export default function AdminUsersPage() {
         password: '',
         confirmPassword: '',
         fullName: '',
+        emailVerified: false,
         roleUuids: [],
       })
       setSheetOpen(false)
@@ -501,6 +503,19 @@ export default function AdminUsersPage() {
                     />
                   </div>
 
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="emailVerified"
+                      checked={formData.emailVerified}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({ ...prev, emailVerified: checked === true }))
+                      }
+                    />
+                    <Label htmlFor="emailVerified" className="cursor-pointer">
+                      Email подтвержден
+                    </Label>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Роли</Label>
                     {loadingRoles ? (
@@ -557,6 +572,28 @@ export default function AdminUsersPage() {
                         </PopoverContent>
                       </Popover>
                     )}
+                    {formData.roleUuids.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {roles
+                          .filter((role) => formData.roleUuids.includes(role.uuid))
+                          .map((role) => {
+                            const roleLabel = role.title || role.name || role.raid || 'Роль'
+                            return (
+                              <Badge key={role.uuid} variant="secondary" className="text-xs">
+                                {roleLabel}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleRoleToggle(role.uuid)
+                                  }}
+                                  className="ml-2 hover:text-destructive cursor-pointer">
+                                  ×
+                                </button>
+                              </Badge>
+                            )
+                          })}
+                      </div>
+                    )}
                   </div>
 
                   {formError && (
@@ -576,6 +613,7 @@ export default function AdminUsersPage() {
                           password: '',
                           confirmPassword: '',
                           fullName: '',
+                          emailVerified: false,
                           roleUuids: [],
                         })
                         setFormError(null)

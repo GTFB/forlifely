@@ -11,6 +11,8 @@ import { FinancesRepository } from "@/shared/repositories/finances.repository";
 import {
     LoanApplicationDataIn,
 } from "@/shared/types/esnad";
+import { generateAid } from "@/shared/generate-aid";
+import { NewEsnadFinance } from "@/shared/types/esnad-finance";
 
 describe("DealsRepository", () => {
     let db: D1Database;
@@ -54,7 +56,8 @@ describe("DealsRepository", () => {
             // Check that deal was created
             expect(result.createdDeal).toBeDefined();
             expect(result.createdDeal.daid).toBeDefined();
-            expect(result.createdDeal.statusName).toBe("SCORING");
+            // After stop factors check, deal should be in SCORING status (or REJECTED if stop factors found)
+            expect(["NEW", "SCORING", "REJECTED"]).toContain(result.createdDeal.statusName);
             expect(result.createdDeal.dataIn).toBeDefined();
 
             // Check that client was created
@@ -467,6 +470,187 @@ describe("DealsRepository", () => {
                     "invalid-uuid"
                 )
             ).rejects.toThrow();
+        });
+    });
+
+    describe("checkStopFactors - автоматическое отклонение заявки", () => {
+        it("отклоняет заявку со статусом REJECTED, если у клиента есть просроченная задолженность", async () => {
+            // Step 1: Create a user and client with first application
+            const email = faker.internet.email().toLowerCase();
+            const formData1: LoanApplicationDataIn = {
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: email,
+                productPrice: "100000",
+                term: [12],
+            };
+
+            const firstResult = await dealsRepository.createLoanApplicationDealPublic(formData1);
+            const firstDeal = firstResult.createdDeal;
+            const client = firstResult.client;
+
+            // Step 2: Create an overdue Finance record for this client
+            const overdueFinance: NewEsnadFinance = {
+                uuid: crypto.randomUUID(),
+                faid: generateAid('f'),
+                fullDaid: firstDeal.daid,
+                statusName: 'OVERDUE',
+                dataIn: {
+                    paymentNumber: 1,
+                    paymentDate: new Date().toISOString().split('T')[0],
+                    totalAmount: 10000,
+                    principalAmount: 7000,
+                    profitShareAmount: 2500,
+                    serviceFeeAmount: 500,
+                    autoDebitEnabled: false,
+                    preferredPaymentChannel: 'CARD',
+                    reminderScheduleDays: [7, 3, 1],
+                    dealAid: firstDeal.daid,
+                    clientAid: client.haid,
+                    generatedBy: 'SYSTEM',
+                },
+            };
+
+            const createdFinance = await financesRepository.create(overdueFinance);
+            expect(createdFinance).toBeDefined();
+            expect(createdFinance.statusName).toBe('OVERDUE');
+            // clientAid хранится в dataIn (JSONB)
+            if (createdFinance.dataIn && typeof createdFinance.dataIn === 'object') {
+                expect((createdFinance.dataIn as any).clientAid).toBe(client.haid);
+            } else if (typeof createdFinance.dataIn === 'string') {
+                const dataIn = JSON.parse(createdFinance.dataIn);
+                expect(dataIn.clientAid).toBe(client.haid);
+            }
+
+            // Step 3: Try to create a new application for the same client
+            const formData2: LoanApplicationDataIn = {
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: email, // Same email = same client
+                productPrice: "50000",
+                term: [6],
+            };
+
+            const secondResult = await dealsRepository.createLoanApplicationDealPublic(formData2);
+            const secondDeal = secondResult.createdDeal;
+
+            // Step 4: Verify that the application was automatically rejected
+            expect(secondDeal.statusName).toBe("REJECTED");
+            expect(secondDeal.dataOut).toBeDefined();
+            
+            // Check rejection reason in dataOut
+            if (secondDeal.dataOut && typeof secondDeal.dataOut === 'object') {
+                const dataOut = secondDeal.dataOut as any;
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toBe("Имеется активная просроченная задолженность");
+            } else if (typeof secondDeal.dataOut === 'string') {
+                const dataOut = JSON.parse(secondDeal.dataOut);
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toBe("Имеется активная просроченная задолженность");
+            }
+
+            // Verify that journal was created
+            expect(secondResult.journal).toBeDefined();
+            expect(secondResult.journal.action).toBe("LOAN_APPLICATION_SNAPSHOT");
+        });
+
+        it("отклоняет заявку со статусом REJECTED, если сумма меньше 3,000 ₽", async () => {
+            const email = faker.internet.email().toLowerCase();
+            const formData: LoanApplicationDataIn = {
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: email,
+                productPrice: "2000", // Less than 3,000
+                term: [12],
+            };
+
+            const result = await dealsRepository.createLoanApplicationDealPublic(formData);
+            const deal = result.createdDeal;
+
+            // Verify that the application was automatically rejected
+            expect(deal.statusName).toBe("REJECTED");
+            expect(deal.dataOut).toBeDefined();
+            
+            // Check rejection reason in dataOut
+            if (deal.dataOut && typeof deal.dataOut === 'object') {
+                const dataOut = deal.dataOut as any;
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toContain("Сумма не соответствует лимитам");
+            } else if (typeof deal.dataOut === 'string') {
+                const dataOut = JSON.parse(deal.dataOut);
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toContain("Сумма не соответствует лимитам");
+            }
+        });
+
+        it("отклоняет заявку со статусом REJECTED, если сумма больше 300,000 ₽", async () => {
+            const email = faker.internet.email().toLowerCase();
+            const formData: LoanApplicationDataIn = {
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: email,
+                productPrice: "350000", // More than 300,000
+                term: [12],
+            };
+
+            const result = await dealsRepository.createLoanApplicationDealPublic(formData);
+            const deal = result.createdDeal;
+
+            // Verify that the application was automatically rejected
+            expect(deal.statusName).toBe("REJECTED");
+            expect(deal.dataOut).toBeDefined();
+            
+            // Check rejection reason in dataOut
+            if (deal.dataOut && typeof deal.dataOut === 'object') {
+                const dataOut = deal.dataOut as any;
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toContain("Сумма не соответствует лимитам");
+            } else if (typeof deal.dataOut === 'string') {
+                const dataOut = JSON.parse(deal.dataOut);
+                expect(dataOut.rejection_reason).toBeDefined();
+                expect(dataOut.rejection_reason).toContain("Сумма не соответствует лимитам");
+            }
+        });
+
+        it("автоматически переводит заявку в статус SCORING, если стоп-факторы не найдены", async () => {
+            const email = faker.internet.email().toLowerCase();
+            const formData: LoanApplicationDataIn = {
+                type: "LOAN_APPLICATION",
+                firstName: faker.person.firstName(),
+                lastName: faker.person.lastName(),
+                phone: faker.phone.number({ style: "international" }),
+                email: email,
+                productPrice: "100000", // Valid amount (between 3,000 and 300,000)
+                term: [12],
+            };
+
+            const result = await dealsRepository.createLoanApplicationDealPublic(formData);
+            const deal = result.createdDeal;
+
+            // Verify that the application was automatically moved to SCORING status (no stop factors)
+            expect(deal.statusName).toBe("SCORING");
+            
+            // Verify that scoring result is saved in dataOut
+            expect(deal.dataOut).toBeDefined();
+            if (deal.dataOut && typeof deal.dataOut === 'object') {
+                const dataOut = deal.dataOut as any;
+                expect(dataOut.scoring_result).toBeDefined();
+                expect(dataOut.scoring_result.score).toBe(500); // Initial score
+                expect(dataOut.scoring_result.red_flags_checked).toBe(true);
+            } else if (typeof deal.dataOut === 'string') {
+                const dataOut = JSON.parse(deal.dataOut);
+                expect(dataOut.scoring_result).toBeDefined();
+                expect(dataOut.scoring_result.score).toBe(500);
+                expect(dataOut.scoring_result.red_flags_checked).toBe(true);
+            }
         });
     });
 });

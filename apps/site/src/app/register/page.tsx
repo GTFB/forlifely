@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import { Loader2 } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
 
 export default function RegisterPage() {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -76,6 +78,11 @@ export default function RegisterPage() {
 
       setSuccess(data.message || "Регистрация завершена. Проверьте email, чтобы подтвердить адрес.")
       setCompleted(true)
+      
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        router.push('/login')
+      }, 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Произошла неизвестная ошибка")
     } finally {

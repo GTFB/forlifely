@@ -112,7 +112,63 @@ export const esnadSeed = {
         label: 'Payment reminder channels',
         description: 'Comma separated list of channels used for payment reminders (e.g. EMAIL, SMS, TELEGRAM).',
       },
-    },
+    },{
+      uuid: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      attribute: "scoring.weights",
+      value: "Scoring Weights",
+      type: "json",
+      order: 100,
+      dataIn: {
+          initialScore: 500,
+          modifiers: {
+              maritalStatus: {
+                  married: 20,
+                  divorced: -10,
+              },
+              income: {
+                  high: {
+                      threshold: 100000,
+                      value: 30,
+                  },
+                  low: {
+                      threshold: 40000,
+                      value: -20,
+                  },
+              },
+              creditHistory: {
+                  negativeKeywords: ["просрочка", "долг", "не платил"],
+                  value: -50,
+              },
+              guarantors: {
+                  guarantor1: 25,
+                  guarantor2: 15,
+              },
+          },
+      },
+  },
+  // Scoring risk thresholds - пороговые значения риска
+  {
+      uuid: "b2c3d4e5-f6a7-4901-bcde-f23456789012",
+      attribute: "scoring.thresholds",
+      value: "Scoring Risk Thresholds",
+      type: "json",
+      order: 200,
+      dataIn: {
+          low: {
+              min: 600,
+              label: "Низкий риск",
+          },
+          medium: {
+              min: 450,
+              max: 599,
+              label: "Средний риск",
+          },
+          high: {
+              max: 449,
+              label: "Высокий риск",
+          },
+      },
+  },
   ],
 } as const
 

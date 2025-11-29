@@ -13,6 +13,7 @@ import {
   MessageSquare,
   CheckSquare,
   Database,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/providers/MeProvider'
@@ -153,17 +154,21 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
   // Check if user is super admin (has Administrator role)
   const isSuperAdmin = meUser?.roles?.some((role) => role.name === 'Administrator') || false
-  console.log('isSuperAdmin', isSuperAdmin)
 
   // Build navigation groups dynamically based on user role
   const getNavigationGroups = (): NavigationGroup[] => {
     const groups: NavigationGroup[] = [...navigationGroups]
 
-    // Add seed link for super admin only
+    // Add system links for super admin only
     if (isSuperAdmin) {
       groups.push({
         title: 'Система',
         items: [
+          {
+            title: 'Настройки',
+            url: '/admin/settings',
+            icon: Settings,
+          },
           {
             title: 'Seed',
             url: '/admin/seed',

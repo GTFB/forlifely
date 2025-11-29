@@ -95,3 +95,14 @@ export function withRoleGuard<T extends RequestContext>(handler: RouteHandler<T>
 export function withAdminGuard<T extends RequestContext>(handler: RouteHandler<T>) {
   return withRoleGuard(handler, ['Administrator', 'admin'])
 }
+
+export function withSuperAdminGuard<T extends RequestContext>(handler: RouteHandler<T>) {
+  return withRoleGuard(handler, ['Administrator'])
+}
+
+export function withConsumerGuard<T extends RequestContext>(handler: RouteHandler<T>) {
+  return withRoleGuard(handler, [ 'client'])
+}
+export function withClientGuard<T extends RequestContext>(handler: RouteHandler<T>) {
+  return withRoleGuard(handler, [ 'client'])
+}

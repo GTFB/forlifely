@@ -37,7 +37,9 @@ import {
 } from '@/components/ui/accordion'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
+import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import qs from 'qs'
@@ -46,7 +48,8 @@ import {
   DbPaginatedResult,
 } from '@/shared/types/shared'
 import {
-  LoanApplication
+  LoanApplication,
+  LoanApplicationDataIn,
 } from '@/shared/types/esnad'
 
 
@@ -58,9 +61,12 @@ export default function DealDetailPageClient() {
   const [deal, setDeal] = React.useState<LoanApplication | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [documentMetadata, setDocumentMetadata] = React.useState<Record<string, { fileName: string }>>({})
   const [submitting, setSubmitting] = React.useState(false)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [requestDialogOpen, setRequestDialogOpen] = React.useState(false)
+  const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
+  const [loadingManagers, setLoadingManagers] = React.useState(false)
   const [formData, setFormData] = React.useState({
     comment: '',
     manager: '',
@@ -105,12 +111,43 @@ export default function DealDetailPageClient() {
           method: 'GET',
         })
         const data = await response.json() as DbPaginatedResult<LoanApplication>
+        const fetchedDeal = data.docs[0]
+        
         setTimeout(() => {
-          setDeal(
-            data.docs[0]
-          )
+          setDeal(fetchedDeal)
           setLoading(false)
         }, 500)
+
+        // Load document metadata if documents exist
+        if (fetchedDeal) {
+          const dataInExtended = fetchedDeal.dataIn as LoanApplicationDataIn & { documentPhotos?: string[] }
+          const documentUuids = dataInExtended.documentPhotos || []
+          
+          if (documentUuids.length > 0) {
+            try {
+              const metadataResponse = await fetch('/api/esnad/v1/admin/files/metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ uuids: documentUuids }),
+              })
+              
+              if (metadataResponse.ok) {
+                const metadataData = await metadataResponse.json() as { success: boolean; metadata: Array<{ uuid: string; fileName: string }> }
+                if (metadataData.success && metadataData.metadata) {
+                  const metadataMap: Record<string, { fileName: string }> = {}
+                  metadataData.metadata.forEach((meta) => {
+                    metadataMap[meta.uuid] = { fileName: meta.fileName }
+                  })
+                  setDocumentMetadata(metadataMap)
+                }
+              }
+            } catch (err) {
+              console.error('Ошибка при загрузке метаданных документов:', err)
+              // Не показываем ошибку пользователю, просто не загружаем метаданные
+            }
+          }
+        }
       } catch (err) {
         console.error('Deal fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load deal')
@@ -122,6 +159,34 @@ export default function DealDetailPageClient() {
       fetchDeal()
     }
   }, [dealUuid])
+
+  // Load managers on component mount
+  React.useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        setLoadingManagers(true)
+        const response = await fetch('/api/esnad/v1/admin/users/managers', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch managers')
+        }
+
+        const data = await response.json() as { docs?: Array<{ uuid: string; fullName: string | null; email: string }> }
+        if (data.docs) {
+          setManagers(data.docs)
+        }
+      } catch (err) {
+        console.error('Ошибка при загрузке менеджеров:', err)
+        // Не показываем ошибку пользователю, просто оставляем пустой список
+      } finally {
+        setLoadingManagers(false)
+      }
+    }
+
+    fetchManagers()
+  }, [])
 
   const submitLoanDecision = async (endpoint: string) => {
     if (!deal) {
@@ -256,6 +321,95 @@ export default function DealDetailPageClient() {
     }).format(date)
   }
 
+  const getPaymentStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Оплачен':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'Ожидается':
+        return <Clock className="h-4 w-4 text-yellow-600" />
+      case 'Просрочен':
+        return <XCircle className="h-4 w-4 text-red-600" />
+      default:
+        return <Clock className="h-4 w-4 text-muted-foreground" />
+    }
+  }
+
+  // Calculate payment schedule - only if deal is approved or schedule already exists
+  const paymentSchedule = React.useMemo(() => {
+    if (!deal?.dataIn) return []
+    
+    // Check if deal is approved (APPROVED status means payment schedule should exist)
+    const isApproved = deal.statusName === 'APPROVED'
+    
+    // If payment schedule exists in dataIn, use it
+    if (deal.dataIn.paymentSchedule && Array.isArray(deal.dataIn.paymentSchedule)) {
+      return deal.dataIn.paymentSchedule
+    }
+    
+    // Only calculate schedule if deal is approved (but schedule not yet created)
+    // For non-approved deals, don't show payment schedule
+    if (!isApproved) {
+      return []
+    }
+    
+    // Otherwise, calculate it from deal data (only for approved deals)
+    const productPrice = parseFloat(String(deal.dataIn.productPrice || deal.dataIn.purchasePrice || '0'))
+    const downPayment = parseFloat(String(deal.dataIn.downPayment || '0'))
+    const installmentTerm = deal.dataIn.term?.[0] || parseFloat(String(deal.dataIn.installmentTerm || '0'))
+    const monthlyPayment = parseFloat(String(deal.dataIn.monthlyPayment || '0'))
+    
+    if (productPrice <= 0 || installmentTerm <= 0) return []
+    
+    // Calculate remaining amount after down payment
+    const remainingAmount = productPrice - downPayment
+    const calculatedMonthlyPayment = monthlyPayment > 0 ? monthlyPayment : remainingAmount / installmentTerm
+    
+    // Start date: 30 days from deal creation or today
+    const startDate = new Date(deal.createdAt || new Date())
+    startDate.setDate(startDate.getDate() + 30)
+    
+    const schedule: Array<{ date: string; amount: number; status: string; number: number }> = []
+    
+    for (let i = 0; i < installmentTerm; i++) {
+      const paymentDate = new Date(startDate)
+      paymentDate.setMonth(paymentDate.getMonth() + i)
+      
+      // Last payment might be slightly different to account for rounding
+      const isLastPayment = i === installmentTerm - 1
+      const amount = isLastPayment 
+        ? remainingAmount - (calculatedMonthlyPayment * (installmentTerm - 1))
+        : calculatedMonthlyPayment
+      
+      schedule.push({
+        date: paymentDate.toISOString().split('T')[0],
+        amount: Math.round(amount * 100) / 100,
+        status: 'Ожидается',
+        number: i + 1,
+      })
+    }
+    
+    return schedule
+  }, [deal])
+
+  // Prepare chart data from payment schedule
+  const chartData = React.useMemo(() => {
+    if (!paymentSchedule || paymentSchedule.length === 0) return []
+    
+    return paymentSchedule.map((payment: any, index: number) => ({
+      month: `Месяц ${index + 1}`,
+      amount: payment.amount || 0,
+      date: payment.date || '',
+      number: index + 1,
+    }))
+  }, [paymentSchedule])
+
+  const chartConfig = {
+    amount: {
+      label: 'Сумма',
+      color: 'hsl(var(--chart-2))',
+    },
+  }
+
   if (loading) {
     return (
       <>
@@ -338,7 +492,7 @@ export default function DealDetailPageClient() {
                     <TableBody>
                       <TableRow>
                         <TableCell className="font-medium">Товар</TableCell>
-                        <TableCell>{`не указано`}</TableCell>
+                        <TableCell>{deal.dataIn.productName || 'не указано'}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-medium">Цена</TableCell>
@@ -418,25 +572,51 @@ export default function DealDetailPageClient() {
                       <AccordionTrigger>Документы</AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-2">
-                          {deal.documents?.map((doc) => (
-                            <div
-                              key={doc.id}
-                              className="flex items-center justify-between p-2 border rounded">
-                              <div>
-                                <p className="text-sm font-medium">{doc.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Загружен: {formatDate(doc.uploadedAt)}
-                                </p>
-                              </div>
-                              <a
-                                href={doc.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary hover:underline">
-                                Просмотр
-                              </a>
-                            </div>
-                          ))}
+                          {(() => {
+                            const dataInExtended = deal.dataIn as LoanApplicationDataIn & { documentPhotos?: string[] }
+                            const documentUuids = dataInExtended.documentPhotos || []
+                            
+                            if (documentUuids.length === 0) {
+                              return (
+                                <p className="text-sm text-muted-foreground">Документы не загружены</p>
+                              )
+                            }
+                            
+                            return documentUuids.map((uuid) => {
+                              const metadata = documentMetadata[uuid]
+                              const fileName = metadata?.fileName 
+                                ? `документ ${metadata.fileName}` 
+                                : `Документ ${uuid.slice(0, 8)}...`
+                              
+                              return (
+                                <div
+                                  key={uuid}
+                                  className="flex items-center justify-between p-2 border rounded">
+                                  <div>
+                                    <p className="text-sm font-medium">{fileName}</p>
+                                    {metadata && (
+                                      <p className="text-xs text-muted-foreground">
+                                        UUID: {uuid}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const url = `/api/esnad/v1/admin/files/${uuid}`
+                                      window.open(
+                                        url,
+                                        '_blank',
+                                        'menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,width=1200,height=800'
+                                      )
+                                    }}
+                                    className="text-sm text-primary hover:underline cursor-pointer">
+                                    Просмотр
+                                  </button>
+                                </div>
+                              )
+                            })
+                          })()}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
@@ -467,15 +647,20 @@ export default function DealDetailPageClient() {
                     <Label htmlFor="manager">Назначить ответственного</Label>
                     <Select
                       value={formData.manager}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, manager: value }))}>
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, manager: value }))}
+                      disabled={loadingManagers}>
                       <SelectTrigger id="manager">
-                        <SelectValue placeholder="Выберите менеджера" />
+                        <SelectValue placeholder={loadingManagers ? "Загрузка менеджеров..." : "Выберите менеджера"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ivanov">Иванов И.И.</SelectItem>
-                        <SelectItem value="petrova">Петрова М.С.</SelectItem>
-                        <SelectItem value="sidorov">Сидоров П.А.</SelectItem>
-                        <SelectItem value="kozlova">Козлова А.Д.</SelectItem>
+                        {managers.length === 0 && !loadingManagers && (
+                          <SelectItem value="" disabled>Менеджеры не найдены</SelectItem>
+                        )}
+                        {managers.map((manager) => (
+                          <SelectItem key={manager.uuid} value={manager.uuid}>
+                            {manager.fullName || manager.email}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -574,6 +759,78 @@ export default function DealDetailPageClient() {
               </Card>
             </div>
           </div>
+
+          {/* График платежей - только для одобренных сделок */}
+          {paymentSchedule && paymentSchedule.length > 0 && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>График платежей</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {chartData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[300px] w-full mb-6">
+                      <AreaChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month" 
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis 
+                          tickFormatter={(value) => `${Math.round(value / 1000)}k`}
+                        />
+                        <ChartTooltip 
+                          content={<ChartTooltipContent 
+                            formatter={(value) => formatCurrency(Number(value))}
+                            labelFormatter={(label, payload) => {
+                              const data = payload?.[0]?.payload
+                              return data?.date ? `${label} (${formatDate(data.date)})` : label
+                            }}
+                          />} 
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="amount"
+                          stroke="hsl(var(--chart-2))"
+                          fill="hsl(var(--chart-2))"
+                          fillOpacity={0.2}
+                        />
+                      </AreaChart>
+                    </ChartContainer>
+                  ) : null}
+                  
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>№</TableHead>
+                        <TableHead>Дата</TableHead>
+                        <TableHead>Сумма</TableHead>
+                        <TableHead>Статус</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentSchedule.map((payment: any, index: number) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{payment.number || index + 1}</TableCell>
+                          <TableCell>{formatDate(payment.date)}</TableCell>
+                          <TableCell className="font-medium">{formatCurrency(payment.amount || 0)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getPaymentStatusIcon(payment.status || 'Ожидается')}
+                              <span>{payment.status || 'Ожидается'}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
     </>

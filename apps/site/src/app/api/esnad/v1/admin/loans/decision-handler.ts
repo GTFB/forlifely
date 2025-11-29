@@ -50,7 +50,7 @@ const parseLoanDecisionPayload = async (request: Request): Promise<LoanDecisionP
     try {
         rawBody = await request.json()
     } catch {
-        throw new BadRequestError("Invalid JSON body")
+        throw new BadRequestError("Неверное тело JSON")
     }
 
     const body = rawBody as Partial<LoanDecisionPayload>
@@ -66,7 +66,7 @@ const parseLoanDecisionPayload = async (request: Request): Promise<LoanDecisionP
     if (!managerUuid) missingFields.push("managerUuid")
 
     if (missingFields.length) {
-        throw new BadRequestError(`Missing required fields: ${missingFields.join(", ")}`)
+        throw new BadRequestError(`Отсутствуют обязательные поля: ${missingFields.join(", ")}`)
     }
 
     return {
@@ -83,18 +83,18 @@ const normalizeLoanApplicationDataIn = (rawDataIn: LoanApplication["dataIn"]): L
         try {
             parsed = JSON.parse(rawDataIn) as LoanApplicationDataIn
         } catch {
-            throw new BadRequestError("Unable to parse loan application payload")
+            throw new BadRequestError("Не удалось распарсить данные заявки на кредит")
         }
     }
 
     if (!parsed || typeof parsed !== "object") {
-        throw new BadRequestError("Loan application payload is malformed")
+        throw new BadRequestError("Данные заявки на кредит имеют неверный формат")
     }
 
     const dataIn = parsed as LoanApplicationDataIn
 
     if (dataIn.type !== "LOAN_APPLICATION") {
-        throw new BadRequestError("Provided deal is not a loan application")
+        throw new BadRequestError("Указанная сделка не является заявкой на кредит")
     }
 
     return dataIn
@@ -113,7 +113,7 @@ export const handleLoanDecision = async (
         const existingDeal = (await dealsRepository.findByUuid(payload.uuid)) as LoanApplication | undefined
 
         if (!existingDeal) {
-            throw new BadRequestError("Loan application not found", 404)
+            throw new BadRequestError("Заявка на кредит не найдена", 404)
         }
 
         let result: {
@@ -136,20 +136,20 @@ export const handleLoanDecision = async (
             )
         } else {
             // Fallback to old method for other statuses
-            const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
+        const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
 
-            const decision: LoanApplicationDecision = {
-                securityServiceComment: payload.securityServiceComment,
-            }
+        const decision: LoanApplicationDecision = {
+            securityServiceComment: payload.securityServiceComment,
+        }
 
             result = await dealsRepository.updateLoanApplicationDeal(payload.uuid, {
-                statusName: options.statusName,
-                dataIn: {
-                    ...currentDataIn,
-                    managerUuid: payload.managerUuid,
-                    decision,
-                },
-            })
+            statusName: options.statusName,
+            dataIn: {
+                ...currentDataIn,
+                managerUuid: payload.managerUuid,
+                decision,
+            },
+        })
         }
 
         return new Response(
@@ -166,7 +166,7 @@ export const handleLoanDecision = async (
         )
     } catch (error) {
         const status = error instanceof BadRequestError ? error.status : 500
-        const message = error instanceof Error ? error.message : "Unexpected error"
+        const message = error instanceof Error ? error.message : "Неожиданная ошибка"
 
         console.error(`Failed to ${options.operation} loan application`, error)
 

@@ -40,127 +40,23 @@ export default function DealDetailPageClient() {
     const fetchDeal = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch(`/api/c/deals/${dealId}`, {
-        //   credentials: 'include',
-        // })
+        setError(null)
+        
+        const response = await fetch(`/api/esnad/v1/c/deals/${dealId}`, {
+          credentials: 'include',
+        })
 
-        // Mock data
-        setTimeout(() => {
-          const mockDeals: Record<string, DealDetail> = {
-            'deal-001': {
-              deal: {
-                id: 'deal-001',
-                uuid: 'uuid-deal-001',
-                title: 'Смартфон Samsung Galaxy S24',
-                status: 'Активна',
-                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                dataIn: {
-                  purchasePrice: 150000,
-                  downPayment: 30000,
-                  installmentTerm: 12,
-                  monthlyPayment: 12500,
-                  totalAmount: 150000,
-                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
-                    const paymentDate = new Date()
-                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
-                    return {
-                      date: paymentDate.toISOString(),
-                      amount: 12500,
-                      status: i < 2 ? 'Оплачен' : i === 2 ? 'Ожидается' : 'Ожидается',
-                    }
-                  }),
-                },
-              },
-            },
-            'deal-002': {
-              deal: {
-                id: 'deal-002',
-                uuid: 'uuid-deal-002',
-                title: 'Ноутбук ASUS VivoBook 15',
-                status: 'Активна',
-                createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-                dataIn: {
-                  purchasePrice: 85000,
-                  downPayment: 17000,
-                  installmentTerm: 10,
-                  monthlyPayment: 8500,
-                  totalAmount: 85000,
-                  paymentSchedule: Array.from({ length: 10 }, (_, i) => {
-                    const paymentDate = new Date()
-                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
-                    return {
-                      date: paymentDate.toISOString(),
-                      amount: 8500,
-                      status: i < 1 ? 'Оплачен' : i === 1 ? 'Ожидается' : 'Ожидается',
-                    }
-                  }),
-                },
-              },
-            },
-            'deal-003': {
-              deal: {
-                id: 'deal-003',
-                uuid: 'uuid-deal-003',
-                title: 'Телевизор LG OLED 55"',
-                status: 'Активна',
-                createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-                dataIn: {
-                  purchasePrice: 200000,
-                  downPayment: 40000,
-                  installmentTerm: 12,
-                  monthlyPayment: 16667,
-                  totalAmount: 200000,
-                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
-                    const paymentDate = new Date()
-                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
-                    return {
-                      date: paymentDate.toISOString(),
-                      amount: 16667,
-                      status: i < 1 ? 'Оплачен' : i === 1 ? 'Ожидается' : 'Ожидается',
-                    }
-                  }),
-                },
-              },
-            },
-            'deal-005': {
-              deal: {
-                id: 'deal-005',
-                uuid: 'uuid-deal-005',
-                title: 'Стиральная машина Indesit IWSC 5105',
-                status: 'Активна',
-                createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-                dataIn: {
-                  purchasePrice: 95000,
-                  downPayment: 19000,
-                  installmentTerm: 12,
-                  monthlyPayment: 7917,
-                  totalAmount: 95000,
-                  paymentSchedule: Array.from({ length: 12 }, (_, i) => {
-                    const paymentDate = new Date()
-                    paymentDate.setMonth(paymentDate.getMonth() + i + 1)
-                    return {
-                      date: paymentDate.toISOString(),
-                      amount: 7917,
-                      status: i < 2 ? 'Оплачен' : i === 2 ? 'Ожидается' : 'Ожидается',
-                    }
-                  }),
-                },
-              },
-            },
-          }
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({ error: 'Failed to load deal' }))) as { error?: string }
+          throw new Error(errorData.error || 'Сделка не найдена')
+        }
 
-          const dealData = mockDeals[dealId]
-          if (dealData) {
-            setDealData(dealData)
-          } else {
-            setError('Сделка не найдена')
-          }
-          setLoading(false)
-        }, 500)
+        const data = (await response.json()) as DealDetail
+        setDealData(data)
+        setLoading(false)
       } catch (err) {
         console.error('Deal fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load deal')
+        setError(err instanceof Error ? err.message : 'Сделка не найдена')
         setLoading(false)
       }
     }
@@ -201,16 +97,76 @@ export default function DealDetailPageClient() {
     }
   }
 
+  // Calculate payment schedule - only if deal is approved or schedule already exists
+  const paymentSchedule = React.useMemo(() => {
+    if (!dealData?.deal?.dataIn) return []
+    
+    // Check if deal is approved (APPROVED status means payment schedule should exist)
+    const isApproved = dealData.deal.status === 'APPROVED' || 
+                      dealData.deal.status === 'approved' || 
+                      dealData.deal.status === 'Активна'
+    
+    // If payment schedule exists in dataIn, use it
+    if (dealData.deal.dataIn.paymentSchedule && Array.isArray(dealData.deal.dataIn.paymentSchedule)) {
+      return dealData.deal.dataIn.paymentSchedule
+    }
+    
+    // Only calculate schedule if deal is approved (but schedule not yet created)
+    // For non-approved deals, don't show payment schedule
+    if (!isApproved) {
+      return []
+    }
+    
+    // Otherwise, calculate it from deal data (only for approved deals)
+    const productPrice = parseFloat(dealData.deal.dataIn.productPrice || dealData.deal.dataIn.purchasePrice || '0')
+    const downPayment = parseFloat(dealData.deal.dataIn.downPayment || '0')
+    const installmentTerm = dealData.deal.dataIn.term?.[0] || parseFloat(dealData.deal.dataIn.installmentTerm || '0')
+    const monthlyPayment = parseFloat(dealData.deal.dataIn.monthlyPayment || '0')
+    
+    if (productPrice <= 0 || installmentTerm <= 0) return []
+    
+    // Calculate remaining amount after down payment
+    const remainingAmount = productPrice - downPayment
+    const calculatedMonthlyPayment = monthlyPayment > 0 ? monthlyPayment : remainingAmount / installmentTerm
+    
+    // Start date: 30 days from deal creation or today
+    const startDate = new Date(dealData.deal.createdAt || new Date())
+    startDate.setDate(startDate.getDate() + 30)
+    
+    const schedule: Array<{ date: string; amount: number; status: string; number: number }> = []
+    
+    for (let i = 0; i < installmentTerm; i++) {
+      const paymentDate = new Date(startDate)
+      paymentDate.setMonth(paymentDate.getMonth() + i)
+      
+      // Last payment might be slightly different to account for rounding
+      const isLastPayment = i === installmentTerm - 1
+      const amount = isLastPayment 
+        ? remainingAmount - (calculatedMonthlyPayment * (installmentTerm - 1))
+        : calculatedMonthlyPayment
+      
+      schedule.push({
+        date: paymentDate.toISOString().split('T')[0],
+        amount: Math.round(amount * 100) / 100,
+        status: 'Ожидается',
+        number: i + 1,
+      })
+    }
+    
+    return schedule
+  }, [dealData])
+
   // Prepare chart data from payment schedule
   const chartData = React.useMemo(() => {
-    if (!dealData?.deal.dataIn?.paymentSchedule) return []
+    if (!paymentSchedule || paymentSchedule.length === 0) return []
     
-    return dealData.deal.dataIn.paymentSchedule.map((payment: any, index: number) => ({
-      month: `Платеж ${index + 1}`,
+    return paymentSchedule.map((payment: any, index: number) => ({
+      month: `Месяц ${index + 1}`,
       amount: payment.amount || 0,
       date: payment.date || '',
+      number: index + 1,
     }))
-  }, [dealData])
+  }, [paymentSchedule])
 
   const chartConfig = {
     amount: {
@@ -299,30 +255,48 @@ export default function DealDetailPageClient() {
           </CardContent>
         </Card>
 
-        {chartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>График платежей</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>График платежей</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartData.length > 0 ? (
               <ChartContainer config={chartConfig} className="h-[300px] w-full">
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => `${Math.round(value / 1000)}k`}
+                  />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      labelFormatter={(label, payload) => {
+                        const data = payload?.[0]?.payload
+                        return data?.date ? `${label} (${formatDate(data.date)})` : label
+                      }}
+                    />} 
+                  />
                   <Area
                     type="monotone"
                     dataKey="amount"
-                    stroke="var(--color-amount)"
-                    fill="var(--color-amount)"
+                    stroke="hsl(var(--chart-2))"
+                    fill="hsl(var(--chart-2))"
                     fillOpacity={0.2}
                   />
                 </AreaChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <p className="text-sm text-muted-foreground">Недостаточно данных для построения графика</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -330,20 +304,22 @@ export default function DealDetailPageClient() {
           <CardTitle>График платежей</CardTitle>
         </CardHeader>
         <CardContent>
-          {deal.dataIn?.paymentSchedule && deal.dataIn.paymentSchedule.length > 0 ? (
+          {paymentSchedule && paymentSchedule.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>№</TableHead>
                   <TableHead>Дата</TableHead>
                   <TableHead>Сумма</TableHead>
                   <TableHead>Статус</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deal.dataIn.paymentSchedule.map((payment: any, index: number) => (
+                {paymentSchedule.map((payment: any, index: number) => (
                   <TableRow key={index}>
+                    <TableCell className="font-medium">{payment.number || index + 1}</TableCell>
                     <TableCell>{formatDate(payment.date)}</TableCell>
-                    <TableCell>{formatCurrency(payment.amount || 0)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(payment.amount || 0)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getPaymentStatusIcon(payment.status || 'Ожидается')}

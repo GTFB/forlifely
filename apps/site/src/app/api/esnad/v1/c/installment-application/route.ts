@@ -1,9 +1,11 @@
-/// <reference types="@cloudflare/workers-types" />
-
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { buildRequestEnv } from '@/shared/env'
+import { DealsRepository } from '@/shared/repositories/deals.repository'
+import { HumanRepository } from '@/shared/repositories/human.repository'
+import { LoanApplicationDataIn } from '@/shared/types/esnad'
+import { withClientGuard } from '@/shared/api-guard'
+import { FileStorageService } from '@/shared/services/file-storage.service'
 
 /**
  * POST /api/c/installment-application
@@ -13,7 +15,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   const { request, env } = context
 
   if (!env.AUTH_SECRET) {
-    return new Response(JSON.stringify({ error: 'Authentication not configured' }), {
+    return new Response(JSON.stringify({ error: 'Аутентификация не настроена' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
@@ -22,14 +24,54 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
   const sessionUser = await getSession(request, env.AUTH_SECRET)
 
   if (!sessionUser) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+    return new Response(JSON.stringify({ error: 'Не авторизован' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
     })
   }
 
   try {
-    const body = await request.json() as any
+    // Parse FormData
+    const formData = await request.formData()
+    const body: Record<string, any> = {}
+    
+    // Extract text fields from FormData
+    for (const [key, value] of formData.entries()) {
+      if (key === 'documentPhotos') {
+        // Skip files, handle separately
+        continue
+      }
+      const fileValue = value as File | string
+      if (fileValue instanceof File) {
+        // Skip file fields, handle separately
+        continue
+      }
+      body[key] = fileValue
+    }
+
+    // Extract files
+    const documentPhotos = formData.getAll('documentPhotos').filter((item): item is File => item instanceof File)
+    
+    // Check if user is client (consumer)
+    const meRepository = MeRepository.getInstance()
+    const userWithRolesForCheck = await meRepository.findByIdWithRoles(Number(sessionUser.id))
+    const isClient = userWithRolesForCheck?.roles?.some((role) => {
+      if (!role.name) return false
+      const normalized = role.name.toLowerCase()
+      return (normalized === 'consumer' || normalized === 'потребитель' || normalized === 'client') &&
+        !userWithRolesForCheck.roles.some((r) => r.name === 'Administrator' || r.name === 'admin')
+    }) || false
+
+    // Validate required files for clients
+    if (isClient && documentPhotos.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Необходимо загрузить фото документов' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
     
     // Validate required fields
     const requiredFields = [
@@ -45,7 +87,7 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     for (const field of requiredFields) {
       if (!body[field]) {
         return new Response(
-          JSON.stringify({ error: `Missing required field: ${field}` }),
+          JSON.stringify({ error: `Отсутствует обязательное поле: ${field}` }),
           {
             status: 400,
             headers: { 'Content-Type': 'application/json' },
@@ -54,26 +96,154 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
     }
 
-    const meRepository = MeRepository.getInstance()
     const userWithRoles = await meRepository.findByIdWithRoles(Number(sessionUser.id))
 
-    if (!userWithRoles) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
+    if (!userWithRoles || !userWithRoles.human) {
+      return new Response(JSON.stringify({ error: 'Пользователь не найден' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       })
     }
 
-    // TODO: Save application to database
-    // TODO: Process files (documentPhotos)
-    // TODO: Calculate monthly payment
-    // TODO: Send notifications
+    const humanRepository = HumanRepository.getInstance()
+    const dealsRepository = DealsRepository.getInstance()
+
+    // Get current user's human
+    const currentHuman = userWithRoles.human
+
+    // Prepare data for Human update (Личные данные, Паспортные данные, Документы, Адреса)
+    const fullName = [
+      body.lastName,
+      body.firstName,
+      body.middleName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || currentHuman.fullName
+
+    // Get current dataIn and merge with new data
+    const currentDataIn = typeof currentHuman.dataIn === 'string'
+      ? (JSON.parse(currentHuman.dataIn) as Record<string, unknown>)
+      : (currentHuman.dataIn as Record<string, unknown>) || {}
+
+    const updatedDataIn: Record<string, unknown> = {
+      ...currentDataIn,
+      phone: body.phoneNumber || currentDataIn.phone,
+      // Личные данные
+      ...(body.firstName && { firstName: body.firstName }),
+      ...(body.lastName && { lastName: body.lastName }),
+      ...(body.middleName && { middleName: body.middleName }),
+      ...(body.dateOfBirth && { dateOfBirth: body.dateOfBirth }),
+      ...(body.placeOfBirth && { placeOfBirth: body.placeOfBirth }),
+      ...(body.citizenship && { citizenship: body.citizenship }),
+      ...(body.maritalStatus && { maritalStatus: body.maritalStatus }),
+      ...(body.numberOfChildren && { numberOfChildren: body.numberOfChildren }),
+      // Паспортные данные
+      ...(body.passportSeries && { passportSeries: body.passportSeries }),
+      ...(body.passportNumber && { passportNumber: body.passportNumber }),
+      ...(body.passportIssueDate && { passportIssueDate: body.passportIssueDate }),
+      ...(body.passportIssuedBy && { passportIssuedBy: body.passportIssuedBy }),
+      ...(body.passportDivisionCode && { passportDivisionCode: body.passportDivisionCode }),
+      ...(body.inn && { inn: body.inn }),
+      ...(body.snils && { snils: body.snils }),
+      // Адреса
+      ...(body.permanentAddress && { permanentAddress: body.permanentAddress }),
+      ...(body.registrationAddress && { registrationAddress: body.registrationAddress }),
+      // Финансовая информация
+      ...(body.employmentInfo_sb && { employmentInfo_sb: body.employmentInfo_sb.trim() }),
+      ...(body.officialIncome_sb && { officialIncome_sb: body.officialIncome_sb.trim() }),
+      ...(body.additionalIncome_sb && { additionalIncome_sb: body.additionalIncome_sb.trim() }),
+    }
+
+    // Update Human with personal data
+    const humanUpdateData: Partial<any> = {
+      fullName: fullName || currentHuman.fullName,
+      birthday: body.dateOfBirth || currentHuman.birthday,
+      dataIn: updatedDataIn,
+    }
+
+    // Update existing human
+    const updatedHuman = await humanRepository.update(currentHuman.uuid, humanUpdateData) as any
+
+    // Prepare data for Deal creation
+    const installmentTerm = parseInt(body.installmentTerm || '0', 10)
+    if (isNaN(installmentTerm) || installmentTerm <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'Неверный срок рассрочки' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    // Prepare loan application data with all form fields
+    const loanApplicationData: LoanApplicationDataIn = {
+      type: 'LOAN_APPLICATION',
+      firstName: body.firstName.trim(),
+      lastName: body.lastName.trim(),
+      phone: body.phoneNumber.trim(),
+      email: (userWithRoles.human.email || '').trim().toLowerCase(),
+      productPrice: body.purchasePrice.trim(),
+      term: [installmentTerm],
+      // Include all additional form data
+      middleName: body.middleName,
+      productName: body.productName,
+      purchaseLocation: body.purchaseLocation,
+      downPayment: body.downPayment,
+      comfortableMonthlyPayment: body.comfortableMonthlyPayment,
+      monthlyPayment: body.monthlyPayment,
+      partnerLocation: body.partnerLocation,
+      convenientPaymentDate: body.convenientPaymentDate,
+      // Financial information (Security Review - СБ)
+      ...(body.officialIncome_sb && { officialIncome_sb: body.officialIncome_sb.trim() }),
+      ...(body.additionalIncome_sb && { additionalIncome_sb: body.additionalIncome_sb.trim() }),
+      ...(body.employmentInfo_sb && { employmentInfo_sb: body.employmentInfo_sb.trim() }),
+    }
+
+    // Create deal using existing repository method
+    const result = await dealsRepository.createLoanApplicationDealPublic(loanApplicationData)
+
+    // Update deal's clientAid to use current user's human if different
+    if (updatedHuman.haid !== result.createdDeal.clientAid) {
+      await dealsRepository.update(result.createdDeal.uuid, {
+        clientAid: updatedHuman.haid,
+      })
+    }
+
+    // Upload and attach documents if provided
+    if (documentPhotos.length > 0) {
+      const fileStorageService = FileStorageService.getInstance()
+      const uploadedFiles: string[] = []
+
+      for (const file of documentPhotos) {
+        try {
+          const media = await fileStorageService.uploadFile(
+            file,
+            result.createdDeal.uuid,
+            file.name,
+            updatedHuman.haid
+          )
+          uploadedFiles.push(media.uuid)
+        } catch (error) {
+          console.error('Ошибка при загрузке файла:', error)
+          // Continue with other files even if one fails
+        }
+      }
+
+      // Attach documents to deal
+      if (uploadedFiles.length > 0) {
+        await dealsRepository.attachDocumentsToDeal(result.createdDeal.uuid, uploadedFiles)
+      }
+    }
     
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Installment application submitted successfully',
-        applicationId: `APP-${Date.now()}`,
+        message: 'Заявка на рассрочку успешно подана',
+        dealId: result.createdDeal.daid,
+        dealUuid: result.createdDeal.uuid,
+        status: result.createdDeal.statusName,
       }),
       {
         status: 201,
@@ -81,9 +251,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
     )
   } catch (error) {
-    console.error('Submit application error:', error)
+    console.error('Ошибка при подаче заявки:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Не удалось подать заявку'
     return new Response(
-      JSON.stringify({ error: 'Failed to submit application', details: String(error) }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -103,10 +274,7 @@ export const onRequestOptions = async () =>
     },
   })
 
-export async function POST(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestPost({ request, env })
-}
+export const POST = withClientGuard(onRequestPost)  
 
 export async function OPTIONS() {
   return onRequestOptions()

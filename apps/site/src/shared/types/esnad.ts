@@ -131,6 +131,20 @@ export interface LoanApplicationDataIn {
     term: number[]
     decision?: LoanApplicationDecision
     additionalInfoRequest?: AdditionalInfoRequest
+    // Additional optional fields
+    middleName?: string
+    productName?: string
+    purchaseLocation?: string
+    downPayment?: string
+    comfortableMonthlyPayment?: string
+    monthlyPayment?: string
+    partnerLocation?: string
+    convenientPaymentDate?: string
+    // Financial information (Security Review - СБ)
+    officialIncome_sb?: string
+    additionalIncome_sb?: string
+    employmentInfo_sb?: string
+    [key: string]: any // Allow additional fields for flexibility
 }
 
 export interface AdditionalInfoRequest {
@@ -171,6 +185,7 @@ export type LoanApplicationStatus =
     | 'SCORING'
     | 'APPROVED'
     | 'CANCELLED'
+    | 'REJECTED'
     | 'ACTIVE'
     | 'ADDITIONAL_INFO_REQUESTED'
 

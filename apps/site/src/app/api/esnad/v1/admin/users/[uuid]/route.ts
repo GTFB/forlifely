@@ -1,0 +1,251 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { UsersRepository } from '@/shared/repositories/users.repository'
+import { MeRepository } from '@/shared/repositories/me.repository'
+import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
+import { HumanRepository } from '@/shared/repositories/human.repository'
+import { preparePassword, validatePassword } from '@/shared/password'
+import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { createDb } from '@/shared/repositories/utils'
+import { schema } from '@/shared/schema'
+import { and, eq, isNull, inArray } from 'drizzle-orm'
+
+const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
+
+interface UpdateUserRequest {
+  email?: string
+  password?: string
+  fullName?: string
+  isActive?: boolean
+  roleUuids?: string[]
+  emailVerified?: boolean
+}
+
+const handleGet = async (
+  context: AuthenticatedRequestContext,
+  uuid: string
+) => {
+  const { request } = context
+  try {
+    const meRepository = MeRepository.getInstance()
+
+    // Find user by UUID
+    const usersRepository = UsersRepository.getInstance()
+    const user = await usersRepository.findByUuid(uuid)
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Get user with roles
+    const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id))
+
+    // Get human data
+    let human = null
+    if (user.humanAid) {
+      const humanRepository = HumanRepository.getInstance()
+      human = await humanRepository.findByHaid(user.humanAid)
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        ...user,
+        roles: userWithRoles?.roles || [],
+        human: human || null,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to fetch user', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json({
+      success: false,
+      error: 'INTERNAL_SERVER_ERROR',
+      message,
+    }, { status: 500 })
+  }
+}
+
+const handlePut = async (
+  context: AuthenticatedRequestContext,
+  uuid: string
+) => {
+  const { request, user: currentUserWithRoles } = context
+  try {
+    // Check if current user is admin
+    const isAdmin = currentUserWithRoles.roles.some((role) => role.isSystem === true)
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    }
+
+    // Check if current user is super administrator
+    const isSuperAdmin = currentUserWithRoles.roles.some(
+      (role) => role.name === 'Administrator'
+    )
+
+    const body = await request.json() as UpdateUserRequest
+    const { email, password, fullName, isActive, roleUuids, emailVerified } = body
+
+    const usersRepository = UsersRepository.getInstance()
+    const existingUser = await usersRepository.findByUuid(uuid)
+
+    if (!existingUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const db = createDb()
+    const updateData: any = {}
+
+    // Update email if provided
+    if (email !== undefined) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+      }
+
+      // Check if email is already taken by another user
+      const emailUser = await db
+        .select({ uuid: schema.users.uuid })
+        .from(schema.users)
+        .where(and(
+          eq(schema.users.email, email),
+          isNull(schema.users.deletedAt)
+        ))
+        .limit(1)
+        .execute()
+
+      if (emailUser.length > 0 && emailUser[0].uuid !== uuid) {
+        return NextResponse.json({ error: 'Пользователь с таким email уже существует' }, { status: 400 })
+      }
+
+      updateData.email = email
+    }
+
+    // Update password if provided
+    if (password !== undefined && password !== '') {
+      const passwordValidation = validatePassword(password)
+      if (!passwordValidation.valid) {
+        return NextResponse.json({ error: passwordValidation.error }, { status: 400 })
+      }
+
+      const { hashedPassword, salt } = await preparePassword(password)
+      updateData.passwordHash = hashedPassword
+      updateData.salt = salt
+    }
+
+    // Update isActive if provided
+    if (isActive !== undefined) {
+      updateData.isActive = isActive
+    }
+
+    // Update emailVerifiedAt if emailVerified is provided
+    if (emailVerified !== undefined) {
+      updateData.emailVerifiedAt = emailVerified ? new Date().toISOString() : null
+    }
+
+    // Update user
+    if (Object.keys(updateData).length > 0) {
+      await usersRepository.update(uuid, updateData)
+    }
+
+    // Update human fullName if provided
+    if (fullName !== undefined && existingUser.humanAid) {
+      const humanRepository = HumanRepository.getInstance()
+      const human = await humanRepository.findByHaid(existingUser.humanAid)
+      if (human) {
+        await humanRepository.update(human.uuid, {
+          fullName: fullName.trim(),
+        })
+      }
+    }
+
+    // Update roles if provided
+    if (roleUuids !== undefined && Array.isArray(roleUuids)) {
+      // Validate roles if provided
+      if (roleUuids.length > 0) {
+        const roles = await db
+          .select({ uuid: schema.roles.uuid, name: schema.roles.name })
+          .from(schema.roles)
+          .where(and(
+            inArray(schema.roles.uuid, roleUuids),
+            isNull(schema.roles.deletedAt)
+          ))
+          .execute()
+
+        // Check if all provided roles exist
+        if (roles.length !== roleUuids.length) {
+          return NextResponse.json({ error: 'One or more roles not found' }, { status: 400 })
+        }
+
+        // If not super admin, check that no admin roles are being assigned
+        if (!isSuperAdmin) {
+          const adminRoles = roles.filter((role: { name: string | null }) =>
+            ADMIN_ROLE_NAMES.includes(role.name || '')
+          )
+          if (adminRoles.length > 0) {
+            return NextResponse.json({ error: 'You cannot assign administrator roles' }, { status: 403 })
+          }
+        }
+      }
+
+      const userRolesRepository = UserRolesRepository.getInstance()
+      // Remove all existing roles
+      await userRolesRepository.removeAllRolesFromUser(uuid)
+      // Assign new roles
+      if (roleUuids.length > 0) {
+        await userRolesRepository.assignRolesToUser(uuid, roleUuids)
+      }
+    }
+
+    // Get updated user with roles
+    const updatedUser = await usersRepository.findByUuid(uuid)
+    const meRepository = MeRepository.getInstance()
+    const userWithRoles = await meRepository.findByIdWithRoles(Number(updatedUser.id))
+
+    // Get human data
+    let human = null
+    if (updatedUser.humanAid) {
+      const humanRepository = HumanRepository.getInstance()
+      human = await humanRepository.findByHaid(updatedUser.humanAid)
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        ...updatedUser,
+        roles: userWithRoles?.roles || [],
+        human: human || null,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to update user', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json({
+      success: false,
+      error: 'INTERNAL_SERVER_ERROR',
+      message,
+    }, { status: 500 })
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ uuid: string }> }
+) {
+  const params = await context.params
+  return withAdminGuard(async (ctx: AuthenticatedRequestContext) => {
+    return handleGet(ctx, params.uuid)
+  })(request, { params: Promise.resolve(params) })
+}
+
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ uuid: string }> }
+) {
+  const params = await context.params
+  return withAdminGuard(async (ctx: AuthenticatedRequestContext) => {
+    return handlePut(ctx, params.uuid)
+  })(request, { params: Promise.resolve(params) })
+}
+

@@ -14,67 +14,147 @@ export default function ConsumerDashboardPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date)
+  }
+
   React.useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/c/dashboard', {
-        //   credentials: 'include',
-        // })
+        
+        // Fetch all deals to calculate stats
+        const dealsResponse = await fetch('/api/esnad/v1/c/deals?limit=100&page=1', {
+          credentials: 'include',
+        })
 
-        // Mock data
-        setTimeout(() => {
-          // Calculate next payment date (5 days from now)
-          const nextPaymentDate = new Date()
-          nextPaymentDate.setDate(nextPaymentDate.getDate() + 5)
+        if (!dealsResponse.ok) {
+          const errorData = (await dealsResponse.json().catch(() => ({ error: 'Failed to load deals' }))) as { error?: string }
+          throw new Error(errorData.error || 'Failed to load deals')
+        }
 
-          const mockRecentDeals = [
-            {
-              id: 'deal-001',
-              uuid: 'uuid-deal-001',
-              title: 'Смартфон Samsung Galaxy S24',
-              status: 'Активна',
-              createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              dataIn: { totalAmount: 150000 },
-            },
-            {
-              id: 'deal-002',
-              uuid: 'uuid-deal-002',
-              title: 'Ноутбук ASUS VivoBook 15',
-              status: 'Активна',
-              createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-              dataIn: { totalAmount: 85000 },
-            },
-            {
-              id: 'deal-003',
-              uuid: 'uuid-deal-003',
-              title: 'Телевизор LG OLED 55"',
-              status: 'Активна',
-              createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-              dataIn: { totalAmount: 200000 },
-            },
-            {
-              id: 'deal-005',
-              uuid: 'uuid-deal-005',
-              title: 'Стиральная машина Indesit IWSC 5105',
-              status: 'Активна',
-              createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-              dataIn: { totalAmount: 95000 },
-            },
-          ]
+        const dealsData = (await dealsResponse.json()) as {
+          deals: Array<{
+            id: string
+            uuid: string
+            title: string
+            status: string
+            statusName?: string
+            createdAt: string
+            updatedAt: string
+            dataIn: { 
+              totalAmount?: number
+              productPrice?: number
+              purchasePrice?: number
+              paymentSchedule?: Array<{ date: string; amount: number; status?: string }>
+              type?: string 
+            } | null
+          }>
+          pagination: {
+            total: number
+            page: number
+            limit: number
+            totalPages: number
+          }
+        }
 
-          setStats({
-            nextPayment: {
-              amount: 12500,
-              date: nextPaymentDate.toISOString(),
-            },
-            totalDebt: 530000,
-            activeDealsCount: 4,
-            recentDeals: mockRecentDeals,
+        // Calculate stats from deals
+        const approvedDeals = dealsData.deals.filter(
+          (deal) => deal.statusName === 'APPROVED' || deal.status === 'APPROVED' || deal.status === 'Активна'
+        )
+
+        // Find next payment (earliest upcoming unpaid payment)
+        // Try to get from dashboard API endpoint first, which has access to finances table
+        let nextPayment: { amount: number; date: string } | null = null
+        
+        try {
+          const dashboardResponse = await fetch('/api/esnad/v1/c/dashboard', {
+            credentials: 'include',
           })
-          setLoading(false)
-        }, 500)
+          
+          if (dashboardResponse.ok) {
+            const dashboardData = await dashboardResponse.json() as {
+              nextPayment?: { amount: number; date: string } | null
+              totalDebt?: number
+              activeDealsCount?: number
+            }
+            
+            if (dashboardData.nextPayment) {
+              nextPayment = dashboardData.nextPayment
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch dashboard stats:', err)
+        }
+        
+        // Fallback: calculate from paymentSchedule in deals if API didn't return it
+        if (!nextPayment) {
+          const now = new Date()
+          now.setHours(0, 0, 0, 0)
+
+          for (const deal of approvedDeals) {
+            const paymentSchedule = deal.dataIn?.paymentSchedule
+            if (paymentSchedule && Array.isArray(paymentSchedule)) {
+              for (const payment of paymentSchedule) {
+                if (payment.status !== 'Оплачен' && payment.date) {
+                  const paymentDate = new Date(payment.date)
+                  paymentDate.setHours(0, 0, 0, 0)
+                  
+                  if (paymentDate >= now) {
+                    if (!nextPayment || new Date(payment.date) < new Date(nextPayment.date)) {
+                      nextPayment = {
+                        amount: payment.amount || 0,
+                        date: payment.date,
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Calculate total debt (sum of unpaid payments from approved deals)
+        let totalDebt = 0
+        for (const deal of approvedDeals) {
+          const paymentSchedule = deal.dataIn?.paymentSchedule
+          if (paymentSchedule && Array.isArray(paymentSchedule)) {
+            for (const payment of paymentSchedule) {
+              if (payment.status !== 'Оплачен') {
+                totalDebt += payment.amount || 0
+              }
+            }
+          } else {
+            // If no payment schedule, use product price as debt
+            const price = deal.dataIn?.productPrice || deal.dataIn?.purchasePrice || 0
+            totalDebt += price
+          }
+        }
+
+        // Get recent deals (last 5)
+        const recentDeals = dealsData.deals.slice(0, 5)
+
+        setStats({
+          nextPayment,
+          totalDebt,
+          activeDealsCount: approvedDeals.length,
+          recentDeals,
+        })
+        setLoading(false)
       } catch (err) {
         console.error('Dashboard fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -102,7 +182,21 @@ export default function ConsumerDashboardPage() {
                 totalDebt={stats.totalDebt}
                 activeDealsCount={stats.activeDealsCount}
               />
-              <RecentDeals deals={stats.recentDeals} />
+              <RecentDeals 
+                deals={stats.recentDeals} 
+                formatCurrency={formatCurrency}
+                formatDate={formatDate}
+                title="Последние заявки"
+                caption="Последние 5 заявок на рассрочку"
+                emptyMessage="Заявок нет"
+                columnHeaders={{
+                  id: 'ID заявки',
+                  title: 'Название товара',
+                  amount: 'Сумма',
+                  status: 'Статус',
+                  date: 'Дата',
+                }}
+              />
             </>
           )}
     </div>

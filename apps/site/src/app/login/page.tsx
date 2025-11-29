@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -287,7 +288,9 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <Logo className="h-12" />
+            <Link href="/" className="cursor-pointer">
+              <Logo className="h-12" />
+            </Link>
           </div>
           <CardTitle className="text-2xl text-center">{t.title}</CardTitle>
           <CardDescription className="text-center">

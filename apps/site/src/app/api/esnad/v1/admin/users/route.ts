@@ -21,6 +21,7 @@ interface CreateUserRequest {
   confirmPassword: string
   fullName?: string
   roleUuids?: string[]
+  emailVerified?: boolean
 }
 
 interface UserWithRoles extends EsnadUser {
@@ -162,7 +163,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     )
 
     const body = await request.json() as CreateUserRequest
-    const { email, password, confirmPassword, fullName, roleUuids } = body
+    const { email, password, confirmPassword, fullName, roleUuids, emailVerified } = body
 
     // Validate input
     if (!email || !password || !confirmPassword) {
@@ -243,13 +244,20 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
 
     // Create user using repository
     const usersRepository = UsersRepository.getInstance()
-    const createdUser = await usersRepository.create({
+    const userData: any = {
       humanAid: human.haid,
       email,
       passwordHash: hashedPassword,
       salt,
       isActive: true,
-    })
+    }
+    
+    // Set emailVerifiedAt if emailVerified is true
+    if (emailVerified === true) {
+      userData.emailVerifiedAt = new Date().toISOString()
+    }
+    
+    const createdUser = await usersRepository.create(userData)
 
     // Assign roles if provided
     if (roleUuids && Array.isArray(roleUuids) && roleUuids.length > 0) {

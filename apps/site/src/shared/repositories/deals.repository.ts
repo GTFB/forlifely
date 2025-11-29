@@ -33,6 +33,8 @@ import {
     PaymentLimitsConfig,
     IsoDate,
 } from "../types/esnad-finance";
+import { ScoringWeights } from "../types/scoring";
+import { SettingsRepository } from "./settings.repository";
 
 const ADMIN_CONTACT_MESSAGE = ' Пожалуйста, свяжитесь с администратором системы.';
 const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя ошибка при обработке решения.${ADMIN_CONTACT_MESSAGE}`;
@@ -102,6 +104,19 @@ export class DealsRepository extends BaseRepository<Deal>{
                     .map((value) => Number(value))
                     .filter((value) => Number.isFinite(value))
                 : [],
+            // Optional fields
+            ...(formData.middleName && { middleName: formData.middleName.trim() }),
+            ...(formData.productName && { productName: formData.productName.trim() }),
+            ...(formData.purchaseLocation && { purchaseLocation: formData.purchaseLocation.trim() }),
+            ...(formData.downPayment && { downPayment: formData.downPayment.trim() }),
+            ...(formData.comfortableMonthlyPayment && { comfortableMonthlyPayment: formData.comfortableMonthlyPayment.trim() }),
+            ...(formData.monthlyPayment && { monthlyPayment: formData.monthlyPayment.trim() }),
+            ...(formData.partnerLocation && { partnerLocation: formData.partnerLocation.trim() }),
+            ...(formData.convenientPaymentDate && { convenientPaymentDate: formData.convenientPaymentDate.trim() }),
+            // Financial information (Security Review - СБ)
+            ...(formData.officialIncome_sb && { officialIncome_sb: formData.officialIncome_sb.trim() }),
+            ...(formData.additionalIncome_sb && { additionalIncome_sb: formData.additionalIncome_sb.trim() }),
+            ...(formData.employmentInfo_sb && { employmentInfo_sb: formData.employmentInfo_sb.trim() }),
         }
 
         const missingFields: string[] = []
@@ -118,33 +133,89 @@ export class DealsRepository extends BaseRepository<Deal>{
         }
 
         const applicantName = `${sanitizedFormData.firstName} ${sanitizedFormData.lastName}`.trim()
-
+        
+        // Build title with product name if available
+        let dealTitle = 'Заявка на кредит'
+        if (sanitizedFormData.productName) {
+            dealTitle = `${sanitizedFormData.productName}`
+            if (applicantName) {
+                dealTitle += ` - ${applicantName}`
+            }
+        } else if (applicantName) {
+            dealTitle = `Заявка на кредит - ${applicantName}`
+        }
 
         const newDeal: NewLoanApplication = {
             uuid: crypto.randomUUID(),
             daid: generateAid('d'),
-            title: applicantName ? `Loan application - ${applicantName}` : 'Loan application',
-            statusName: 'SCORING',
+            title: dealTitle,
+            statusName: 'NEW',
             dataIn: sanitizedFormData,
         }
 
         const humanRepository = HumanRepository.getInstance()
+        
+        // Prepare human dataIn with financial information from deal
+        // generateClientByEmail will merge this with existing dataIn
+        const humanDataIn: Record<string, unknown> = {
+            phone: sanitizedFormData.phone,
+            // Финансовая информация из заявки (будет объединена с существующими данными)
+            ...(sanitizedFormData.employmentInfo_sb && { employmentInfo_sb: sanitizedFormData.employmentInfo_sb }),
+            ...(sanitizedFormData.officialIncome_sb && { officialIncome_sb: sanitizedFormData.officialIncome_sb }),
+            ...(sanitizedFormData.additionalIncome_sb && { additionalIncome_sb: sanitizedFormData.additionalIncome_sb }),
+        }
+
         const client = await humanRepository.generateClientByEmail(sanitizedFormData.email, {
             fullName: applicantName,
-            dataIn: {
-                phone: sanitizedFormData.phone,
-            }
+            dataIn: humanDataIn
         }) as Client
         newDeal.clientAid = client.haid
         const createdDeal = await this.create(newDeal) as LoanApplication
+        
+        // Проверка стоп-факторов (Фаза 1 алгоритма скоринга)
+        const rejectionReason = await this.checkStopFactors(createdDeal);
+        if (rejectionReason) {
+            // Обновляем статус на REJECTED и добавляем причину в dataOut
+            const updatedDeal = await this.update(createdDeal.uuid, {
+                statusName: 'REJECTED',
+                dataOut: {
+                    rejection_reason: rejectionReason,
+                },
+            }) as LoanApplication;
+            
+            const journalsRepository = JournalsRepository.getInstance()
+            const journal = await journalsRepository.createLoanApplicationSnapshot(updatedDeal as LoanApplication, createdDeal, null)
+            
+            // Ensure user with 'client' role exists
+            await this.ensureClientUser(sanitizedFormData.email, client)
+            
+            return {
+                createdDeal: updatedDeal,
+                journal,
+                client,
+            }
+        }
+        
+        // Фаза 2 и 3: Если стоп-факторов нет, запускаем алгоритм скоринга
+        const calculatedScore = await this.calculateScore(createdDeal);
+        const updatedDeal = await this.update(createdDeal.uuid, {
+            statusName: 'SCORING',
+            dataOut: {
+                scoring_result: {
+                    score: calculatedScore,
+                    red_flags_checked: true,
+                },
+            },
+        }) as LoanApplication;
+        
         const journalsRepository = JournalsRepository.getInstance()
-        const journal = await journalsRepository.createLoanApplicationSnapshot(createdDeal as LoanApplication,   null, null)
+        const journal = await journalsRepository.createLoanApplicationSnapshot(updatedDeal as LoanApplication, createdDeal, null)
         
         // Ensure user with 'client' role exists
         await this.ensureClientUser(sanitizedFormData.email, client)
         
         return {
-            createdDeal,
+            createdDeal: updatedDeal,
             journal,
             client,
         }
@@ -194,6 +265,152 @@ export class DealsRepository extends BaseRepository<Deal>{
         const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*'
         const values = crypto.getRandomValues(new Uint8Array(length))
         return Array.from(values, (x) => charset[x % charset.length]).join('')
+    }
+
+    /**
+     * Проверяет стоп-факторы для новой заявки согласно ТЗ
+     * @param deal - заявка на кредит
+     * @returns причина отклонения или null, если стоп-факторов нет
+     */
+    private async checkStopFactors(deal: LoanApplication): Promise<string | null> {
+        const dataIn = this.normalizeLoanApplicationDataIn(deal.dataIn);
+
+        // Фаза 1: Проверка суммы
+        const productPrice = Number(dataIn.productPrice);
+        if (isNaN(productPrice)) {
+            return "Сумма заявки указана некорректно";
+        }
+
+        if (productPrice < 3000 || productPrice > 300000) {
+            return "Сумма не соответствует лимитам (должна быть от 3,000 ₽ до 300,000 ₽)";
+        }
+
+        // Фаза 1: Проверка на наличие активных просрочек
+        if (deal.clientAid) {
+            const financesRepository = FinancesRepository.getInstance();
+            // clientAid хранится в dataIn (JSONB), поэтому используем SQL для поиска
+            // Нужно явно привести к jsonb типу для работы оператора ->>
+            const overdueFinances = await financesRepository.getSelectQuery()
+                .where(
+                    and(
+                        sql`${financesRepository.schema.dataIn}::jsonb->>'clientAid' = ${deal.clientAid}`,
+                        eq(financesRepository.schema.statusName, 'OVERDUE'),
+                        isNull(financesRepository.schema.deletedAt)
+                    )
+                )
+                .execute();
+
+            if (overdueFinances.length > 0) {
+                return "Имеется активная просроченная задолженность";
+            }
+        }
+
+        // Проверка возраста пока пропускаем, так как нет данных о возрасте в LoanApplicationDataIn
+        // TODO: Добавить проверку возраста, когда будет доступна информация о дате рождения
+
+        return null; // Стоп-факторы не найдены
+    }
+
+    /**
+     * Рассчитывает скоринговый балл для заявки на кредит
+     * @param deal - заявка на кредит
+     * @returns рассчитанный балл
+     */
+    private async calculateScore(deal: LoanApplication): Promise<number> {
+        try {
+            // Получаем веса из настроек
+            const settingsRepository = SettingsRepository.getInstance();
+            const weightsSetting = await settingsRepository.findByAttribute('scoring.weights');
+            
+            if (!weightsSetting || !weightsSetting.dataIn) {
+                console.warn('Scoring weights not found, using default initial score: 500');
+                return 500;
+            }
+
+            const weights = typeof weightsSetting.dataIn === 'string' 
+                ? JSON.parse(weightsSetting.dataIn) as ScoringWeights
+                : weightsSetting.dataIn as ScoringWeights;
+
+            // Начальный балл
+            let score = weights.initialScore || 500;
+
+            // Нормализуем dataIn
+            const dataIn = this.normalizeLoanApplicationDataIn(deal.dataIn);
+            const dataInExtended = dataIn as LoanApplicationDataIn & Record<string, any>;
+
+            // Модификатор семейного положения
+            const maritalStatus = (dataInExtended.maritalStatus || dataInExtended.maritalStatus_sb || '').toLowerCase();
+            if (maritalStatus.includes('женат') || maritalStatus.includes('замужем') || maritalStatus.includes('married')) {
+                score += weights.modifiers.maritalStatus.married || 0;
+            } else if (maritalStatus.includes('разведен') || maritalStatus.includes('разведена') || maritalStatus.includes('divorced')) {
+                score += weights.modifiers.maritalStatus.divorced || 0;
+            }
+
+            // Модификатор дохода
+            const incomeStr = dataInExtended.officialIncome_sb || dataInExtended.employmentIncome_sb || '';
+            const incomeMatch = incomeStr.match(/[\d\s]+/);
+            if (incomeMatch) {
+                const income = parseInt(incomeMatch[0].replace(/\s/g, ''), 10);
+                if (!isNaN(income)) {
+                    if (income >= (weights.modifiers.income.high.threshold || 100000)) {
+                        score += weights.modifiers.income.high.value || 0;
+                    } else if (income <= (weights.modifiers.income.low.threshold || 40000)) {
+                        score += weights.modifiers.income.low.value || 0;
+                    }
+                }
+            }
+
+            // Модификатор кредитной истории
+            const creditHistory = (dataInExtended.creditHistory_sb || '').toLowerCase();
+            const negativeKeywords = weights.modifiers.creditHistory.negativeKeywords || [];
+            const hasNegativeKeywords = negativeKeywords.some(keyword => 
+                creditHistory.includes(keyword.toLowerCase())
+            );
+            if (hasNegativeKeywords) {
+                score += weights.modifiers.creditHistory.value || 0;
+            }
+
+            // Модификатор поручителей
+            if (dataInExtended.fullName_p1 && dataInExtended.fullName_p1.trim()) {
+                score += weights.modifiers.guarantors.guarantor1 || 0;
+            }
+            if (dataInExtended.fullName_p2 && dataInExtended.fullName_p2.trim()) {
+                score += weights.modifiers.guarantors.guarantor2 || 0;
+            }
+
+            return Math.max(0, Math.round(score)); // Округляем и не допускаем отрицательных значений
+        } catch (error) {
+            console.error('Ошибка при расчете скорингового балла:', error);
+            // В случае ошибки возвращаем базовый балл
+            return 500;
+        }
+    }
+
+    /**
+     * Привязывает документы к сделке
+     * @param dealUuid - UUID сделки
+     * @param documentUuids - Массив UUID документов из Media
+     */
+    public async attachDocumentsToDeal(dealUuid: string, documentUuids: string[]): Promise<void> {
+        const deal = await this.findByUuid(dealUuid) as LoanApplication | null;
+        if (!deal) {
+            throw new Error(`Сделка с UUID ${dealUuid} не найдена`);
+        }
+
+        // Get current dataIn
+        const currentDataIn = this.normalizeLoanApplicationDataIn(deal.dataIn);
+        const dataInExtended = currentDataIn as LoanApplicationDataIn & Record<string, any>;
+
+        // Update dataIn with document UUIDs
+        const updatedDataIn: LoanApplicationDataIn & Record<string, any> = {
+            ...dataInExtended,
+            documentPhotos: documentUuids,
+        };
+
+        // Update deal
+        await this.update(dealUuid, {
+            dataIn: updatedDataIn,
+        });
     }
 
     /**
@@ -415,10 +632,35 @@ export class DealsRepository extends BaseRepository<Deal>{
             generatedBy: 'SYSTEM',
         };
 
-        await financesRepository.generateScheduleForDeal(uuid, scheduleInput);
+        const scheduleResult = await financesRepository.generateScheduleForDeal(uuid, scheduleInput);
+
+        // Save payment schedule to deal.dataIn for easy access
+        const currentDataInAfterApproval = typeof updatedDeal.dataIn === 'string'
+            ? (JSON.parse(updatedDeal.dataIn) as Record<string, unknown>)
+            : (updatedDeal.dataIn as Record<string, unknown>) || {};
+        
+        const paymentSchedule = scheduleResult.items.map((item, index) => ({
+            number: index + 1,
+            date: item.paymentDate,
+            amount: item.totalAmount,
+            status: 'Ожидается',
+        }));
+
+        const updatedDataInWithSchedule = {
+            ...currentDataInAfterApproval,
+            paymentSchedule,
+        };
+
+        // Update deal with payment schedule in dataIn
+        await this.update(uuid, {
+            dataIn: updatedDataInWithSchedule,
+        });
+
+        // Refresh updatedDeal to include payment schedule
+        const dealWithSchedule = await this.findByUuid(uuid) as LoanApplication;
 
         return {
-            updatedDeal,
+            updatedDeal: dealWithSchedule,
             journal,
         };
     }

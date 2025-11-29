@@ -1,4 +1,3 @@
-import { createDb } from './repositories/utils'
 import { Env } from './types'
 
 export const buildRequestEnv = (): Env => {
@@ -11,7 +10,8 @@ export const buildRequestEnv = (): Env => {
   // @ts-ignore
   const globalEnv: any = typeof globalThis !== 'undefined' ? globalThis : {}
 
-  globalEnv.DB =  createDb()
+  // Don't create DB connection here - it should be created on-demand using createDb()
+  // Creating it here causes multiple connections to be created on each request
   
   return Object.assign({}, process.env, globalEnv) as unknown as Env
 }

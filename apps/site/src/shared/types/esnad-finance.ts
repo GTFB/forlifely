@@ -215,6 +215,7 @@ export type MediaDocumentType =
   | 'OTHER'
 
 export interface MediaDataIn {
+  entityUuid: string
   documentType?: MediaDocumentType
   dealAid?: Deal['daid']
   financeFaid?: Finance['faid']

@@ -154,11 +154,7 @@ export class SeedRepository {
       const camelKey = this.snakeToCamel(key)
 
       // Handle JSON fields
-      if (camelKey === 'dataIn' || camelKey === 'dataOut') {
-        prepared[camelKey] = typeof value === 'string' ? value : stringifyJson(value)
-      }
-      // Handle boolean fields
-      else if (camelKey === 'isSystem' || camelKey === 'isActive' || camelKey === 'kit') {
+       if (camelKey === 'isSystem' || camelKey === 'isActive' || camelKey === 'kit') {
         prepared[camelKey] = value ? 1 : 0
       }
       // Regular fields

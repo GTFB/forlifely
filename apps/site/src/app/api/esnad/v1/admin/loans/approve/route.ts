@@ -8,7 +8,7 @@ type RequestContext = Parameters<typeof handleLoanDecision>[0]
 const handlePut = (context: RequestContext) => {
     return handleLoanDecision(context, {
         statusName: "APPROVED",
-        successMessage: "Loan application approved",
+        successMessage: "Заявка на кредит одобрена",
         operation: "approve",
     })
 }

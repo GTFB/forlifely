@@ -32,7 +32,7 @@ const parseAdditionalInfoRequestPayload = async (
     try {
         rawBody = await request.json()
     } catch {
-        throw new BadRequestError("Invalid JSON body")
+        throw new BadRequestError("Неверное тело JSON")
     }
 
     const body = rawBody as Partial<AdditionalInfoRequestPayload>
@@ -44,7 +44,7 @@ const parseAdditionalInfoRequestPayload = async (
     if (!comment) missingFields.push("comment")
 
     if (missingFields.length) {
-        throw new BadRequestError(`Missing required fields: ${missingFields.join(", ")}`)
+        throw new BadRequestError(`Отсутствуют обязательные поля: ${missingFields.join(", ")}`)
     }
 
     return {
@@ -60,18 +60,18 @@ const normalizeLoanApplicationDataIn = (rawDataIn: LoanApplication["dataIn"]): L
         try {
             parsed = JSON.parse(rawDataIn) as LoanApplicationDataIn
         } catch {
-            throw new BadRequestError("Unable to parse loan application payload")
+            throw new BadRequestError("Не удалось распарсить данные заявки на кредит")
         }
     }
 
     if (!parsed || typeof parsed !== "object") {
-        throw new BadRequestError("Loan application payload is malformed")
+        throw new BadRequestError("Данные заявки на кредит имеют неверный формат")
     }
 
     const dataIn = parsed as LoanApplicationDataIn
 
     if (dataIn.type !== "LOAN_APPLICATION") {
-        throw new BadRequestError("Provided deal is not a loan application")
+        throw new BadRequestError("Указанная сделка не является заявкой на кредит")
     }
 
     return dataIn
@@ -87,7 +87,7 @@ export const onRequestPut = async (context: RequestContext): Promise<Response> =
         const existingDeal = (await dealsRepository.findByUuid(payload.uuid)) as LoanApplication | undefined
 
         if (!existingDeal) {
-            throw new BadRequestError("Loan application not found", 404)
+            throw new BadRequestError("Заявка на кредит не найдена", 404)
         }
 
         const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
@@ -105,7 +105,7 @@ export const onRequestPut = async (context: RequestContext): Promise<Response> =
         return new Response(
             JSON.stringify({
                 success: true,
-                message: "Additional info requested",
+                message: "Запрошена дополнительная информация",
                 deal: result.updatedDeal,
                 journal: result.journal,
             }),
@@ -116,7 +116,7 @@ export const onRequestPut = async (context: RequestContext): Promise<Response> =
         )
     } catch (error) {
         const status = error instanceof BadRequestError ? error.status : 500
-        const message = error instanceof Error ? error.message : "Unexpected error"
+        const message = error instanceof Error ? error.message : "Неожиданная ошибка"
 
         console.error("Failed to request additional info for loan application", error)
 

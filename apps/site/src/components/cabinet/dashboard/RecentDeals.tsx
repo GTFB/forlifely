@@ -25,51 +25,65 @@ interface Deal {
 
 interface RecentDealsProps {
   deals: Deal[]
+  formatCurrency: (amount: number) => string
+  formatDate: (dateString: string) => string
+  getStatusVariant?: (status: string) => 'default' | 'secondary' | 'outline' | 'destructive'
+  title?: string
+  caption?: string
+  emptyMessage?: string
+  columnHeaders?: {
+    id?: string
+    title?: string
+    amount?: string
+    status?: string
+    date?: string
+  }
 }
 
-export function RecentDeals({ deals }: RecentDealsProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ru-RU', {
-      style: 'currency',
-      currency: 'RUB',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(date)
-  }
-
-  const getStatusVariant = (status: string) => {
+export function RecentDeals({ 
+  deals, 
+  formatCurrency, 
+  formatDate, 
+  getStatusVariant,
+  title = 'Последние заявки',
+  caption = 'Список последних заявок',
+  emptyMessage = 'Нет заявок',
+  columnHeaders = {}
+}: RecentDealsProps) {
+  const defaultGetStatusVariant = (status: string) => {
     if (status === 'Активна') return 'default'
     if (status === 'Закрыта') return 'secondary'
     return 'outline'
   }
 
+  const statusVariant = getStatusVariant || defaultGetStatusVariant
+
+  const headers = {
+    id: columnHeaders.id || 'ID заявки',
+    title: columnHeaders.title || 'Название товара',
+    amount: columnHeaders.amount || 'Сумма',
+    status: columnHeaders.status || 'Статус',
+    date: columnHeaders.date || 'Дата',
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Последние сделки</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {deals.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Нет сделок</p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <Table>
-            <TableCaption>Список последних сделок</TableCaption>
+            <TableCaption>{caption}</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>ID сделки</TableHead>
-                <TableHead>Название товара</TableHead>
-                <TableHead>Сумма</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Дата</TableHead>
+                <TableHead>{headers.id}</TableHead>
+                <TableHead>{headers.title}</TableHead>
+                <TableHead>{headers.amount}</TableHead>
+                <TableHead>{headers.status}</TableHead>
+                <TableHead>{headers.date}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -89,7 +103,7 @@ export function RecentDeals({ deals }: RecentDealsProps) {
                       : '—'}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(deal.status)}>
+                    <Badge variant={statusVariant(deal.status)}>
                       {deal.status}
                     </Badge>
                   </TableCell>

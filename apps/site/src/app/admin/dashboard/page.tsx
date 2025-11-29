@@ -24,6 +24,11 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 export default function AdminDashboardPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  
+  // Set page title
+  React.useEffect(() => {
+    document.title = 'Общая сводка'
+  }, [])
   const [dateRange, setDateRange] = React.useState<{ start: Date | null; end: Date | null }>({
     start: new Date(new Date().setDate(new Date().getDate() - 30)),
     end: new Date(),
@@ -47,8 +52,29 @@ export default function AdminDashboardPage() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint for other metrics
-        // const response = await fetch('/api/admin/dashboard', { credentials: 'include' })
+        
+        // Build API URL with date range
+        const startDateStr = dateRange.start?.toISOString().split('T')[0] || ''
+        const endDateStr = dateRange.end?.toISOString().split('T')[0] || ''
+        const dashboardUrl = `/api/esnad/v1/admin/dashboard?startDate=${startDateStr}&endDate=${endDateStr}`
+        
+        // Fetch dashboard metrics
+        const dashboardResponse = await fetch(dashboardUrl, {
+          credentials: 'include',
+        })
+        
+        if (!dashboardResponse.ok) {
+          throw new Error('Failed to fetch dashboard metrics')
+        }
+        
+        const metricsData = (await dashboardResponse.json()) as {
+          newApplicationsToday: number
+          newApplicationsPeriod: number
+          scoringAmount: number
+          overdueCount: number
+          investorPortfolio: number
+          applicationsByManager: Array<{ manager: string; count: number }>
+        }
         
         // Fetch recent journal events
         const journalsResponse = await fetch('/api/esnad/v1/admin/journals?limit=5&orderBy=createdAt&orderDirection=desc', {
@@ -82,7 +108,7 @@ export default function AdminDashboardPage() {
 
           const actionType = journal.action || 'Событие'
 
-          // Map action types to readable names
+          // Map action types to readable names (for actions that weren't already transformed by parseJournals)
           const actionNames: Record<string, string> = {
             LOAN_APPLICATION_SNAPSHOT: 'Заявка на рассрочку',
             DEAL_STATUS_CHANGE: 'Изменение статуса',
@@ -91,6 +117,10 @@ export default function AdminDashboardPage() {
             DEAL_CANCELLED: 'Отмена',
             INVESTOR_REGISTERED: 'Новый инвестор',
             PAYMENT_RECEIVED: 'Получен платеж',
+            // User journal actions are already transformed by parseJournals
+            'Вход в систему': 'Вход в систему',
+            'Выход из системы': 'Выход из системы',
+            'Регистрация': 'Регистрация',
           }
 
           const type = actionNames[journal.action] || actionType
@@ -154,24 +184,17 @@ export default function AdminDashboardPage() {
           }
         })
         
-        // Mock data for other metrics (TODO: replace with actual API)
-        setTimeout(() => {
-          setMetrics({
-            newApplicationsToday: 12,
-            newApplicationsPeriod: 145,
-            scoringAmount: 25000000,
-            overdueCount: 8,
-            investorPortfolio: 150000000,
-            applicationsByManager: [
-              { manager: 'Иванов И.И.', count: 45 },
-              { manager: 'Петрова М.С.', count: 38 },
-              { manager: 'Сидоров П.А.', count: 32 },
-              { manager: 'Козлова А.Д.', count: 30 },
-            ],
-            recentEvents,
-          })
-          setLoading(false)
-        }, 100)
+        // Update metrics with real data
+        setMetrics({
+          newApplicationsToday: metricsData.newApplicationsToday,
+          newApplicationsPeriod: metricsData.newApplicationsPeriod,
+          scoringAmount: metricsData.scoringAmount,
+          overdueCount: metricsData.overdueCount,
+          investorPortfolio: metricsData.investorPortfolio,
+          applicationsByManager: metricsData.applicationsByManager,
+          recentEvents,
+        })
+        setLoading(false)
       } catch (err) {
         console.error('Dashboard fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load data')

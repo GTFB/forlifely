@@ -3,10 +3,12 @@
 import { getSession } from '@/shared/session'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { createDb } from '@/shared/repositories/utils'
-import { schema } from '@/shared/schema/schema'
-import { eq, and, isNull, desc, sql, or, like } from 'drizzle-orm'
+import { DealsRepository } from '@/shared/repositories/deals.repository'
+import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { buildRequestEnv } from '@/shared/env'
+import { withClientGuard } from '@/shared/api-guard'
+import {  LoanApplicationDeal } from '@/shared/types/esnad'
+import { LoanApplication } from '@/shared/types/esnad'
 
 /**
  * GET /api/c/deals
@@ -56,63 +58,60 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const status = url.searchParams.get('status') || ''
     const page = parseInt(url.searchParams.get('page') || '1')
     const limit = parseInt(url.searchParams.get('limit') || '10')
-    const offset = (page - 1) * limit
     
-    const db = createDb()
+    const dealsRepository = DealsRepository.getInstance()
     
-    // Build where conditions
-    const conditions = [
-      eq(schema.deals.clientAid, human.haid),
-      isNull(schema.deals.deletedAt),
+    // Build filters
+    const filterConditions: DbFilters['conditions'] = [
+      {
+        field: 'clientAid',
+        operator: 'eq',
+        values: [human.haid],
+      },
+      {
+        field: 'dataIn',
+        operator: 'like',
+        values: ['%"type":"LOAN_APPLICATION"%'],
+      },
     ]
 
     if (status) {
-      conditions.push(eq(schema.deals.statusName, status))
+      filterConditions.push({
+        field: 'statusName',
+        operator: 'eq',
+        values: [status],
+      })
     }
 
-    if (search) {
-      conditions.push(
-        or(
-          like(schema.deals.title, `%${search}%`),
-          like(schema.deals.daid, `%${search}%`)
-        )!
-      )
+    const filters: DbFilters = {
+      conditions: filterConditions,
     }
 
-    // Get deals
-    const deals = await db
-      .select()
-      .from(schema.deals)
-      .where(and(...conditions))
-      .orderBy(desc(schema.deals.createdAt))
-      .limit(limit)
-      .offset(offset)
+    const orders: DbOrders = {
+      orders: [{ field: 'createdAt', direction: 'desc' }],
+    }
 
-    // Get total count
-    const totalResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(schema.deals)
-      .where(and(...conditions))
+    const pagination: DbPagination = { page, limit }
 
-    const total = totalResult[0]?.count || 0
+    // Get deals using repository
+    // Use getDealsWithSearch if search query exists, otherwise use regular getDeals
+    const result = search
+      ? await dealsRepository.getDealsWithSearch({
+          searchQuery: search,
+          filters,
+          orders,
+          pagination,
+        })
+      : await dealsRepository.getDeals({
+          filters,
+          orders,
+          pagination,
+        })
 
     return new Response(
       JSON.stringify({
-        deals: deals.map((deal: any) => ({
-          id: deal.daid,
-          uuid: deal.uuid,
-          title: deal.title || 'Без названия',
-          status: deal.statusName,
-          createdAt: deal.createdAt,
-          updatedAt: deal.updatedAt,
-          dataIn: deal.dataIn ? deal.dataIn : null,
-        })),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        deals: await Promise.all(result.docs.map((deal: any) => processDataClientDeal(deal as LoanApplication))),
+        pagination: result.pagination,
       }),
       {
         status: 200,
@@ -194,16 +193,118 @@ export const onRequestOptions = async () =>
     },
   })
 
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestGet({ request, env })
-}
-
-export async function POST(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestPost({ request, env })
-}
-
 export async function OPTIONS() {
   return onRequestOptions()
+}
+
+export const GET = withClientGuard(onRequestGet)
+
+
+/**
+ * Process deal data for client response
+ */
+export async function processDataClientDeal(deal: LoanApplication) {
+  // Extract dataIn and exclude price, time (term), and credits
+  // But keep totalAmount if it exists, or calculate from productPrice
+  let processedDataIn: any = null
+  let processedDataOut: any = null
+  processedDataOut = {}
+  
+  // Parse dataIn if it's a string (JSONB from database)
+  let dataInObj: any = null
+  if (deal.dataIn) {
+    if (typeof deal.dataIn === 'string') {
+      try {
+        dataInObj = JSON.parse(deal.dataIn)
+      } catch (error) {
+        console.error('Failed to parse dataIn:', error)
+        dataInObj = null
+      }
+    } else if (typeof deal.dataIn === 'object') {
+      dataInObj = deal.dataIn
+    }
+  }
+  
+  if (dataInObj) {
+    const { productPrice, term, ...restDataIn } = dataInObj
+    // Convert productPrice to number for totalAmount if totalAmount doesn't exist
+    const dataInAny = restDataIn as any
+    const priceNum = productPrice ? Number(String(productPrice).replace(/[^\d.-]/g, '')) : null
+    const totalAmount = dataInAny.totalAmount 
+      ? Number(dataInAny.totalAmount) 
+      : (priceNum && Number.isFinite(priceNum) ? priceNum : null)
+    
+    // Get term as number (first value if array)
+    const termMonths = term && Array.isArray(term) && term.length > 0 
+      ? term[0] 
+      : (typeof term === 'number' ? term : null)
+    
+    processedDataIn = {
+      ...restDataIn,
+      // Include totalAmount for display in table
+      totalAmount: totalAmount && Number.isFinite(totalAmount) ? totalAmount : null,
+      // Include purchasePrice (productPrice) for detail page
+      purchasePrice: priceNum && Number.isFinite(priceNum) ? priceNum : null,
+      // Include installmentTerm (term) for detail page
+      installmentTerm: termMonths && Number.isFinite(termMonths) ? termMonths : null,
+      // Include downPayment if exists
+      downPayment: dataInAny.downPayment ? Number(dataInAny.downPayment) : null,
+      // Include monthlyPayment if exists
+      monthlyPayment: dataInAny.monthlyPayment ? Number(dataInAny.monthlyPayment) : null,
+      // Include paymentSchedule if exists
+      paymentSchedule: dataInAny.paymentSchedule || null,
+    }
+  }
+
+  // Get status title from taxonomy
+  let statusTitle: string = deal.statusName || ''
+  if (deal.statusName) {
+    try {
+      const { TaxonomyRepository } = await import('@/shared/repositories/taxonomy.repository')
+      const taxonomyRepository = TaxonomyRepository.getInstance()
+      const statusTaxonomy = await taxonomyRepository.getTaxonomies({
+        filters: {
+          conditions: [
+            {
+              field: 'entity',
+              operator: 'eq',
+              values: ['deal.statusName'],
+            },
+            {
+              field: 'name',
+              operator: 'eq',
+              values: [deal.statusName],
+            },
+          ],
+        },
+        pagination: { page: 1, limit: 1 },
+      })
+      
+      if (statusTaxonomy.docs.length > 0 && statusTaxonomy.docs[0].title) {
+        statusTitle = String(statusTaxonomy.docs[0].title)
+      }
+    } catch (error) {
+      console.error('Failed to get status title from taxonomy:', error)
+      // Fallback to statusName if taxonomy lookup fails
+    }
+  }
+
+  // Return all deal fields except createdAt, updatedAt (time)
+  const { createdAt, updatedAt, ...restDeal } = deal
+
+  return {
+    id: deal.daid,
+    uuid: deal.uuid,
+    fullDaid: deal.fullDaid,
+    clientAid: deal.clientAid,
+    createdAt: deal.createdAt,
+    title: deal.title || 'Без названия',
+    cycle: deal.cycle,
+    status: statusTitle || deal.statusName,
+    statusName: deal.statusName,
+    xaid: deal.xaid,
+    dataIn: processedDataIn,
+    dataOut: processedDataOut,
+    documents: deal.documents,
+  }
 }
