@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { NavigationItem } from "@/components/cabinet/BottomNavigation"
 import { usePathname } from "next/navigation"
+import { AskForNotificationPush } from "@/components/AskForNotificationPush"
 
 // Global state to preserve sidebar open state across remounts
 let globalSidebarOpen: boolean | null = null
@@ -130,6 +131,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="h-screen w-full bg-background overflow-hidden">
       <AdminStateProvider>
         <AdminAuthGuard>
+          <AskForNotificationPush />
           <SidebarWrapper>
             {children}
           </SidebarWrapper>

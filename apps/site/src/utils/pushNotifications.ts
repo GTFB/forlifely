@@ -28,8 +28,21 @@ export async function subscribeUserToPush(vapidPublicKey: string): Promise<void>
         throw new Error('Push notifications are not supported in this browser.');
     }
 
-    // Obtain the Service Worker registration
-    const registration = await navigator.serviceWorker.ready;
+    // Ensure service worker is registered before using it
+    let registration: ServiceWorkerRegistration;
+    
+    // Check if service worker is already registered
+    const existingRegistration = await navigator.serviceWorker.getRegistration();
+    
+    if (existingRegistration) {
+        // Wait for the existing registration to be ready
+        registration = await navigator.serviceWorker.ready;
+    } else {
+        // Register service worker if not already registered
+        registration = await navigator.serviceWorker.register('/pwa/sw.js');
+        // Wait for it to be ready
+        registration = await navigator.serviceWorker.ready;
+    }
 
     // Check whether the user already has a subscription
     const existingSubscription = await registration.pushManager.getSubscription();
