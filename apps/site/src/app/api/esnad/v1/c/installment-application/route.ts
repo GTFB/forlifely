@@ -96,6 +96,39 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       }
     }
 
+    // Валидация русских букв в имени, фамилии и отчестве
+    const russianPattern = /^[А-Яа-яЁё\s-]+$/
+    
+    if (body.firstName && !russianPattern.test(String(body.firstName).trim())) {
+      return new Response(
+        JSON.stringify({ error: 'Имя должно содержать только русские буквы, пробелы и дефисы' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    if (body.lastName && !russianPattern.test(String(body.lastName).trim())) {
+      return new Response(
+        JSON.stringify({ error: 'Фамилия должна содержать только русские буквы, пробелы и дефисы' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    if (body.middleName && !russianPattern.test(String(body.middleName).trim())) {
+      return new Response(
+        JSON.stringify({ error: 'Отчество должно содержать только русские буквы, пробелы и дефисы' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
     const userWithRoles = await meRepository.findByIdWithRoles(Number(sessionUser.id))
 
     if (!userWithRoles || !userWithRoles.human) {
@@ -199,6 +232,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       ...(body.officialIncome_sb && { officialIncome_sb: body.officialIncome_sb.trim() }),
       ...(body.additionalIncome_sb && { additionalIncome_sb: body.additionalIncome_sb.trim() }),
       ...(body.employmentInfo_sb && { employmentInfo_sb: body.employmentInfo_sb.trim() }),
+      ...(body.monthlyIncome && { monthlyIncome: body.monthlyIncome.trim() }),
+      ...(body.monthlyExpenses && { monthlyExpenses: body.monthlyExpenses.trim() }),
+      ...(body.workPlace && { workPlace: body.workPlace.trim() }),
+      ...(body.workExperience && { workExperience: body.workExperience.trim() }),
     }
 
     // Create deal using existing repository method

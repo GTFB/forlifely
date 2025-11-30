@@ -30,18 +30,28 @@ export default function ProfilePage() {
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
+  const [uploading, setUploading] = React.useState<Record<string, boolean>>({})
   const [error, setError] = React.useState<string | null>(null)
+  const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null)
+  const [passwordError, setPasswordError] = React.useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null)
+  const [changingPassword, setChangingPassword] = React.useState(false)
   const [formData, setFormData] = React.useState({
     name: '',
     phone: '',
     address: '',
+  })
+  const [passwordData, setPasswordData] = React.useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   })
 
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/c/profile', {
+        const response = await fetch('/api/esnad/v1/c/profile', {
           credentials: 'include',
         })
 
@@ -72,7 +82,7 @@ export default function ProfilePage() {
       setSaving(true)
       setError(null)
 
-      const response = await fetch('/api/c/profile', {
+      const response = await fetch('/api/esnad/v1/c/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -80,12 +90,12 @@ export default function ProfilePage() {
       })
 
       if (!response.ok) {
-        const data = await response.json() as { error?: string }
-        throw new Error(data.error || 'Failed to update profile')
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.error || data.message || 'Failed to update profile')
       }
 
       // Reload profile
-      const reloadResponse = await fetch('/api/c/profile', {
+      const reloadResponse = await fetch('/api/esnad/v1/c/profile', {
         credentials: 'include',
       })
       if (reloadResponse.ok) {
@@ -119,6 +129,105 @@ export default function ProfilePage() {
     { id: 'income_certificate', name: 'Справка о доходах', required: true },
   ]
 
+  const handlePasswordChange = async () => {
+    try {
+      setChangingPassword(true)
+      setPasswordError(null)
+      setPasswordSuccess(null)
+
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        setPasswordError('Все поля обязательны')
+        return
+      }
+
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError('Новый пароль и подтверждение не совпадают')
+        return
+      }
+
+      if (passwordData.newPassword.length < 8) {
+        setPasswordError('Пароль должен быть не менее 8 символов')
+        return
+      }
+
+      const response = await fetch('/api/esnad/v1/c/profile/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.message || data.error || 'Не удалось изменить пароль')
+      }
+
+      setPasswordSuccess('Пароль успешно изменен')
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      })
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setPasswordSuccess(null), 3000)
+    } catch (err) {
+      console.error('Password change error:', err)
+      setPasswordError(err instanceof Error ? err.message : 'Не удалось изменить пароль')
+      setPasswordSuccess(null)
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  const handleFileUpload = async (documentType: string, file: File) => {
+    try {
+      setUploading(prev => ({ ...prev, [documentType]: true }))
+      setError(null)
+      setUploadSuccess(null)
+
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', documentType)
+
+      const response = await fetch('/api/esnad/v1/c/profile/kyc-documents', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.error || data.message || 'Не удалось загрузить документ')
+      }
+
+      // Show success message
+      const docName = requiredDocuments.find(d => d.id === documentType)?.name || 'Документ'
+      setUploadSuccess(`${docName} успешно загружен`)
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setUploadSuccess(null), 3000)
+
+      // Reload profile to show updated documents
+      const reloadResponse = await fetch('/api/esnad/v1/c/profile', {
+        credentials: 'include',
+      })
+      if (reloadResponse.ok) {
+        const data = await reloadResponse.json() as { profile: Profile }
+        setProfile(data.profile)
+      }
+    } catch (err) {
+      console.error('File upload error:', err)
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить документ')
+      setUploadSuccess(null)
+    } finally {
+      setUploading(prev => ({ ...prev, [documentType]: false }))
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -143,6 +252,7 @@ export default function ProfilePage() {
           <TabsList>
             <TabsTrigger value="personal">Личные данные</TabsTrigger>
             <TabsTrigger value="kyc">Документы KYC</TabsTrigger>
+            <TabsTrigger value="security">Безопасность</TabsTrigger>
           </TabsList>
 
           <TabsContent value="personal" className="space-y-4">
@@ -220,6 +330,16 @@ export default function ProfilePage() {
                 <CardTitle>Документы KYC</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {error && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+                {uploadSuccess && (
+                  <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+                    <p className="text-sm text-green-700 dark:text-green-400">{uploadSuccess}</p>
+                  </div>
+                )}
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertTitle>Текущий статус верификации</AlertTitle>
@@ -268,18 +388,32 @@ export default function ProfilePage() {
                               accept="image/*,.pdf"
                               className="hidden"
                               id={`file-${doc.id}`}
+                              disabled={uploading[doc.id]}
                               onChange={(e) => {
-                                // TODO: Handle file upload
-                                console.log('File upload:', doc.id, e.target.files?.[0])
+                                const file = e.target.files?.[0]
+                                if (file) {
+                                  handleFileUpload(doc.id, file)
+                                }
+                                // Reset input value to allow re-uploading the same file
+                                e.target.value = ''
                               }}
                             />
                             <Label
                               htmlFor={`file-${doc.id}`}
-                              className="cursor-pointer">
-                              <Button variant="outline" size="sm" asChild>
+                              className={uploading[doc.id] ? "cursor-not-allowed opacity-50" : "cursor-pointer"}>
+                              <Button variant="outline" size="sm" disabled={uploading[doc.id]} asChild>
                                 <span>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  {uploadedDoc ? 'Заменить' : 'Загрузить'}
+                                  {uploading[doc.id] ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Загрузка...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="mr-2 h-4 w-4" />
+                                      {uploadedDoc ? 'Заменить' : 'Загрузить'}
+                                    </>
+                                  )}
                                 </span>
                               </Button>
                             </Label>
@@ -289,6 +423,73 @@ export default function ProfilePage() {
                     })}
                   </ul>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Смена пароля</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {passwordError && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                    <p className="text-sm text-destructive">{passwordError}</p>
+                  </div>
+                )}
+                {passwordSuccess && (
+                  <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-4">
+                    <p className="text-sm text-green-700 dark:text-green-400">{passwordSuccess}</p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="currentPassword">Текущий пароль *</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                    placeholder="Введите текущий пароль"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Новый пароль *</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
+                    placeholder="Введите новый пароль (минимум 8 символов)"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Пароль должен содержать не менее 8 символов
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Подтвердите новый пароль *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Повторите новый пароль"
+                  />
+                </div>
+
+                <Button onClick={handlePasswordChange} disabled={changingPassword}>
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Изменение...
+                    </>
+                  ) : (
+                    'Изменить пароль'
+                  )}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

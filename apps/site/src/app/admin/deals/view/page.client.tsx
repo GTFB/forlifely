@@ -62,6 +62,7 @@ export default function DealDetailPageClient() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [documentMetadata, setDocumentMetadata] = React.useState<Record<string, { fileName: string }>>({})
+  const [humanKycDocuments, setHumanKycDocuments] = React.useState<Array<{ mediaUuid: string; type: string; uploadedAt?: string }>>([])
   const [submitting, setSubmitting] = React.useState(false)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [requestDialogOpen, setRequestDialogOpen] = React.useState(false)
@@ -145,6 +146,64 @@ export default function DealDetailPageClient() {
             } catch (err) {
               console.error('Ошибка при загрузке метаданных документов:', err)
               // Не показываем ошибку пользователю, просто не загружаем метаданные
+            }
+          }
+
+          // Load human KYC documents if clientAid exists
+          if (fetchedDeal.clientAid) {
+            try {
+              const humanResponse = await fetch(`/api/esnad/v1/admin/human/by-haid/${fetchedDeal.clientAid}`, {
+                credentials: 'include',
+              })
+              
+              if (humanResponse.ok) {
+                const humanData = await humanResponse.json() as { success: boolean; human?: { dataIn?: any } }
+                if (humanData.success && humanData.human?.dataIn) {
+                  let dataIn: any = {}
+                  try {
+                    dataIn = typeof humanData.human.dataIn === 'string' 
+                      ? JSON.parse(humanData.human.dataIn) 
+                      : humanData.human.dataIn
+                  } catch (error) {
+                    console.error('Failed to parse human dataIn:', error)
+                  }
+                  
+                  const kycDocuments = dataIn?.kycDocuments || []
+                  // Filter only income certificate (type: 'other')
+                  const incomeCertificate = kycDocuments.filter((doc: any) => doc.type === 'other')
+                  setHumanKycDocuments(incomeCertificate)
+
+                  // Load metadata for KYC documents
+                  if (incomeCertificate.length > 0) {
+                    const kycUuids = incomeCertificate.map((doc: any) => doc.mediaUuid).filter(Boolean)
+                    if (kycUuids.length > 0) {
+                      try {
+                        const kycMetadataResponse = await fetch('/api/esnad/v1/admin/files/metadata', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ uuids: kycUuids }),
+                        })
+                        
+                        if (kycMetadataResponse.ok) {
+                          const kycMetadataData = await kycMetadataResponse.json() as { success: boolean; metadata: Array<{ uuid: string; fileName: string }> }
+                          if (kycMetadataData.success && kycMetadataData.metadata) {
+                            const kycMetadataMap: Record<string, { fileName: string }> = {}
+                            kycMetadataData.metadata.forEach((meta) => {
+                              kycMetadataMap[meta.uuid] = { fileName: meta.fileName }
+                            })
+                            setDocumentMetadata((prev) => ({ ...prev, ...kycMetadataMap }))
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Failed to load KYC document metadata:', error)
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Failed to load human KYC documents:', error)
             }
           }
         }
@@ -523,19 +582,31 @@ export default function DealDetailPageClient() {
                           <TableBody>
                             <TableRow>
                               <TableCell className="font-medium">Доход в месяц</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
+                              <TableCell>
+                                {deal.dataIn.monthlyIncome 
+                                  ? `${Number(deal.dataIn.monthlyIncome).toLocaleString('ru-RU')} руб.`
+                                  : deal.dataIn.officialIncome_sb || 'не указано'}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium">Расходы в месяц</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
+                              <TableCell>
+                                {deal.dataIn.monthlyExpenses 
+                                  ? `${Number(deal.dataIn.monthlyExpenses).toLocaleString('ru-RU')} руб.`
+                                  : 'не указано'}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium">Место работы</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
+                              <TableCell>
+                                {deal.dataIn.workPlace || deal.dataIn.employmentInfo_sb || 'не указано'}
+                              </TableCell>
                             </TableRow>
                             <TableRow>
                               <TableCell className="font-medium">Стаж работы</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
+                              <TableCell>
+                                {deal.dataIn.workExperience || 'не указано'}
+                              </TableCell>
                             </TableRow>
                           </TableBody>
                         </Table>
@@ -575,44 +646,63 @@ export default function DealDetailPageClient() {
                           {(() => {
                             const dataInExtended = deal.dataIn as LoanApplicationDataIn & { documentPhotos?: string[] }
                             const documentUuids = dataInExtended.documentPhotos || []
+                            const allDocuments: Array<{ uuid: string; label: string; source: 'deal' | 'kyc' }> = []
                             
-                            if (documentUuids.length === 0) {
+                            // Add deal documents
+                            documentUuids.forEach((uuid) => {
+                              allDocuments.push({ uuid, label: 'Документ заявки', source: 'deal' })
+                            })
+                            
+                            // Add KYC income certificate documents
+                            humanKycDocuments.forEach((doc) => {
+                              allDocuments.push({ uuid: doc.mediaUuid, label: 'Справка о доходах', source: 'kyc' })
+                            })
+                            
+                            if (allDocuments.length === 0) {
                               return (
                                 <p className="text-sm text-muted-foreground">Документы не загружены</p>
                               )
                             }
                             
-                            return documentUuids.map((uuid) => {
-                              const metadata = documentMetadata[uuid]
+                            return allDocuments.map((doc) => {
+                              const metadata = documentMetadata[doc.uuid]
                               const fileName = metadata?.fileName 
-                                ? `документ ${metadata.fileName}` 
-                                : `Документ ${uuid.slice(0, 8)}...`
+                                ? metadata.fileName
+                                : `Документ ${doc.uuid.slice(0, 8)}...`
                               
                               return (
                                 <div
-                                  key={uuid}
+                                  key={doc.uuid}
                                   className="flex items-center justify-between p-2 border rounded">
                                   <div>
-                                    <p className="text-sm font-medium">{fileName}</p>
+                                    <p className="text-sm font-medium">{doc.label}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {fileName}
+                                    </p>
                                     {metadata && (
                                       <p className="text-xs text-muted-foreground">
-                                        UUID: {uuid}
+                                        UUID: {doc.uuid}
                                       </p>
                                     )}
                                   </div>
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => {
-                                      const url = `/api/esnad/v1/admin/files/${uuid}`
+                                      const url = `/api/esnad/v1/admin/files/${doc.uuid}`
+                                      const width = 1200
+                                      const height = 800
+                                      const left = (window.screen.width - width) / 2
+                                      const top = (window.screen.height - height) / 2
                                       window.open(
                                         url,
                                         '_blank',
-                                        'menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=yes,width=1200,height=800'
+                                        `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
                                       )
-                                    }}
-                                    className="text-sm text-primary hover:underline cursor-pointer">
+                                    }}>
                                     Просмотр
-                                  </button>
+                                  </Button>
                                 </div>
                               )
                             })

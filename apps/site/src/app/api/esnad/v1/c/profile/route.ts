@@ -8,13 +8,185 @@ import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
 import type { UpdateProfileKycRequest, ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
 
+const handleGet = async (context: AuthenticatedRequestContext): Promise<Response> => {
+  const { user } = context
+
+  try {
+    // Get human profile from user first
+    let human = user.human
+    if (!human) {
+      const meRepository = MeRepository.getInstance()
+      const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), { includeHuman: true })
+      human = userWithRoles?.human
+    }
+
+    if (!human) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Профиль не найден',
+        },
+        { status: 404 }
+      )
+    }
+
+    // Parse dataIn if it's a string
+    let dataIn: ClientDataIn = {}
+    if (human.dataIn) {
+      try {
+        dataIn = typeof human.dataIn === 'string' ? (JSON.parse(human.dataIn) as ClientDataIn) : (human.dataIn as ClientDataIn)
+      } catch (error) {
+        console.error('Ошибка при парсинге human.dataIn:', error)
+        dataIn = {}
+      }
+    }
+
+    // Extract phone and address from dataIn
+    const phone = dataIn.phone || undefined
+    const address = (dataIn as any).permanentAddress || (dataIn as any).registrationAddress || undefined
+
+    return NextResponse.json(
+      {
+        profile: {
+          id: user.id,
+          uuid: user.uuid,
+          email: user.email,
+          name: human.fullName || user.email,
+          phone,
+          address,
+          kycStatus: dataIn.kycStatus || 'not_started',
+          kycDocuments: (dataIn.kycDocuments || []).map((doc) => {
+            // Map backend types to frontend document IDs
+            const typeMap: Record<string, string> = {
+              'passport_main': 'passport',
+              'passport_registration': 'passport_registration',
+              'other': 'income_certificate',
+            }
+            const frontendId = typeMap[doc.type] || doc.type
+            
+            return {
+              id: frontendId,
+              name: doc.type || '',
+              status: (doc as any).status || 'pending',
+              uploadedAt: doc.uploadedAt,
+            }
+          }),
+        },
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Get profile error:', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR',
+        message,
+      },
+      { status: 500 }
+    )
+  }
+}
+
 const handlePut = async (context: AuthenticatedRequestContext): Promise<Response> => {
   const { request, user } = context
 
   try {
-    const body = (await request.json()) as UpdateProfileKycRequest
+    const body = (await request.json()) as UpdateProfileKycRequest | { name?: string; phone?: string; address?: string }
 
-    if (!body.kycDocuments || !Array.isArray(body.kycDocuments)) {
+    // Check if this is a profile update (name, phone, address) or KYC documents update
+    if ('name' in body || 'phone' in body || 'address' in body) {
+      // Profile update (name, phone, address)
+      let human = user.human
+      if (!human) {
+        const meRepository = MeRepository.getInstance()
+        const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), { includeHuman: true })
+        human = userWithRoles?.human
+      }
+
+      if (!human) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'NOT_FOUND',
+            message: 'Профиль не найден',
+          },
+          { status: 404 }
+        )
+      }
+
+      // Parse current dataIn
+      let dataIn: ClientDataIn & Record<string, any> = {}
+      if (human.dataIn) {
+        try {
+          dataIn = typeof human.dataIn === 'string' ? (JSON.parse(human.dataIn) as ClientDataIn & Record<string, any>) : (human.dataIn as ClientDataIn & Record<string, any>)
+        } catch (error) {
+          console.error('Ошибка при парсинге human.dataIn:', error)
+          dataIn = {}
+        }
+      }
+
+      // Update dataIn with new values
+      const updatedDataIn: ClientDataIn & Record<string, any> = {
+        ...dataIn,
+        ...(body.phone !== undefined && { phone: body.phone }),
+        ...(body.address !== undefined && { permanentAddress: body.address }),
+      }
+
+      // Update human profile
+      const humanRepository = HumanRepository.getInstance()
+      const updatedHuman = await humanRepository.update(human.uuid, {
+        fullName: body.name || human.fullName,
+        dataIn: updatedDataIn as any,
+      })
+
+      // Parse updated dataIn for response
+      let responseDataIn: ClientDataIn & Record<string, any> = {}
+      if (updatedHuman.dataIn) {
+        try {
+          responseDataIn = typeof updatedHuman.dataIn === 'string' ? (JSON.parse(updatedHuman.dataIn) as ClientDataIn & Record<string, any>) : (updatedHuman.dataIn as ClientDataIn & Record<string, any>)
+        } catch {
+          responseDataIn = {}
+        }
+      }
+
+      return NextResponse.json(
+        {
+          profile: {
+            id: user.id,
+            uuid: user.uuid,
+            email: user.email,
+            name: updatedHuman.fullName || user.email,
+            phone: responseDataIn.phone || undefined,
+            address: responseDataIn.permanentAddress || responseDataIn.registrationAddress || undefined,
+            kycStatus: responseDataIn.kycStatus || 'not_started',
+            kycDocuments: (responseDataIn.kycDocuments || []).map((doc) => {
+              // Map backend types to frontend document IDs
+              const typeMap: Record<string, string> = {
+                'passport_main': 'passport',
+                'passport_registration': 'passport_registration',
+                'other': 'income_certificate',
+              }
+              const frontendId = typeMap[doc.type] || doc.type
+              
+              return {
+                id: frontendId,
+                name: doc.type || '',
+                status: (doc as any).status || 'pending',
+                uploadedAt: doc.uploadedAt,
+              }
+            }),
+          },
+        },
+        { status: 200 }
+      )
+    }
+
+    // KYC Documents update
+    if (!('kycDocuments' in body) || !Array.isArray(body.kycDocuments)) {
       return NextResponse.json(
         {
           success: false,
@@ -49,7 +221,9 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
     // Validate kycDocuments structure and check ownership
     const fileStorageService = FileStorageService.getInstance()
     
-    for (const doc of body.kycDocuments) {
+    const kycBody = body as UpdateProfileKycRequest
+    
+    for (const doc of kycBody.kycDocuments) {
       if (!doc.mediaUuid || !doc.type) {
         return NextResponse.json(
           {
@@ -127,11 +301,11 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
     // Merge with existing documents if needed, or replace entirely
     const updatedDataIn: ClientDataIn = {
       ...currentDataIn,
-      kycDocuments: body.kycDocuments,
+      kycDocuments: kycBody.kycDocuments,
     }
 
     // If documents were added and status is not already pending/verified/rejected, set to pending
-    const hasDocuments = body.kycDocuments.length > 0
+    const hasDocuments = kycBody.kycDocuments.length > 0
     const currentStatus = currentDataIn.kycStatus || 'not_started'
     
     if (hasDocuments && currentStatus === 'not_started') {
@@ -189,4 +363,5 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
   }
 }
 
+export const GET = withRoleGuard(handleGet, ['client'])
 export const PUT = withRoleGuard(handlePut, ['client'])

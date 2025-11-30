@@ -70,6 +70,10 @@ interface FormData {
   employmentInfo_sb: string
   additionalIncome_sb: string
   officialIncome_sb: string
+  monthlyIncome: string
+  monthlyExpenses: string
+  workPlace: string
+  workExperience: string
   maritalStatus_sb: string
   childrenInfo_sb: string
   creditHistory_sb: string
@@ -579,6 +583,17 @@ export function InstallmentApplicationForm({
     return () => clearTimeout(timer)
   }, [isClient]) // Re-run if isClient changes
 
+  // Функция валидации русских букв
+  const validateRussianText = (text: string | null | undefined, fieldName: string): string | null => {
+    if (!text) return null // Пустые значения проверяются отдельно как required
+    
+    const russianPattern = /^[А-Яа-яЁё\s-]+$/
+    if (!russianPattern.test(text.trim())) {
+      return `${fieldName} должно содержать только русские буквы, пробелы и дефисы`
+    }
+    return null
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -590,6 +605,30 @@ export function InstallmentApplicationForm({
     try {
       setSubmitting(true)
       setError(null)
+
+      // Валидация русских букв в имени, фамилии и отчестве
+      const lastNameError = validateRussianText(formData.lastName, 'Фамилия')
+      if (lastNameError) {
+        setError(lastNameError)
+        setSubmitting(false)
+        return
+      }
+
+      const firstNameError = validateRussianText(formData.firstName, 'Имя')
+      if (firstNameError) {
+        setError(firstNameError)
+        setSubmitting(false)
+        return
+      }
+
+      if (formData.middleName) {
+        const middleNameError = validateRussianText(formData.middleName, 'Отчество')
+        if (middleNameError) {
+          setError(middleNameError)
+          setSubmitting(false)
+          return
+        }
+      }
 
       // Validate required files for clients
       if (isClient && (!formData.documentPhotos || formData.documentPhotos.length === 0)) {
@@ -660,9 +699,15 @@ export function InstallmentApplicationForm({
           <Input
             id="lastName"
             value={formData.lastName || ''}
-            onChange={(e) => handleInputChange('lastName', e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value
+              // Фильтруем только русские буквы, пробелы и дефисы
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('lastName', filtered)
+            }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''}
           />
         </div>
         <div className="space-y-2">
@@ -672,9 +717,15 @@ export function InstallmentApplicationForm({
           <Input
             id="firstName"
             value={formData.firstName || ''}
-            onChange={(e) => handleInputChange('firstName', e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value
+              // Фильтруем только русские буквы, пробелы и дефисы
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('firstName', filtered)
+            }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''}
           />
         </div>
         <div className="space-y-2">
@@ -684,8 +735,14 @@ export function InstallmentApplicationForm({
           <Input
             id="middleName"
             value={formData.middleName || ''}
-            onChange={(e) => handleInputChange('middleName', e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value
+              // Фильтруем только русские буквы, пробелы и дефисы
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('middleName', filtered)
+            }}
             pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''}
           />
         </div>
       </div>
@@ -902,31 +959,87 @@ export function InstallmentApplicationForm({
 
       <h3 className="text-lg font-semibold mt-6">Финансовая информация</h3>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="monthlyIncome">
+            Доход в месяц (руб.) *
+          </Label>
+          <Input
+            id="monthlyIncome"
+            type="number"
+            value={formData.monthlyIncome || ''}
+            onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
+            placeholder="Например: 50000"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="monthlyExpenses">
+            Расходы в месяц (руб.) *
+          </Label>
+          <Input
+            id="monthlyExpenses"
+            type="number"
+            value={formData.monthlyExpenses || ''}
+            onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
+            placeholder="Например: 30000"
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="workPlace">
+            Место работы *
+          </Label>
+          <Input
+            id="workPlace"
+            value={formData.workPlace || ''}
+            onChange={(e) => handleInputChange('workPlace', e.target.value)}
+            placeholder="Например: ООО 'Компания', менеджер"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="workExperience">
+            Стаж работы *
+          </Label>
+          <Input
+            id="workExperience"
+            value={formData.workExperience || ''}
+            onChange={(e) => handleInputChange('workExperience', e.target.value)}
+            placeholder="Например: 3 года"
+            required
+          />
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="employmentInfo_sb">
-          Место работы (организация), должность и стаж на текущем месте *
+          Место работы (организация), должность и стаж на текущем месте (дополнительная информация)
         </Label>
         <Textarea
           id="employmentInfo_sb"
           value={formData.employmentInfo_sb || ''}
           onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
-          placeholder="Например: ООО 'Компания', менеджер, стаж 3 года"
+          placeholder="Дополнительная информация о месте работы, должности и стаже"
           rows={3}
-          required
         />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="officialIncome_sb">
-          Официальное трудоустройство и сумма доходов по отдельности *
+          Официальное трудоустройство и сумма доходов по отдельности (дополнительная информация)
         </Label>
         <Textarea
           id="officialIncome_sb"
           value={formData.officialIncome_sb || ''}
           onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
-          placeholder="Например: Официальный доход: 50000 руб/мес"
+          placeholder="Дополнительная информация об официальном трудоустройстве и доходах"
           rows={3}
-          required
         />
       </div>
 

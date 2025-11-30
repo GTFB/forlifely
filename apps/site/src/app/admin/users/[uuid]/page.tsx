@@ -27,7 +27,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
@@ -538,6 +538,132 @@ export default function EditUserPage() {
               </CardContent>
             </Card>
           )}
+
+          {/* KYC Документы */}
+          {user && user.human?.dataIn && (() => {
+            const dataIn = typeof user.human!.dataIn === 'string' 
+              ? JSON.parse(user.human!.dataIn) 
+              : user.human!.dataIn
+            
+            const kycDocuments = dataIn?.kycDocuments || []
+            
+            if (kycDocuments.length === 0) {
+              return null
+            }
+
+            const getDocumentTypeLabel = (type: string) => {
+              const typeMap: Record<string, string> = {
+                'passport_main': 'Паспорт (главная страница)',
+                'passport_registration': 'Паспорт (страница с регистрацией)',
+                'selfie': 'Селфи',
+                'other': 'Справка о доходах',
+              }
+              return typeMap[type] || type
+            }
+
+            const getStatusIcon = (status?: string) => {
+              switch (status) {
+                case 'verified':
+                  return <CheckCircle className="h-4 w-4 text-green-600" />
+                case 'pending':
+                  return <Clock className="h-4 w-4 text-yellow-600" />
+                case 'rejected':
+                  return <XCircle className="h-4 w-4 text-red-600" />
+                default:
+                  return <Clock className="h-4 w-4 text-gray-400" />
+              }
+            }
+
+            const getStatusLabel = (status?: string) => {
+              switch (status) {
+                case 'verified':
+                  return 'Верифицирован'
+                case 'pending':
+                  return 'На проверке'
+                case 'rejected':
+                  return 'Отклонен'
+                default:
+                  return 'Ожидает проверки'
+              }
+            }
+
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle>KYC Документы</CardTitle>
+                  <CardDescription>
+                    Документы, загруженные пользователем для верификации
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {kycDocuments.map((doc: any, index: number) => {
+                        const fileUrl = `/api/esnad/v1/admin/files/${doc.mediaUuid}`
+                        return (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3 flex-1">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{getDocumentTypeLabel(doc.type)}</span>
+                                  {getStatusIcon(doc.status)}
+                                  <Badge variant="outline" className="text-xs">
+                                    {getStatusLabel(doc.status)}
+                                  </Badge>
+                                </div>
+                                {doc.uploadedAt && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Загружен: {new Date(doc.uploadedAt).toLocaleString('ru-RU')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const width = 1200
+                                const height = 800
+                                const left = (window.screen.width - width) / 2
+                                const top = (window.screen.height - height) / 2
+                                window.open(
+                                  fileUrl,
+                                  '_blank',
+                                  `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
+                                )
+                              }}
+                              className="flex items-center gap-2">
+                              <span className="text-sm">Открыть</span>
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {dataIn?.kycStatus && (
+                      <div className="pt-2 border-t">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">Статус верификации:</span>
+                          <Badge variant={
+                            dataIn.kycStatus === 'verified' ? 'default' :
+                            dataIn.kycStatus === 'rejected' ? 'destructive' :
+                            'secondary'
+                          }>
+                            {dataIn.kycStatus === 'verified' && <CheckCircle className="mr-1 h-3 w-3" />}
+                            {dataIn.kycStatus === 'pending' && <Clock className="mr-1 h-3 w-3" />}
+                            {dataIn.kycStatus === 'rejected' && <XCircle className="mr-1 h-3 w-3" />}
+                            {getStatusLabel(dataIn.kycStatus)}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
         </div>
       </main>
     </>

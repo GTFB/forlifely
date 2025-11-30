@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import InvestorAuthGuard from '@/components/cabinet/InvestorAuthGuard'
 import { InvestorLayout } from '@/components/cabinet/InvestorLayout'
+import { AskForNotificationPush } from '@/components/AskForNotificationPush'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -34,6 +35,7 @@ export default function InvestorCabinetLayout({ children }: { children: ReactNod
   return (
     <div className="min-h-screen bg-background">
       <InvestorAuthGuard>
+        <AskForNotificationPush />
         <InvestorLayout
           headerTitle={header.title}
           headerBreadcrumbs={header.breadcrumbItems}>

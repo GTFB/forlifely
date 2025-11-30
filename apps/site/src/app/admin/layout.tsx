@@ -112,16 +112,17 @@ const adminNavigationItems: NavigationItem[] = [
     url: '/admin/deals',
     icon: FileText,
   },
-  {
-    title: 'Блог',
-    url: '/admin/content/blog',
-    icon: BookOpen,
-  },
-  {
-    title: 'Задачи',
-    url: '/admin/tasks',
-    icon: CheckSquare,
-  },
+  // Временно скрыто
+  // {
+  //   title: 'Блог',
+  //   url: '/admin/content/blog',
+  //   icon: BookOpen,
+  // },
+  // {
+  //   title: 'Задачи',
+  //   url: '/admin/tasks',
+  //   icon: CheckSquare,
+  // },
 ]
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

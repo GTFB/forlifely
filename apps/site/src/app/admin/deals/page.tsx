@@ -507,8 +507,26 @@ export default function AdminDealsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {(deal as LoanApplication & { managerName?: string | null }).managerName ||
-                          normalizeManager(null)}
+                        {(() => {
+                          const dealWithManager = deal as LoanApplication & { managerName?: string | null }
+                          const managerName = dealWithManager.managerName
+                          
+                          // If managerName is already loaded from API, use it
+                          if (managerName) {
+                            return managerName
+                          }
+                          
+                          // Otherwise, try to find manager by UUID from dataIn
+                          const managerUuid = (deal.dataIn as any)?.managerUuid
+                          if (managerUuid && managers.length > 0) {
+                            const manager = managers.find(m => m.uuid === managerUuid)
+                            if (manager) {
+                              return manager.fullName || manager.email
+                            }
+                          }
+                          
+                          return normalizeManager(null)
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}

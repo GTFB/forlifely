@@ -146,6 +146,10 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
                             if (userWithRoles?.human) {
                                 managerName = userWithRoles.human.fullName || null
                             }
+                            // If no fullName, use email as fallback
+                            if (!managerName && userWithRoles?.user?.email) {
+                                managerName = userWithRoles.user.email
+                            }
                         }
                     } catch (err) {
                         console.error(`Failed to load manager for application ${app.uuid}:`, err)

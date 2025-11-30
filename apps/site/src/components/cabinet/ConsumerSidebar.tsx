@@ -20,16 +20,17 @@ const navigationItems: NavigationItem[] = [
     url: '/c/deals',
     icon: FileText,
   },
-  {
-    title: 'Платежи',
-    url: '/c/payments',
-    icon: CreditCard,
-  },
-  {
-    title: 'Поддержка',
-    url: '/c/support',
-    icon: MessageSquare,
-  },
+  // Temporarily hidden
+  // {
+  //   title: 'Платежи',
+  //   url: '/c/payments',
+  //   icon: CreditCard,
+  // },
+  // {
+  //   title: 'Поддержка',
+  //   url: '/c/support',
+  //   icon: MessageSquare,
+  // },
 ]
 
 interface ConsumerSidebarProps {

@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import PartnerAuthGuard from '@/components/cabinet/PartnerAuthGuard'
 import { PartnerLayout } from '@/components/cabinet/PartnerLayout'
+import { AskForNotificationPush } from '@/components/AskForNotificationPush'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -34,6 +35,7 @@ export default function PartnerCabinetLayout({ children }: { children: ReactNode
   return (
     <div className="min-h-screen bg-background">
       <PartnerAuthGuard>
+        <AskForNotificationPush />  
         <PartnerLayout
           headerTitle={header.title}
           headerBreadcrumbs={header.breadcrumbItems}>

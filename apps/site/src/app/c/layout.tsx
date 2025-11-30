@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import ConsumerAuthGuard from '@/components/cabinet/ConsumerAuthGuard'
 import { ConsumerLayout } from '@/components/cabinet/ConsumerLayout'
+import { AskForNotificationPush } from '@/components/AskForNotificationPush'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -49,6 +50,7 @@ export default function ConsumerCabinetLayout({ children }: { children: ReactNod
   return (
     <div className="min-h-screen bg-background">
       <ConsumerAuthGuard>
+        <AskForNotificationPush />
         <ConsumerLayout
           headerTitle={header.title}
           headerBreadcrumbs={header.breadcrumbItems}>

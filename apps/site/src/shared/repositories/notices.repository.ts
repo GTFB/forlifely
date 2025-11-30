@@ -1,6 +1,6 @@
 import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
-import { Notice } from '../schema/types'
+import { NewNotice, Notice } from '../schema/types'
 import { generateAid } from '../generate-aid'
 import {
   EsnadNotice,
@@ -8,6 +8,10 @@ import {
   NoticeDataIn,
   PaymentReminderChannel,
 } from '../types/esnad-finance'
+import { HumanRepository } from './human.repository'
+import { sendEmail } from '../services/email.service'
+import { buildRequestEnv } from '../env'
+import { sendPushNotificationToHuman } from '../utils/push'
 
 export class NoticesRepository extends BaseRepository<Notice> {
   constructor() {
@@ -23,7 +27,7 @@ export class NoticesRepository extends BaseRepository<Notice> {
       data.naid = generateAid('n')
     }
     if (typeof data.isRead === 'undefined') {
-      data.isRead = 0
+      data.isRead = false
     }
   }
 
@@ -131,6 +135,91 @@ export class NoticesRepository extends BaseRepository<Notice> {
       triggeredBy: 'SYSTEM',
       triggerReason: 'DEBT_COLLECTION',
     })
+  }
+  public async sendEmail(haid: string, subject: string, body: string): Promise<Notice> {
+    const humanRepository = HumanRepository.getInstance()
+    const human = await humanRepository.findByHaid(haid)
+    if (!human) {
+      throw new Error('Human not found')
+    }
+
+    const email = human.email as string
+    if (!email) {
+      throw new Error('Email not found')
+    }
+
+    // Send email
+    let emailSent = false
+    let emailError: string | null = null
+    try {
+      await sendEmail(buildRequestEnv(), {
+        to: email,
+        subject: subject,
+        html: body,
+        text: body.replace(/<[^>]*>/g, '').trim(),
+      })
+      emailSent = true
+    } catch (error) {
+      emailError = error instanceof Error ? error.message : String(error)
+      console.error('Failed to send email:', error)
+      // Continue to save notice even if email fails
+    }
+
+    // Create notice record
+    const noticeData: NewNotice = {
+      uuid: crypto.randomUUID(),
+      naid: generateAid('n'),
+      targetAid: haid,
+      title: subject,
+      isRead: false,
+      typeName: 'email',
+      order: '0',
+      dataIn: {
+        email,
+        body,
+        sent: emailSent,
+        error: emailError,
+      },
+    }
+
+    const notice = await this.create(noticeData)
+    return notice
+  }
+
+  public async sendPushNotification(haid: string, title: string, body: string): Promise<Notice> {
+    // Send push notification
+    let pushSent = false
+    let pushError: string | null = null
+    let pushResult: any = null
+
+    try {
+      pushResult = await sendPushNotificationToHuman(haid, title, body, { env: buildRequestEnv() })
+      pushSent = true
+    } catch (error) {
+      pushError = error instanceof Error ? error.message : String(error)
+      console.error('Failed to send push notification:', error)
+      // Continue to save notice even if push fails
+    }
+
+    // Create notice record
+    const noticeData: NewNotice = {
+      uuid: crypto.randomUUID(),
+      naid: generateAid('n'),
+      targetAid: haid,
+      title: title,
+      isRead: false,
+      typeName: 'push',
+      order: '0',
+      dataIn: {
+        body,
+        sent: pushSent,
+        error: pushError,
+        result: pushResult,
+      },
+    }
+
+    const notice = await this.create(noticeData)
+    return notice
   }
 }
 

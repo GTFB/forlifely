@@ -28,6 +28,7 @@ import { UsersRepository } from "./users.repository";
 import { UserRolesRepository } from "./user-roles.repository";
 import { preparePassword } from "../password";
 import { FinancesRepository } from "./finances.repository";
+import { NoticesRepository } from "./notices.repository";
 import {
     PaymentScheduleInput,
     PaymentLimitsConfig,
@@ -117,6 +118,10 @@ export class DealsRepository extends BaseRepository<Deal>{
             ...(formData.officialIncome_sb && { officialIncome_sb: formData.officialIncome_sb.trim() }),
             ...(formData.additionalIncome_sb && { additionalIncome_sb: formData.additionalIncome_sb.trim() }),
             ...(formData.employmentInfo_sb && { employmentInfo_sb: formData.employmentInfo_sb.trim() }),
+            ...(formData.monthlyIncome && { monthlyIncome: formData.monthlyIncome.trim() }),
+            ...(formData.monthlyExpenses && { monthlyExpenses: formData.monthlyExpenses.trim() }),
+            ...(formData.workPlace && { workPlace: formData.workPlace.trim() }),
+            ...(formData.workExperience && { workExperience: formData.workExperience.trim() }),
         }
 
         const missingFields: string[] = []
@@ -659,6 +664,41 @@ export class DealsRepository extends BaseRepository<Deal>{
         // Refresh updatedDeal to include payment schedule
         const dealWithSchedule = await this.findByUuid(uuid) as LoanApplication;
 
+        // Send notification to client
+        if (deal.clientAid) {
+            try {
+                const noticesRepository = NoticesRepository.getInstance();
+                const clientName = currentDataIn.firstName && currentDataIn.lastName
+                    ? `${currentDataIn.firstName} ${currentDataIn.lastName}`.trim()
+                    : 'Уважаемый клиент';
+                
+                const emailSubject = 'Заявка одобрена';
+                const emailBody = `
+                    <h2>Поздравляем, ${clientName}!</h2>
+                    <p>Ваша заявка на рассрочку №${deal.daid} была одобрена.</p>
+                    <p>Сумма рассрочки: ${productPrice.toLocaleString('ru-RU')} ₽</p>
+                    <p>Срок рассрочки: ${termMonths} ${termMonths === 1 ? 'месяц' : termMonths < 5 ? 'месяца' : 'месяцев'}</p>
+                    <p>Наш менеджер свяжется с вами в ближайшее время для оформления документов.</p>
+                `;
+
+                const pushTitle = 'Заявка одобрена';
+                const pushBody = `Ваша заявка №${deal.daid} была одобрена. Менеджер свяжется с вами в ближайшее время.`;
+
+                // Send email and push notification
+                await Promise.all([
+                    noticesRepository.sendEmail(deal.clientAid, emailSubject, emailBody).catch(err => 
+                        console.error('Failed to send approval email:', err)
+                    ),
+                    noticesRepository.sendPushNotification(deal.clientAid, pushTitle, pushBody).catch(err => 
+                        console.error('Failed to send approval push:', err)
+                    ),
+                ]);
+            } catch (error) {
+                console.error('Failed to send approval notifications:', error);
+                // Don't throw - notifications are not critical
+            }
+        }
+
         return {
             updatedDeal: dealWithSchedule,
             journal,
@@ -726,6 +766,40 @@ export class DealsRepository extends BaseRepository<Deal>{
             deal,
             null
         );
+
+        // Send notification to client
+        if (deal.clientAid) {
+            try {
+                const noticesRepository = NoticesRepository.getInstance();
+                const clientName = currentDataIn.firstName && currentDataIn.lastName
+                    ? `${currentDataIn.firstName} ${currentDataIn.lastName}`.trim()
+                    : 'Уважаемый клиент';
+                
+                const emailSubject = 'Заявка отклонена';
+                const emailBody = `
+                    <h2>${clientName}, добрый день.</h2>
+                    <p>К сожалению, ваша заявка на рассрочку №${deal.daid} была отклонена.</p>
+                    ${securityServiceComment ? `<p>Причина: ${securityServiceComment}</p>` : ''}
+                    <p>Если у вас есть вопросы, пожалуйста, свяжитесь с нашим отделом поддержки.</p>
+                `;
+
+                const pushTitle = 'Заявка отклонена';
+                const pushBody = `Ваша заявка №${deal.daid} была отклонена. Проверьте email для подробностей.`;
+
+                // Send email and push notification
+                await Promise.all([
+                    noticesRepository.sendEmail(deal.clientAid, emailSubject, emailBody).catch(err => 
+                        console.error('Failed to send rejection email:', err)
+                    ),
+                    noticesRepository.sendPushNotification(deal.clientAid, pushTitle, pushBody).catch(err => 
+                        console.error('Failed to send rejection push:', err)
+                    ),
+                ]);
+            } catch (error) {
+                console.error('Failed to send rejection notifications:', error);
+                // Don't throw - notifications are not critical
+            }
+        }
 
         return {
             updatedDeal,

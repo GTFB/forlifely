@@ -84,46 +84,47 @@ const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
-  {
-    title: 'Контент',
-    items: [
-      {
-        title: 'Блог',
-        url: '/admin/content/blog',
-        icon: BookOpen,
-      },
-      {
-        title: 'Страницы',
-        url: '/admin/content/pages',
-        icon: FileText,
-      },
-      {
-        title: 'FAQ',
-        url: '/admin/content/faq',
-        icon: FileQuestion,
-      },
-    ],
-  },
-  {
-    title: 'Поддержка',
-    items: [
-      {
-        title: 'Поддержка',
-        url: '/admin/support',
-        icon: MessageSquare,
-      },
-    ],
-  },
-  {
-    title: 'Задачи',
-    items: [
-      {
-        title: 'Менеджер задач',
-        url: '/admin/tasks',
-        icon: CheckSquare,
-      },
-    ],
-  },
+  // Временно скрыто
+  // {
+  //   title: 'Контент',
+  //   items: [
+  //     {
+  //       title: 'Блог',
+  //       url: '/admin/content/blog',
+  //       icon: BookOpen,
+  //     },
+  //     {
+  //       title: 'Страницы',
+  //       url: '/admin/content/pages',
+  //       icon: FileText,
+  //     },
+  //     {
+  //       title: 'FAQ',
+  //       url: '/admin/content/faq',
+  //       icon: FileQuestion,
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: 'Поддержка',
+  //   items: [
+  //     {
+  //       title: 'Поддержка',
+  //       url: '/admin/support',
+  //       icon: MessageSquare,
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: 'Задачи',
+  //   items: [
+  //     {
+  //       title: 'Менеджер задач',
+  //       url: '/admin/tasks',
+  //       icon: CheckSquare,
+  //     },
+  //   ],
+  // },
 ]
 
 interface AdminSidebarProps {
