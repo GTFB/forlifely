@@ -4,7 +4,7 @@ export default function PwaLoader() {
     useEffect(() => {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker
-              .register('/pwa/sw.js')
+              .register('/sw.js')
               .then((registration) => {
                 console.log('Service Worker registered:', registration.scope);
               })

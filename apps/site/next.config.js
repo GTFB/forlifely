@@ -1,5 +1,5 @@
 const withPWA = require('next-pwa')({
-  dest: 'public/pwa',
+  dest: 'public',
   customWorkerDir: 'worker',
   buildExcludes: [/app-build-manifest\.json$/],
   // Disable PWA in development to avoid GenerateSW warning

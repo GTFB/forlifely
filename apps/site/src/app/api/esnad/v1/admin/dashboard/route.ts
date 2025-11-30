@@ -117,76 +117,105 @@ const handleGet = async (
     }
 
     // 6. Заявки по менеджерам
+    // First, get all managers with admin/Administrator role
+    const MeRepository = (await import('@/shared/repositories/me.repository')).MeRepository
+    const meRepository = MeRepository.getInstance()
+    const allUsers = await usersRepo.findAll()
+    
+    const managers: Array<{ uuid: string; name: string }> = []
+    
+    for (const user of allUsers) {
+      // Skip soft-deleted users
+      if (user.deletedAt) continue
+      
+      try {
+        const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
+          includeHuman: true,
+        })
+        
+        if (!userWithRoles) continue
+        
+        // Check if user has admin or Administrator role
+        const hasAdminRole = userWithRoles.roles.some(
+          (role) =>
+            role.name === 'Administrator' ||
+            role.name === 'admin' ||
+            role.isSystem === true
+        )
+        
+        if (hasAdminRole) {
+          // Get manager name from human data
+          const humanData = userWithRoles.human?.dataIn as { 
+            firstName?: string
+            lastName?: string
+            middleName?: string
+          } | null
+          
+          let managerName = 'Не указан'
+          if (humanData) {
+            const parts = [
+              humanData.lastName,
+              humanData.firstName,
+              humanData.middleName,
+            ].filter(Boolean) as string[]
+            if (parts.length > 0) {
+              managerName = parts.join(' ')
+            }
+          } else if (userWithRoles.human?.fullName) {
+            managerName = userWithRoles.human.fullName
+          }
+          
+          // If no name found, use email as fallback
+          if (managerName === 'Не указан' && user.email) {
+            managerName = user.email
+          }
+          
+          managers.push({
+            uuid: user.uuid,
+            name: managerName,
+          })
+        }
+      } catch (err) {
+        console.error(`Failed to load roles for user ${user.uuid}:`, err)
+        // Continue with next user
+      }
+    }
+    
+    // Count deals for each manager
     const dealsByManager = new Map<string, number>()
     
+    // Initialize all managers with 0 count
+    for (const manager of managers) {
+      dealsByManager.set(manager.uuid, 0)
+    }
+    
+    // Count deals for managers
     for (const deal of allDeals) {
       const managerUuid = deal.dataIn?.managerUuid
-      if (managerUuid) {
+      if (managerUuid && dealsByManager.has(managerUuid)) {
         const count = dealsByManager.get(managerUuid) || 0
         dealsByManager.set(managerUuid, count + 1)
       }
     }
-
-    // Get manager names
-    const managerUuids = Array.from(dealsByManager.keys())
+    
+    // Build applicationsByManager array with all managers (even with 0 deals)
     const applicationsByManager: Array<{ manager: string; count: number }> = []
-
-    if (managerUuids.length > 0) {
-      // Get users by UUIDs
-      const users = await Promise.all(
-        managerUuids.map((uuid) => usersRepo.findByUuid(uuid))
-      )
-      const validUsers = users.filter((u): u is NonNullable<typeof u> => !!u)
-
-      // Get human data for managers
-      const humanAids = validUsers
-        .map((u) => u.humanAid)
-        .filter((aid): aid is string => !!aid)
-
-      if (humanAids.length > 0) {
-        const HumanRepository = (await import('@/shared/repositories/human.repository')).HumanRepository
-        const humanRepo = HumanRepository.getInstance()
-        
-        const humans = await Promise.all(
-          humanAids.map((haid) => humanRepo.findByHaid(haid))
-        )
-        const validHumans = humans.filter((h): h is NonNullable<typeof h> => !!h)
-
-        const humanMap = new Map(
-          validHumans.map((h) => [
-            h.haid,
-            (h.dataIn as { firstName?: string; lastName?: string; middleName?: string }) || {},
-          ])
-        )
-
-        for (const user of validUsers) {
-          const count = dealsByManager.get(user.uuid) || 0
-          if (count > 0) {
-            const humanData = user.humanAid ? humanMap.get(user.humanAid) : null
-            let managerName = 'Не указан'
-            
-            if (humanData) {
-              const parts = [
-                humanData.lastName,
-                humanData.firstName,
-                humanData.middleName,
-              ].filter(Boolean) as string[]
-              if (parts.length > 0) {
-                managerName = parts.join(' ')
-              }
-            }
-
-            applicationsByManager.push({
-              manager: managerName,
-              count,
-            })
-          }
-        }
-
-        // Sort by count descending
-        applicationsByManager.sort((a, b) => b.count - a.count)
-      }
+    
+    for (const manager of managers) {
+      const count = dealsByManager.get(manager.uuid) || 0
+      applicationsByManager.push({
+        manager: manager.name,
+        count,
+      })
     }
+    
+    // Sort by count descending, then by name
+    applicationsByManager.sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count
+      }
+      return a.manager.localeCompare(b.manager)
+    })
 
     const metrics: DashboardMetrics = {
       newApplicationsToday,

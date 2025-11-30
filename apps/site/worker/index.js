@@ -3,7 +3,7 @@
 self.addEventListener('push', function (event) {
     let data = null;
     try {
-        data = event.data.json()
+        data = event.data.json() 
     } catch (error) {
         console.error('Error parsing data:', event.data.text())
         data = {

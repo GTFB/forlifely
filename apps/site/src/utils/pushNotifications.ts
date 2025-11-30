@@ -39,7 +39,7 @@ export async function subscribeUserToPush(vapidPublicKey: string): Promise<void>
         registration = await navigator.serviceWorker.ready;
     } else {
         // Register service worker if not already registered
-        registration = await navigator.serviceWorker.register('/pwa/sw.js');
+        registration = await navigator.serviceWorker.register('/sw.js');
         // Wait for it to be ready
         registration = await navigator.serviceWorker.ready;
     }
