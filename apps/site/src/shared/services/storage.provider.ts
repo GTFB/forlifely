@@ -2,9 +2,10 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { FilesRepository } from '../repositories/files.repository'
 
 export interface IStorageProvider {
-  save(file: Blob, filename: string): Promise<{ path: string; url: string; size: number; mimeType: string }>
+  save(file: Blob, filename: string, mediaUuid: string): Promise<{ path: string; url: string; size: number; mimeType: string }>
   get(path: string): Promise<Blob>
 }
 
@@ -21,7 +22,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
   }
 
-  async save(file: Blob, filename: string) {
+  async save(file: Blob, filename: string, _mediaUuid: string) {
     await this.ensureUploadDir()
     
     const ext = path.extname(filename)
@@ -50,12 +51,57 @@ export class LocalStorageProvider implements IStorageProvider {
         throw new Error('File not found')
       }
 
-      const buffer = await readFile(absolutePath)
-      // We don't store mimeType with file content on disk easily, 
-      // usually it comes from DB metadata. For Blob we need it.
-      // For this simple implementation we might need to guess or pass it.
-      // But Blob constructor takes options.
-      return new Blob([buffer]) 
+    const buffer = await readFile(absolutePath)
+    const uint8 = new Uint8Array(buffer)
+    return new Blob([uint8]) 
   }
 }
 
+/**
+ * Storage provider that keeps file content directly in the database
+ * using the `files` table. The `path` returned is a logical handle
+ * in the form `db:files:<fileUuid>` which is later used in `get()`.
+ */
+export class DatabaseStorageProvider implements IStorageProvider {
+  private filesRepository: FilesRepository
+
+  constructor() {
+    this.filesRepository = FilesRepository.getInstance()
+  }
+
+  async save(file: Blob, filename: string, mediaUuid: string): Promise<{ path: string; url: string; size: number; mimeType: string }> {
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    const fileRecord = await this.filesRepository.createFile({
+      mediaUuid,
+      data: buffer,
+    } as any)
+
+    const logicalPath = `db:files:${fileRecord.uuid}`
+
+    return {
+      path: logicalPath,
+      // URL can be implemented via a dedicated API route that reads from DB by file UUID
+      url: `/api/assets/${fileRecord.uuid}`,
+      size: file.size,
+      mimeType: file.type,
+    }
+  }
+
+  async get(pathValue: string): Promise<Blob> {
+    if (!pathValue.startsWith('db:files:')) {
+      throw new Error('Invalid database file path')
+    }
+
+    const fileUuid = pathValue.replace('db:files:', '')
+    const fileRecord = await this.filesRepository.findByUuid(fileUuid)
+
+    if (!fileRecord || !fileRecord.data) {
+      throw new Error('File not found')
+    }
+
+    const buffer = Buffer.from(fileRecord.data as unknown as Uint8Array)
+    const uint8 = new Uint8Array(buffer)
+    return new Blob([uint8])
+  }
+}

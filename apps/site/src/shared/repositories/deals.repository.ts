@@ -36,6 +36,7 @@ import {
 } from "../types/esnad-finance";
 import { ScoringWeights } from "../types/scoring";
 import { SettingsRepository } from "./settings.repository";
+import { buildAdminNewLoanApplicationEmailHtml } from "../services/email-templates.service";
 
 const ADMIN_CONTACT_MESSAGE = ' Пожалуйста, свяжитесь с администратором системы.';
 const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя ошибка при обработке решения.${ADMIN_CONTACT_MESSAGE}`;
@@ -215,7 +216,46 @@ export class DealsRepository extends BaseRepository<Deal>{
         
         const journalsRepository = JournalsRepository.getInstance()
         const journal = await journalsRepository.createLoanApplicationSnapshot(updatedDeal as LoanApplication, createdDeal, null)
-        
+
+        // Уведомление всех администраторов о новой заявке
+        try {
+            const noticesRepository = NoticesRepository.getInstance()
+            const admins = await this.getAdminHumans()
+
+            if (admins.length) {
+                const clientName = applicantName || 'Клиент'
+                const emailSubject = 'Новая заявка на рассрочку'
+                const termText = `${sanitizedFormData.term.join(', ')} месяцев`
+                const productPriceNumber = Number(sanitizedFormData.productPrice)
+                const emailBody = buildAdminNewLoanApplicationEmailHtml({
+                    dealAid: updatedDeal.daid,
+                    clientName,
+                    productPrice: isNaN(productPriceNumber) ? 0 : productPriceNumber,
+                    termText,
+                    productName: sanitizedFormData.productName,
+                })
+
+                const pushTitle = 'Новая заявка на рассрочку'
+                const pushBody = `Поступила новая заявка №${updatedDeal.daid} от ${clientName}.`
+
+                await Promise.all(
+                    admins.map((admin) =>
+                        Promise.all([
+                            noticesRepository
+                                .sendEmail(admin.haid, emailSubject, emailBody)
+                                .catch((err) => console.error('Failed to send admin email notification:', err)),
+                            noticesRepository
+                                .sendPushNotification(admin.haid, pushTitle, pushBody, `${process.env.PUBLIC_SITE_URL}/admin/deals`)
+                                .catch((err) => console.error('Failed to send admin push notification:', err)),
+                        ])
+                    )
+                )
+            }
+        } catch (error) {
+            console.error('Failed to send admin notifications for new loan application:', error)
+            // Не прерываем основной процесс создания заявки из‑за ошибок уведомлений
+        }
+
         // Ensure user with 'client' role exists
         await this.ensureClientUser(sanitizedFormData.email, client)
         
@@ -500,6 +540,36 @@ export class DealsRepository extends BaseRepository<Deal>{
             // For any other database errors (table not found, etc.), throw the expected error
             throw new Error(INTERNAL_DECISION_ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * Получение списка людей (humans) с ролями admin / super-admin
+     * Используется для рассылки уведомлений администраторам
+     */
+    private async getAdminHumans(): Promise<{ haid: string; fullName: string }[]> {
+        const admins = await this.db
+            .select({
+                haid: schema.humans.haid,
+                fullName: schema.humans.fullName,
+            })
+            .from(schema.users)
+            .innerJoin(schema.userRoles, eq(schema.userRoles.userUuid, schema.users.uuid))
+            .innerJoin(schema.roles, eq(schema.roles.uuid, schema.userRoles.roleUuid))
+            .innerJoin(schema.humans, eq(schema.humans.haid, schema.users.humanAid))
+            .where(
+                and(
+                    sql`${schema.roles.deletedAt} IS NULL`,
+                    sql`${schema.users.deletedAt} IS NULL`,
+                    sql`${schema.humans.deletedAt} IS NULL`,
+                    or(
+                        eq(schema.roles.name, 'admin'),
+                        eq(schema.roles.name, 'Administrator'),
+                    ),
+                )
+            )
+            .execute()
+
+        return admins
     }
 
     public async updateLoanApplicationDeal(uuid: string, data: Partial<LoanApplication>): Promise<{

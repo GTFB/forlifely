@@ -186,14 +186,14 @@ export class NoticesRepository extends BaseRepository<Notice> {
     return notice
   }
 
-  public async sendPushNotification(haid: string, title: string, body: string): Promise<Notice> {
+  public async sendPushNotification(haid: string, title: string, body: string, url?: string): Promise<Notice> {
     // Send push notification
     let pushSent = false
     let pushError: string | null = null
     let pushResult: any = null
 
     try {
-      pushResult = await sendPushNotificationToHuman(haid, title, body, { env: buildRequestEnv() })
+      pushResult = await sendPushNotificationToHuman(haid, title, body, { env: buildRequestEnv() }, url)
       pushSent = true
     } catch (error) {
       pushError = error instanceof Error ? error.message : String(error)

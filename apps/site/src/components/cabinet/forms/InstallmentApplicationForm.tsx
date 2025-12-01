@@ -974,7 +974,7 @@ export function InstallmentApplicationForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="monthlyIncome">
-            Доход в месяц (руб.) *
+            Доход в месяц (руб.)
           </Label>
           <Input
             id="monthlyIncome"
@@ -987,7 +987,7 @@ export function InstallmentApplicationForm({
 
         <div className="space-y-2">
           <Label htmlFor="monthlyExpenses">
-            Расходы в месяц (руб.) *
+            Расходы в месяц (руб.
           </Label>
           <Input
             id="monthlyExpenses"
@@ -1002,7 +1002,7 @@ export function InstallmentApplicationForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="workPlace">
-            Место работы *
+            Место работы
           </Label>
           <Input
             id="workPlace"
@@ -1014,7 +1014,7 @@ export function InstallmentApplicationForm({
 
         <div className="space-y-2">
           <Label htmlFor="workExperience">
-            Стаж работы *
+            Стаж работы
           </Label>
           <Input
             id="workExperience"

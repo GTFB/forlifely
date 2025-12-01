@@ -542,7 +542,7 @@ export const sendPushNotificationToHuman = async (
     payload: { humanUuid: human.uuid },
   })
 
-  const subscription = human.data_in?.push_subscription as ServerPushSubscription | undefined
+  const subscription = (human.dataIn ?? human.data_in)?.push_subscription as ServerPushSubscription | undefined
   if (!subscription) {
     await log('subscription_missing', {
       status: 'error',

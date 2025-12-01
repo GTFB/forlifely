@@ -21,6 +21,14 @@ export interface PaymentOverdueEmailData {
   overdueDays: number
 }
 
+export interface AdminNewLoanApplicationEmailData {
+  dealAid: string
+  clientName: string
+  productPrice: number
+  termText: string
+  productName?: string
+}
+
 const buildEmailBase = (content: string): string => {
   return `
 <!DOCTYPE html>
@@ -218,6 +226,75 @@ export function buildPaymentReminderEmailHtml(data: PaymentReminderEmailData): s
               
               <p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.6; color: #374151;">
                 С уважением,<br><strong>Команда Esnad Finance</strong>
+              </p>
+            </td>
+          </tr>
+  `
+
+  return buildEmailBase(content)
+}
+
+/**
+ * Build HTML email for admins about new loan application
+ */
+export function buildAdminNewLoanApplicationEmailHtml(data: AdminNewLoanApplicationEmailData): string {
+  const { dealAid, clientName, productPrice, termText, productName } = data
+  const formattedAmount = productPrice.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+
+  const content = `
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+              <div style="font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 4px;">Новая заявка на рассрочку</div>
+              <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Уведомление для администратора</div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 32px 40px 24px 40px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #374151;">
+                В системе создана новая заявка на рассрочку. Краткая информация приведена ниже.
+              </p>
+
+              <!-- Deal Card -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 18px 20px; background-color: #f9fafb; border-radius: 10px; border: 1px solid #e5e7eb;">
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #6b7280;">Номер заявки</p>
+                    <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">${dealAid}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Details Table -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-collapse: collapse; font-size: 14px; margin-bottom: 24px;">
+                <tbody>
+                  <tr>
+                    <td style="padding: 6px 0; color: #6b7280; width: 40%;">Клиент</td>
+                    <td style="padding: 6px 0; color: #111827; font-weight: 500;">${clientName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #6b7280;">Сумма рассрочки</td>
+                    <td style="padding: 6px 0; color: #111827; font-weight: 500;">${formattedAmount} ₽</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #6b7280;">Срок</td>
+                    <td style="padding: 6px 0; color: #111827; font-weight: 500;">${termText}</td>
+                  </tr>
+                  ${
+                    productName
+                      ? `<tr>
+                          <td style="padding: 6px 0; color: #6b7280;">Товар / услуга</td>
+                          <td style="padding: 6px 0; color: #111827;">${productName}</td>
+                        </tr>`
+                      : ''
+                  }
+                </tbody>
+              </table>
+
+              <p style="margin: 0 0 8px 0; font-size: 13px; line-height: 1.6; color: #6b7280;">
+                Для просмотра полной анкеты и обработки заявки перейдите в административную панель.
               </p>
             </td>
           </tr>

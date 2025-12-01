@@ -41,11 +41,15 @@ export default class BaseRepository<T> {
         if (!data.uuid) {
             data.uuid = crypto.randomUUID();
         }
-        if (this.schema.createdAt) {
-            data.createdAt = new Date().toISOString()
-        }
-        if (this.schema.updatedAt) {
-            data.updatedAt = new Date().toISOString()
+        // Для PostgreSQL timestamp-колонки имеют defaultNow(), поэтому не переопределяем их вручную
+        // Для SQLite (text) выставляем ISO‑строку вручную
+        if (!isPostgres()) {
+            if (this.schema.createdAt) {
+                data.createdAt = new Date().toISOString()
+            }
+            if (this.schema.updatedAt) {
+                data.updatedAt = new Date().toISOString()
+            }
         }
 
         await this.beforeCreate(data as Partial<T>);
@@ -63,8 +67,10 @@ export default class BaseRepository<T> {
             collection = new BaseCollection();
         }
 
-        if (this.schema.updatedAt) {
-            data.updatedAt = new Date().toISOString()
+        if (!isPostgres()) {
+            if (this.schema.updatedAt) {
+                data.updatedAt = new Date().toISOString()
+            }
         }
         await this.beforeUpdate(uuid, data as Partial<T>);
         await this.db.update(this.schema).set(data).where(eq(this.schema.uuid, uuid)).execute();
