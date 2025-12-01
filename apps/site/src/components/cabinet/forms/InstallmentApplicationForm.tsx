@@ -244,6 +244,8 @@ export function InstallmentApplicationForm({
 
   const [formData, setFormData] = React.useState<Partial<FormData>>({
     consentToProcessData: false,
+    // Default installment term to 6 months so backend always получает значение
+    installmentTerm: '6',
   })
 
   const toggleSection = (sectionId: string) => {
@@ -524,7 +526,7 @@ export function InstallmentApplicationForm({
         if (!prev.comfortableMonthlyPayment) updated.comfortableMonthlyPayment = '15000'
         if (!prev.purchasePrice) updated.purchasePrice = '95000'
         if (!prev.downPayment) updated.downPayment = '20000'
-        if (!prev.installmentTerm) updated.installmentTerm = '12'
+        if (!prev.installmentTerm) updated.installmentTerm = '6'
         if (!prev.partnerLocation) updated.partnerLocation = 'М.Видео, ТЦ Мега, г. Москва'
         if (!prev.convenientPaymentDate) updated.convenientPaymentDate = '15'
 
