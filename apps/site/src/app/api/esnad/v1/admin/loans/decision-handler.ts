@@ -105,9 +105,10 @@ export const handleLoanDecision = async (
     options: HandleLoanDecisionOptions,
 ): Promise<Response> => {
     const { request, env } = context
+    let payload: LoanDecisionPayload | null = null
 
     try {
-        const payload = await parseLoanDecisionPayload(request)
+        payload = await parseLoanDecisionPayload(request)
         const dealsRepository = new DealsRepository()
 
         const existingDeal = (await dealsRepository.findByUuid(payload.uuid)) as LoanApplication | undefined
@@ -166,7 +167,11 @@ export const handleLoanDecision = async (
         )
     } catch (error) {
         const status = error instanceof BadRequestError ? error.status : 500
-        const message = error instanceof Error ? error.message : "Неожиданная ошибка"
+        const baseMessage = error instanceof Error ? error.message : "Неожиданная ошибка"
+        const message =
+            status === 500
+                ? `${baseMessage} (operation=${options.operation}, uuid=${payload?.uuid ?? "unknown"})`
+                : baseMessage
 
         console.error(`Failed to ${options.operation} loan application`, error)
 
