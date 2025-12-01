@@ -524,9 +524,8 @@ export class DealsRepository extends BaseRepository<Deal>{
                 )
                 .execute();
 
-            // Check if user has admin or super-admin role
             const hasAdminRole = roles.some(
-                (role) => role.name === 'admin' || role.name === 'super-admin'
+                (role) => role.name === 'admin' || role.name === 'Administrator'
             );
 
             if (!hasAdminRole) {
@@ -543,7 +542,6 @@ export class DealsRepository extends BaseRepository<Deal>{
     }
 
     /**
-     * Получение списка людей (humans) с ролями admin / super-admin
      * Используется для рассылки уведомлений администраторам
      */
     private async getAdminHumans(): Promise<{ haid: string; fullName: string }[]> {
