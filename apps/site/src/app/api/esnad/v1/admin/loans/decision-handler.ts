@@ -170,7 +170,7 @@ export const handleLoanDecision = async (
         const baseMessage = error instanceof Error ? error.message : "Неожиданная ошибка"
         const message =
             status === 500
-                ? `${baseMessage} (operation=${options.operation}, uuid=${payload?.uuid ?? "unknown"})`
+                ? `${baseMessage}`
                 : baseMessage
 
         console.error(`Failed to ${options.operation} loan application`, error)
@@ -180,6 +180,7 @@ export const handleLoanDecision = async (
                 success: false,
                 error: status === 500 ? "INTERNAL_SERVER_ERROR" : "BAD_REQUEST",
                 message,
+                payload: error ,
             }),
             {
                 status,
