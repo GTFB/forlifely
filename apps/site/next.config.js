@@ -6,6 +6,7 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   // Suppress the GenerateSW warning
   sw: 'sw.js',
+  scope: '/',
 })
 /** @type {import('next').NextConfig} */
 

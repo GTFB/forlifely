@@ -460,6 +460,18 @@ export function InstallmentApplicationForm({
       if (dataIn.additionalIncome_sb && !prev.additionalIncome_sb) {
         updated.additionalIncome_sb = dataIn.additionalIncome_sb
       }
+      if (dataIn.monthlyIncome && !prev.monthlyIncome) {
+        updated.monthlyIncome = String(dataIn.monthlyIncome)
+      }
+      if (dataIn.monthlyExpenses && !prev.monthlyExpenses) {
+        updated.monthlyExpenses = String(dataIn.monthlyExpenses)
+      }
+      if (dataIn.workPlace && !prev.workPlace) {
+        updated.workPlace = dataIn.workPlace
+      }
+      if (dataIn.workExperience && !prev.workExperience) {
+        updated.workExperience = dataIn.workExperience
+      }
 
       // Fill Адреса from dataIn
       if (dataIn.permanentAddress && !prev.permanentAddress) {
@@ -970,7 +982,6 @@ export function InstallmentApplicationForm({
             value={formData.monthlyIncome || ''}
             onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
             placeholder="Например: 50000"
-            required
           />
         </div>
 
@@ -984,7 +995,6 @@ export function InstallmentApplicationForm({
             value={formData.monthlyExpenses || ''}
             onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
             placeholder="Например: 30000"
-            required
           />
         </div>
       </div>
@@ -999,7 +1009,6 @@ export function InstallmentApplicationForm({
             value={formData.workPlace || ''}
             onChange={(e) => handleInputChange('workPlace', e.target.value)}
             placeholder="Например: ООО 'Компания', менеджер"
-            required
           />
         </div>
 
@@ -1012,7 +1021,6 @@ export function InstallmentApplicationForm({
             value={formData.workExperience || ''}
             onChange={(e) => handleInputChange('workExperience', e.target.value)}
             placeholder="Например: 3 года"
-            required
           />
         </div>
       </div>
@@ -1059,9 +1067,10 @@ export function InstallmentApplicationForm({
       <h3 className="text-lg font-semibold mt-6">Информация о товаре</h3>
 
       <div className="space-y-2">
-        <Label htmlFor="productName">Наименование товара</Label>
+        <Label htmlFor="productName">Наименование товара *</Label>
         <Input
           id="productName"
+          required
           value={formData.productName || ''}
           onChange={(e) => handleInputChange('productName', e.target.value)}
           placeholder="Название товара"

@@ -182,10 +182,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       // Адреса
       ...(body.permanentAddress && { permanentAddress: body.permanentAddress }),
       ...(body.registrationAddress && { registrationAddress: body.registrationAddress }),
-      // Финансовая информация
+      // Финансовая информация (сохраняем в human, чтобы подставлять при следующих заявках)
       ...(body.employmentInfo_sb && { employmentInfo_sb: body.employmentInfo_sb.trim() }),
       ...(body.officialIncome_sb && { officialIncome_sb: body.officialIncome_sb.trim() }),
       ...(body.additionalIncome_sb && { additionalIncome_sb: body.additionalIncome_sb.trim() }),
+      ...(body.monthlyIncome && { monthlyIncome: body.monthlyIncome.trim() }),
+      ...(body.monthlyExpenses && { monthlyExpenses: body.monthlyExpenses.trim() }),
+      ...(body.workPlace && { workPlace: body.workPlace.trim() }),
+      ...(body.workExperience && { workExperience: body.workExperience.trim() }),
     }
 
     // Update Human with personal data
