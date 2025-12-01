@@ -180,7 +180,7 @@ export const handleLoanDecision = async (
                 success: false,
                 error: status === 500 ? "INTERNAL_SERVER_ERROR" : "BAD_REQUEST",
                 message,
-                payload: error ,
+                trace: error instanceof Error ? error.stack : undefined,
             }),
             {
                 status,
