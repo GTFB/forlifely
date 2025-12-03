@@ -125,31 +125,35 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
 
                 if (managerUuid) {
                     try {
-                        if (!env.DB) { 
-                            throw new Error('Database connection not available')
-                        }
+                        // В среде Next.js на проде нет env.DB (это binding Cloudflare),
+                        // поэтому при его отсутствии просто пропускаем загрузку менеджера
+                        if (env && (env as any).DB) {
+                            // Find user by UUID через прямой запрос в Postgres
+                            const client = getPostgresClient((env as any).DB)
+                            const userResult = await executeRawQuery<{ id: number }>(
+                                client,
+                                'SELECT id FROM users WHERE uuid = $1 AND deleted_at IS NULL LIMIT 1',
+                                [managerUuid]
+                            )
 
-                        // Find user by UUID
-                        const client = getPostgresClient(env.DB)
-                        const userResult = await executeRawQuery<{ id: number }>(
-                            client,
-                            'SELECT id FROM users WHERE uuid = $1 AND deleted_at IS NULL LIMIT 1',
-                            [managerUuid]
-                        )
+                            const user = userResult[0]
 
-                        const user = userResult[0]
-
-                        if (user) {
-                            const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
-                                includeHuman: true,
-                            })
-                            if (userWithRoles?.human) {
-                                managerName = userWithRoles.human.fullName || null
+                            if (user) {
+                                const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
+                                    includeHuman: true,
+                                })
+                                if (userWithRoles?.human) {
+                                    managerName = userWithRoles.human.fullName || null
+                                }
+                                // If no fullName, use email as fallback
+                                if (!managerName && userWithRoles?.user?.email) {
+                                    managerName = userWithRoles.user.email
+                                }
                             }
-                            // If no fullName, use email as fallback
-                            if (!managerName && userWithRoles?.user?.email) {
-                                managerName = userWithRoles.user.email
-                            }
+                        } else {
+                            console.warn(
+                                `DB binding is not available in env, skipping manager lookup for application ${app.uuid}`
+                            )
                         }
                     } catch (err) {
                         console.error(`Failed to load manager for application ${app.uuid}:`, err)
