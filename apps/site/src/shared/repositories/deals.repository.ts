@@ -673,6 +673,7 @@ export class DealsRepository extends BaseRepository<Deal>{
         // Generate payment schedule
         const financesRepository = new FinancesRepository();
         const productPrice = Number(currentDataIn.productPrice) || 0;
+        const downPayment = Number(currentDataIn.downPayment) || 0;
         const termMonths = currentDataIn.term && currentDataIn.term.length > 0
             ? currentDataIn.term[0]
             : 12;
@@ -696,7 +697,7 @@ export class DealsRepository extends BaseRepository<Deal>{
         const scheduleInput: PaymentScheduleInput = {
             dealAid: updatedDeal.daid,
             totalAmount: productPrice,
-            upfrontAmount: 0,
+            upfrontAmount: downPayment,
             termMonths: termMonths,
             firstPaymentDate: firstPaymentDate.toISOString().split('T')[0] as IsoDate,
             timezone: 'Europe/Moscow',

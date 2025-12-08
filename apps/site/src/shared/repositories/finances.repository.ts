@@ -68,11 +68,35 @@ export class FinancesRepository extends BaseRepository<Finance> {
 
     const remainingAmount = input.totalAmount - (input.upfrontAmount ?? 0)
     const termMonths = input.termMonths
-    const monthlyPayment = remainingAmount / termMonths
-
-    const principalPerPayment = remainingAmount * 0.7 / termMonths
-    const profitSharePerPayment = remainingAmount * 0.25 / termMonths
-    const serviceFeePerPayment = remainingAmount * 0.05 / termMonths
+    
+    // Конвертируем все суммы в копейки для точных расчетов
+    const remainingAmountKopecks = Math.round(remainingAmount * 100)
+    
+    // Вычисляем сумму одного платежа в копейках (округление вниз)
+    const monthlyPaymentKopecks = Math.floor(remainingAmountKopecks / termMonths)
+    
+    // Вычисляем остаток, который нужно распределить по платежам
+    const remainderKopecks = remainingAmountKopecks - (monthlyPaymentKopecks * termMonths)
+    
+    // Проценты для распределения
+    const principalPercent = 0.7
+    const profitSharePercent = 0.25
+    const serviceFeePercent = 0.05
+    
+    // Вычисляем суммы компонентов в копейках
+    const principalTotalKopecks = Math.round(remainingAmountKopecks * principalPercent)
+    const profitShareTotalKopecks = Math.round(remainingAmountKopecks * profitSharePercent)
+    const serviceFeeTotalKopecks = Math.round(remainingAmountKopecks * serviceFeePercent)
+    
+    // Сумма компонентов одного платежа в копейках
+    const principalPerPaymentKopecks = Math.floor(principalTotalKopecks / termMonths)
+    const profitSharePerPaymentKopecks = Math.floor(profitShareTotalKopecks / termMonths)
+    const serviceFeePerPaymentKopecks = Math.floor(serviceFeeTotalKopecks / termMonths)
+    
+    // Остатки для распределения
+    const principalRemainderKopecks = principalTotalKopecks - (principalPerPaymentKopecks * termMonths)
+    const profitShareRemainderKopecks = profitShareTotalKopecks - (profitSharePerPaymentKopecks * termMonths)
+    const serviceFeeRemainderKopecks = serviceFeeTotalKopecks - (serviceFeePerPaymentKopecks * termMonths)
 
     const firstDate = new Date(input.firstPaymentDate)
     const paymentDates: Date[] = []
@@ -84,18 +108,45 @@ export class FinancesRepository extends BaseRepository<Finance> {
     }
 
     const scheduleItems: FinanceDataIn[] = []
+    let totalSumKopecks = 0 // Для проверки
 
     for (let i = 0; i < termMonths; i++) {
       const paymentNumber = i + 1
       const paymentDate = paymentDates[i]
+      const isLastPayment = i === termMonths - 1
+      
+      // Для последнего платежа добавляем остатки, чтобы сумма была точной
+      const paymentSumKopecks = isLastPayment
+        ? monthlyPaymentKopecks + remainderKopecks
+        : monthlyPaymentKopecks
+      
+      const principalKopecks = isLastPayment
+        ? principalPerPaymentKopecks + principalRemainderKopecks
+        : principalPerPaymentKopecks
+      
+      const profitShareKopecks = isLastPayment
+        ? profitSharePerPaymentKopecks + profitShareRemainderKopecks
+        : profitSharePerPaymentKopecks
+      
+      const serviceFeeKopecks = isLastPayment
+        ? serviceFeePerPaymentKopecks + serviceFeeRemainderKopecks
+        : serviceFeePerPaymentKopecks
+      
+      // Конвертируем обратно в рубли для dataIn (для обратной совместимости)
+      const paymentSumRubles = paymentSumKopecks / 100
+      const principalRubles = principalKopecks / 100
+      const profitShareRubles = profitShareKopecks / 100
+      const serviceFeeRubles = serviceFeeKopecks / 100
+      
+      totalSumKopecks += paymentSumKopecks
 
       const financeDataIn: FinanceDataIn = {
         paymentNumber,
         paymentDate: paymentDate.toISOString().split('T')[0] as IsoDate,
-        totalAmount: monthlyPayment,
-        principalAmount: principalPerPayment,
-        profitShareAmount: profitSharePerPayment,
-        serviceFeeAmount: serviceFeePerPayment,
+        totalAmount: paymentSumRubles,
+        principalAmount: principalRubles,
+        profitShareAmount: profitShareRubles,
+        serviceFeeAmount: serviceFeeRubles,
         autoDebitEnabled: input.paymentMethod === 'INTERNAL_WALLET',
         preferredPaymentChannel: input.paymentMethod,
         reminderScheduleDays: input.limits.reminderDaysBefore,
@@ -110,8 +161,8 @@ export class FinancesRepository extends BaseRepository<Finance> {
         uuid: crypto.randomUUID(),
         faid: generateAid('f'),
         fullDaid: input.dealAid,
-        title: `Payment ${paymentNumber} for deal ${input.dealAid}`,
-        sum: monthlyPayment.toString(),
+        title: `Платеж ${paymentNumber} по сделке ${input.dealAid}`,
+        sum: paymentSumKopecks.toString(), // Храним в копейках как строку
         currencyId: 'RUB',
         cycle: 'MONTHLY',
         type: 'INSTALLMENT',
@@ -131,14 +182,19 @@ export class FinancesRepository extends BaseRepository<Finance> {
 
       await this.create(newFinance)
     }
+    
+    // Проверка: сумма всех платежей должна равняться общей сумме
+    if (totalSumKopecks !== remainingAmountKopecks) {
+      console.warn(`Payment schedule sum mismatch: expected ${remainingAmountKopecks} kopecks, got ${totalSumKopecks} kopecks`)
+    }
 
     return {
       items: scheduleItems,
       summary: {
         totalInstallments: termMonths,
-        totalPrincipal: principalPerPayment * termMonths,
-        totalProfitShare: profitSharePerPayment * termMonths,
-        totalServiceFees: serviceFeePerPayment * termMonths,
+        totalPrincipal: principalTotalKopecks / 100, // Конвертируем обратно в рубли
+        totalProfitShare: profitShareTotalKopecks / 100,
+        totalServiceFees: serviceFeeTotalKopecks / 100,
         nextPaymentDate: paymentDates[0].toISOString().split('T')[0] as IsoDate,
       },
     }
@@ -182,7 +238,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
       for (const receiptData of payload.receipts) {
         const media = await mediaRepo.create({
           uuid: crypto.randomUUID(),
-          title: `Payment receipt for finance ${finance.faid}`,
+          title: `Квитанция об оплате платежа ${finance.faid}`,
           dataIn: {
             ...receiptData,
             documentType: 'PAYMENT_RECEIPT',
@@ -210,6 +266,49 @@ export class FinancesRepository extends BaseRepository<Finance> {
         receipts,
       },
     })) as EsnadFinance
+
+    // Проверяем, все ли finance по сделке оплачены
+    if (finance.fullDaid) {
+      try {
+        const allFinances = await this.db
+          .select()
+          .from(schema.finances)
+          .where(
+            withNotDeleted(
+              schema.finances.deletedAt,
+              eq(schema.finances.fullDaid, finance.fullDaid)
+            )
+          )
+          .execute()
+
+        // Проверяем, все ли finance оплачены
+        const allPaid = allFinances.every((f) => f.statusName === 'PAID')
+
+        if (allPaid && allFinances.length > 0) {
+          // Находим сделку по fullDaid (daid)
+          const dealsRepo = new DealsRepository()
+          // Ищем сделку по daid через getSelectQuery
+          const deals = await dealsRepo.getSelectQuery()
+            .where(eq(schema.deals.daid, finance.fullDaid))
+            .limit(1)
+            .execute()
+
+          if (deals.length > 0) {
+            const deal = deals[0]
+            // Обновляем статус сделки на COMPLETED, если она еще не в этом статусе
+            if (deal.statusName !== 'COMPLETED' && deal.statusName !== 'CANCELLED') {
+              await dealsRepo.update(deal.uuid, {
+                statusName: 'COMPLETED',
+              })
+              console.log(`[FinancesRepository] Deal ${finance.fullDaid} marked as COMPLETED - all finances paid`)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[FinancesRepository] Failed to check and update deal status:', error)
+        // Не прерываем процесс оплаты finance, если не удалось обновить статус сделки
+      }
+    }
 
     return updatedFinance
   }

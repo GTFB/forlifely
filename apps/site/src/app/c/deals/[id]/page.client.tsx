@@ -29,12 +29,25 @@ interface DealDetail {
   }
 }
 
+interface Finance {
+  uuid: string
+  statusName: string
+  paymentDate: string | null
+  sum: number
+  paidAt: string | null
+  paymentNumber: number | null
+  order: number
+}
+
 export default function DealDetailPageClient() {
   const params = useParams()
   const dealId = params.id as string
   const [dealData, setDealData] = React.useState<DealDetail | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [finances, setFinances] = React.useState<Finance[]>([])
+  const [loadingFinances, setLoadingFinances] = React.useState(false)
+  const [financesError, setFinancesError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const fetchDeal = async () => {
@@ -66,6 +79,39 @@ export default function DealDetailPageClient() {
     }
   }, [dealId])
 
+  // Fetch finances for this deal
+  React.useEffect(() => {
+    const fetchFinances = async () => {
+      if (!dealId) return
+
+      try {
+        setLoadingFinances(true)
+        setFinancesError(null)
+
+        const response = await fetch(`/api/esnad/v1/c/deals/${dealId}/finances`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({ error: 'Failed to load finances' }))) as { error?: string }
+          throw new Error(errorData.error || 'Не удалось загрузить платежи')
+        }
+
+        const data = (await response.json()) as { success: boolean; finances: Finance[]; total: number }
+        setFinances(data.finances || [])
+        setLoadingFinances(false)
+      } catch (err) {
+        console.error('Finances fetch error:', err)
+        setFinancesError(err instanceof Error ? err.message : 'Не удалось загрузить платежи')
+        setLoadingFinances(false)
+      }
+    }
+
+    if (dealId) {
+      fetchFinances()
+    }
+  }, [dealId])
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -82,6 +128,31 @@ export default function DealDetailPageClient() {
       month: 'long',
       year: 'numeric',
     }).format(date)
+  }
+
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  }
+
+  const getFinanceStatusBadge = (statusName: string) => {
+    switch (statusName) {
+      case 'PAID':
+        return <Badge variant="default" className="bg-green-600">Оплачен</Badge>
+      case 'PENDING':
+        return <Badge variant="secondary">Ожидается</Badge>
+      case 'OVERDUE':
+        return <Badge variant="destructive">Просрочен</Badge>
+      default:
+        return <Badge variant="outline">{statusName}</Badge>
+    }
   }
 
   const getPaymentStatusIcon = (status: string) => {
@@ -301,37 +372,50 @@ export default function DealDetailPageClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>График платежей</CardTitle>
+          <CardTitle>Платежи</CardTitle>
         </CardHeader>
         <CardContent>
-          {paymentSchedule && paymentSchedule.length > 0 ? (
+          {loadingFinances ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : financesError ? (
+            <p className="text-sm text-destructive">{financesError}</p>
+          ) : finances && finances.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>№</TableHead>
-                  <TableHead>Дата</TableHead>
+                  <TableHead>Дата платежа</TableHead>
                   <TableHead>Сумма</TableHead>
                   <TableHead>Статус</TableHead>
+                  <TableHead>Дата оплаты</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paymentSchedule.map((payment: any, index: number) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{payment.number || index + 1}</TableCell>
-                    <TableCell>{formatDate(payment.date)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(payment.amount || 0)}</TableCell>
+                {finances.map((finance, index) => (
+                  <TableRow key={finance.uuid}>
+                    <TableCell className="font-medium">
+                      {finance.paymentNumber || finance.order || index + 1}
+                    </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getPaymentStatusIcon(payment.status || 'Ожидается')}
-                        <span>{payment.status || 'Ожидается'}</span>
-                      </div>
+                      {finance.paymentDate ? formatDate(finance.paymentDate) : '—'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(finance.sum || 0)}
+                    </TableCell>
+                    <TableCell>
+                      {getFinanceStatusBadge(finance.statusName)}
+                    </TableCell>
+                    <TableCell>
+                      {finance.paidAt ? formatDateTime(finance.paidAt) : '—'}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           ) : (
-            <p className="text-sm text-muted-foreground">График платежей не доступен</p>
+            <p className="text-sm text-muted-foreground">Платежи не найдены</p>
           )}
         </CardContent>
       </Card>

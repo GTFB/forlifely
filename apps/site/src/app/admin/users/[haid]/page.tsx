@@ -27,12 +27,13 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface Role {
   uuid: string
@@ -53,7 +54,19 @@ interface User {
   roles?: Role[]
   human?: {
     fullName: string | null
-    dataIn?: any
+    dataIn?: any & {
+      avatarMedia?: {
+        uuid?: string
+        url?: string
+        fileName?: string
+      }
+      kycStatus?: string
+      lastSelfieVerification?: {
+        verified?: boolean
+        faceMatchConfidence?: number
+        error?: string
+      }
+    }
     birthday?: string | null
     email?: string | null
   }
@@ -62,7 +75,7 @@ interface User {
 export default function EditUserPage() {
   const router = useRouter()
   const params = useParams()
-  const uuid = params?.uuid as string
+  const uuid = (params?.haid || params?.uuid) as string
 
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
@@ -87,6 +100,9 @@ export default function EditUserPage() {
     if (uuid) {
       fetchUser()
       fetchRoles()
+    } else {
+      setLoading(false)
+      setError('UUID пользователя не указан')
     }
   }, [uuid])
 
@@ -270,6 +286,84 @@ export default function EditUserPage() {
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
+          )}
+
+          {/* User Avatar and Verification Status */}
+          {user?.human?.dataIn?.avatarMedia && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Аватар пользователя</CardTitle>
+                <CardDescription>
+                  Автоматически извлечен из селфи с паспортом
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-6">
+                  <Avatar className="h-32 w-32 border-2 shadow-md">
+                    <AvatarImage 
+                      src={`/api/esnad/v1/media/${user.human.dataIn.avatarMedia.uuid}`}
+                      alt={user.human.fullName || user.email}
+                    />
+                    <AvatarFallback className="text-4xl">
+                      <User className="h-16 w-16" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <p className="text-sm font-medium">Статус верификации:</p>
+                      <div className="mt-1">
+                        {user.human.dataIn.kycStatus === 'verified' && (
+                          <Badge className="bg-green-600">
+                            <CheckCircle className="mr-1 h-3 w-3" />
+                            Верифицирован
+                          </Badge>
+                        )}
+                        {user.human.dataIn.kycStatus === 'pending' && (
+                          <Badge variant="secondary">
+                            <Clock className="mr-1 h-3 w-3" />
+                            На проверке
+                          </Badge>
+                        )}
+                        {(!user.human.dataIn.kycStatus || user.human.dataIn.kycStatus === 'not_started') && (
+                          <Badge variant="outline">Не начата</Badge>
+                        )}
+                      </div>
+                    </div>
+                    {user.human.dataIn.lastSelfieVerification && (
+                      <div>
+                        <p className="text-sm font-medium">Последняя верификация селфи:</p>
+                        <div className="mt-1 text-sm text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            {user.human.dataIn.lastSelfieVerification.verified ? (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-red-600" />
+                            )}
+                            <span>
+                              {user.human.dataIn.lastSelfieVerification.verified 
+                                ? 'Пройдена' 
+                                : 'Не пройдена'}
+                            </span>
+                          </div>
+                          {user.human.dataIn.lastSelfieVerification.faceMatchConfidence !== undefined && (
+                            <p>
+                              Совпадение лиц: {Math.round(user.human.dataIn.lastSelfieVerification.faceMatchConfidence * 100)}%
+                            </p>
+                          )}
+                          {user.human.dataIn.lastSelfieVerification.error && (
+                            <Alert variant="destructive" className="mt-2">
+                              <AlertDescription className="text-xs">
+                                <strong>Ошибка верификации:</strong> {user.human.dataIn.lastSelfieVerification.error}
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           <Card>
@@ -555,6 +649,7 @@ export default function EditUserPage() {
               const typeMap: Record<string, string> = {
                 'passport_main': 'Паспорт (главная страница)',
                 'passport_registration': 'Паспорт (страница с регистрацией)',
+                'selfie_with_passport': 'Селфи с паспортом',
                 'selfie': 'Селфи',
                 'other': 'Справка о доходах',
               }
@@ -617,6 +712,46 @@ export default function EditUserPage() {
                                     Загружен: {new Date(doc.uploadedAt).toLocaleString('ru-RU')}
                                   </p>
                                 )}
+                                {doc.type === 'selfie_with_passport' && doc.verificationResult && (() => {
+                                  try {
+                                    const verificationDetails = typeof doc.verificationResult.details === 'string'
+                                      ? JSON.parse(doc.verificationResult.details)
+                                      : doc.verificationResult.details
+                                    
+                                    return (
+                                      <div className="mt-2 space-y-2">
+                                        {verificationDetails?.error && (
+                                          <Alert variant="destructive">
+                                            <AlertDescription className="text-xs">
+                                              <strong>Ошибка верификации:</strong> {verificationDetails.error}
+                                            </AlertDescription>
+                                          </Alert>
+                                        )}
+                                        
+                                        {verificationDetails?.reasons && Array.isArray(verificationDetails.reasons) && verificationDetails.reasons.length > 0 && (
+                                          <div className="space-y-1">
+                                            <p className="text-xs font-medium text-muted-foreground">Причины:</p>
+                                            {verificationDetails.reasons.map((reason: string, idx: number) => (
+                                              <p key={idx} className="text-xs text-muted-foreground">• {reason}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                        
+                                        {verificationDetails?.passportRawText && (
+                                          <div className="mt-2 p-2 bg-muted rounded-md">
+                                            <p className="text-xs font-medium text-muted-foreground mb-1">Распознанный текст с паспорта:</p>
+                                            <pre className="text-xs text-foreground whitespace-pre-wrap break-words font-mono">
+                                              {verificationDetails.passportRawText}
+                                            </pre>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  } catch (e) {
+                                    // Ignore parsing errors
+                                    return null
+                                  }
+                                })()}
                               </div>
                             </div>
                             <Button

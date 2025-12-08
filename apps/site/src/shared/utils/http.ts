@@ -80,6 +80,9 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
     'USER_JOURNAL_PASSWORD_RESET_REQUEST': 'Запрос сброса пароля',
     'USER_JOURNAL_PASSWORD_RESET_CONFIRM': 'Подтверждение сброса пароля',
     'USER_JOURNAL_PASSWORD_RESET': 'Сброс пароля',
+    'USER_JOURNAL_SELFIE_VERIFICATION': 'Верификация селфи с паспортом',
+    'USER_JOURNAL_WALLET_DEPOSIT': 'Пополнение кошелька',
+    'USER_JOURNAL_FINANCE_PAID': 'Гашение платежа',
     'LOAN_APPLICATION_SNAPSHOT': 'Заявка на рассрочку',
     'DEAL_STATUS_CHANGE': 'Изменение статуса',
     'DEAL_APPROVED': 'Одобрение',
@@ -155,12 +158,187 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
         }
       }
 
-      // For LOAN_APPLICATION_SNAPSHOT, enrich description with client info and amount
-      if (originalAction === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
+      // For USER_JOURNAL_WALLET_DEPOSIT, enrich description with transaction info
+      if (originalAction === 'USER_JOURNAL_WALLET_DEPOSIT' && rawDetails) {
         try {
-          const snapshot = rawDetails.snapshot as {
-            dataIn?: unknown
+          const transaction = rawDetails.transaction as
+            | {
+                description?: string
+                amountRubles?: number
+                type?: string
+              }
+            | undefined
+
+          if (transaction?.description) {
+            const enrichedDetails = {
+              ...rawDetails,
+              description: transaction.description,
+              originalAction,
+            }
+
+            updatedJournal = {
+              ...updatedJournal,
+              details: enrichedDetails,
+            }
           }
+        } catch (error) {
+          console.error('Failed to enrich wallet deposit description:', error)
+        }
+      }
+
+      // For USER_JOURNAL_FINANCE_PAID, enrich description with finance info
+      if (originalAction === 'USER_JOURNAL_FINANCE_PAID' && rawDetails) {
+        try {
+          const finance = rawDetails.finance as
+            | {
+                faid?: string
+                amountRubles?: number
+              }
+            | undefined
+
+          if (finance) {
+            const amountText = finance.amountRubles
+              ? formatCurrency(finance.amountRubles)
+              : ''
+            const description = `Гашение платежа ${finance.faid || ''}${amountText ? ` на сумму ${amountText}` : ''}`
+
+            const enrichedDetails = {
+              ...rawDetails,
+              description,
+              originalAction,
+            }
+
+            updatedJournal = {
+              ...updatedJournal,
+              details: enrichedDetails,
+            }
+          }
+        } catch (error) {
+          console.error('Failed to enrich finance paid description:', error)
+        }
+      }
+
+      // For DEAL_APPROVED, DEAL_STATUS_CHANGE, DEAL_REJECTED, DEAL_CANCELLED
+      // Use description from details if already set by createLoanApplicationSnapshot
+      if ((originalAction === 'DEAL_APPROVED' || originalAction === 'DEAL_STATUS_CHANGE' || originalAction === 'DEAL_REJECTED' || originalAction === 'DEAL_CANCELLED') && rawDetails) {
+        // If description is already in details (set by createLoanApplicationSnapshot), use it
+        if (rawDetails.description && typeof rawDetails.description === 'string') {
+          const enrichedDetails = {
+            ...rawDetails,
+            description: rawDetails.description,
+            originalAction,
+          }
+
+          updatedJournal = {
+            ...updatedJournal,
+            details: enrichedDetails,
+          }
+        } else {
+          // Fallback: build description from snapshot if not already set
+          try {
+            if (rawDetails && 'snapshot' in rawDetails) {
+              const snapshot = rawDetails.snapshot as {
+                dataIn?: unknown
+                statusName?: string
+              }
+
+              let dataIn = snapshot?.dataIn as
+                | {
+                    firstName?: string
+                    lastName?: string
+                    middleName?: string
+                    fullName?: string
+                    productPrice?: string | number
+                    productName?: string
+                  }
+                | undefined
+
+              if (typeof snapshot?.dataIn === 'string') {
+                try {
+                  dataIn = JSON.parse(snapshot.dataIn) as typeof dataIn
+                } catch {
+                  // ignore parse error
+                }
+              }
+
+              let fullName = ''
+              if (dataIn?.fullName) {
+                fullName = dataIn.fullName.trim()
+              } else if (dataIn?.firstName || dataIn?.lastName || dataIn?.middleName) {
+                const nameParts = [
+                  dataIn.lastName,
+                  dataIn.firstName,
+                  dataIn.middleName,
+                ].filter(Boolean) as string[]
+                fullName = nameParts.join(' ').trim()
+              }
+
+              const clientName = fullName || 'клиента'
+
+              let amountText = ''
+              if (dataIn?.productPrice !== undefined) {
+                const rawPrice = dataIn.productPrice
+                const numeric =
+                  typeof rawPrice === 'number'
+                    ? rawPrice
+                    : Number(String(rawPrice).replace(/[^\d.-]/g, ''))
+                if (Number.isFinite(numeric) && numeric > 0) {
+                  amountText = formatCurrency(numeric)
+                }
+              }
+
+              const productName = dataIn?.productName?.trim()
+              const statusName = snapshot?.statusName || 'новый статус'
+              const previousSnapshot = rawDetails.previousSnapshot as { statusName?: string } | null
+              const previousStatus = previousSnapshot?.statusName || 'неизвестно'
+
+              let description = ''
+              if (originalAction === 'DEAL_APPROVED') {
+                description = `Одобрена заявка от ${clientName}${productName ? ` на товар "${productName}"` : ''}${amountText ? ` на сумму ${amountText}` : ''}. Статус изменен с "${previousStatus}" на "APPROVED"`
+              } else if (originalAction === 'DEAL_REJECTED' || originalAction === 'DEAL_CANCELLED') {
+                const actionText = originalAction === 'DEAL_REJECTED' ? 'Отклонена' : 'Отменена'
+                description = `${actionText} заявка от ${clientName}${productName ? ` на товар "${productName}"` : ''}${amountText ? ` на сумму ${amountText}` : ''}. Статус изменен с "${previousStatus}" на "${statusName}"`
+              } else {
+                description = `Изменен статус заявки от ${clientName}${productName ? ` на товар "${productName}"` : ''}${amountText ? ` на сумму ${amountText}` : ''}. Статус изменен с "${previousStatus}" на "${statusName}"`
+              }
+
+              const enrichedDetails = {
+                ...rawDetails,
+                description,
+                originalAction,
+              }
+
+              updatedJournal = {
+                ...updatedJournal,
+                details: enrichedDetails,
+              }
+            }
+          } catch (error) {
+            console.error('Failed to enrich deal status description:', error)
+          }
+        }
+      }
+
+      // For LOAN_APPLICATION_SNAPSHOT, use description from details if already set by createLoanApplicationSnapshot
+      if (originalAction === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails) {
+        // If description is already in details (set by createLoanApplicationSnapshot), use it
+        if (rawDetails.description && typeof rawDetails.description === 'string') {
+          const enrichedDetails = {
+            ...rawDetails,
+            description: rawDetails.description,
+            originalAction,
+          }
+
+          updatedJournal = {
+            ...updatedJournal,
+            details: enrichedDetails,
+          }
+        } else if (rawDetails && 'snapshot' in rawDetails) {
+          // Fallback: build description from snapshot if not already set
+          try {
+            const snapshot = rawDetails.snapshot as {
+              dataIn?: unknown
+            }
 
           let dataIn = snapshot?.dataIn as
             | {
@@ -230,13 +408,14 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
             originalAction,
           }
 
-          updatedJournal = {
-            ...updatedJournal,
-            details: enrichedDetails,
+            updatedJournal = {
+              ...updatedJournal,
+              details: enrichedDetails,
+            }
+          } catch (error) {
+            console.error('Failed to enrich loan application description:', error)
+            // Continue with original journal if enrichment fails
           }
-        } catch (error) {
-          console.error('Failed to enrich loan application description:', error)
-          // Continue with original journal if enrichment fails
         }
       }
 

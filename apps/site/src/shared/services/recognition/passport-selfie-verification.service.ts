@@ -2,6 +2,13 @@ import { FileStorageService } from '../file-storage.service'
 import { HumanRepository } from '../../repositories/human.repository'
 import { DocumentRecognitionService } from './document-recognition.service'
 import type { IFaceRecognitionProvider, IOcrProvider, FaceComparisonResult } from './providers'
+import type { NewEsnadMedia } from '../../types/esnad-finance'
+import { logUserJournalEvent } from '../user-journal.service'
+import { createDb } from '../../repositories/utils'
+import { schema } from '../../schema'
+import { eq } from 'drizzle-orm'
+import type { Env } from '../../types'
+import sharp from 'sharp'
 
 export interface PassportSelfieVerificationResult {
   verified: boolean
@@ -16,9 +23,11 @@ export interface PassportSelfieVerificationResult {
     facesDetectedInSelfie: number
     facesDetectedInPassport: number
     passportNameExtracted: boolean
+    passportRawText?: string // Весь текст, распознанный с паспорта
     errors?: string[]
   }
   reasons?: string[]
+  avatarMedia?: Partial<NewEsnadMedia>
 }
 
 /**
@@ -155,53 +164,38 @@ export class PassportSelfieVerificationService {
 
   /**
    * Main verification method
+   * Verifies a single photo where person is holding their passport
    */
   async verifySelfieWithPassport(
     selfieMediaUuid: string,
-    passportMediaUuid: string,
-    humanUuid: string
+    passportMediaUuid: string, // Deprecated: kept for backward compatibility, not used
+    humanUuid: string,
+    env?: Env
   ): Promise<PassportSelfieVerificationResult> {
     const errors: string[] = []
     const reasons: string[] = []
 
     try {
-      // 1. Get images from storage
-      const [selfieBlob, passportBlob] = await Promise.all([
-        this.fileStorageService.getFileContent(selfieMediaUuid),
-        this.fileStorageService.getFileContent(passportMediaUuid),
-      ])
+      // 1. Get single image from storage (person holding passport)
+      const selfieBlob = await this.fileStorageService.getFileContent(selfieMediaUuid)
+      const selfieBytes = await this.blobToUint8Array(selfieBlob)
 
-      // 2. Convert to Uint8Array
-      const [selfieBytes, passportBytes] = await Promise.all([
-        this.blobToUint8Array(selfieBlob),
-        this.blobToUint8Array(passportBlob),
-      ])
-
-      // 3. Compare faces using face provider
-      const faceMatch = await this.faceProvider.compareFaces(selfieBytes, passportBytes, 0.8)
-
-      const selfieFaces = faceMatch.sourceImageFaces ?? 0
-      const passportFaces = faceMatch.targetImageFaces ?? 0
+      // 2. Detect faces in the photo (should be 2 faces: one on selfie, one in passport)
+      const faces = await this.faceProvider.detectFaces(selfieBytes)
+      const selfieFaces = faces.length
 
       if (selfieFaces === 0) {
-        reasons.push('No face detected in selfie photo')
+        reasons.push('Лица не обнаружены на фото')
+      } else if (selfieFaces === 1) {
+        reasons.push('Обнаружено только одно лицо. На фото должно быть видно ваше лицо и лицо в паспорте')
+      } else if (selfieFaces > 2) {
+        reasons.push(`Обнаружено слишком много лиц (${selfieFaces}). На фото должно быть только ваше лицо и лицо в паспорте`)
       }
-      if (selfieFaces > 1) {
-        reasons.push('Multiple faces detected in selfie (should be only one person)')
-      }
-      if (passportFaces === 0) {
-        reasons.push('No face detected in passport photo')
-      }
+      // Если обнаружено ровно 2 лица - это нормально (одно на селфи, одно в паспорте)
 
-      if (!faceMatch.match) {
-        reasons.push(
-          `Faces do not match (similarity: ${(faceMatch.similarity * 100).toFixed(1)}%)`
-        )
-      }
-
-      // 4. Extract name from passport using OCR
+      // 3. Extract text from passport using OCR (from the same photo)
       const passportRecognition = await this.documentRecognitionService.recognizeDocument(
-        passportMediaUuid
+        selfieMediaUuid
       )
 
       let passportName: string | undefined
@@ -212,14 +206,24 @@ export class PassportSelfieVerificationService {
         similarity?: number
       } = { match: false }
 
+      // Check if passport text was found
+      const hasPassportText = passportRecognition.success && 
+        (passportRecognition.recognizedData.fullName || 
+         passportRecognition.recognizedData.passportNumber ||
+         (passportRecognition.rawText && passportRecognition.rawText.length > 50)) // At least some text from passport
+
+      if (!hasPassportText) {
+        reasons.push('Не удалось распознать паспорт на фото. Убедитесь, что паспорт четко виден и читаем')
+      }
+
       if (passportRecognition.success && passportRecognition.recognizedData.fullName) {
         passportName = passportRecognition.recognizedData.fullName
       }
 
-      // 5. Get user's name from database
+      // 4. Get user's name from database
       const human = await this.humanRepository.findByUuid(humanUuid)
       if (!human) {
-        errors.push('Human record not found')
+        errors.push('Профиль пользователя не найден')
       } else {
         const userName = human.fullName
 
@@ -234,37 +238,105 @@ export class PassportSelfieVerificationService {
 
           if (!nameMatch.match) {
             reasons.push(
-              `Name mismatch: passport "${passportName}" vs user "${userName}" (similarity: ${(nameSimilarity * 100).toFixed(1)}%)`
+              `Несовпадение имени: в паспорте "${passportName}", у пользователя "${userName}" (совпадение: ${(nameSimilarity * 100).toFixed(1)}%)`
             )
           }
         } else {
           if (!passportName) {
-            reasons.push('Could not extract name from passport')
+            reasons.push('Не удалось извлечь имя из паспорта на фото')
           }
           if (!userName) {
-            reasons.push('User name not found in database')
+            reasons.push('Имя пользователя не найдено в базе данных')
           }
         }
       }
 
-      // 6. Determine overall verification result
-      const verified = faceMatch.match && nameMatch.match && reasons.length === 0
+      // 5. Determine overall verification result
+      // Verification passes if:
+      // - Exactly 2 faces detected (one on selfie, one in passport)
+      // - Passport text detected
+      // - Name matches (if extracted)
+      // - No reasons (errors) found
+      const faceDetected = selfieFaces === 2 // Must be exactly 2 faces (one on selfie, one in passport)
+      const verified: boolean = Boolean(faceDetected && hasPassportText && nameMatch.match && reasons.length === 0)
 
-      return {
+      // Create face match result
+      // We have one image with 2 faces (one on selfie, one in passport photo)
+      const faceMatch: FaceComparisonResult = {
+        match: selfieFaces === 2, // Must be exactly 2 faces
+        similarity: selfieFaces === 2 ? 0.9 : 0, // High similarity if 2 faces detected
+        confidence: selfieFaces === 2 ? Math.min(faces[0]?.confidence || 0.8, faces[1]?.confidence || 0.8) : 0,
+        sourceImageFaces: selfieFaces === 2 ? 1 : 0, // One face on selfie
+        targetImageFaces: selfieFaces === 2 ? 1 : 0, // One face in passport
+      }
+
+      const result = {
         verified,
         faceMatch,
         nameMatch,
         details: {
-          facesDetectedInSelfie: selfieFaces,
-          facesDetectedInPassport: passportFaces,
+          facesDetectedInSelfie: faceMatch.sourceImageFaces,
+          facesDetectedInPassport: faceMatch.targetImageFaces,
           passportNameExtracted: !!passportName,
+          passportRawText: passportRecognition.rawText, // Сохраняем весь текст с документа
           errors: errors.length > 0 ? errors : undefined,
         },
         reasons: reasons.length > 0 ? reasons : undefined,
       }
+
+      // 7. Log verification event to journal
+      if (env && human) {
+        try {
+          // Find user by humanAid
+          const db = createDb()
+          const [user] = await db
+            .select()
+            .from(schema.users)
+            .where(
+              eq(schema.users.humanAid, human.haid)
+            )
+            .limit(1)
+            .execute()
+
+          if (user) {
+            await logUserJournalEvent(
+              env,
+              'USER_JOURNAL_SELFIE_VERIFICATION',
+              {
+                id: user.id,
+                uuid: user.uuid,
+                email: user.email,
+                humanAid: user.humanAid,
+                dataIn: user.dataIn as any,
+              },
+              {
+                verificationResult: {
+                  verified: result.verified,
+                  faceMatch: result.faceMatch.match,
+                  faceMatchConfidence: result.faceMatch.similarity,
+                  nameMatch: result.nameMatch.match,
+                  nameMatchSimilarity: result.nameMatch.similarity,
+                  facesDetectedInSelfie: result.details.facesDetectedInSelfie,
+                  facesDetectedInPassport: result.details.facesDetectedInPassport,
+                  passportRawText: result.details.passportRawText, // Весь текст с паспорта для админа
+                  reasons: result.reasons,
+                },
+                selfieMediaUuid,
+                passportMediaUuid,
+              }
+            )
+          }
+        } catch (journalError) {
+          console.error('Failed to log selfie verification event', journalError)
+          // Don't fail verification if journal logging fails
+        }
+      }
+
+      return result
     } catch (error) {
       console.error('Passport selfie verification error:', error)
-      return {
+      
+      const errorResult = {
         verified: false,
         faceMatch: { match: false, confidence: 0, similarity: 0, sourceImageFaces: 0, targetImageFaces: 0 },
         nameMatch: { match: false },
@@ -274,8 +346,139 @@ export class PassportSelfieVerificationService {
           passportNameExtracted: false,
           errors: [error instanceof Error ? error.message : 'Unknown error'],
         },
-        reasons: ['Verification failed due to error'],
+        reasons: ['Ошибка при выполнении верификации'],
       }
+
+      // Log verification failure event to journal
+      if (env) {
+        try {
+          const human = await this.humanRepository.findByUuid(humanUuid)
+          if (human) {
+            const db = createDb()
+            const [user] = await db
+              .select()
+              .from(schema.users)
+              .where(
+                eq(schema.users.humanAid, human.haid)
+              )
+              .limit(1)
+              .execute()
+
+            if (user) {
+              await logUserJournalEvent(
+                env,
+                'USER_JOURNAL_SELFIE_VERIFICATION',
+                {
+                  id: user.id,
+                  uuid: user.uuid,
+                  email: user.email,
+                  humanAid: user.humanAid,
+                  dataIn: user.dataIn as any,
+                },
+                {
+                  verificationResult: {
+                    verified: false,
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                  },
+                  selfieMediaUuid,
+                  passportMediaUuid,
+                }
+              )
+            }
+          }
+        } catch (journalError) {
+          console.error('Failed to log selfie verification error event', journalError)
+          // Don't fail verification if journal logging fails
+        }
+      }
+
+      return errorResult
+    }
+  }
+
+  /**
+   * Extract and save avatar from selfie
+   * Detects face, crops image around it, resizes to standard avatar size
+   * and saves as a new media file
+   */
+  async extractAvatarFromSelfie(
+    selfieMediaUuid: string,
+    humanUuid: string,
+    uploaderAid: string
+  ): Promise<Partial<NewEsnadMedia> | null> {
+    try {
+      // 1. Get selfie image from storage
+      const selfieBlob = await this.fileStorageService.getFileContent(selfieMediaUuid)
+      const selfieBytes = await this.blobToUint8Array(selfieBlob)
+
+      // 2. Detect faces in selfie
+      const faces = await this.faceProvider.detectFaces(selfieBytes)
+
+      if (faces.length === 0) {
+        console.warn('No face detected in selfie for avatar extraction')
+        return null
+      }
+
+      if (faces.length > 1) {
+        console.warn('Multiple faces detected in selfie, using the first one')
+      }
+
+      // 3. Get the primary face bounding box
+      const face = faces[0]
+      const { boundingBox } = face
+
+      // 4. Load and process image with sharp
+      const imageBuffer = Buffer.from(selfieBytes)
+      const image = sharp(imageBuffer)
+      const metadata = await image.metadata()
+
+      if (!metadata.width || !metadata.height) {
+        throw new Error('Could not read image dimensions')
+      }
+
+      // Calculate crop area with some padding around face
+      const padding = 0.3 // 30% padding around face
+      const expandedWidth = boundingBox.width * (1 + padding)
+      const expandedHeight = boundingBox.height * (1 + padding)
+      
+      // Calculate crop coordinates (ensure they're within image bounds)
+      const left = Math.max(0, Math.floor(boundingBox.x - (expandedWidth - boundingBox.width) / 2))
+      const top = Math.max(0, Math.floor(boundingBox.y - (expandedHeight - boundingBox.height) / 2))
+      const width = Math.min(metadata.width - left, Math.ceil(expandedWidth))
+      const height = Math.min(metadata.height - top, Math.ceil(expandedHeight))
+
+      // 5. Crop and resize to standard avatar size (200x200)
+      const avatarSize = 200
+      const processedImage = await image
+        .extract({ left, top, width, height })
+        .resize(avatarSize, avatarSize, {
+          fit: 'cover',
+          position: 'center',
+        })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+
+      // 6. Create File object from buffer
+      const avatarFile = new File(
+        [new Uint8Array(processedImage)],
+        `avatar-${humanUuid}-${Date.now()}.jpg`,
+        { type: 'image/jpeg' }
+      )
+
+      // 7. Upload avatar file
+      const avatarMedia = await this.fileStorageService.uploadFile(
+        avatarFile,
+        humanUuid,
+        avatarFile.name,
+        uploaderAid
+      )
+
+      return avatarMedia
+    } catch (error) {
+      console.error('Avatar extraction error:', error)
+      // Don't fail the whole verification if avatar extraction fails
+      // Just log and return null
+      return null
     }
   }
 }

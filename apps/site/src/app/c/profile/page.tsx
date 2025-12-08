@@ -23,6 +23,12 @@ interface Profile {
     name: string
     status: string
     uploadedAt?: string
+    mediaUuid?: string
+    verificationResult?: {
+      facesMatch?: boolean
+      confidence?: number
+      details?: string
+    }
   }>
 }
 
@@ -124,6 +130,7 @@ export default function ProfilePage() {
   }
 
   const requiredDocuments = [
+    { id: 'selfie_with_passport', name: 'Селфи с паспортом', required: true, special: true },
     { id: 'passport', name: 'Паспорт (главная страница)', required: true },
     { id: 'passport_registration', name: 'Паспорт (страница с регистрацией)', required: true },
     { id: 'income_certificate', name: 'Справка о доходах', required: true },
@@ -193,7 +200,12 @@ export default function ProfilePage() {
       formData.append('file', file)
       formData.append('type', documentType)
 
-      const response = await fetch('/api/esnad/v1/c/profile/kyc-documents', {
+      // Special handling for selfie with passport - use verification endpoint
+      const endpoint = documentType === 'selfie_with_passport' 
+        ? '/api/esnad/v1/c/profile/verify-selfie-with-passport'
+        : '/api/esnad/v1/c/profile/kyc-documents'
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -204,12 +216,32 @@ export default function ProfilePage() {
         throw new Error(data.error || data.message || 'Не удалось загрузить документ')
       }
 
-      // Show success message
+      // Show success message with verification result for selfie
       const docName = requiredDocuments.find(d => d.id === documentType)?.name || 'Документ'
-      setUploadSuccess(`${docName} успешно загружен`)
       
-      // Clear success message after 3 seconds
-      setTimeout(() => setUploadSuccess(null), 3000)
+      if (documentType === 'selfie_with_passport') {
+        const result = await response.json() as { 
+          success: boolean
+          facesMatch?: boolean
+          confidence?: number
+          message?: string 
+        }
+        
+        // Use message from API if available (it handles error cases properly)
+        if (result.message) {
+          setUploadSuccess(result.message)
+        } else if (result.facesMatch) {
+          const confidence = Math.round((result.confidence || 0) * 100)
+          setUploadSuccess(`${docName} успешно загружено и верифицировано! Совпадение: ${confidence}%`)
+        } else {
+          setUploadSuccess(`${docName} загружено, но верификация не прошла. Попробуйте другое фото.`)
+        }
+      } else {
+        setUploadSuccess(`${docName} успешно загружен`)
+      }
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setUploadSuccess(null), 5000)
 
       // Reload profile to show updated documents
       const reloadResponse = await fetch('/api/esnad/v1/c/profile', {
@@ -350,6 +382,21 @@ export default function ProfilePage() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Требуемые документы</h3>
+                  
+                  {/* Special instruction for selfie with passport */}
+                  <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertTitle className="text-blue-900 dark:text-blue-100">
+                      Как сделать селфи с паспортом
+                    </AlertTitle>
+                    <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm space-y-1">
+                      <p>• Держите паспорт открытым на главной странице рядом с лицом</p>
+                      <p>• Убедитесь, что фото паспорта и ваше лицо четко видны</p>
+                      <p>• Хорошее освещение - лучше при дневном свете</p>
+                      <p>• Только одно лицо в кадре - ваше</p>
+                    </AlertDescription>
+                  </Alert>
+
                   <ul className="space-y-4">
                     {requiredDocuments.map((doc) => {
                       const uploadedDoc = profile?.kycDocuments?.find((d) => d.id === doc.id)
@@ -363,8 +410,8 @@ export default function ProfilePage() {
                               )}
                             </div>
                             {uploadedDoc && (
-                              <div className="mt-1 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
+                              <div className="mt-1 space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                   {uploadedDoc.status === 'verified' && (
                                     <CheckCircle className="h-3 w-3 text-green-600" />
                                   )}
@@ -379,13 +426,77 @@ export default function ProfilePage() {
                                     <span>• Загружен: {new Date(uploadedDoc.uploadedAt).toLocaleDateString('ru-RU')}</span>
                                   )}
                                 </div>
+                                {doc.id === 'selfie_with_passport' && uploadedDoc.verificationResult && (() => {
+                                  // Parse verification details to check for errors
+                                  let verificationDetails: any = null
+                                  let hasError = false
+                                  
+                                  try {
+                                    if (uploadedDoc.verificationResult.details) {
+                                      verificationDetails = typeof uploadedDoc.verificationResult.details === 'string'
+                                        ? JSON.parse(uploadedDoc.verificationResult.details)
+                                        : uploadedDoc.verificationResult.details
+                                      hasError = !!verificationDetails?.error
+                                    }
+                                  } catch (e) {
+                                    // Ignore parsing errors
+                                  }
+                                  
+                                  // Don't show verification details if there was an API error
+                                  if (hasError) {
+                                    return null
+                                  }
+                                  
+                                  return (
+                                    <div className="text-xs space-y-1">
+                                      {uploadedDoc.verificationResult.facesMatch !== undefined && (
+                                        <div className={`flex items-center gap-1 ${uploadedDoc.verificationResult.facesMatch ? 'text-green-600' : 'text-red-600'}`}>
+                                          {uploadedDoc.verificationResult.facesMatch ? (
+                                            <CheckCircle className="h-3 w-3" />
+                                          ) : (
+                                            <XCircle className="h-3 w-3" />
+                                          )}
+                                          <span>
+                                            {uploadedDoc.verificationResult.facesMatch ? 'Лица совпадают' : 'Лица не совпадают'}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {uploadedDoc.verificationResult.confidence !== undefined && uploadedDoc.verificationResult.confidence > 0 && (
+                                        <div className="text-muted-foreground">
+                                          Уверенность: {Math.round(uploadedDoc.verificationResult.confidence * 100)}%
+                                        </div>
+                                      )}
+                                      {verificationDetails?.reasons && Array.isArray(verificationDetails.reasons) && verificationDetails.reasons.length > 0 && (
+                                        <div className="text-muted-foreground">
+                                          {verificationDetails.reasons.map((reason: string, idx: number) => (
+                                            <div key={idx}>• {reason}</div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {/* Show preview of uploaded selfie */}
+                                      {uploadedDoc.mediaUuid && (
+                                        <div className="mt-2">
+                                          <img 
+                                            src={`/api/esnad/v1/media/${uploadedDoc.mediaUuid}`}
+                                            alt="Selfie preview" 
+                                            className="h-24 w-24 object-cover rounded-md border shadow-sm"
+                                            onError={(e) => {
+                                              // Hide broken image
+                                              (e.target as HTMLImageElement).style.display = 'none'
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
                               </div>
                             )}
                           </div>
                           <div>
                             <Input
                               type="file"
-                              accept="image/*,.pdf"
+                              accept={doc.id === 'selfie_with_passport' ? 'image/*' : 'image/*,.pdf'}
                               className="hidden"
                               id={`file-${doc.id}`}
                               disabled={uploading[doc.id]}

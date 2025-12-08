@@ -22,15 +22,40 @@ interface UpdateUserRequest {
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
-  uuid: string
+  identifier: string
 ) => {
   const { request } = context
   try {
     const meRepository = MeRepository.getInstance()
-
-    // Find user by UUID
     const usersRepository = UsersRepository.getInstance()
-    const user = await usersRepository.findByUuid(uuid)
+    const humanRepository = HumanRepository.getInstance()
+
+    let user = null
+
+    // Check if identifier is a haid (starts with 'H-' or 'h-')
+    if (identifier.startsWith('H-') || identifier.startsWith('h-')) {
+      // Find user by humanAid (haid)
+      const [userRecord] = await createDb()
+        .select()
+        .from(schema.users)
+        .where(
+          and(
+            eq(schema.users.humanAid, identifier),
+            isNull(schema.users.deletedAt)
+          )
+        )
+        .limit(1)
+        .execute()
+
+      if (!userRecord) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
+
+      user = userRecord as any
+    } else {
+      // Find user by UUID
+      user = await usersRepository.findByUuid(identifier)
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -42,7 +67,6 @@ const handleGet = async (
     // Get human data
     let human = null
     if (user.humanAid) {
-      const humanRepository = HumanRepository.getInstance()
       human = await humanRepository.findByHaid(user.humanAid)
     }
 
@@ -235,7 +259,7 @@ export async function GET(
 ) {
   const params = await context.params
   return withAdminGuard(async (ctx: AuthenticatedRequestContext) => {
-    return handleGet(ctx, params.uuid)
+    return handleGet(ctx, params.uuid) // uuid parameter can be either UUID or haid
   })(request, { params: Promise.resolve(params) })
 }
 

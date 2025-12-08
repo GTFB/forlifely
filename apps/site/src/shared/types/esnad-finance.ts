@@ -10,13 +10,18 @@ import {
   NewNotice,
   NewRelation,
   NewSetting,
+  NewWallet,
+  NewWalletTransaction,
   Notice,
   Relation,
   Setting,
+  Wallet,
   WalletTransaction,
 } from '../schema/types'
+import { EsnadHuman } from './esnad'
 
 export type { WalletTransaction }
+
 
 export type IsoDate = string
 export type IsoDateTime = string
@@ -176,6 +181,17 @@ export interface EsnadNotice extends Notice {
   dataIn: NoticeDataIn
 }
 
+export interface EsnadWalletTransaction extends WalletTransaction {
+  dataIn: EsnadWalletTransactionDataIn
+}
+
+export interface NewEsnadWalletTransaction extends NewWalletTransaction {
+  dataIn: EsnadWalletTransactionDataIn
+}
+export interface EsnadWalletTransactionDataIn {
+  description?: string  | null
+  type: string
+}
 export interface NewEsnadNotice extends NewNotice {
   dataIn: NoticeDataIn
 }
@@ -291,3 +307,19 @@ export interface PaymentScheduleResult {
   summary: PaymentScheduleSummary
 }
 
+export interface EsnadWallet extends Wallet {
+  dataIn: EsnadWalletDataIn
+  human?: EsnadHuman
+}
+export interface NewEsnadWallet extends NewWallet {
+  dataIn: EsnadWalletDataIn
+  human?: EsnadHuman
+
+}
+
+export interface EsnadWalletDataIn  {
+  currency?: string
+  createdReason?: string
+  balance?: number // В рублях, для обратной совместимости
+  balanceKopecks?: number // В копейках (целое число) - приоритетное значение для избежания ошибок округления
+}

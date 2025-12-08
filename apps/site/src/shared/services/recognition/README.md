@@ -222,18 +222,9 @@ export async function POST(request: NextRequest) {
   const humanUuid = formData.get('humanUuid') as string
 
   // Выбор провайдера на основе env
-  const useAws = process.env.USE_AWS_REKOGNITION === 'true'
   
-  let provider
-  if (useAws) {
-    provider = new AwsRekognitionProvider({
-      region: process.env.AWS_REGION!,
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    })
-  } else {
-    provider = new GoogleVisionProvider(process.env.GOOGLE_VISION_API_KEY!)
-  }
+  const provider = new GoogleVisionProvider(process.env.GOOGLE_VISION_API_KEY!)
+  
 
   const service = new PassportSelfieVerificationService(provider, provider)
   const result = await service.verifySelfieWithPassport(

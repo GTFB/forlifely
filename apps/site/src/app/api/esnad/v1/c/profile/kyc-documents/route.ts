@@ -3,10 +3,13 @@ import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
+import { PassportSelfieVerificationService } from '@/shared/services/recognition/passport-selfie-verification.service'
+import { GoogleVisionProvider } from '@/shared/services/recognition/providers/google-vision.provider'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
 import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
+import type { NewEsnadMedia } from '@/shared/types/esnad-finance'
 
 /**
  * POST /api/esnad/v1/c/profile/kyc-documents
@@ -66,6 +69,7 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
     const typeMap: Record<string, KycDocumentRef['type']> = {
       'passport': 'passport_main',
       'passport_registration': 'passport_registration',
+      'selfie_with_passport': 'selfie_with_passport',
       'income_certificate': 'other',
     }
 

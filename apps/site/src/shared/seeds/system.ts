@@ -28,6 +28,11 @@ export const systemSeed = {
                 description: "User roles added",
                 created_at: "2025-11-18 12:00",
             },
+            {
+                version: "1.0.5",
+                description: "Finance statuses added",
+                created_at: "2025-01-27 12:00",
+            },
         ],
     },
     roles: [
@@ -196,6 +201,25 @@ export const systemSeed = {
             name: "ACTIVE",
             title: "Активный партнер",
             sort_order: 200,
+        },
+        // Finance statuses
+        {
+            entity: "finance.statusName",
+            name: "PENDING",
+            title: "Ожидается",
+            sort_order: 100,
+        },
+        {
+            entity: "finance.statusName",
+            name: "PAID",
+            title: "Оплачен",
+            sort_order: 200,
+        },
+        {
+            entity: "finance.statusName",
+            name: "OVERDUE",
+            title: "Просрочен",
+            sort_order: 300,
         },
         // Journal actions
         {

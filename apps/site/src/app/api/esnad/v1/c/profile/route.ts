@@ -61,6 +61,7 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
             const typeMap: Record<string, string> = {
               'passport_main': 'passport',
               'passport_registration': 'passport_registration',
+              'selfie_with_passport': 'selfie_with_passport',
               'other': 'income_certificate',
             }
             const frontendId = typeMap[doc.type] || doc.type
@@ -70,6 +71,8 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
               name: doc.type || '',
               status: (doc as any).status || 'pending',
               uploadedAt: doc.uploadedAt,
+              mediaUuid: doc.mediaUuid,
+              verificationResult: doc.verificationResult,
             }
           }),
         },
@@ -235,7 +238,7 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
         )
       }
 
-      if (!['passport_main', 'passport_registration', 'selfie', 'other'].includes(doc.type)) {
+      if (!['passport_main', 'passport_registration', 'selfie', 'selfie_with_passport', 'other'].includes(doc.type)) {
         return NextResponse.json(
           {
             success: false,

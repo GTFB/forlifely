@@ -1,16 +1,44 @@
 'use client'
+import { useState, useEffect } from 'react'
 import { InfiniteSlider } from '@/components/motion-primitives/infinite-slider'
 import { ProgressiveBlur } from '@/components/motion-primitives/progressive-blur'
 
 export const LogoCloud = () => {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    if (!mounted) {
+        return (
+            <section className="bg-background pb-16 md:pb-32 overflow-hidden">
+                <div className="group relative m-auto max-w-6xl px-6">
+                    <div className="flex flex-col items-center md:flex-row">
+                        <div className="inline md:max-w-44 md:border-r md:pr-6">
+                            <p className="text-end text-sm">Нам доверяют лучшие</p>
+                        </div>
+                        <div className="relative py-6 md:w-[calc(100%-11rem)]">
+                            <div className="flex gap-8 items-center justify-center opacity-50">
+                                <img className="h-5 w-fit dark:invert" src="/images/nvidia.svg" alt="Partners" />
+                                <img className="h-4 w-fit dark:invert" src="/images/github.svg" alt="" />
+                                <img className="h-5 w-fit dark:invert" src="/images/nike.svg" alt="" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        )
+    }
+
     return (
-        <section className="bg-background pb-16 md:pb-32">
+        <section className="bg-background pb-16 md:pb-32 overflow-hidden">
             <div className="group relative m-auto max-w-6xl px-6">
                 <div className="flex flex-col items-center md:flex-row">
                     <div className="inline md:max-w-44 md:border-r md:pr-6">
                         <p className="text-end text-sm">Нам доверяют лучшие</p>
                     </div>
-                    <div className="relative py-6 md:w-[calc(100%-11rem)]">
+                    <div className="relative py-6 md:w-[calc(100%-11rem)] overflow-hidden">
                         <InfiniteSlider
                             speedOnHover={20}
                             speed={40}

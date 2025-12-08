@@ -750,6 +750,13 @@ export default function AdminUsersPage() {
                                   Посмотреть сделки
                                 </Link>
                               </DropdownMenuItem>
+                              {user.humanAid && user.emailVerifiedAt && (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/admin/users/${user.humanAid}/wallet`}>
+                                    Перейти в кошелек
+                                  </Link>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleBlock(user.uuid)}

@@ -111,69 +111,33 @@ export default function AdminDashboardPage() {
           // Map action types to readable names (for actions that weren't already transformed by parseJournals)
           const actionNames: Record<string, string> = {
             LOAN_APPLICATION_SNAPSHOT: 'Заявка на рассрочку',
-            DEAL_STATUS_CHANGE: 'Изменение статуса',
-            DEAL_APPROVED: 'Одобрение',
-            DEAL_REJECTED: 'Отказ',
-            DEAL_CANCELLED: 'Отмена',
+            DEAL_STATUS_CHANGE: 'Изменение статуса заявки',
+            DEAL_APPROVED: 'Одобрение заявки',
+            DEAL_REJECTED: 'Отклонение заявки',
+            DEAL_CANCELLED: 'Отмена заявки',
             INVESTOR_REGISTERED: 'Новый инвестор',
             PAYMENT_RECEIVED: 'Получен платеж',
             // User journal actions are already transformed by parseJournals
             'Вход в систему': 'Вход в систему',
             'Выход из системы': 'Выход из системы',
             'Регистрация': 'Регистрация',
+            'Пополнение кошелька': 'Пополнение кошелька',
+            'Гашение платежа': 'Гашение платежа',
           }
 
-          const type = actionNames[journal.action] || actionType
+          const type = actionNames[journal.action] || journal.action || actionType
 
           let description: string
 
           // Use description from details if available (enriched by parseJournals)
+          // parseJournals already enriches descriptions for LOAN_APPLICATION_SNAPSHOT, DEAL_APPROVED, DEAL_STATUS_CHANGE
           if (rawDetails && 'description' in rawDetails && typeof rawDetails.description === 'string') {
             description = rawDetails.description
           } else {
-            // Check originalAction from details if available, otherwise use journal.action
-            const originalAction = (rawDetails as { originalAction?: string } | undefined)?.originalAction || journal.action
-            if (originalAction === 'LOAN_APPLICATION_SNAPSHOT' && rawDetails && 'snapshot' in rawDetails) {
-            const snapshot = rawDetails.snapshot as {
-              dataIn?: unknown
-            }
-
-            let dataIn = snapshot?.dataIn as
-              | {
-                  firstName?: string
-                  lastName?: string
-                  productPrice?: string | number
-                }
-              | undefined
-
-            if (typeof snapshot?.dataIn === 'string') {
-              try {
-                dataIn = JSON.parse(snapshot.dataIn) as typeof dataIn
-              } catch {
-                // ignore parse error, fallback below
-              }
-            }
-
-            const firstName = dataIn?.firstName?.trim() ?? ''
-            const lastName = dataIn?.lastName?.trim() ?? ''
-            const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'клиента'
-
-            const rawPrice = dataIn?.productPrice
-            let amountText = ''
-            if (rawPrice !== undefined) {
-              const numeric =
-                typeof rawPrice === 'number'
-                  ? rawPrice
-                  : Number(String(rawPrice).replace(/[^\d.-]/g, ''))
-              amountText = Number.isFinite(numeric) ? formatCurrency(numeric) : String(rawPrice)
-            }
-
-              description = `Заявка на рассрочку от ${fullName}${amountText ? ` на сумму ${amountText}` : ''}`
-            } else {
-              const details = rawDetails as { message?: string; context?: string } | undefined
-              const message = details?.message || details?.context || actionType
-              description = message || `${actionType} #${journal.uuid?.substring(0, 8) || journal.id}`
-            }
+            // Fallback: use action type or message
+            const details = rawDetails as { message?: string; context?: string } | undefined
+            const message = details?.message || details?.context || actionType
+            description = message || `${actionType} #${journal.uuid?.substring(0, 8) || journal.id}`
           }
           
           return {

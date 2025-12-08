@@ -347,8 +347,8 @@ export default function LoginPage() {
             </Button>
 
             {needsVerification && (
-              <div className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-primary-foreground/80 dark:text-primary-foreground">
-                <p>Для входа подтвердите email. Отправим письмо повторно по запросу.</p>
+              <div className="space-y-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm">
+                <p className="text-foreground">Для входа подтвердите email. Отправим письмо повторно по запросу.</p>
                 <Button
                   type="button"
                   variant="outline"

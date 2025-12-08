@@ -9,11 +9,16 @@ import {
     Employee,
     NewUser,
 } from '../schema/types'
+import { EsnadMedia } from './esnad-finance'
+
 export interface EsnadHuman extends Human {
     dataIn: EsnadHumanData
 
 }
 
+export interface EsnadUser extends User {
+    human?: EsnadHuman
+}
 
 export interface NewEsnadHuman extends NewHuman {
     dataIn: EsnadHumanData
@@ -21,6 +26,7 @@ export interface NewEsnadHuman extends NewHuman {
 
 export interface EsnadHumanData {
     phone?: string
+    avatarMedia?: Partial<EsnadMedia> | null
 }
 
 export interface DealDataIn {
@@ -69,7 +75,10 @@ export type EsnadUserJournalActions =
     'USER_JOURNAL_EMAIL_VERIFICATION' |
     'USER_JOURNAL_PASSWORD_RESET_REQUEST' |
     'USER_JOURNAL_PASSWORD_RESET_CONFIRM' |
-    'USER_JOURNAL_PASSWORD_RESET'
+    'USER_JOURNAL_PASSWORD_RESET' |
+    'USER_JOURNAL_SELFIE_VERIFICATION' |
+    'USER_JOURNAL_WALLET_DEPOSIT' |
+    'USER_JOURNAL_FINANCE_PAID'
 export interface EsnadUserJournalDetails {
     user: {
         uuid: string
@@ -152,12 +161,12 @@ export interface AdditionalInfoRequest {
 }
 
 export interface JournalLoanApplicationSnapshot extends Journal {
-    action: 'LOAN_APPLICATION_SNAPSHOT'
+    action: 'LOAN_APPLICATION_SNAPSHOT' | 'DEAL_APPROVED' | 'DEAL_STATUS_CHANGE' | 'DEAL_REJECTED' | 'DEAL_CANCELLED'
     userId?: User['id']
     details: LoanApplicationSnapshotDetails
 }
 export interface NewJournalLoanApplicationSnapshot extends NewJournal {
-    action: 'LOAN_APPLICATION_SNAPSHOT'
+    action: 'LOAN_APPLICATION_SNAPSHOT' | 'DEAL_APPROVED' | 'DEAL_STATUS_CHANGE' | 'DEAL_REJECTED' | 'DEAL_CANCELLED'
     userId?: User['id']
     details: LoanApplicationSnapshotDetails
 }
@@ -165,6 +174,8 @@ export interface NewJournalLoanApplicationSnapshot extends NewJournal {
 export interface LoanApplicationSnapshotDetails {
     snapshot: LoanApplication
     previousSnapshot: LoanApplication | null
+    description?: string
+    statusName?: string
 }
 
 export type LoanApplicationDeal = LoanApplication
@@ -270,8 +281,13 @@ export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected' | 'm
  */
 export interface KycDocumentRef {
     mediaUuid: string
-    type: 'passport_main' | 'passport_registration' | 'selfie' | 'other'
+    type: 'passport_main' | 'passport_registration' | 'selfie' | 'selfie_with_passport' | 'other'
     uploadedAt: string // ISO string
+    verificationResult?: {
+        facesMatch?: boolean
+        confidence?: number
+        details?: string
+    }
 }
 
 export interface ClientDataIn extends EsnadHumanData {
