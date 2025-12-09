@@ -3,16 +3,19 @@ import { schema } from '../schema'
 import type { Journal } from '../schema/types'
 import BaseRepository from './BaseRepositroy'
 import { buildDbFilters, buildDbOrders, stringifyJson } from './utils'
-import { JournalLoanApplicationSnapshot, LoanApplication, LoanApplicationSnapshotDetails, NewJournalLoanApplicationSnapshot } from '../types/esnad'
+import { Investor, JournalLoanApplicationSnapshot, LoanApplication, LoanApplicationSnapshotDetails, NewJournalLoanApplicationSnapshot } from '../types/esnad'
 import { DbFilters, DbOrders, DbPaginatedResult, DbPagination } from '../types/shared'
 import { sql } from 'drizzle-orm'
-
-type JournalStatus = 'info' | 'success' | 'error'
+import { HumanRepository } from './human.repository'
+import { eq, or, and, inArray } from 'drizzle-orm'
+import { EsnadUser } from '../types/esnad'
+import { MeRepository } from './me.repository'
+import { WalletRepository } from './wallet.repository'
 
 export type JournalLogInput = {
   context: string
   step: string
-  status?: JournalStatus
+  status?: 'info' | 'success' | 'error'
   message?: string
   payload?: unknown
   error?: unknown
@@ -147,6 +150,122 @@ export class JournalsRepository extends BaseRepository<Journal> {
 
     const resultQuery = where 
       ? query.where(where).orderBy(...order).limit(limit).offset(offset)
+      : query.orderBy(...order).limit(limit).offset(offset)
+    const result = await resultQuery.execute() as Journal[]
+
+    return {
+      docs: result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    }
+  }
+  public async getFilteredForInvestor(investorHaid: Investor['haid'], filters: DbFilters, orders: DbOrders, pagination: DbPagination): Promise<DbPaginatedResult<Journal>> {
+    const humanRepository = HumanRepository.getInstance()
+    const human = await humanRepository.findByHaid(investorHaid)  as Investor | null
+    if (!human || !human.email) {
+      throw new Error('Investor not found')
+    }
+    const meRepository = MeRepository.getInstance()
+    const investorUser = await meRepository.findByEmailWithRoles(human.email)
+    if (!investorUser) {
+      throw new Error('Investor user not found')
+    }
+    if(!investorUser.roles.some((r) => r.name === 'investor')) {
+      throw new Error('Investor roles not found in user')
+    }
+
+    // Get investor's wallets
+    const walletRepository = WalletRepository.getInstance()
+    const wallets = await walletRepository.findAllByHumanHaid(investorHaid)
+    const walletUuids = wallets.map(w => w.uuid).filter((uuid): uuid is string => !!uuid)
+    const walletWaids = wallets.map(w => w.waid).filter((waid): waid is string => !!waid)
+    const walletFullWaids = wallets.map(w => w.fullWaid).filter((fullWaid): fullWaid is string => !!fullWaid)
+
+    // Build investor-specific filters
+    const investorFilters: any[] = []
+
+    // Filter by user_id
+    if (investorUser.id) {
+      investorFilters.push(eq(this.schema.user_id, investorUser.id))
+    }
+
+    // Filter by xaid (can be haid or wallet waid)
+    const xaidFilters: any[] = [eq(this.schema.xaid, investorHaid)]
+    if (walletWaids.length > 0) {
+      xaidFilters.push(...walletWaids.map(waid => eq(this.schema.xaid, waid)))
+    }
+    if (xaidFilters.length > 0) {
+      investorFilters.push(or(...xaidFilters)!)
+    }
+
+    // Filter by wallet UUID in details (for wallet transaction journals)
+    if (walletUuids.length > 0) {
+      const walletUuidConditions = walletUuids.map(uuid => 
+        sql`(${this.schema.details}::jsonb)->>'walletUuid' = ${uuid}`
+      )
+      investorFilters.push(or(...walletUuidConditions)!)
+    }
+
+    // Filter by walletAid in details
+    if (walletWaids.length > 0) {
+      const walletAidConditions = walletWaids.map(waid => 
+        sql`(${this.schema.details}::jsonb)->>'walletAid' = ${waid}`
+      )
+      investorFilters.push(or(...walletAidConditions)!)
+    }
+
+    // Filter by wallet.waid in details (nested JSON)
+    if (walletWaids.length > 0) {
+      const walletWaidConditions = walletWaids.map(waid => 
+        sql`(${this.schema.details}::jsonb)->'wallet'->>'waid' = ${waid}`
+      )
+      investorFilters.push(or(...walletWaidConditions)!)
+    }
+
+    // Filter by wallet.fullWaid in details (nested JSON)
+    if (walletFullWaids.length > 0) {
+      const walletFullWaidConditions = walletFullWaids.map(fullWaid => 
+        sql`(${this.schema.details}::jsonb)->'wallet'->>'fullWaid' = ${fullWaid}`
+      )
+      investorFilters.push(or(...walletFullWaidConditions)!)
+    }
+
+    // Filter by user.humanAid in details (for user journal events)
+    investorFilters.push(
+      sql`(${this.schema.details}::jsonb)->'user'->>'humanAid' = ${investorHaid}`
+    )
+
+    // Combine investor filters with OR (any of these conditions should match)
+    const investorWhereCondition = investorFilters.length > 0 ? or(...investorFilters)! : undefined
+
+    // Build user-provided filters
+    const userFilters = buildDbFilters(this.schema, filters)
+    
+    // Combine investor filters with user filters using AND
+    const combinedWhere = investorWhereCondition && userFilters
+      ? and(investorWhereCondition, userFilters)
+      : investorWhereCondition || userFilters
+
+    const query = this.getSelectQuery()
+    const order = buildDbOrders(this.schema, orders)
+    
+    const limit = Math.max(1, Math.min(pagination.limit ?? 10, 100))
+    const page = Math.max(1, pagination.page ?? 1)
+    const offset = (page - 1) * limit
+
+    // Get total count
+    const countQuery = this.getSelectQuery()
+    const totalRows = combinedWhere 
+      ? await countQuery.where(combinedWhere).execute()
+      : await countQuery.execute()
+    const total = totalRows.length
+
+    const resultQuery = combinedWhere 
+      ? query.where(combinedWhere).orderBy(...order).limit(limit).offset(offset)
       : query.orderBy(...order).limit(limit).offset(offset)
     const result = await resultQuery.execute() as Journal[]
 

@@ -106,3 +106,93 @@ export function withConsumerGuard<T extends RequestContext>(handler: RouteHandle
 export function withClientGuard<T extends RequestContext>(handler: RouteHandler<T>) {
   return withRoleGuard(handler, [ 'client'])
 }
+
+export function withInvestorGuard<T extends RequestContext>(handler: RouteHandler<T>) {
+  return withRoleGuard(handler, ['investor'])
+}
+
+/**
+ * Guard для доступа всем аутентифицированным пользователям кроме админа
+ * Используется для эндпоинтов, которые должны быть доступны клиентам и инвесторам, но не админам
+ */
+export function withNonAdminGuard<T extends RequestContext>(handler: RouteHandler<T>) {
+  return async (request: Request, props?: { params?: Promise<Record<string, string>> }) => {
+    const env = buildRequestEnv()
+    
+    // Check auth secret
+    if (!env.AUTH_SECRET) {
+      console.error('AUTH_SECRET not configured')
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'INTERNAL_SERVER_ERROR', 
+          message: 'Authentication not configured' 
+        }),
+        { 
+          status: 500, 
+          headers: { 'content-type': 'application/json' } 
+        }
+      )
+    }
+
+    const session = await getSession(request, env.AUTH_SECRET)
+    if (!session?.id) {
+       return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'UNAUTHORIZED', 
+          message: 'Unauthorized' 
+        }),
+        { 
+          status: 401, 
+          headers: { 'content-type': 'application/json' } 
+        }
+      )
+    }
+
+    const meRepo = MeRepository.getInstance()
+    const user = await meRepo.findByIdWithRoles(Number(session.id))
+    
+    if (!user) {
+       return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'UNAUTHORIZED', 
+          message: 'User not found' 
+        }),
+        { 
+          status: 401, 
+          headers: { 'content-type': 'application/json' } 
+        }
+      )
+    }
+
+    // Check if user is admin - block access
+    const isAdmin = user.roles.some(r => r.name && ['Administrator', 'admin'].includes(r.name))
+    
+    if (isAdmin) {
+       return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'FORBIDDEN', 
+          message: 'Forbidden: This endpoint is not available for administrators' 
+        }),
+        { 
+          status: 403, 
+          headers: { 'content-type': 'application/json' } 
+        }
+      )
+    }
+
+    const resolvedParams = props?.params ? await props.params : undefined
+    
+    const context = {
+        request,
+        env,
+        params: resolvedParams,
+        user
+    } as unknown as T
+
+    return handler(context)
+  }
+}

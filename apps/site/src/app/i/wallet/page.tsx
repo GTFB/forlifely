@@ -48,98 +48,32 @@ export default function InvestorWalletPage() {
     const fetchTransactions = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/i/wallet/transactions', { credentials: 'include' })
+        setError(null)
         
-        // Mock data
-        setTimeout(() => {
-          setTransactions([
-            {
-              id: 'TXN-001',
-              type: 'deposit',
-              amount: 500000,
-              comment: 'Пополнение с банковской карты',
-              date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-002',
-              type: 'investment',
-              amount: 200000,
-              comment: 'Инвестиция в консервативный портфель',
-              date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-003',
-              type: 'return',
-              amount: 15000,
-              comment: 'Возврат по инвестиции',
-              date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-004',
-              type: 'investment',
-              amount: 150000,
-              comment: 'Инвестиция в сбалансированный портфель',
-              date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-005',
-              type: 'withdrawal',
-              amount: 50000,
-              comment: 'Вывод на банковскую карту',
-              date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-006',
-              type: 'deposit',
-              amount: 300000,
-              comment: 'Пополнение с банковской карты',
-              date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-007',
-              type: 'investment',
-              amount: 100000,
-              comment: 'Инвестиция в агрессивный портфель',
-              date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-008',
-              type: 'return',
-              amount: 8500,
-              comment: 'Возврат по инвестиции',
-              date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-            {
-              id: 'TXN-009',
-              type: 'withdrawal',
-              amount: 25000,
-              comment: 'Вывод на банковскую карту',
-              date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'pending',
-            },
-            {
-              id: 'TXN-010',
-              type: 'deposit',
-              amount: 200000,
-              comment: 'Пополнение с банковской карты',
-              date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'completed',
-            },
-          ])
-          setLoading(false)
-        }, 500)
+        const response = await fetch('/api/esnad/v1/i/wallet/transactions', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as {
+            message?: string
+            error?: string
+          }
+          throw new Error(errorData.message || errorData.error || 'Failed to load transactions')
+        }
+
+        const data = await response.json() as { success: boolean; transactions?: Transaction[] }
+        
+        if (data.success && data.transactions) {
+          setTransactions(data.transactions)
+        } else {
+          setTransactions([])
+        }
       } catch (err) {
         console.error('Transactions fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load transactions')
+        setTransactions([])
+      } finally {
         setLoading(false)
       }
     }
@@ -366,49 +300,56 @@ export default function InvestorWalletPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Дата</TableHead>
                   <TableHead>Тип</TableHead>
                   <TableHead>Сумма</TableHead>
-                  <TableHead>Комментарий</TableHead>
+                  <TableHead>Описание</TableHead>
                   <TableHead>Статус</TableHead>
-                  <TableHead>Дата</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx.id}>
-                    <TableCell className="font-medium">{tx.id}</TableCell>
-                    <TableCell>
-                      <Badge variant={getTransactionTypeVariant(tx.type)}>
-                        {getTransactionTypeLabel(tx.type)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatCurrency(tx.amount)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {tx.comment || '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          tx.status === 'completed'
-                            ? 'default'
-                            : tx.status === 'pending'
-                              ? 'secondary'
-                              : 'destructive'
-                        }>
-                        {tx.status === 'completed'
-                          ? 'Завершено'
-                          : tx.status === 'pending'
-                            ? 'В обработке'
-                            : 'Отклонено'}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(tx.date).toLocaleDateString('ru-RU', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
                       })}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getTransactionTypeVariant(tx.type)}>
+                        {getTransactionTypeLabel(tx.type)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={tx.amount > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      {tx.amount > 0 ? '+' : ''}
+                      {formatCurrency(tx.amount)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-xs truncate">
+                      {tx.comment || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          tx.status === 'completed' || tx.status === 'COMPLETED'
+                            ? 'default'
+                            : tx.status === 'pending' || tx.status === 'PENDING'
+                              ? 'secondary'
+                              : 'destructive'
+                        }>
+                        {tx.status === 'completed' || tx.status === 'COMPLETED'
+                          ? 'Завершено'
+                          : tx.status === 'pending' || tx.status === 'PENDING'
+                            ? 'В обработке'
+                            : tx.status === 'failed' || tx.status === 'FAILED'
+                              ? 'Ошибка'
+                              : tx.status === 'cancelled' || tx.status === 'CANCELLED'
+                                ? 'Отменена'
+                                : tx.status}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -24,7 +24,7 @@ export default function RoleAuthGuard({
   const redirect = useCallback(() => {
     try {
       document.cookie = 'session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'
-    } catch {}
+    } catch { }
     router.replace(redirectTo)
   }, [router, redirectTo])
 
@@ -39,21 +39,24 @@ export default function RoleAuthGuard({
     }
 
     // Determine if user is admin (has any system role)
-    const isSystemAdmin = user.roles.some((role) => role.isSystem === true)
 
     // Extract raid values from roles array
     const userRaids = user.roles
       .map((r) => r.raid)
+      .filter((v): v is string => Boolean(v)) 
+
+    const roleNames = user.roles
+      .map((r) => r.name)
       .filter((v): v is string => Boolean(v))
 
     const roleAllowed = allowedRoles.length
-      ? allowedRoles.some((r) => userRaids.includes(r))
+      ? allowedRoles.some((r) => roleNames.includes(r))
       : false
     const raidAllowed = allowedRaids.length
       ? allowedRaids.some((r) => userRaids.includes(r))
       : false
 
-    if (!(roleAllowed || raidAllowed || isSystemAdmin)) {
+    if (!(roleAllowed || raidAllowed)) {
       redirect()
     }
   }, [user, loading, allowedRoles, allowedRaids, redirect])

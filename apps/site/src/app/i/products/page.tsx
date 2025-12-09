@@ -1,9 +1,19 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface Product {
   id: string
@@ -15,9 +25,13 @@ interface Product {
 }
 
 export default function InvestorProductsPage() {
+  const router = useRouter()
   const [products, setProducts] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [kycChecked, setKycChecked] = React.useState(false)
+  const [kycVerified, setKycVerified] = React.useState(false)
+  const [kycDialogOpen, setKycDialogOpen] = React.useState(false)
 
   React.useEffect(() => {
     const fetchProducts = async () => {
@@ -74,9 +88,68 @@ export default function InvestorProductsPage() {
     }).format(amount)
   }
 
-  const handleInvest = (productId: string) => {
-    // TODO: Navigate to investment form
+  React.useEffect(() => {
+    const checkKycStatus = async () => {
+      try {
+        const response = await fetch('/api/esnad/v1/me/kyc-status', {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          console.error('Failed to check KYC status')
+          return
+        }
+
+        const data = await response.json() as { success: boolean; verified: boolean }
+        if (data.success) {
+          setKycVerified(data.verified)
+          setKycChecked(true)
+        }
+      } catch (err) {
+        console.error('KYC status check error:', err)
+      }
+    }
+
+    checkKycStatus()
+  }, [])
+
+  const handleInvest = async (productId: string) => {
+    // Check KYC status before allowing investment
+    if (!kycChecked) {
+      // Wait for KYC check to complete
+      try {
+        const response = await fetch('/api/esnad/v1/me/kyc-status', {
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json() as { success: boolean; verified: boolean }
+          setKycVerified(data.verified)
+          setKycChecked(true)
+          
+          if (!data.verified) {
+            setKycDialogOpen(true)
+            return
+          }
+        }
+      } catch (err) {
+        console.error('KYC status check error:', err)
+        setError('Не удалось проверить статус верификации')
+        return
+      }
+    }
+
+    if (!kycVerified) {
+      setKycDialogOpen(true)
+      return
+    }
+
+    // TODO: Navigate to investment form or open dialog
     console.log('Invest in product:', productId)
+  }
+
+  const handleKycDialogConfirm = () => {
+    setKycDialogOpen(false)
+    router.push('/i/profile?tab=kyc')
   }
 
   if (loading) {
@@ -98,6 +171,40 @@ export default function InvestorProductsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Продукты</h1>
+
+      {!kycVerified && kycChecked && (
+        <Alert>
+          <AlertDescription>
+            Для начала инвестирования необходимо пройти верификацию личности. 
+            <Button 
+              variant="link" 
+              className="p-0 h-auto ml-1"
+              onClick={() => router.push('/i/profile?tab=kyc')}
+            >
+              Перейти к верификации
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Dialog open={kycDialogOpen} onOpenChange={setKycDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Требуется верификация</DialogTitle>
+            <DialogDescription>
+              Для начала инвестирования необходимо пройти верификацию личности.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKycDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleKycDialogConfirm}>
+              Перейти к верификации
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {products.map((product) => (

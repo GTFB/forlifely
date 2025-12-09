@@ -272,6 +272,27 @@ export interface NewClient extends NewEsnadHuman {
     type: 'CLIENT'
 }
 /**
+ * Investor
+ */
+export interface Investor extends EsnadHuman {
+    dataIn: InvestorDataIn
+    statusName: InvestorStatus
+    type: 'INVESTOR'
+    haid: string
+}
+export interface NewInvestor extends NewEsnadHuman {
+    dataIn: InvestorDataIn
+    statusName: InvestorStatus
+    type: 'INVESTOR'
+    haid: string
+}
+export interface InvestorDataIn extends EsnadHumanData {
+    kycStatus?: KycStatus
+    kycDocuments?: KycDocumentRef[]
+}
+export type InvestorStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
+  
+/**
  * KYC Status types
  */
 export type KycStatus = 'not_started' | 'pending' | 'verified' | 'rejected' | 'more_info'

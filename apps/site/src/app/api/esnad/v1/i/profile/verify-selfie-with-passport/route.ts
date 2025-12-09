@@ -1,0 +1,285 @@
+import { NextResponse } from 'next/server'
+import { withInvestorGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { MeRepository } from '@/shared/repositories/me.repository'
+import { HumanRepository } from '@/shared/repositories/human.repository'
+import { FileStorageService } from '@/shared/services/file-storage.service'
+import { PassportSelfieVerificationService } from '@/shared/services/recognition/passport-selfie-verification.service'
+import { GoogleVisionProvider } from '@/shared/services/recognition/providers/google-vision.provider'
+import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
+import { NewEsnadMedia } from '@/shared/types/esnad-finance'
+
+/**
+ * POST /api/esnad/v1/i/profile/verify-selfie-with-passport
+ * Upload selfie with passport and verify faces match
+ */
+const handlePost = async (context: AuthenticatedRequestContext): Promise<Response> => {
+  const { request, user } = context
+
+  try {
+    // Get human profile from user
+    let human = user.human
+    if (!human) {
+      const meRepository = MeRepository.getInstance()
+      const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), { includeHuman: true })
+      human = userWithRoles?.human
+    }
+
+    if (!human) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'NOT_FOUND',
+          message: 'Профиль не найден',
+        },
+        { status: 404 }
+      )
+    }
+
+    // Parse FormData
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Файл не предоставлен',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate file type (only images allowed for selfie)
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedMimeTypes.includes(file.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Разрешены только изображения (JPG, PNG, WebP)',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Check if passport document is already uploaded
+    let dataIn: ClientDataIn & Record<string, any> = {}
+    if (human.dataIn) {
+      try {
+        dataIn = typeof human.dataIn === 'string' 
+          ? (JSON.parse(human.dataIn) as ClientDataIn & Record<string, any>) 
+          : (human.dataIn as ClientDataIn & Record<string, any>)
+      } catch (error) {
+        console.error('Error parsing human.dataIn:', error)
+        dataIn = {}
+      }
+    }
+
+    const existingDocuments: KycDocumentRef[] = dataIn.kycDocuments || []
+
+    // Upload selfie file (photo where person is holding passport)
+    const fileStorageService = FileStorageService.getInstance()
+    const selfieMedia = await fileStorageService.uploadFile(
+      file,
+      human.uuid,
+      file.name,
+      human.haid
+    )
+
+    // Remove existing selfie_with_passport document if exists
+    const filteredDocuments = existingDocuments.filter(doc => doc.type !== 'selfie_with_passport')
+
+    let verificationResult: Awaited<ReturnType<PassportSelfieVerificationService['verifySelfieWithPassport']>> | null = null
+    let avatarMedia: Partial<NewEsnadMedia> | null = null
+    let newDocument: KycDocumentRef
+
+    // Always perform verification (passport should be visible in the photo)
+    // Initialize Google Vision provider with service account credentials
+    let googleProvider: GoogleVisionProvider
+    
+    // Try to load service account credentials from JSON file path or JSON string
+    const serviceAccountPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH
+    const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+    
+    if (serviceAccountPath || serviceAccountJson) {
+      try {
+        let credentials: any
+        
+        if (serviceAccountPath) {
+          // Load from file path
+          const fs = await import('fs/promises')
+          const path = await import('path')
+          const filePath = path.resolve(process.cwd(), serviceAccountPath)
+          const fileContent = await fs.readFile(filePath, 'utf-8')
+          credentials = JSON.parse(fileContent)
+        } else if (serviceAccountJson) {
+          // Load from JSON string in environment variable
+          credentials = JSON.parse(serviceAccountJson)
+        }
+        
+        googleProvider = new GoogleVisionProvider(credentials)
+      } catch (error) {
+        console.error('Failed to load Google service account credentials:', error)
+        throw new Error('Failed to load Google service account credentials. Please check GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.')
+      }
+    } else {
+      // Fallback to API key (if still needed for backward compatibility)
+      const apiKey = process.env.GOOGLE_VISION_API_KEY
+      if (!apiKey || apiKey.trim() === '') {
+        console.error('Google Vision credentials not configured')
+        console.error('Please set either:')
+        console.error('  - GOOGLE_SERVICE_ACCOUNT_PATH (path to JSON file)')
+        console.error('  - GOOGLE_SERVICE_ACCOUNT_JSON (JSON string)')
+        console.error('  - GOOGLE_VISION_API_KEY (API key, deprecated)')
+        throw new Error('Google Vision credentials not configured. Please set GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.')
+      }
+      googleProvider = new GoogleVisionProvider(apiKey.trim())
+    }
+    const verificationService = new PassportSelfieVerificationService(
+      googleProvider,
+      googleProvider
+    )
+
+    // Perform verification (passport should be visible in the same photo)
+    let verificationError: string | null = null
+    try {
+      verificationResult = await verificationService.verifySelfieWithPassport(
+        selfieMedia.uuid,
+        selfieMedia.uuid, // Same photo - person holding passport
+        human.uuid,
+        process.env as any
+      )
+
+      // Extract and save avatar from selfie if verification successful
+      if (verificationResult.verified && verificationResult.details.facesDetectedInSelfie === 1) {
+        avatarMedia = await verificationService.extractAvatarFromSelfie(
+          selfieMedia.uuid,
+          human.uuid,
+          human.haid
+        )
+      }
+    } catch (error) {
+      // Log error for admin but don't show technical details to user
+      verificationError = error instanceof Error ? error.message : 'Unknown verification error'
+      console.error('Selfie verification error:', error)
+      
+      // Create a failed verification result
+      verificationResult = {
+        verified: false,
+        faceMatch: { match: false, similarity: 0, confidence: 0, sourceImageFaces: 0, targetImageFaces: 0 },
+        nameMatch: { match: false },
+        details: {
+          facesDetectedInSelfie: 0,
+          facesDetectedInPassport: 0,
+          passportNameExtracted: false,
+          errors: [verificationError],
+        },
+        reasons: ['Verification failed due to error'],
+      }
+    }
+
+    // Add new selfie document with verification result
+    newDocument = {
+      mediaUuid: selfieMedia.uuid,
+      type: 'selfie_with_passport',
+      uploadedAt: new Date().toISOString(),
+      verificationResult: {
+        facesMatch: verificationResult.faceMatch.match,
+        confidence: verificationResult.faceMatch.similarity,
+        details: JSON.stringify({
+          verified: verificationResult.verified,
+          facesInSelfie: verificationResult.details.facesDetectedInSelfie,
+          facesInPassport: verificationResult.details.facesDetectedInPassport,
+          nameMatch: verificationResult.nameMatch.match,
+          passportRawText: verificationResult.details.passportRawText, // Весь текст с паспорта для админа
+          reasons: verificationResult.reasons,
+          error: verificationError, // Store error for admin
+        }),
+      },
+    }
+
+    const updatedDocuments = [...filteredDocuments, newDocument]
+
+    // Update dataIn with new document, verification status, and avatar
+    const updatedDataIn: ClientDataIn & Record<string, any> = {
+      ...dataIn,
+      kycDocuments: updatedDocuments,
+      ...(verificationResult && {
+        kycStatus: verificationResult.verified ? 'verified' : 'pending',
+        lastSelfieVerification: {
+          timestamp: new Date().toISOString(),
+          verified: verificationResult.verified,
+          faceMatchConfidence: verificationResult.faceMatch.similarity,
+          error: verificationError || undefined, // Store error for admin
+        },
+      }),
+      // Save avatar media if extraction was successful
+      ...(avatarMedia && { avatarMedia }),
+    }
+
+    // Update human profile
+    const humanRepository = HumanRepository.getInstance()
+    await humanRepository.update(human.uuid, {
+      dataIn: updatedDataIn as any,
+    })
+
+    // Determine response message based on verification result and errors
+    let responseMessage: string
+    let showVerificationDetails = true
+    
+    if (verificationError) {
+      // API error - don't show verification details
+      responseMessage = 'Селфи сохранено. Верификация временно недоступна. Попробуйте позже.'
+      showVerificationDetails = false
+    } else if (verificationResult) {
+      if (verificationResult.verified) {
+        responseMessage = 'Верификация пройдена успешно! Аватар сохранён.'
+      } else {
+        responseMessage = 'Верификация не пройдена. Пожалуйста, загрузите более четкое фото.'
+      }
+    } else {
+      responseMessage = 'Селфи сохранено. Верификация будет выполнена после загрузки фото паспорта.'
+      showVerificationDetails = false
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        verified: verificationResult?.verified ?? false,
+        facesMatch: verificationError ? undefined : (verificationResult?.faceMatch.match ?? false),
+        confidence: verificationError ? undefined : (verificationResult?.faceMatch.similarity ?? 0),
+        message: responseMessage,
+        details: showVerificationDetails && verificationResult ? {
+          facesInSelfie: verificationResult.details.facesDetectedInSelfie,
+          facesInPassport: verificationResult.details.facesDetectedInPassport,
+          nameMatch: verificationResult.nameMatch.match,
+          reasons: verificationResult.reasons,
+        } : undefined,
+        document: {
+          id: 'selfie_with_passport',
+          mediaUuid: selfieMedia.uuid,
+          uploadedAt: newDocument.uploadedAt,
+        },
+        avatarExtracted: avatarMedia !== null,
+        avatarMediaUuid: avatarMedia?.uuid,
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Selfie verification error:', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: `Ошибка верификации: ${message}`,
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export const POST = withInvestorGuard(handlePost)
+

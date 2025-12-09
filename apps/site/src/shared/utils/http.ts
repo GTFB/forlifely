@@ -70,7 +70,7 @@ const formatCurrency = (amount: number): string => {
   }).format(amount)
 }
 
-export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJournal[]> => {
+export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean = true): Promise<EsnadJournal[]> => {
   // Map action types to readable names
   const actionNames: Record<string, string> = {
     'USER_JOURNAL_LOGIN': 'Вход в систему',
@@ -422,6 +422,42 @@ export const parseJournals = async (journals: EsnadJournal[]): Promise<EsnadJour
       return updatedJournal
     })
   )
+
+  // For non-admin users, return only minimal data (what's shown in the table)
+  if (!forAdmin) {
+    return processedJournals.map((journal) => {
+      const rawDetails =
+        typeof journal.details === 'string'
+          ? (JSON.parse(journal.details) as Record<string, unknown>)
+          : (journal.details as Record<string, unknown> | undefined)
+
+      // Extract description from details
+      let description = ''
+      if (rawDetails && 'description' in rawDetails && typeof rawDetails.description === 'string') {
+        description = rawDetails.description
+      } else {
+        // Fallback: use action type or message
+        const detailsObj = rawDetails as { message?: string; context?: string } | undefined
+        const message = detailsObj?.message || detailsObj?.context || journal.action
+        description = message || `${journal.action} #${journal.uuid?.substring(0, 8) || journal.id}`
+      }
+
+      // Return only fields needed for the table: type (action), description, and date
+      // Include all required fields from schema to satisfy type requirements
+      return {
+        id: journal.id,
+        uuid: journal.uuid,
+        action: journal.action,
+        details: {
+          description,
+        },
+        user_id: journal.user_id || null,
+        xaid: journal.xaid || null,
+        createdAt: journal.createdAt,
+        updatedAt: journal.updatedAt,
+      } as EsnadJournal
+    })
+  }
 
   return processedJournals
 }

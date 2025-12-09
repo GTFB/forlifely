@@ -36,9 +36,9 @@ export function MeProvider({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchMe = React.useCallback(async () => {
+  const fetchMe = React.useCallback(async (withoutLoading = false) => {
     try {
-      setLoading(true)
+      ! withoutLoading && setLoading(true)
       setError(null)
 
       const response = await fetch('/api/auth/me', {
@@ -95,7 +95,7 @@ export function MeProvider({
     }
 
     const handleFocus = () => {
-      fetchMe()
+      fetchMe(true)
     }
 
     window.addEventListener('focus', handleFocus)

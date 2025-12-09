@@ -2,9 +2,9 @@
 
 import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import InvestorAuthGuard from '@/components/cabinet/InvestorAuthGuard'
 import { InvestorLayout } from '@/components/cabinet/InvestorLayout'
 import { AskForNotificationPush } from '@/components/AskForNotificationPush'
+import RoleAuthGuard from '@/components/guards/RoleAuthGuard'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -33,16 +33,16 @@ export default function InvestorCabinetLayout({ children }: { children: ReactNod
   const header = getHeaderForPath(pathname || '')
 
   return (
-    <div className="min-h-screen bg-background">
-      <InvestorAuthGuard>
+    <RoleAuthGuard allowedRoles={['investor']} redirectTo="/">
+      <div className="min-h-screen bg-background">
         <AskForNotificationPush />
         <InvestorLayout
           headerTitle={header.title}
           headerBreadcrumbs={header.breadcrumbItems}>
           {children}
         </InvestorLayout>
-      </InvestorAuthGuard>
-    </div>
+      </div>
+    </RoleAuthGuard>
   )
 }
 
