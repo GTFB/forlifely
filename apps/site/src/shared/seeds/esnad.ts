@@ -1,3 +1,5 @@
+import { taxonomy } from "../schema";
+
 export const esnadSeed = {
   __meta__: {
     name: 'Esnad Finance Settings (Test Data)',
@@ -170,6 +172,14 @@ export const esnadSeed = {
       },
   },
   ],
+  taxonomy: [
+    {
+      entity: "blog.category",
+      name: "esnad",
+      title: "Esnad Blog Categor",
+      sortOrder: 10,
+    }
+  ]
 } as const
 
 

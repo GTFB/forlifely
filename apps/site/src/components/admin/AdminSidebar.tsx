@@ -85,26 +85,26 @@ const navigationGroups: NavigationGroup[] = [
     ],
   },
   // Временно скрыто
-  // {
-  //   title: 'Контент',
-  //   items: [
-  //     {
-  //       title: 'Блог',
-  //       url: '/admin/content/blog',
-  //       icon: BookOpen,
-  //     },
-  //     {
-  //       title: 'Страницы',
-  //       url: '/admin/content/pages',
-  //       icon: FileText,
-  //     },
-  //     {
-  //       title: 'FAQ',
-  //       url: '/admin/content/faq',
-  //       icon: FileQuestion,
-  //     },
-  //   ],
-  // },
+  {
+    title: 'Контент',
+    items: [
+      {
+        title: 'Блог',
+        url: '/admin/content/blog',
+        icon: BookOpen,
+      },
+      // {
+      //   title: 'Страницы',
+      //   url: '/admin/content/pages',
+      //   icon: FileText,
+      // },
+      // {
+      //   title: 'FAQ',
+      //   url: '/admin/content/faq',
+      //   icon: FileQuestion,
+      // },
+    ],
+  },
   // {
   //   title: 'Поддержка',
   //   items: [
@@ -115,16 +115,16 @@ const navigationGroups: NavigationGroup[] = [
   //     },
   //   ],
   // },
-  // {
-  //   title: 'Задачи',
-  //   items: [
-  //     {
-  //       title: 'Менеджер задач',
-  //       url: '/admin/tasks',
-  //       icon: CheckSquare,
-  //     },
-  //   ],
-  // },
+  {
+    title: 'Задачи',
+    items: [
+      {
+        title: 'Менеджер задач',
+        url: '/admin/tasks',
+        icon: CheckSquare,
+      },
+    ],
+  },
 ]
 
 interface AdminSidebarProps {

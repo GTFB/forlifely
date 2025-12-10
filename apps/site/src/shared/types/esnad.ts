@@ -8,6 +8,8 @@ import {
     NewJournal,
     Employee,
     NewUser,
+    NewText,
+    Text,
 } from '../schema/types'
 import { EsnadMedia } from './esnad-finance'
 
@@ -331,4 +333,18 @@ export interface UploadAssetResponse {
 
 export interface UpdateProfileKycRequest {
     kycDocuments: KycDocumentRef[]
+}
+
+export interface EsnadText extends Text {
+    dataIn: EsnadTextDataIn
+}
+export interface NewEsnadText extends Partial<NewText> {
+    dataIn: EsnadTextDataIn
+}
+
+export interface EsnadTextDataIn {
+    slug: string
+    date: string
+    author: string
+    readTime: number
 }

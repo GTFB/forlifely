@@ -152,18 +152,21 @@ export function buildDbFilters(table: Record<string, any>, filters?: DbFilters):
   const conditions: SQL[] = [];
 
   for (const condition of filters.conditions) {
-    if (!condition.values || condition.values.length === 0) {
-      continue;
-    }
-
     const column = table[condition.field];
     if (!column) {
       continue;
     }
 
     switch (condition.operator) {
+      case "isNull": {
+        conditions.push(isNull(column));
+        break;
+      }
+      case "isNotNull": {
+        conditions.push(isNotNull(column));
+        break;
+      }
       case "exclude": {
-
         if (!condition.values || condition.values.length === 0) {
           continue;
         }
@@ -190,14 +193,6 @@ export function buildDbFilters(table: Record<string, any>, filters?: DbFilters):
           continue;
         }
         conditions.push(notInArray(column, condition.values));
-        break;
-      }
-      case "isNull": {
-        conditions.push(isNull(column));
-        break;
-      }
-      case "isNotNull": {
-        conditions.push(isNotNull(column));
         break;
       }
       case "between": {

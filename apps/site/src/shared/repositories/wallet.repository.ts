@@ -403,16 +403,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
     const firstFinanceAmountRubles = firstFinanceAmountKopecks / 100
 
     // Логирование для отладки
-    console.log('[checkAndPayPendingFinances]', {
-      walletUuid,
-      balanceKopecks,
-      balanceRubles: balanceKopecks / 100,
-      firstFinanceUuid: firstFinance.uuid,
-      firstFinanceSumString,
-      firstFinanceAmountKopecks,
-      firstFinanceAmountRubles,
-      canPay: balanceKopecks >= firstFinanceAmountKopecks,
-    })
+    
 
     // Если баланс достаточен для оплаты первого finance
     if (balanceKopecks >= firstFinanceAmountKopecks) {

@@ -7,73 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Facebook, Twitter, Linkedin, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const blogPostContent: Record<string, React.ReactNode> = {
-  "kak-oformit-rassrochku": (
-    <div className="prose prose-lg max-w-none dark:prose-invert">
-      <p>
-        Рассрочка без процентов — это отличная возможность приобрести нужный товар, не переплачивая.
-        В этой статье мы расскажем, как правильно оформить рассрочку и какие документы для этого нужны.
-      </p>
-      <h2>Шаг 1: Выбор товара и партнера</h2>
-      <p>
-        Первым делом вам нужно выбрать товар у одного из наших партнеров. Мы сотрудничаем с крупнейшими
-        ритейлерами России, поэтому вы сможете найти практически любой товар.
-      </p>
-      <h2>Шаг 2: Подача заявки</h2>
-      <p>
-        Заполните онлайн-заявку на нашем сайте. Укажите сумму товара, желаемый срок рассрочки и свои
-        контактные данные. Заявка рассматривается в течение 60 минут.
-      </p>
-      <h2>Шаг 3: Подготовка документов</h2>
-      <p>Для оформления рассрочки вам понадобятся:</p>
-      <ul>
-        <li>Паспорт гражданина РФ</li>
-        <li>Справка о доходах (2-НДФЛ или по форме банка)</li>
-        <li>Трудовая книжка или договор</li>
-        <li>СНИЛС</li>
-      </ul>
-      <h2>Шаг 4: Получение товара</h2>
-      <p>
-        После одобрения заявки вы сможете забрать товар у партнера. Рассрочка оформляется прямо в магазине,
-        и вы сразу можете пользоваться покупкой.
-      </p>
-    </div>
-  ),
-  "preimushchestva-rassrochki": (
-    <div className="prose prose-lg max-w-none dark:prose-invert">
-      <p>
-        Рассрочка — это удобный способ приобрести товар, разделив его стоимость на несколько платежей.
-        В отличие от кредита, рассрочка не предполагает начисления процентов.
-      </p>
-      <h2>Основные преимущества</h2>
-      <h3>Без процентов</h3>
-      <p>
-        Главное преимущество рассрочки — отсутствие переплаты. Вы платите ровно столько, сколько стоит товар,
-        разделив сумму на удобные платежи.
-      </p>
-      <h3>Быстрое оформление</h3>
-      <p>
-        Заявка на рассрочку рассматривается в течение 60 минут. В большинстве случаев решение принимается
-        автоматически, и вы сразу можете забрать товар.
-      </p>
-      <h3>Гибкие условия</h3>
-      <p>
-        Вы можете выбрать срок рассрочки от 3 до 24 месяцев, в зависимости от суммы покупки и ваших возможностей.
-      </p>
-    </div>
-  ),
-};
+import { EsnadText } from "@/shared/types/esnad";
 
 type BlogPostPageClientProps = {
   slug: string;
-  post: {
-    title: string;
-    category: string;
-    author: string;
-    date: string;
-    readTime: string;
-  };
+  post: EsnadText;
 };
 
 export default function BlogPostPageClient({ slug, post }: BlogPostPageClientProps) {
@@ -82,7 +20,7 @@ export default function BlogPostPageClient({ slug, post }: BlogPostPageClientPro
   const [copied, setCopied] = React.useState(false);
 
   const currentUrl = typeof window !== "undefined" ? window.location.origin + pathname : "";
-  const content = blogPostContent[slug];
+  const content = post.content;
 
   const handleCopy = () => {
     if (typeof window !== "undefined") {
@@ -134,15 +72,15 @@ export default function BlogPostPageClient({ slug, post }: BlogPostPageClientPro
             {post.title}
           </h1>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>{post.author}</span>
+            <span>{post.dataIn?.author}</span>
             <span>•</span>
-            <span>{formatDate(post.date)}</span>
+            <span>{formatDate(post.dataIn?.date || post.createdAt)}</span>
             <span>•</span>
-            <span>{post.readTime} чтения</span>
+            <span>{post.dataIn?.readTime} минут на чтение</span>
           </div>
         </header>
 
-        <div className="mb-12">{content}</div>
+        <div className="mb-12" dangerouslySetInnerHTML={{ __html: content }} />
 
         <div className="border-t pt-8">
           <h3 className="text-lg font-semibold mb-4">Поделиться</h3>

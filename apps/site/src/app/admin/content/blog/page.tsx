@@ -15,68 +15,62 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
+import { EsnadText } from '@/shared/types/esnad'
 
-interface ContentItem {
-  id: string
-  title: string
-  slug: string
-  status: 'published' | 'draft'
-  createdAt: string
-  updatedAt: string
+interface BlogPost {
+  id: number
+  taid: string
+  title: string | null
+  statusName: string | null
+  category: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  dataIn: { slug: string } | null
 }
 
 export default function AdminBlogPage() {
   const router = useRouter()
-  const [blogPosts, setBlogPosts] = React.useState<ContentItem[]>([])
+  const [blogPosts, setBlogPosts] = React.useState<BlogPost[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/admin/content/blog', { credentials: 'include' })
-        
-        // Mock data
-        setTimeout(() => {
-          setBlogPosts([
-            {
-              id: 'post-1',
-              title: 'Как оформить рассрочку',
-              slug: 'kak-oformit-rassrochku',
-              status: 'published',
-              createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'post-2',
-              title: 'Преимущества рассрочки',
-              slug: 'preimushchestva-rassrochki',
-              status: 'published',
-              createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'post-3',
-              title: 'Новые условия кредитования',
-              slug: 'novye-usloviya-kreditovaniya',
-              status: 'draft',
-              createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-          ])
-          setLoading(false)
-        }, 500)
-      } catch (err) {
-        console.error('Content fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load content')
-        setLoading(false)
-      }
-    }
-
     fetchContent()
   }, [])
+
+  const fetchContent = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch('/api/esnad/v1/admin/content/blog', {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch blog posts')
+      }
+
+      const data = await response.json() as { docs: EsnadText[]; pagination: any }
+      const posts: BlogPost[] = data.docs.map((post) => ({
+        id: post.id,
+        taid: post.taid || '',
+        title: post.title,
+        statusName: post.statusName,
+        category: post.category,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+        dataIn: post.dataIn || null,
+      }))
+      
+      setBlogPosts(posts)
+    } catch (err) {
+      console.error('Content fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load content')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatDate = (dateString: string) => {
     if (!dateString) return ''
@@ -90,6 +84,18 @@ export default function AdminBlogPage() {
 
   const handleAddNew = () => {
     router.push('/admin/content/blog/new')
+  }
+
+  const getStatusBadge = (statusName: string | null) => {
+    switch (statusName) {
+      case 'PUBLISHED':
+        return <Badge variant="default">Опубликовано</Badge>
+      case 'ON_APPROVAL':
+        return <Badge variant="secondary">На утверждении</Badge>
+      case 'DRAFT':
+      default:
+        return <Badge variant="outline">Черновик</Badge>
+    }
   }
 
   if (loading) {
@@ -147,6 +153,7 @@ export default function AdminBlogPage() {
                       <TableHead>Название</TableHead>
                       <TableHead>URL</TableHead>
                       <TableHead>Статус</TableHead>
+                      <TableHead>Категория</TableHead>
                       <TableHead>Дата создания</TableHead>
                       <TableHead>Обновлено</TableHead>
                     </TableRow>
@@ -156,19 +163,22 @@ export default function AdminBlogPage() {
                       <TableRow
                         key={post.id}
                         className="cursor-pointer"
-                        onClick={() => router.push(`/admin/content/blog/${post.id}`)}>
-                        <TableCell className="font-medium">{post.title}</TableCell>
-                        <TableCell className="text-muted-foreground">{post.slug}</TableCell>
+                        onClick={() => router.push(`/admin/content/blog/${post.taid}`)}>
+                        <TableCell className="font-medium">{post.title || 'Без названия'}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {post.dataIn?.slug || '-'}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={post.status === 'published' ? 'default' : 'secondary'}>
-                            {post.status === 'published' ? 'Опубликовано' : 'Черновик'}
-                          </Badge>
+                          {getStatusBadge(post.statusName)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {formatDate(post.createdAt)}
+                          {post.category || '-'}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {formatDate(post.updatedAt)}
+                          {formatDate(post.createdAt || '')}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(post.updatedAt || '')}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -24,6 +24,7 @@ import { media } from './media'
 import { relations } from './relations'
 import { notices } from './notices'
 import { files } from './files'
+import { texts } from './texts'
 
 export type Asset = InferSelectModel<typeof assets>
 export type BaseMove = InferSelectModel<typeof baseMoves>
@@ -50,6 +51,7 @@ export type Media = InferSelectModel<typeof media>
 export type Relation = InferSelectModel<typeof relations>
 export type Notice = InferSelectModel<typeof notices>
 export type File = InferSelectModel<typeof files>
+export type Text = InferSelectModel<typeof texts>
 
 export type NewAsset = InferInsertModel<typeof assets>
 export type NewBaseMove = InferInsertModel<typeof baseMoves>
@@ -76,3 +78,4 @@ export type NewMedia = InferInsertModel<typeof media>
 export type NewRelation = InferInsertModel<typeof relations>
 export type NewNotice = InferInsertModel<typeof notices>
 export type NewFile = InferInsertModel<typeof files>
+export type NewText = InferInsertModel<typeof texts>

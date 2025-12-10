@@ -167,22 +167,7 @@ export function withNonAdminGuard<T extends RequestContext>(handler: RouteHandle
       )
     }
 
-    // Check if user is admin - block access
-    const isAdmin = user.roles.some(r => r.name && ['Administrator', 'admin'].includes(r.name))
-    
-    if (isAdmin) {
-       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'FORBIDDEN', 
-          message: 'Forbidden: This endpoint is not available for administrators' 
-        }),
-        { 
-          status: 403, 
-          headers: { 'content-type': 'application/json' } 
-        }
-      )
-    }
+  
 
     const resolvedParams = props?.params ? await props.params : undefined
     

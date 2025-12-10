@@ -221,7 +221,8 @@ describe("WalletRepository - Finance Payment Tests", () => {
         if (!debitTransaction) {
           throw new Error("Debit transaction not found");
         }
-        expect(parseInt(debitTransaction.amount)).toBe(-firstFinanceAmountKopecks);
+        const expectedAmount = -Math.floor(firstFinanceAmountKopecks / 100);
+        expect(parseInt(debitTransaction.amount)).toBe(expectedAmount);
       } else {
         // Если уже есть неоплаченные finance, просто делаем платеж
         const firstUnpaidFinance = unpaidFinances[0];

@@ -80,7 +80,54 @@ export const onRequestOptions = async () => {
     })
 }
 
+const onRequestPost = async (context: AuthenticatedRequestContext) => {
+    const { request } = context
+    try {
+        const body = await request.json() as {
+            entity: string
+            name: string
+            title?: string | null
+            sortOrder?: number | null
+        }
+
+        if (!body.entity || !body.name) {
+            return new Response(
+                JSON.stringify({
+                    error: 'VALIDATION_ERROR',
+                    message: 'Entity and name are required',
+                }),
+                { status: 400, headers: { 'Content-Type': 'application/json' } },
+            )
+        }
+
+        const taxonomyRepository = new TaxonomyRepository()
+        const created = await taxonomyRepository.create({
+            entity: body.entity,
+            name: body.name,
+            title: body.title || null,
+            sortOrder: body.sortOrder?.toString() || '0',
+        })
+
+        return new Response(JSON.stringify(created), {
+            status: 201,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+    } catch (error) {
+        console.error('Failed to create taxonomy', error)
+        return new Response(
+            JSON.stringify({
+                error: 'INTERNAL_SERVER_ERROR',
+                message: 'Failed to create taxonomy',
+            }),
+            { status: 500, headers: { 'Content-Type': 'application/json' } },
+        )
+    }
+}
+
 export const GET = withAdminGuard(onRequestGet)
+export const POST = withAdminGuard(onRequestPost)
 
 export async function OPTIONS() {
     return onRequestOptions()
