@@ -2,9 +2,11 @@
 
 import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import PartnerAuthGuard from '@/components/cabinet/PartnerAuthGuard'
+import RoleAuthGuard from '@/components/guards/RoleAuthGuard'
 import { PartnerLayout } from '@/components/cabinet/PartnerLayout'
 import { AskForNotificationPush } from '@/components/AskForNotificationPush'
+
+const PARTNER_ROLES = ['partner', 'Partner', 'Партнер']
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -33,16 +35,16 @@ export default function PartnerCabinetLayout({ children }: { children: ReactNode
   const header = getHeaderForPath(pathname || '')
 
   return (
-    <div className="min-h-screen bg-background">
-      <PartnerAuthGuard>
+    <RoleAuthGuard allowedRoles={PARTNER_ROLES} redirectTo="/">
+      <div className="min-h-screen bg-background">
         <AskForNotificationPush />  
         <PartnerLayout
           headerTitle={header.title}
           headerBreadcrumbs={header.breadcrumbItems}>
           {children}
         </PartnerLayout>
-      </PartnerAuthGuard>
-    </div>
+      </div>
+    </RoleAuthGuard>
   )
 }
 

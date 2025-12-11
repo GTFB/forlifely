@@ -50,19 +50,23 @@ export default function PartnerSupportPage() {
     const fetchTickets = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/c/support', {
+        const response = await fetch('/api/esnad/p/support', {
           credentials: 'include',
         })
 
         if (!response.ok) {
-          throw new Error('Failed to load tickets')
+          throw new Error('Не удалось загрузить обращения')
         }
 
-        const data = await response.json() as { tickets?: Ticket[] }
-        setTickets(data.tickets || [])
+        const data = await response.json() as { success?: boolean; data?: { tickets?: Ticket[] }; message?: string }
+        if (!data.success || !data.data?.tickets) {
+          throw new Error(data.message || 'Ответ сервера не содержит обращений')
+        }
+
+        setTickets(data.data.tickets || [])
       } catch (err) {
         console.error('Tickets fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load tickets')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить обращения')
       } finally {
         setLoading(false)
       }
@@ -83,7 +87,7 @@ export default function PartnerSupportPage() {
       setSubmitting(true)
       setError(null)
 
-      const response = await fetch('/api/c/support', {
+      const response = await fetch('/api/esnad/p/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -91,29 +95,31 @@ export default function PartnerSupportPage() {
       })
 
       if (!response.ok) {
-        const data = await response.json() as { error?: string }
-        throw new Error(data.error || 'Failed to create ticket')
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.error || data.message || 'Не удалось создать обращение')
       }
 
-      const data = await response.json() as { ticketId?: string }
+      const data = await response.json() as { data?: { ticketId?: string }; message?: string }
       
       setFormData({ subject: '', message: '' })
       setDialogOpen(false)
       
-      const ticketsRes = await fetch('/api/c/support', {
+      const ticketsRes = await fetch('/api/esnad/p/support', {
         credentials: 'include',
       })
       if (ticketsRes.ok) {
-        const ticketsData = await ticketsRes.json() as { tickets?: Ticket[] }
-        setTickets(ticketsData.tickets || [])
+        const ticketsData = await ticketsRes.json() as { success?: boolean; data?: { tickets?: Ticket[] } }
+        if (ticketsData.success && ticketsData.data?.tickets) {
+          setTickets(ticketsData.data.tickets || [])
+        }
       }
 
-      if (data.ticketId) {
-        router.push(`/p/support/${data.ticketId}`)
+      if (data.data?.ticketId) {
+        router.push(`/p/support/${data.data.ticketId}`)
       }
     } catch (err) {
       console.error('Submit error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create ticket')
+      setError(err instanceof Error ? err.message : 'Не удалось создать обращение')
     } finally {
       setSubmitting(false)
     }

@@ -28,6 +28,7 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 import { slugify } from '@/lib/slugify'
 import { EsnadText, TaxonomyOption } from '@/shared/types/esnad'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
 
 export default function AdminBlogEditPage() {
   const params = useParams()
@@ -51,6 +52,7 @@ export default function AdminBlogEditPage() {
     content: '',
     author: '',
     readTime: 0,
+    date: new Date(),
     statusName: 'DRAFT' as 'DRAFT' | 'ON_APPROVAL' | 'PUBLISHED',
   })
 
@@ -146,6 +148,7 @@ export default function AdminBlogEditPage() {
           content: text.content || '',
           author: dataIn.author || '',
           readTime: dataIn.readTime || 0,
+          date: text.createdAt ? new Date(text.createdAt) : new Date(),
           statusName: (text.statusName as 'DRAFT' | 'ON_APPROVAL' | 'PUBLISHED') || 'DRAFT',
         })
         // Сбрасываем флаг при загрузке, чтобы slug обновлялся автоматически при изменении заголовка
@@ -203,7 +206,7 @@ export default function AdminBlogEditPage() {
           slug: formData.slug.trim(),
           author: formData.author.trim() || 'Esnad Finance',
           readTime: formData.readTime || 0,
-          date: new Date().toISOString(),
+          date: formData.date.toISOString(),
         },
         isPublic: formData.statusName === 'PUBLISHED',
       }
@@ -473,6 +476,15 @@ export default function AdminBlogEditPage() {
                   value={formData.author}
                   onChange={(e) => setFormData((prev) => ({ ...prev, author: e.target.value }))}
                   placeholder="Введите имя автора"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date">Дата публикации</Label>
+                <DateTimePicker
+                  value={formData.date}
+                  onChange={(date) => setFormData((prev) => ({ ...prev, date: date || new Date() }))}
+                  mode="date"
                 />
               </div>
 

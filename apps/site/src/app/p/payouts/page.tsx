@@ -30,67 +30,32 @@ export default function PartnerPayoutsPage() {
     const fetchPayouts = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/p/payouts', { credentials: 'include' })
-        
-        // Mock data
-        setTimeout(() => {
-          setPayouts([
-            {
-              id: 'PAY-001',
-              amount: 450000,
-              date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 01.01-15.01',
-            },
-            {
-              id: 'PAY-002',
-              amount: 320000,
-              date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 16.12-31.12',
-            },
-            {
-              id: 'PAY-003',
-              amount: 280000,
-              date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 01.12-15.12',
-            },
-            {
-              id: 'PAY-004',
-              amount: 195000,
-              date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 16.11-30.11',
-            },
-            {
-              id: 'PAY-005',
-              amount: 150000,
-              date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'В обработке',
-              description: 'Выплата за одобренные заявки за период 16.01-20.01',
-            },
-            {
-              id: 'PAY-006',
-              amount: 125000,
-              date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 01.11-15.11',
-            },
-            {
-              id: 'PAY-007',
-              amount: 95000,
-              date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'Выплачено',
-              description: 'Выплата за одобренные заявки за период 16.10-31.10',
-            },
-          ])
-          setLoading(false)
-        }, 500)
+        setError(null)
+
+        const response = await fetch('/api/esnad/p/payouts', {
+          credentials: 'include',
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Недостаточно прав для просмотра выплат')
+        }
+
+        if (!response.ok) {
+          throw new Error('Не удалось загрузить выплаты')
+        }
+
+        const data = await response.json() as { success?: boolean; data?: { payouts?: Payout[] }; message?: string }
+
+        if (!data.success || !data.data?.payouts) {
+          throw new Error(data.message || 'Ответ сервера не содержит данных')
+        }
+
+        setPayouts(data.data.payouts)
       } catch (err) {
         console.error('Payouts fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load payouts')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить выплаты')
+        setPayouts([])
+      } finally {
         setLoading(false)
       }
     }

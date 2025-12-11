@@ -12,6 +12,7 @@ export default function PartnerProfilePage() {
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [success, setSuccess] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     name: '',
     address: '',
@@ -22,18 +23,42 @@ export default function PartnerProfilePage() {
     bankAccount: '',
     correspondentAccount: '',
     bik: '',
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
   })
 
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/p/profile', { credentials: 'include' })
+        setError(null)
+        const response = await fetch('/api/esnad/p/profile', {
+          credentials: 'include',
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Недостаточно прав для просмотра профиля партнера')
+        }
+
+        if (!response.ok) {
+          throw new Error('Не удалось загрузить профиль')
+        }
+
+        const data = await response.json() as { success?: boolean; profile?: typeof formData; message?: string }
+
+        if (!data.profile) {
+          throw new Error(data.message || 'Ответ сервера не содержит данных профиля')
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+          ...data.profile,
+        }))
         setLoading(false)
       } catch (err) {
         console.error('Profile fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load profile')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить профиль')
         setLoading(false)
       }
     }
@@ -45,19 +70,25 @@ export default function PartnerProfilePage() {
     try {
       setSaving(true)
       setError(null)
+      setSuccess(null)
 
-      // TODO: Implement save API
-      // const response = await fetch('/api/p/profile', {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   credentials: 'include',
-      //   body: JSON.stringify(formData),
-      // })
+      const response = await fetch('/api/esnad/p/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      })
 
-      setError('Сохранение профиля пока не реализовано')
+      const data = await response.json() as { success?: boolean; message?: string; error?: string }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Не удалось сохранить профиль')
+      }
+
+      setSuccess(data.message || 'Профиль сохранен')
     } catch (err) {
       console.error('Save error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update profile')
+      setError(err instanceof Error ? err.message : 'Не удалось обновить профиль')
     } finally {
       setSaving(false)
     }
@@ -74,6 +105,21 @@ export default function PartnerProfilePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Профиль магазина</h1>
+
+      {(error || success) && (
+        <div className="space-y-2">
+          {error && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700">
+              {success}
+            </div>
+          )}
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -99,6 +145,38 @@ export default function PartnerProfilePage() {
               placeholder="Полный адрес магазина"
               rows={3}
             />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="contactName">Контактное лицо</Label>
+              <Input
+                id="contactName"
+                value={formData.contactName}
+                onChange={(e) => setFormData((prev) => ({ ...prev, contactName: e.target.value }))}
+                placeholder="Имя менеджера"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactEmail">Email для связи</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                value={formData.contactEmail}
+                onChange={(e) => setFormData((prev) => ({ ...prev, contactEmail: e.target.value }))}
+                placeholder="partner@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactPhone">Телефон</Label>
+              <Input
+                id="contactPhone"
+                type="tel"
+                value={formData.contactPhone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, contactPhone: e.target.value }))}
+                placeholder="+7 (___) ___-__-__"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -185,12 +263,6 @@ export default function PartnerProfilePage() {
               />
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
 
           <Button onClick={handleSave} disabled={saving}>
             {saving ? (

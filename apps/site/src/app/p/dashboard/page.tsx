@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import {
   Table,
@@ -19,90 +21,79 @@ import {
   ChartConfig,
 } from '@/components/ui/chart'
 
+type DashboardMetrics = {
+  applicationsThisMonth: number
+  approvedApplications: number
+  totalPayouts: number
+  applicationsByDay: Array<{ date: string; count: number }>
+  recentApplications: Array<{
+    id: string
+    clientName: string
+    amount: number
+    date: string
+    status: string
+  }>
+}
+
+const initialMetrics: DashboardMetrics = {
+  applicationsThisMonth: 0,
+  approvedApplications: 0,
+  totalPayouts: 0,
+  applicationsByDay: [],
+  recentApplications: [],
+}
+
 export default function PartnerDashboardPage() {
+  const router = useRouter()
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [metrics, setMetrics] = React.useState({
-    applicationsThisMonth: 0,
-    approvedApplications: 0,
-    totalPayouts: 0,
-    applicationsByDay: [] as Array<{ date: string; count: number }>,
-    recentApplications: [] as Array<{
-      id: string
-      clientName: string
-      amount: number
-      date: string
-      status: string
-    }>,
-  })
+  const [metrics, setMetrics] = React.useState<DashboardMetrics>(initialMetrics)
 
   React.useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/p/dashboard', { credentials: 'include' })
-        
-        // Mock data
-        setTimeout(() => {
-          const now = new Date()
-          const applicationsByDay = Array.from({ length: 14 }, (_, i) => {
-            const date = new Date(now)
-            date.setDate(date.getDate() - (13 - i))
-            return {
-              date: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
-              count: Math.floor(Math.random() * 8) + 1,
-            }
-          })
+        setError(null)
 
-          setMetrics({
-            applicationsThisMonth: 45,
-            approvedApplications: 32,
-            totalPayouts: 2500000,
-            applicationsByDay,
-            recentApplications: [
-              {
-                id: 'APP-001',
-                clientName: 'Иванов Иван Иванович',
-                amount: 150000,
-                date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'Одобрена',
-              },
-              {
-                id: 'APP-002',
-                clientName: 'Петрова Мария Сергеевна',
-                amount: 85000,
-                date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'На рассмотрении',
-              },
-              {
-                id: 'APP-003',
-                clientName: 'Сидоров Петр Александрович',
-                amount: 200000,
-                date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'Одобрена',
-              },
-              {
-                id: 'APP-004',
-                clientName: 'Козлова Анна Дмитриевна',
-                amount: 120000,
-                date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'Одобрена',
-              },
-              {
-                id: 'APP-005',
-                clientName: 'Морозов Дмитрий Викторович',
-                amount: 95000,
-                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'Отклонена',
-              },
-            ],
-          })
-          setLoading(false)
-        }, 500)
+        const response = await fetch('/api/esnad/p/dashboard', {
+          credentials: 'include',
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Недостаточно прав для просмотра дашборда партнера')
+        }
+
+        if (!response.ok) {
+          throw new Error('Не удалось загрузить данные дашборда')
+        }
+
+        const data = await response.json() as {
+          success?: boolean
+          data?: DashboardMetrics
+          message?: string
+        }
+
+        if (!data.success || !data.data) {
+          throw new Error(data.message || 'Ответ сервера не содержит данных')
+        }
+
+        const normalizedByDay = (data.data.applicationsByDay || []).map((item) => ({
+          date: item.date,
+          count: Number(item.count) || 0,
+          label: new Date(item.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+        }))
+
+        setMetrics({
+          applicationsThisMonth: data.data.applicationsThisMonth ?? 0,
+          approvedApplications: data.data.approvedApplications ?? 0,
+          totalPayouts: data.data.totalPayouts ?? 0,
+          applicationsByDay: normalizedByDay,
+          recentApplications: data.data.recentApplications ?? [],
+        })
       } catch (err) {
         console.error('Dashboard fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load data')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить данные')
+      } finally {
         setLoading(false)
       }
     }
@@ -117,6 +108,19 @@ export default function PartnerDashboardPage() {
       minimumFractionDigits: 0,
     }).format(amount)
   }
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ''
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const hasApplications =
+    metrics.applicationsByDay.some((item) => item.count > 0) ||
+    metrics.recentApplications.length > 0
 
   if (loading) {
     return (
@@ -136,7 +140,29 @@ export default function PartnerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Дашборд</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-3xl font-bold">Дашборд</h1>
+        <Button onClick={() => router.push('/p/deals?create=1')}>
+          Создать заявку
+        </Button>
+      </div>
+
+      {!hasApplications && (
+        <Card className="border-dashed bg-muted/40">
+          <CardHeader>
+            <CardTitle>Добро пожаловать!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-muted-foreground text-sm">
+              Здесь будет сводка по заявкам и выплатам вашего магазина.
+              Начните с оформления первой заявки для клиента.
+            </p>
+            <Button onClick={() => router.push('/p/deals?create=1')}>
+              Создать первую заявку
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -187,10 +213,14 @@ export default function PartnerDashboardPage() {
                 },
               } satisfies ChartConfig}
               className="h-[300px] w-full">
-              <BarChart data={metrics.applicationsByDay}>
+              <BarChart
+                data={metrics.applicationsByDay.map((item) => ({
+                  ...item,
+                  label: new Date(item.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+                }))}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
-                  dataKey="date"
+                  dataKey="label"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
@@ -248,13 +278,7 @@ export default function PartnerDashboardPage() {
                     <TableCell className="font-medium">{app.id}</TableCell>
                     <TableCell>{app.clientName}</TableCell>
                     <TableCell>{formatCurrency(app.amount)}</TableCell>
-                    <TableCell>
-                      {new Date(app.date).toLocaleDateString('ru-RU', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </TableCell>
+                    <TableCell>{formatDate(app.date)}</TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
