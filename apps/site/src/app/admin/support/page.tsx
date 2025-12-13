@@ -22,87 +22,76 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
+import { EsnadSupportChat } from '@/shared/types/esnad-support'
 
-interface Ticket {
-  id: string
-  subject: string
-  status: string
-  user: string
-  operator: string
-  createdAt: string
-  updatedAt: string
+interface Operator {
+  uuid: string
+  humanAid: string | null
+  fullName: string | null
 }
 
 export default function AdminSupportPage() {
   const router = useRouter()
-  const [tickets, setTickets] = React.useState<Ticket[]>([])
+  const [tickets, setTickets] = React.useState<EsnadSupportChat[]>([])
+  const [operators, setOperators] = React.useState<Operator[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [operatorFilter, setOperatorFilter] = React.useState<string>('all')
+  const [statusFilter, setStatusFilter] = React.useState<string>('all')
 
   React.useEffect(() => {
-    const fetchTickets = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/admin/support', { credentials: 'include' })
+        setError(null)
         
-        // Mock data
-        setTimeout(() => {
-          setTickets([
-            {
-              id: 'TICKET-001',
-              subject: 'Проблема с оплатой',
-              status: 'Открыт',
-              user: 'Иванов Иван Иванович',
-              operator: 'Петрова М.С.',
-              createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'TICKET-002',
-              subject: 'Вопрос по заявке',
-              status: 'В работе',
-              user: 'Петрова Мария Сергеевна',
-              operator: 'Иванов И.И.',
-              createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'TICKET-003',
-              subject: 'Техническая проблема',
-              status: 'Закрыт',
-              user: 'Сидоров Петр Александрович',
-              operator: 'Сидоров П.А.',
-              createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            // Add more mock tickets...
-            ...Array.from({ length: 12 }, (_, i) => ({
-              id: `TICKET-${String(i + 4).padStart(3, '0')}`,
-              subject: `Тикет ${i + 4}`,
-              status: ['Открыт', 'В работе', 'Закрыт'][i % 3],
-              user: `Пользователь ${i + 4}`,
-              operator: ['Петрова М.С.', 'Иванов И.И.', 'Сидоров П.А.', 'Козлова А.Д.'][i % 4],
-              createdAt: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString(),
-              updatedAt: new Date(Date.now() - (i + 1) * 12 * 60 * 60 * 1000).toISOString(),
-            })),
-          ])
-          setLoading(false)
-        }, 500)
+        // Fetch operators (admins) and tickets in parallel
+        const [operatorsResponse, ticketsResponse] = await Promise.all([
+          fetch('/api/esnad/v1/admin/users/managers', {
+            credentials: 'include',
+          }),
+          fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
+            credentials: 'include',
+          }),
+        ])
+        
+        if (!operatorsResponse.ok) {
+          throw new Error('Failed to fetch operators')
+        }
+        
+        if (!ticketsResponse.ok) {
+          throw new Error('Failed to fetch support tickets')
+        }
+        
+        const operatorsData = await operatorsResponse.json() as { docs: Array<{
+          uuid: string
+          humanAid: string | null
+          fullName: string | null
+        }> }
+        
+        const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
+        
+        setOperators(operatorsData.docs.map(op => ({
+          uuid: op.uuid,
+          humanAid: op.humanAid,
+          fullName: op.fullName,
+        })))
+        setTickets(ticketsData.docs)
       } catch (err) {
-        console.error('Tickets fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load tickets')
+        console.error('Data fetch error:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load data')
+      } finally {
         setLoading(false)
       }
     }
 
-    fetchTickets()
+    fetchData()
   }, [])
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date | null | undefined) => {
     if (!dateString) return ''
-    const date = new Date(dateString)
+    const date = dateString instanceof Date ? dateString : new Date(dateString)
+    if (isNaN(date.getTime())) return ''
     return new Intl.DateTimeFormat('ru-RU', {
       day: 'numeric',
       month: 'long',
@@ -112,25 +101,48 @@ export default function AdminSupportPage() {
     }).format(date)
   }
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: string | null) => {
     switch (status) {
-      case 'Открыт':
+      case 'OPEN':
         return 'default'
-      case 'В работе':
-        return 'secondary'
-      case 'Закрыт':
+      case 'CLOSED':
         return 'outline'
       default:
-        return 'outline'
+        return 'secondary'
+    }
+  }
+  
+  const getStatusLabel = (status: string | null) => {
+    switch (status) {
+      case 'OPEN':
+        return 'Открыт'
+      case 'CLOSED':
+        return 'Закрыт'
+      default:
+        return status || 'Неизвестно'
     }
   }
 
   const filteredTickets = tickets.filter((ticket) => {
-    if (operatorFilter === 'all') return true
-    return ticket.operator === operatorFilter
+    // Filter by operator
+    if (operatorFilter !== 'all' && ticket.dataIn?.managerHaid !== operatorFilter) {
+      return false
+    }
+    
+    // Filter by status
+    if (statusFilter !== 'all' && ticket.statusName !== statusFilter) {
+      return false
+    }
+    
+    return true
   })
 
-  const uniqueOperators = Array.from(new Set(tickets.map((ticket) => ticket.operator)))
+  // Get operator name by haid
+  const getOperatorName = (haid: string | null | undefined): string => {
+    if (!haid) return 'Не назначен'
+    const operator = operators.find(op => op.humanAid === haid)
+    return operator?.fullName || haid
+  }
 
   if (loading) {
     return (
@@ -170,15 +182,25 @@ export default function AdminSupportPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Поиск..." className="pl-10" />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Статус" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все статусы</SelectItem>
+              <SelectItem value="OPEN">Открыт</SelectItem>
+              <SelectItem value="CLOSED">Закрыт</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={operatorFilter} onValueChange={setOperatorFilter}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Оператор" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все операторы</SelectItem>
-              {uniqueOperators.map((operator) => (
-                <SelectItem key={operator} value={operator}>
-                  {operator}
+              {operators.map((operator) => (
+                <SelectItem key={operator.humanAid || operator.uuid} value={operator.humanAid || ''}>
+                  {operator.fullName || operator.humanAid || 'Без имени'}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -212,14 +234,14 @@ export default function AdminSupportPage() {
                     <TableRow
                       key={ticket.id}
                       className="cursor-pointer"
-                      onClick={() => router.push(`/admin/support/${ticket.id}`)}>
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
-                      <TableCell>{ticket.user}</TableCell>
-                      <TableCell>{ticket.operator}</TableCell>
+                      onClick={() => router.push(`/admin/support/${ticket.maid}`)}>
+                      <TableCell className="font-medium">{ticket.maid}</TableCell>
+                      <TableCell>{ticket.title || 'Без темы'}</TableCell>
+                      <TableCell>{ticket.dataIn?.humanHaid || 'Неизвестный пользователь'}</TableCell>
+                      <TableCell>{getOperatorName(ticket.dataIn?.managerHaid)}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(ticket.status)}>
-                          {ticket.status}
+                        <Badge variant={getStatusVariant(ticket.statusName)}>
+                          {getStatusLabel(ticket.statusName)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">

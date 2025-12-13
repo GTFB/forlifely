@@ -1,10 +1,12 @@
 'use client'
 
+import * as React from 'react'
 import { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import ConsumerAuthGuard from '@/components/cabinet/ConsumerAuthGuard'
 import { ConsumerLayout } from '@/components/cabinet/ConsumerLayout'
 import { AskForNotificationPush } from '@/components/AskForNotificationPush'
+import { ConsumerHeaderProvider, useConsumerHeader } from '@/components/cabinet/ConsumerHeaderContext'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -40,12 +42,48 @@ const getHeaderForPath = (pathname: string): {
   if (pathname === '/c/support') {
     return { title: 'Поддержка' }
   }
+  if (pathname.startsWith('/c/support/')) {
+    const match = pathname.match(/\/c\/support\/(.+)$/)
+    const maid = match?.[1]
+    if (maid) {
+      return {
+        title: 'Загрузка...',
+        breadcrumbItems: [
+          { label: 'Кабинет Потребителя', href: '/c/dashboard' },
+          { label: 'Поддержка', href: '/c/support' },
+          { label: 'Загрузка...' },
+        ],
+      }
+    }
+  }
   return { title: 'Кабинет Потребителя' }
 }
 
-export default function ConsumerCabinetLayout({ children }: { children: ReactNode }) {
+function ConsumerCabinetLayoutInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const header = getHeaderForPath(pathname || '')
+  const { title: contextTitle, breadcrumbItems: contextBreadcrumbs, setTitle, setBreadcrumbItems } = useConsumerHeader()
+
+  // Update header when pathname changes (but not for /c/support/[maid] as it will be updated by the page itself)
+  React.useEffect(() => {
+    if (!pathname?.startsWith('/c/support/') || pathname === '/c/support') {
+      // Only update if different from current context values
+      if (header.title !== contextTitle) {
+        setTitle(header.title)
+      }
+      const newBreadcrumbs = header.breadcrumbItems || null
+      const isDifferent = !contextBreadcrumbs || 
+        !newBreadcrumbs ||
+        contextBreadcrumbs.length !== newBreadcrumbs.length ||
+        contextBreadcrumbs.some((item, index) => 
+          item.label !== newBreadcrumbs[index]?.label || 
+          item.href !== newBreadcrumbs[index]?.href
+        )
+      if (isDifferent) {
+        setBreadcrumbItems(newBreadcrumbs)
+      }
+    }
+  }, [pathname, header.title, header.breadcrumbItems, contextTitle, contextBreadcrumbs, setTitle, setBreadcrumbItems])
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,5 +96,13 @@ export default function ConsumerCabinetLayout({ children }: { children: ReactNod
         </ConsumerLayout>
       </ConsumerAuthGuard>
     </div>
+  )
+}
+
+export default function ConsumerCabinetLayout({ children }: { children: ReactNode }) {
+  return (
+    <ConsumerHeaderProvider>
+      <ConsumerCabinetLayoutInner>{children}</ConsumerCabinetLayoutInner>
+    </ConsumerHeaderProvider>
   )
 }

@@ -105,16 +105,16 @@ const navigationGroups: NavigationGroup[] = [
       // },
     ],
   },
-  // {
-  //   title: 'Поддержка',
-  //   items: [
-  //     {
-  //       title: 'Поддержка',
-  //       url: '/admin/support',
-  //       icon: MessageSquare,
-  //     },
-  //   ],
-  // },
+  {
+    title: 'Поддержка',
+    items: [
+      {
+        title: 'Поддержка',
+        url: '/admin/support',
+        icon: MessageSquare,
+      },
+    ],
+  },
   {
     title: 'Задачи',
     items: [

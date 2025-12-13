@@ -1,165 +1,190 @@
-/// <reference types="@cloudflare/workers-types" />
-
-import { getSession } from '@/shared/session'
-import { Env } from '@/shared/types'
-import { MeRepository } from '@/shared/repositories/me.repository'
-import { createDb } from '@/shared/repositories/utils'
-import { schema } from '@/shared/schema/schema'
-import { eq, and, desc, isNull } from 'drizzle-orm'
+import { NextRequest, NextResponse } from 'next/server'
+import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
+import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { EsnadSupportChat, EsnadSupportChatDataIn } from '@/shared/types/esnad-support'
+import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { buildRequestEnv } from '@/shared/env'
 
-/**
- * GET /api/c/support
- * Returns support tickets for consumer
- */
-export const onRequestGet = async (context: { request: Request; env: Env }) => {
-  const { request, env } = context
+const parseQueryParams = (url: URL): { filters: DbFilters; orders: DbOrders; pagination: DbPagination } => {
+  const filters: DbFilters = { conditions: [] }
+  const orders: DbOrders = { orders: [] }
+  const pagination: DbPagination = {}
 
-  if (!env.AUTH_SECRET) {
-    return new Response(JSON.stringify({ error: 'Authentication not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
+  // Parse pagination
+  const page = url.searchParams.get('page')
+  const limit = url.searchParams.get('limit')
+  if (page) pagination.page = parseInt(page, 10)
+  if (limit) pagination.limit = parseInt(limit, 10)
+
+  // Parse status filter
+  const status = url.searchParams.get('status')
+  if (status) {
+    filters.conditions?.push({
+      field: 'statusName',
+      operator: 'eq',
+      values: [status],
     })
   }
 
-  const sessionUser = await getSession(request, env.AUTH_SECRET)
-
-  if (!sessionUser) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
+  // Parse orders (example: ?orderBy=createdAt&orderDirection=desc)
+  const orderBy = url.searchParams.get('orderBy')
+  const orderDirection = url.searchParams.get('orderDirection') as 'asc' | 'desc' | null
+  if (orderBy && orderDirection) {
+    orders.orders?.push({
+      field: orderBy,
+      direction: orderDirection,
+    })
+  } else {
+    // Default order by updatedAt desc (most recently updated chats first)
+    orders.orders?.push({
+      field: 'updatedAt',
+      direction: 'desc',
     })
   }
 
+  // Always exclude soft-deleted records
+  filters.conditions?.push({
+    field: 'deletedAt',
+    operator: 'isNull',
+    values: [],
+  })
+
+  return { filters, orders, pagination }
+}
+
+const handleGet = async (context: AuthenticatedRequestContext) => {
+  const { request, user } = context
   try {
-    const meRepository = MeRepository.getInstance()
-    const userWithRoles = await meRepository.findByIdWithRoles(Number(sessionUser.id))
-
-    if (!userWithRoles) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    // Get client's human haid
+    if (!user.humanAid) {
+      return NextResponse.json({
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'Human profile not found',
+      }, { status: 404 })
     }
 
     const url = new URL(request.url)
-    const page = parseInt(url.searchParams.get('page') || '1')
-    const limit = parseInt(url.searchParams.get('limit') || '10')
-    const offset = (page - 1) * limit
+    const { filters, orders, pagination } = parseQueryParams(url)
 
-    // TODO: Get tickets from database or from user's dataIn
-    // For now, return empty array
-    
-    return new Response(
-      JSON.stringify({
-        tickets: [],
-        pagination: {
-          page,
-          limit,
-          total: 0,
-          totalPages: 0,
-        },
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
+    // Add filter for current client's humanHaid
+    filters.conditions?.push({
+      field: 'humanHaid',
+      operator: 'eq',
+      values: [user.humanAid],
+    })
+
+    const messageThreadsRepository = MessageThreadsRepository.getInstance()
+    const result = await messageThreadsRepository.getFilteredSupportChats(filters, orders, pagination)
+
+    // Parse dataIn for each chat
+    const chatsWithParsedData = result.docs.map((chat) => {
+      let parsedDataIn: EsnadSupportChatDataIn | null = null
+      if (chat.dataIn) {
+        try {
+          if (typeof chat.dataIn === 'string') {
+            parsedDataIn = JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
+          } else {
+            parsedDataIn = chat.dataIn as EsnadSupportChatDataIn
+          }
+        } catch (error) {
+          console.error('Failed to parse dataIn for chat', chat.maid, error)
+        }
       }
-    )
+
+      return {
+        ...chat,
+        dataIn: parsedDataIn || { humanHaid: user.humanAid },
+        type: 'SUPPORT' as const,
+      } as EsnadSupportChat
+    })
+
+    return NextResponse.json({
+      docs: chatsWithParsedData,
+      pagination: result.pagination,
+    })
   } catch (error) {
-    console.error('Get support tickets error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Failed to get support tickets', details: String(error) }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
+    console.error('Failed to fetch support chats', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json({
+      success: false,
+      error: 'INTERNAL_SERVER_ERROR',
+      message,
+    }, { status: 500 })
   }
 }
 
-/**
- * POST /api/c/support
- * Create new support ticket
- */
-export const onRequestPost = async (context: { request: Request; env: Env }) => {
-  const { request, env } = context
-
-  if (!env.AUTH_SECRET) {
-    return new Response(JSON.stringify({ error: 'Authentication not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  const sessionUser = await getSession(request, env.AUTH_SECRET)
-
-  if (!sessionUser) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+const handlePost = async (context: AuthenticatedRequestContext) => {
+  const { request, user } = context
+  const env = buildRequestEnv()
 
   try {
-    const { subject, message } = await request.json() as {
-      subject: string,
-      message:string,
+    // Get client's human haid
+    if (!user.humanAid) {
+      return NextResponse.json({
+        success: false,
+        error: 'NOT_FOUND',
+        message: 'Human profile not found',
+      }, { status: 404 })
     }
 
-    if (!subject || !message) {
-      return new Response(JSON.stringify({ error: 'Subject and message are required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    const body = await request.json() as {
+      subject: string
+      message?: string
     }
 
-    // TODO: Create ticket in database
-    // For now, return success
+    const { subject, message } = body
+
+    // Validate required fields
+    if (!subject || typeof subject !== 'string' || subject.trim() === '') {
+      return NextResponse.json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: 'Subject is required',
+      }, { status: 400 })
+    }
+
+    const messageThreadsRepository = MessageThreadsRepository.getInstance()
     
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'Support ticket created',
-        ticketId: `TICK-${Date.now()}`,
-      }),
-      {
-        status: 201,
-        headers: { 'Content-Type': 'application/json' },
-      }
+    // Create new support chat
+    const chat = await messageThreadsRepository.startNewSupportChat(
+      user.humanAid,
+      subject.trim(),
+      env
     )
+
+    // If message is provided, add it as the first message in the chat
+    if (message && typeof message === 'string' && message.trim() !== '') {
+      try {
+        await messageThreadsRepository.addMessageToSupportChat(
+          chat.maid,
+          message.trim(),
+          'text',
+          user.humanAid
+        )
+      } catch (messageError) {
+        console.error('Failed to add initial message to chat', messageError)
+        // Don't fail chat creation if message creation fails
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Support chat created successfully',
+      data: chat,
+    }, { status: 201 })
   } catch (error) {
-    console.error('Create support ticket error:', error)
-    return new Response(
-      JSON.stringify({ error: 'Failed to create support ticket', details: String(error) }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
-    )
+    console.error('Failed to create support chat', error)
+    const message = error instanceof Error ? error.message : 'Unexpected error'
+
+    return NextResponse.json({
+      success: false,
+      error: 'INTERNAL_SERVER_ERROR',
+      message,
+    }, { status: 500 })
   }
 }
 
-export const onRequestOptions = async () =>
-  new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Credentials': 'true',
-    },
-  })
-  
-export async function GET(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestGet({ request, env })
-}
-
-export async function POST(request: Request) {
-  const env = buildRequestEnv()
-  return onRequestPost({ request, env })
-}
-
-export async function OPTIONS() {
-  return onRequestOptions()
-}
+export const GET = withClientGuard(handleGet)
+export const POST = withClientGuard(handlePost)

@@ -228,6 +228,19 @@ export const systemSeed = {
             title: "Снимок Заявки на кредит",
             sort_order: 100,
         },
+        // MessageThread statuses
+        {
+            entity: "messageThread.statusName",
+            name: "OPEN",
+            title: "Открыт",
+            sort_order: 100,
+        },
+        {
+            entity: "messageThread.statusName",
+            name: "CLOSED",
+            title: "Закрыт",
+            sort_order: 200,
+        },
     ],
 
     settings: [

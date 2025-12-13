@@ -238,7 +238,7 @@ export default function PartnerDealsPage() {
         setLoading(true)
         setError(null)
 
-        const response = await fetch('/api/esnad/p/deals', {
+        const response = await fetch('/api/esnad/v1/p/deals', {
           credentials: 'include',
         })
 
@@ -379,7 +379,7 @@ export default function PartnerDealsPage() {
         files.forEach((file) => formData.append(key, file))
       })
 
-      const response = await fetch('/api/esnad/p/deals', {
+      const response = await fetch('/api/esnad/v1/p/deals', {
         method: 'POST',
         body: formData,
         credentials: 'include',

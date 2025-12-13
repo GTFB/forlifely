@@ -32,7 +32,7 @@ export default function PartnerPayoutsPage() {
         setLoading(true)
         setError(null)
 
-        const response = await fetch('/api/esnad/p/payouts', {
+        const response = await fetch('/api/esnad/v1/p/payouts', {
           credentials: 'include',
         })
 

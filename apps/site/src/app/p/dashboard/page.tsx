@@ -55,7 +55,7 @@ export default function PartnerDashboardPage() {
         setLoading(true)
         setError(null)
 
-        const response = await fetch('/api/esnad/p/dashboard', {
+        const response = await fetch('/api/esnad/v1/p/dashboard', {
           credentials: 'include',
         })
 

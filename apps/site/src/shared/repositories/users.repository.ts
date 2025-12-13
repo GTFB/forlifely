@@ -16,4 +16,9 @@ export class UsersRepository extends BaseRepository<EsnadUser> {
         const [user] = await this.db.select().from(this.schema).where(eq(this.schema.email, email)).limit(1).execute() as EsnadUser[];
         return user;
     }
+
+    public async findByHumanAid(humanAid: string): Promise<EsnadUser | undefined> {
+        const [user] = await this.db.select().from(this.schema).where(eq(this.schema.humanAid, humanAid)).limit(1).execute() as EsnadUser[];
+        return user;
+    }
 }

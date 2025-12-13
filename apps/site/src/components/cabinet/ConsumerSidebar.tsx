@@ -26,11 +26,11 @@ const navigationItems: NavigationItem[] = [
   //   url: '/c/payments',
   //   icon: CreditCard,
   // },
-  // {
-  //   title: 'Поддержка',
-  //   url: '/c/support',
-  //   icon: MessageSquare,
-  // },
+  {
+    title: 'Поддержка',
+    url: '/c/support',
+    icon: MessageSquare,
+  },
 ]
 
 interface ConsumerSidebarProps {

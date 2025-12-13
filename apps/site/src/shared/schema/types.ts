@@ -25,6 +25,8 @@ import { relations } from './relations'
 import { notices } from './notices'
 import { files } from './files'
 import { texts } from './texts'
+import { messages } from './messages'
+import { messageThreads } from './message-threads'
 
 export type Asset = InferSelectModel<typeof assets>
 export type BaseMove = InferSelectModel<typeof baseMoves>
@@ -52,6 +54,8 @@ export type Relation = InferSelectModel<typeof relations>
 export type Notice = InferSelectModel<typeof notices>
 export type File = InferSelectModel<typeof files>
 export type Text = InferSelectModel<typeof texts>
+export type Message = InferSelectModel<typeof messages>
+export type MessageThread = InferSelectModel<typeof messageThreads>
 
 export type NewAsset = InferInsertModel<typeof assets>
 export type NewBaseMove = InferInsertModel<typeof baseMoves>
@@ -79,3 +83,5 @@ export type NewRelation = InferInsertModel<typeof relations>
 export type NewNotice = InferInsertModel<typeof notices>
 export type NewFile = InferInsertModel<typeof files>
 export type NewText = InferInsertModel<typeof texts>
+export type NewMessage = InferInsertModel<typeof messages>
+export type NewMessageThread = InferInsertModel<typeof messageThreads>

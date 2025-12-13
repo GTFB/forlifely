@@ -25,18 +25,11 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-
-interface Ticket {
-  id: string
-  subject: string
-  status: string
-  createdAt: string
-  updatedAt: string
-}
+import type { EsnadSupportChat } from '@/shared/types/esnad-support'
 
 export default function SupportPage() {
   const router = useRouter()
-  const [tickets, setTickets] = React.useState<Ticket[]>([])
+  const [tickets, setTickets] = React.useState<EsnadSupportChat[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -50,7 +43,7 @@ export default function SupportPage() {
     const fetchTickets = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/c/support', {
+        const response = await fetch('/api/esnad/v1/c/support?orderBy=updatedAt&orderDirection=desc', {
           credentials: 'include',
         })
 
@@ -58,8 +51,8 @@ export default function SupportPage() {
           throw new Error('Failed to load tickets')
         }
 
-        const data = await response.json() as { tickets?: Ticket[] }
-        setTickets(data.tickets || [])
+        const data = await response.json() as { docs?: EsnadSupportChat[] }
+        setTickets(data.docs || [])
       } catch (err) {
         console.error('Tickets fetch error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load tickets')
@@ -74,8 +67,8 @@ export default function SupportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.subject || !formData.message) {
-      setError('Заполните все поля')
+    if (!formData.subject) {
+      setError('Заполните тему обращения')
       return
     }
 
@@ -83,36 +76,39 @@ export default function SupportPage() {
       setSubmitting(true)
       setError(null)
 
-      const response = await fetch('/api/c/support', {
+      const response = await fetch('/api/esnad/v1/c/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ 
+          subject: formData.subject,
+          message: formData.message,
+        }),
       })
 
       if (!response.ok) {
-        const data = await response.json() as { error?: string }
-        throw new Error(data.error || 'Failed to create ticket')
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.message || data.error || 'Failed to create ticket')
       }
 
-      const data = await response.json() as { ticketId?: string }
+      const data = await response.json() as { success?: boolean; data?: EsnadSupportChat }
       
       // Reset form
       setFormData({ subject: '', message: '' })
       setDialogOpen(false)
       
       // Reload tickets
-      const ticketsRes = await fetch('/api/c/support', {
+      const ticketsRes = await fetch('/api/esnad/v1/c/support', {
         credentials: 'include',
       })
       if (ticketsRes.ok) {
-        const ticketsData = await ticketsRes.json() as { tickets?: Ticket[] }
-        setTickets(ticketsData.tickets || [])
+        const ticketsData = await ticketsRes.json() as { docs?: EsnadSupportChat[] }
+        setTickets(ticketsData.docs || [])
       }
 
-      // Navigate to ticket detail if ID provided
-      if (data.ticketId) {
-        router.push(`/c/support/${data.ticketId}`)
+      // Navigate to ticket detail if maid provided
+      if (data.data?.maid) {
+        router.push(`/c/support/${data.data.maid}`)
       }
     } catch (err) {
       console.error('Submit error:', err)
@@ -134,13 +130,22 @@ export default function SupportPage() {
     }).format(date)
   }
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'Открыт':
+  const getStatusLabel = (statusName: string | null | undefined) => {
+    switch (statusName) {
+      case 'OPEN':
+        return 'Открыт'
+      case 'CLOSED':
+        return 'Закрыт'
+      default:
+        return statusName || 'Неизвестно'
+    }
+  }
+
+  const getStatusVariant = (statusName: string | null | undefined) => {
+    switch (statusName) {
+      case 'OPEN':
         return 'default'
-      case 'В работе':
-        return 'secondary'
-      case 'Закрыт':
+      case 'CLOSED':
         return 'outline'
       default:
         return 'outline'
@@ -256,21 +261,21 @@ export default function SupportPage() {
                 <TableBody>
                   {tickets.map((ticket) => (
                     <TableRow
-                      key={ticket.id}
+                      key={ticket.maid}
                       className="cursor-pointer"
-                      onClick={() => router.push(`/c/support/${ticket.id}`)}>
-                      <TableCell className="font-medium">{ticket.id}</TableCell>
-                      <TableCell>{ticket.subject}</TableCell>
+                      onClick={() => router.push(`/c/support/${ticket.maid}`)}>
+                      <TableCell className="font-medium">{ticket.maid}</TableCell>
+                      <TableCell>{ticket.title || '—'}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(ticket.status)}>
-                          {ticket.status}
+                        <Badge variant={getStatusVariant(ticket.statusName)}>
+                          {getStatusLabel(ticket.statusName)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.createdAt)}
+                        {formatDate(ticket.createdAt?.toString() || '')}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.updatedAt)}
+                        {formatDate(ticket.updatedAt?.toString() || '')}
                       </TableCell>
                     </TableRow>
                   ))}
