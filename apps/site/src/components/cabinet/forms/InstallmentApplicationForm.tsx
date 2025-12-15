@@ -2097,32 +2097,25 @@ export function InstallmentApplicationForm({
             )
           })()
         ) : (
-          // For admin/staff: show all sections (old behavior)
-          sections.map((section, index) => {
-            const isActive = index === currentStep
-            const stepErrorsForThisStep = stepErrors[index] || []
+          // For admin/staff: show only active step
+          (() => {
+            const section = sections[currentStep]
+            if (!section) return null
+            
+            const stepErrorsForThisStep = stepErrors[currentStep] || []
             const sectionContent = renderSection(section.id)
             
             return (
               <Card
                 key={section.id}
-                id={`step-${index}`}
-                className={`transition-all scroll-mt-4 ${
-                  isActive
-                    ? 'border-2 border-primary bg-primary/5'
-                    : 'opacity-60 border cursor-pointer hover:opacity-80'
-                }`}
-                onClick={() => !isActive && goToStep(index)}>
+                id={`step-${currentStep}`}
+                className="transition-all scroll-mt-4 border-2 border-primary bg-primary/5">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <CardTitle className="flex items-center gap-2">
-                        <span className={`flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm ${
-                          isActive
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {index + 1}
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm bg-primary/10 text-primary">
+                          {currentStep + 1}
                         </span>
                         {section.title}
                       </CardTitle>
@@ -2131,7 +2124,7 @@ export function InstallmentApplicationForm({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {stepErrorsForThisStep.length > 0 && isActive && (
+                  {stepErrorsForThisStep.length > 0 && (
                     <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
                       <p className="text-sm font-medium text-destructive mb-1">Ошибки заполнения:</p>
                       <ul className="list-disc list-inside text-sm text-destructive space-y-1">
@@ -2141,13 +2134,11 @@ export function InstallmentApplicationForm({
                       </ul>
                     </div>
                   )}
-                  <div className={isActive ? '' : 'pointer-events-none opacity-50'}>
-                    {sectionContent}
-                  </div>
+                  {sectionContent}
                 </CardContent>
               </Card>
             )
-          })
+          })()
         )}
       </div>
 

@@ -6,6 +6,9 @@ import {
   type DetectFacesCommandInput,
   type CompareFacesCommandInput,
   type DetectTextCommandInput,
+  type FaceDetail,
+  type Landmark,
+  type TextDetection as AwsTextDetection,
 } from '@aws-sdk/client-rekognition'
 import type {
   IFaceRecognitionProvider,
@@ -53,7 +56,7 @@ export class AwsRekognitionProvider implements IFaceRecognitionProvider, IOcrPro
 
     const faceDetails = response.FaceDetails || []
 
-    return faceDetails.map((face) => {
+    return faceDetails.map((face: FaceDetail) => {
       const box = face.BoundingBox || {}
       // AWS returns normalized coordinates (0-1), we'll keep them as is
       // In production, you might want to denormalize based on image dimensions
@@ -66,7 +69,7 @@ export class AwsRekognitionProvider implements IFaceRecognitionProvider, IOcrPro
           height: box.Height || 0,
         },
         confidence: (face.Confidence || 0) / 100, // Convert to 0-1 scale
-        landmarks: face.Landmarks?.map((landmark) => ({
+        landmarks: face.Landmarks?.map((landmark: Landmark) => ({
           type: landmark.Type || '',
           position: {
             x: landmark.X || 0,
@@ -149,15 +152,15 @@ export class AwsRekognitionProvider implements IFaceRecognitionProvider, IOcrPro
     const textDetections = response.TextDetections || []
 
     // Separate LINE and WORD detections
-    const lineDetections = textDetections.filter((d) => d.Type === 'LINE')
-    const wordDetections = textDetections.filter((d) => d.Type === 'WORD')
+    const lineDetections = textDetections.filter((d: AwsTextDetection) => d.Type === 'LINE')
+    const wordDetections = textDetections.filter((d: AwsTextDetection) => d.Type === 'WORD')
 
     // Build full text from lines (or words if no lines)
     const primaryDetections = lineDetections.length > 0 ? lineDetections : wordDetections
-    const fullText = primaryDetections.map((d) => d.DetectedText || '').join('\n')
+    const fullText = primaryDetections.map((d: AwsTextDetection) => d.DetectedText || '').join('\n')
 
     // Map all detections to our format
-    const detections: TextDetection[] = textDetections.map((detection) => {
+    const detections: TextDetection[] = textDetections.map((detection: AwsTextDetection) => {
       const geometry = detection.Geometry?.BoundingBox || {}
 
       return {
