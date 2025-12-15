@@ -23,6 +23,8 @@ export interface DateTimePickerProps {
   timeFormat?: string
   className?: string
   locale?: Locale
+  toDate?: Date
+  fromDate?: Date
 }
 
 export function DateTimePicker({
@@ -36,6 +38,8 @@ export function DateTimePicker({
   timeFormat = "HH:mm",
   className,
   locale,
+  toDate,
+  fromDate,
 }: DateTimePickerProps) {
   const [internalValue, setInternalValue] = React.useState<Date | null>(
     defaultValue || value || null
@@ -53,6 +57,24 @@ export function DateTimePicker({
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return
+
+    // Check if date is in the future (if toDate is provided)
+    if (toDate) {
+      const today = new Date(toDate)
+      today.setHours(23, 59, 59, 999)
+      if (date > today) {
+        return // Don't allow selecting future dates
+      }
+    }
+
+    // Check if date is before fromDate (if fromDate is provided)
+    if (fromDate) {
+      const from = new Date(fromDate)
+      from.setHours(0, 0, 0, 0)
+      if (date < from) {
+        return // Don't allow selecting dates before fromDate
+      }
+    }
 
     let newDate = date
 
@@ -137,16 +159,7 @@ export function DateTimePicker({
         )}
       >
         <Icon className="mr-2 size-4" />
-        {getDisplayValue()}
-        {currentValue && !disabled && (
-          <IconX
-            className="ml-auto size-4 opacity-50 hover:opacity-100"
-            onClick={(e) => {
-              e.stopPropagation()
-              handleClear()
-            }}
-          />
-        )}
+        <span className="flex-1 pr-6">{getDisplayValue()}</span>
       </Button>
     )
   }
@@ -182,7 +195,26 @@ export function DateTimePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{renderTrigger()}</PopoverTrigger>
+      <div className="relative">
+        <PopoverTrigger asChild>{renderTrigger()}</PopoverTrigger>
+        {currentValue && !disabled && (
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center size-4 opacity-50 hover:opacity-100 cursor-pointer z-20"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+              handleClear()
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              e.preventDefault()
+            }}
+          >
+            <IconX className="size-4" />
+          </button>
+        )}
+      </div>
       <PopoverContent className="w-[400px] p-0 z-[9999]" align="center" side="bottom" sideOffset={4}>
         <div className="flex flex-col">
           {/* Calendar for date selection */}
@@ -191,7 +223,12 @@ export function DateTimePicker({
               mode="single"
               selected={currentValue || undefined}
               onSelect={handleDateSelect}
-              disabled={disabled}
+              disabled={(date) => {
+                if (disabled) return true
+                if (toDate && date > toDate) return true
+                if (fromDate && date < fromDate) return true
+                return false
+              }}
               locale={locale}
               classNames={{
                 root: "w-full min-w-[300px]"

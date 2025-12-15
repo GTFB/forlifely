@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.11.0",
+    "baseline-browser-mapping": "^2.9.7",
     "marked": "^16.2.1",
     "wrangler": "4"
   }

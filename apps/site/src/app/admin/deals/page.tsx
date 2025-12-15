@@ -25,6 +25,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import qs from 'qs'
+import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { useCallback, useEffect, useMemo } from 'react'
 import debounce from 'lodash/debounce'
 import type { 
@@ -85,6 +86,20 @@ export default function AdminDealsPage() {
   const [statusOptions, setStatusOptions] = React.useState<TaxonomyOption[]>([])
   const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
   const [loadingManagers, setLoadingManagers] = React.useState(false)
+  
+  // Initialize date filters from URL params (null if not present)
+  const [dateRange, setDateRange] = React.useState<{ start: Date | null; end: Date | null }>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const startDateParam = params.get('startDate')
+      const endDateParam = params.get('endDate')
+      return {
+        start: startDateParam ? new Date(startDateParam) : null,
+        end: endDateParam ? new Date(endDateParam) : null,
+      }
+    }
+    return { start: null, end: null }
+  })
 
   // Initialize search from URL on mount
   useEffect(() => {
@@ -134,10 +149,16 @@ export default function AdminDealsPage() {
     if (debouncedSearchQuery) {
       params.set('search', debouncedSearchQuery)
     }
+    if (dateRange.start) {
+      params.set('startDate', dateRange.start.toISOString().split('T')[0])
+    }
+    if (dateRange.end) {
+      params.set('endDate', dateRange.end.toISOString().split('T')[0])
+    }
 
     const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
     window.history.replaceState({}, '', newUrl)
-  }, [statusFilter, managerFilter, currentPage, debouncedSearchQuery])
+  }, [statusFilter, managerFilter, currentPage, debouncedSearchQuery, dateRange])
 
   // Base fetch function
   const fetchDealsBase = useCallback(async () => {
@@ -172,6 +193,29 @@ export default function AdminDealsPage() {
         })
       }
 
+      // Add date filters if provided
+      if (dateRange.start) {
+        // Format as YYYY-MM-DD 00:00:00 for PostgreSQL text timestamp comparison
+        const startDateStr = dateRange.start.toISOString().split('T')[0] + ' 00:00:00'
+        filtersConditions.push({
+          field: 'createdAt',
+          operator: 'gte',
+          values: [startDateStr],
+        })
+      }
+
+      if (dateRange.end) {
+        // Set end date to end of day and format as YYYY-MM-DD 23:59:59
+        const endDate = new Date(dateRange.end)
+        endDate.setHours(23, 59, 59, 999)
+        const endDateStr = endDate.toISOString().split('T')[0] + ' 23:59:59'
+        filtersConditions.push({
+          field: 'createdAt',
+          operator: 'lte',
+          values: [endDateStr],
+        })
+      }
+
       if (filtersConditions.length > 0) {
         params.append('filters', JSON.stringify({ conditions: filtersConditions }))
       }
@@ -201,7 +245,7 @@ export default function AdminDealsPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, statusFilter, managerFilter, pagination.limit, debouncedSearchQuery])
+  }, [currentPage, statusFilter, managerFilter, pagination.limit, debouncedSearchQuery, dateRange])
 
   // Debounced version of fetchDeals
   const fetchDeals = useMemo(
@@ -423,53 +467,79 @@ export default function AdminDealsPage() {
         <div className="p-6 space-y-6">
         <h1 className="text-3xl font-bold">Управление заявками</h1>
 
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Поиск по ФИО или ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по ФИО или ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value)
+                setCurrentPage(1) // Reset to first page when filter changes
+              }}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Статус" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все статусы</SelectItem>
+                {uniqueStatuses.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={managerFilter}
+              onValueChange={(value) => {
+                setManagerFilter(value)
+                setCurrentPage(1) // Reset to first page when filter changes
+              }}
+              disabled={loadingManagers}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder={loadingManagers ? 'Загрузка...' : 'Менеджер'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все менеджеры</SelectItem>
+                {managerOptions.map((manager) => (
+                  <SelectItem key={manager.value} value={manager.value}>
+                    {manager.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <DateTimePicker
+              mode="date"
+              value={dateRange.start}
+              onChange={(date) => {
+                setDateRange((prev) => ({ ...prev, start: date }))
+                setCurrentPage(1)
+              }}
+              placeholder="Начало периода"
+              className="w-[180px]"
+              toDate={new Date()}
+            />
+            <DateTimePicker
+              mode="date"
+              value={dateRange.end}
+              onChange={(date) => {
+                setDateRange((prev) => ({ ...prev, end: date }))
+                setCurrentPage(1)
+              }}
+              placeholder="Конец периода"
+              className="w-[180px]"
+              toDate={new Date()}
             />
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => {
-              setStatusFilter(value)
-              setCurrentPage(1) // Reset to first page when filter changes
-            }}>
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="Статус" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все статусы</SelectItem>
-              {uniqueStatuses.map((status) => (
-                <SelectItem key={status.value} value={status.value}>
-                  {status.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={managerFilter}
-            onValueChange={(value) => {
-              setManagerFilter(value)
-              setCurrentPage(1) // Reset to first page when filter changes
-            }}
-            disabled={loadingManagers}>
-            <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder={loadingManagers ? 'Загрузка...' : 'Менеджер'} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все менеджеры</SelectItem>
-              {managerOptions.map((manager) => (
-                <SelectItem key={manager.value} value={manager.value}>
-                  {manager.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         <Card>

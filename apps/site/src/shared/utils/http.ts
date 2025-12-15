@@ -1,6 +1,7 @@
 import { EsnadJournal } from "../types/esnad";
 import { DbFilters, DbOrders, DbPagination } from "../types/shared";
 import { MeRepository } from "../repositories/me.repository";
+import { JOURNAL_ACTION_NAMES } from '../constants/journal-actions'
 
 
 export const parseQueryParams = (url: URL): { filters: DbFilters; orders: DbOrders; pagination: DbPagination } => {
@@ -71,27 +72,8 @@ const formatCurrency = (amount: number): string => {
 }
 
 export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean = true): Promise<EsnadJournal[]> => {
-  // Map action types to readable names
-  const actionNames: Record<string, string> = {
-  'USER_JOURNAL_LOGIN': 'Вход в систему',
-  'USER_JOURNAL_LOGOUT': 'Выход из системы',
-  'USER_JOURNAL_REGISTRATION': 'Регистрация',
-  'USER_JOURNAL_EMAIL_VERIFICATION': 'Подтверждение email',
-  'USER_JOURNAL_PASSWORD_RESET_REQUEST': 'Запрос сброса пароля',
-  'USER_JOURNAL_PASSWORD_RESET_CONFIRM': 'Подтверждение сброса пароля',
-  'USER_JOURNAL_PASSWORD_RESET': 'Сброс пароля',
-  'USER_JOURNAL_SELFIE_VERIFICATION': 'Верификация селфи с паспортом',
-  'USER_JOURNAL_WALLET_DEPOSIT': 'Пополнение кошелька',
-  'USER_JOURNAL_FINANCE_PAID': 'Гашение платежа',
-  'USER_JOURNAL_SUPPORT_CHAT_CREATED': 'Создан чат поддержки',
-  'LOAN_APPLICATION_SNAPSHOT': 'Заявка на рассрочку',
-  'DEAL_STATUS_CHANGE': 'Изменение статуса',
-  'DEAL_APPROVED': 'Одобрение',
-  'DEAL_REJECTED': 'Отказ',
-  'DEAL_CANCELLED': 'Отмена',
-  'INVESTOR_REGISTERED': 'Новый инвестор',
-  'PAYMENT_RECEIVED': 'Получен платеж',
-}
+  // Use shared action names mapping
+  const actionNames = JOURNAL_ACTION_NAMES
 
   const meRepository = MeRepository.getInstance()
 

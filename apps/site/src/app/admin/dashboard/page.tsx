@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/chart'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { AdminHeader } from '@/components/admin/AdminHeader'
+import Link from 'next/link'
+import { JOURNAL_ACTION_NAMES } from '@/shared/constants/journal-actions'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = React.useState(true)
@@ -108,24 +110,11 @@ export default function AdminDashboardPage() {
 
           const actionType = journal.action || 'Событие'
 
-          // Map action types to readable names (for actions that weren't already transformed by parseJournals)
-          const actionNames: Record<string, string> = {
-            LOAN_APPLICATION_SNAPSHOT: 'Заявка на рассрочку',
-            DEAL_STATUS_CHANGE: 'Изменение статуса заявки',
-            DEAL_APPROVED: 'Одобрение заявки',
-            DEAL_REJECTED: 'Отклонение заявки',
-            DEAL_CANCELLED: 'Отмена заявки',
-            INVESTOR_REGISTERED: 'Новый инвестор',
-            PAYMENT_RECEIVED: 'Получен платеж',
-            // User journal actions are already transformed by parseJournals
-            'Вход в систему': 'Вход в систему',
-            'Выход из системы': 'Выход из системы',
-            'Регистрация': 'Регистрация',
-            'Пополнение кошелька': 'Пополнение кошелька',
-            'Гашение платежа': 'Гашение платежа',
-          }
-
-          const type = actionNames[journal.action] || journal.action || actionType
+          // Use shared action names mapping
+          // parseJournals may have already transformed the action, so check both original and transformed
+          // If action is already a readable name (from parseJournals), use it directly
+          // Otherwise, try to map it using JOURNAL_ACTION_NAMES
+          const type = JOURNAL_ACTION_NAMES[journal.action] || journal.action || actionType
 
           let description: string
 
@@ -294,27 +283,52 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Новых заявок сегодня
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{metrics.newApplicationsToday}</div>
-            </CardContent>
-          </Card>
+          <Link href={(() => {
+            const today = new Date()
+            const year = today.getFullYear()
+            const month = String(today.getMonth() + 1).padStart(2, '0')
+            const day = String(today.getDate()).padStart(2, '0')
+            const todayStr = `${year}-${month}-${day}`
+            return `/admin/deals?startDate=${todayStr}&endDate=${todayStr}`
+          })()}>
+            <Card className="hover:bg-accent transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Новых заявок сегодня
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{metrics.newApplicationsToday}</div>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Новых заявок за период
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{metrics.newApplicationsPeriod}</div>
-            </CardContent>
-          </Card>
+          <Link href={(() => {
+            const formatDate = (date: Date | null) => {
+              if (!date) return ''
+              const year = date.getFullYear()
+              const month = String(date.getMonth() + 1).padStart(2, '0')
+              const day = String(date.getDate()).padStart(2, '0')
+              return `${year}-${month}-${day}`
+            }
+            const startDateStr = formatDate(dateRange.start)
+            const endDateStr = formatDate(dateRange.end)
+            const params = new URLSearchParams()
+            if (startDateStr) params.set('startDate', startDateStr)
+            if (endDateStr) params.set('endDate', endDateStr)
+            return `/admin/deals?${params.toString()}`
+          })()}>
+            <Card className="hover:bg-accent transition-colors cursor-pointer">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Новых заявок за период
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{metrics.newApplicationsPeriod}</div>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card>
             <CardHeader>
@@ -410,7 +424,15 @@ export default function AdminDashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Последние 5 событий</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Последние 5 событий</CardTitle>
+              <Link 
+                href="/admin/events"
+                className="text-sm text-primary hover:underline"
+              >
+                Посмотреть все
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {metrics.recentEvents.length === 0 ? (
