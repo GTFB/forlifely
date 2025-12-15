@@ -38,6 +38,7 @@ interface ConsumerSidebarProps {
     name: string
     email: string
     avatar?: string
+    rating?: number
   }
 }
 

@@ -53,6 +53,7 @@ function ConsumerLayoutInner({
     name: string
     email: string
     avatar?: string
+    rating?: number
   } | null>(null)
   const { title: contextTitle, breadcrumbItems: contextBreadcrumbs, setTitle, setBreadcrumbItems } = useConsumerHeader()
 
@@ -85,12 +86,15 @@ function ConsumerLayoutInner({
     fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data: unknown) => {
-        const response = data as { user?: { name?: string; email: string; avatar?: string } }
+        const response = data as { user?: { name?: string; email: string; avatar?: string; rating?: number } }
         if (response.user) {
           setUser({
             name: response.user.name || response.user.email,
             email: response.user.email,
             avatar: response.user.avatar,
+            // TODO: Get rating from API when available
+            // For now, using mock data - replace with response.user.rating when API is updated
+            rating: response.user.rating ?? 4.8,
           })
         }
       })

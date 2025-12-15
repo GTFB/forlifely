@@ -27,7 +27,7 @@ import {
 import { Logo } from '@/components/misc/logo/logo'
 import { useResizableSidebar } from '@/packages/hooks/use-resizable-sidebar'
 import { useTheme } from '@/packages/hooks/use-theme'
-import { User, Sun, Moon } from 'lucide-react'
+import { User, Sun, Moon, Star } from 'lucide-react'
 
 export interface NavigationItem {
   title: string
@@ -40,6 +40,7 @@ interface CabinetSidebarProps {
     name: string
     email: string
     avatar?: string
+    rating?: number
   }
   title: string
   navigationItems: NavigationItem[]
@@ -93,7 +94,7 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-sidebar-accent">
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-8 w-8 shrink-0">
                   <AvatarImage src={user.avatar} alt={user.name} />
                   <AvatarFallback>
                     {user.name
@@ -104,12 +105,20 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
                       .slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex flex-1 flex-col overflow-hidden justify-center">
                   <span className="truncate text-sm font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {user.email}
                   </span>
                 </div>
+                {user.rating !== undefined && user.rating !== null && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Star className="size-4 fill-amber-400 text-amber-400" />
+                    <span className="text-sm font-semibold text-foreground">
+                      {user.rating.toFixed(1)}
+                    </span>
+                  </div>
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

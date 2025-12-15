@@ -16,15 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Loader2, ChevronDown } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMe } from '@/providers/MeProvider'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { EsnadHuman } from '@/shared/types/esnad'
+import { Progress } from '@/components/ui/progress'
 
 interface FormData {
   // Client Primary Info
@@ -165,7 +161,41 @@ function parseFullName(fullName: string | undefined | null): {
   }
 }
 
-// All sections available in the form
+// Steps for client form (6 steps)
+const CLIENT_STEPS = [
+  {
+    id: 'personalInfo',
+    title: 'Личные данные',
+    description: 'Введите ваши личные данные',
+  },
+  {
+    id: 'financialInfo',
+    title: 'Финансовая информация',
+    description: 'Информация о доходах и работе',
+  },
+  {
+    id: 'passportInfo',
+    title: 'Паспортные данные',
+    description: 'Данные паспорта и документов',
+  },
+  {
+    id: 'addresses',
+    title: 'Адреса',
+    description: 'Адреса регистрации и проживания',
+  },
+  {
+    id: 'productInfo',
+    title: 'Информация о товаре',
+    description: 'Информация о товаре и условиях рассрочки',
+  },
+  {
+    id: 'consent',
+    title: 'Согласие',
+    description: 'Подтвердите согласие на обработку данных',
+  },
+] as const
+
+// All sections available in the form (for admin/staff)
 const ALL_SECTIONS = [
   {
     id: 'clientPrimaryInfo',
@@ -233,9 +263,11 @@ export function InstallmentApplicationForm({
 }) {
   const router = useRouter()
   const { user: meUser, loading: meLoading } = useMe()
+  const [currentStep, setCurrentStep] = React.useState(0)
   const [currentSection, setCurrentSection] = React.useState(0)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [stepErrors, setStepErrors] = React.useState<Record<number, string[]>>({})
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     clientPrimaryInfo: true, // Первая секция открыта по умолчанию
     productAndTerms: true, // Секция товара и условий всегда открыта
@@ -280,8 +312,8 @@ export function InstallmentApplicationForm({
   // Filter sections based on user role
   const sections = React.useMemo(() => {
     if (isClient) {
-      // For clients, show only non-internal sections
-      return ALL_SECTIONS.filter((section) => !(section as { internalOnly?: boolean }).internalOnly)
+      // For clients, use 6-step structure
+      return CLIENT_STEPS
     }
     // For admin/staff, show all sections
     return ALL_SECTIONS
@@ -294,8 +326,207 @@ export function InstallmentApplicationForm({
     }
   }, [sections.length, currentSection])
 
+  // Reset currentStep if it's out of bounds after filtering
+  React.useEffect(() => {
+    if (currentStep >= sections.length) {
+      setCurrentStep(Math.max(0, sections.length - 1))
+    }
+  }, [sections.length, currentStep])
+
+  // Validate step based on step index
+  const validateStep = React.useCallback((stepIndex: number): string[] => {
+    const errors: string[] = []
+    const section = sections[stepIndex]
+    
+    if (!section) return errors
+
+    // Client steps validation
+    if (isClient) {
+      switch (section.id) {
+        case 'personalInfo': {
+          if (!formData.lastName?.trim()) errors.push('Фамилия обязательна для заполнения')
+          if (!formData.firstName?.trim()) errors.push('Имя обязательно для заполнения')
+          if (!formData.dateOfBirth) errors.push('Дата рождения обязательна для заполнения')
+          if (!formData.placeOfBirth?.trim()) errors.push('Место рождения обязательно для заполнения')
+          if (!formData.phoneNumber?.trim()) errors.push('Телефон обязателен для заполнения')
+          if (!formData.citizenship?.trim()) errors.push('Гражданство обязательно для заполнения')
+          
+          // Validate Russian text
+          if (formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName)) {
+            errors.push('Фамилия должна содержать только русские буквы')
+          }
+          if (formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName)) {
+            errors.push('Имя должно содержать только русские буквы')
+          }
+          if (formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName)) {
+            errors.push('Отчество должно содержать только русские буквы')
+          }
+          break
+        }
+        case 'financialInfo': {
+          if (!formData.monthlyIncome?.trim()) errors.push('Доход в месяц обязателен для заполнения')
+          if (!formData.workPlace?.trim()) errors.push('Место работы обязательно для заполнения')
+          break
+        }
+        case 'passportInfo': {
+          if (!formData.passportSeries?.trim()) errors.push('Серия паспорта обязательна для заполнения')
+          if (!formData.passportNumber?.trim()) errors.push('Номер паспорта обязателен для заполнения')
+          if (!formData.passportIssueDate) errors.push('Дата выдачи паспорта обязательна для заполнения')
+          if (!formData.passportIssuedBy?.trim()) errors.push('Кем выдан паспорт обязательно для заполнения')
+          if (!formData.passportDivisionCode?.trim()) errors.push('Код подразделения обязателен для заполнения')
+          break
+        }
+        case 'addresses': {
+          if (!formData.permanentAddress?.trim()) errors.push('Постоянное место жительства обязательно для заполнения')
+          break
+        }
+        case 'productInfo': {
+          if (!formData.productName?.trim()) errors.push('Название товара обязательно для заполнения')
+          if (!formData.purchasePrice?.trim()) errors.push('Стоимость покупки обязательна для заполнения')
+          if (!formData.installmentTerm?.trim()) errors.push('Срок рассрочки обязателен для заполнения')
+          if (!formData.documentPhotos || formData.documentPhotos.length === 0) {
+            errors.push('Необходимо загрузить фото документов')
+          }
+          break
+        }
+        case 'consent': {
+          if (!formData.consentToProcessData) {
+            errors.push('Необходимо дать согласие на обработку персональных данных')
+          }
+          break
+        }
+      }
+      return errors
+    }
+
+    // Admin/staff validation (old logic)
+    switch (section.id) {
+      case 'clientPrimaryInfo': {
+        if (!formData.lastName?.trim()) errors.push('Фамилия обязательна для заполнения')
+        if (!formData.firstName?.trim()) errors.push('Имя обязательно для заполнения')
+        if (!formData.dateOfBirth) errors.push('Дата рождения обязательна для заполнения')
+        if (!formData.placeOfBirth?.trim()) errors.push('Место рождения обязательно для заполнения')
+        if (!formData.phoneNumber?.trim()) errors.push('Телефон обязателен для заполнения')
+        if (!formData.citizenship?.trim()) errors.push('Гражданство обязательно для заполнения')
+        if (!formData.passportSeries?.trim()) errors.push('Серия паспорта обязательна для заполнения')
+        if (!formData.passportNumber?.trim()) errors.push('Номер паспорта обязателен для заполнения')
+        if (!formData.passportIssueDate) errors.push('Дата выдачи паспорта обязательна для заполнения')
+        if (!formData.passportIssuedBy?.trim()) errors.push('Кем выдан паспорт обязательно для заполнения')
+        if (!formData.passportDivisionCode?.trim()) errors.push('Код подразделения обязателен для заполнения')
+        
+        // Validate Russian text
+        if (formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName)) {
+          errors.push('Фамилия должна содержать только русские буквы')
+        }
+        if (formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName)) {
+          errors.push('Имя должно содержать только русские буквы')
+        }
+        if (formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName)) {
+          errors.push('Отчество должно содержать только русские буквы')
+        }
+        break
+      }
+      case 'productAndTerms': {
+        if (!formData.productName?.trim()) errors.push('Название товара обязательно для заполнения')
+        if (!formData.purchasePrice?.trim()) errors.push('Стоимость покупки обязательна для заполнения')
+        if (!formData.installmentTerm?.trim()) errors.push('Срок рассрочки обязателен для заполнения')
+        break
+      }
+      case 'consent': {
+        if (!formData.consentToProcessData) {
+          errors.push('Необходимо дать согласие на обработку персональных данных')
+        }
+        break
+      }
+      case 'securityReview': {
+        if (!formData.fsspInfo_sb?.trim()) errors.push('Информация из ФССП обязательна для заполнения')
+        if (!formData.getcontactInfo_sb?.trim()) errors.push('Информация из Гетконтакт обязательна для заполнения')
+        if (!formData.employmentInfo_sb?.trim()) errors.push('Место работы обязательно для заполнения')
+        if (!formData.officialIncome_sb?.trim()) errors.push('Официальное трудоустройство обязательно для заполнения')
+        if (!formData.maritalStatus_sb?.trim()) errors.push('Семейное положение обязательно для заполнения')
+        if (!formData.creditHistory_sb?.trim()) errors.push('Кредитная история обязательна для заполнения')
+        if (!formData.additionalContact_sb?.trim()) errors.push('Дополнительный номер обязателен для заполнения')
+        break
+      }
+      // Add validation for other steps if needed
+    }
+    
+    return errors
+  }, [formData, sections, isClient])
+
+  // Calculate progress percentage
+  const calculateProgress = React.useCallback((): number => {
+    const totalSteps = sections.length
+    if (!totalSteps) return 0
+    
+    let completedSteps = 0
+    for (let i = 0; i < totalSteps; i++) {
+      const errors = validateStep(i)
+      if (errors.length === 0) {
+        completedSteps++
+      }
+    }
+    
+    return Math.round((completedSteps / totalSteps) * 100)
+  }, [sections, validateStep])
+
+  const progress = React.useMemo(() => calculateProgress(), [calculateProgress])
+
+  // Navigation functions
+  const nextStep = React.useCallback(() => {
+    const errors = validateStep(currentStep)
+    if (errors.length > 0) {
+      setStepErrors((prev) => ({ ...prev, [currentStep]: errors }))
+      return
+    }
+    
+    setStepErrors((prev) => {
+      const updated = { ...prev }
+      delete updated[currentStep]
+      return updated
+    })
+    
+    if (currentStep < sections.length - 1) {
+      setCurrentStep(currentStep + 1)
+      // Scroll to next step
+      setTimeout(() => {
+        const nextElement = document.getElementById(`step-${currentStep + 1}`)
+        nextElement?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [currentStep, sections.length, validateStep])
+
+  const prevStep = React.useCallback(() => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+      // Scroll to previous step
+      setTimeout(() => {
+        const prevElement = document.getElementById(`step-${currentStep - 1}`)
+        prevElement?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [currentStep])
+
+  const goToStep = React.useCallback((stepIndex: number) => {
+    if (stepIndex >= 0 && stepIndex < sections.length) {
+      setCurrentStep(stepIndex)
+      setTimeout(() => {
+        const stepElement = document.getElementById(`step-${stepIndex}`)
+        stepElement?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [sections.length])
+
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    // Clear step errors when user starts typing
+    if (stepErrors[currentStep] && stepErrors[currentStep].length > 0) {
+      setStepErrors((prev) => {
+        const updated = { ...prev }
+        delete updated[currentStep]
+        return updated
+      })
+    }
   }
 
   const calculateMonthlyPayment = React.useCallback(() => {
@@ -611,6 +842,27 @@ export function InstallmentApplicationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Validate all steps before submission
+    const allErrors: Record<number, string[]> = {}
+    let hasErrors = false
+    
+    for (let i = 0; i < sections.length; i++) {
+      const errors = validateStep(i)
+      if (errors.length > 0) {
+        allErrors[i] = errors
+        hasErrors = true
+      }
+    }
+    
+    if (hasErrors) {
+      setStepErrors(allErrors)
+      setError('Пожалуйста, исправьте ошибки во всех шагах формы')
+      // Scroll to first step with errors
+      const firstErrorStep = Math.min(...Object.keys(allErrors).map(Number))
+      goToStep(firstErrorStep)
+      return
+    }
+
     if (!formData.consentToProcessData) {
       setError('Необходимо дать согласие на обработку персональных данных')
       return
@@ -701,10 +953,9 @@ export function InstallmentApplicationForm({
     }
   }
 
-  const renderClientPrimaryInfo = () => (
+  // Step 1: Personal Info
+  const renderPersonalInfo = () => (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Личные данные</h3>
-      
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="lastName">
@@ -715,7 +966,6 @@ export function InstallmentApplicationForm({
             value={formData.lastName || ''}
             onChange={(e) => {
               const value = e.target.value
-              // Фильтруем только русские буквы, пробелы и дефисы
               const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
               handleInputChange('lastName', filtered)
             }}
@@ -733,7 +983,6 @@ export function InstallmentApplicationForm({
             value={formData.firstName || ''}
             onChange={(e) => {
               const value = e.target.value
-              // Фильтруем только русские буквы, пробелы и дефисы
               const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
               handleInputChange('firstName', filtered)
             }}
@@ -751,7 +1000,6 @@ export function InstallmentApplicationForm({
             value={formData.middleName || ''}
             onChange={(e) => {
               const value = e.target.value
-              // Фильтруем только русские буквы, пробелы и дефисы
               const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
               handleInputChange('middleName', filtered)
             }}
@@ -854,9 +1102,107 @@ export function InstallmentApplicationForm({
           placeholder="0"
         />
       </div>
+    </div>
+  )
 
-      <h3 className="text-lg font-semibold mt-6">Паспортные данные</h3>
+  // Step 2: Financial Info
+  const renderFinancialInfo = () => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="monthlyIncome">Доход в месяц (руб.) *</Label>
+          <Input
+            id="monthlyIncome"
+            type="number"
+            value={formData.monthlyIncome || ''}
+            onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
+            placeholder="Например: 50000"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="monthlyExpenses">Расходы в месяц (руб.)</Label>
+          <Input
+            id="monthlyExpenses"
+            type="number"
+            value={formData.monthlyExpenses || ''}
+            onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
+            placeholder="Например: 30000"
+          />
+        </div>
+      </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="workPlace">Место работы *</Label>
+          <Input
+            id="workPlace"
+            value={formData.workPlace || ''}
+            onChange={(e) => handleInputChange('workPlace', e.target.value)}
+            placeholder="Например: ООО 'Компания', менеджер"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="workExperience">Стаж работы</Label>
+          <Input
+            id="workExperience"
+            value={formData.workExperience || ''}
+            onChange={(e) => handleInputChange('workExperience', e.target.value)}
+            placeholder="Например: 3 года"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="employmentInfo_sb">Место работы (организация), должность и стаж на текущем месте (дополнительная информация)</Label>
+        <Textarea
+          id="employmentInfo_sb"
+          value={formData.employmentInfo_sb || ''}
+          onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
+          placeholder="Дополнительная информация о месте работы, должности и стаже"
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="officialIncome_sb">Официальное трудоустройство и сумма доходов по отдельности (дополнительная информация)</Label>
+        <Textarea
+          id="officialIncome_sb"
+          value={formData.officialIncome_sb || ''}
+          onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
+          placeholder="Дополнительная информация об официальном трудоустройстве и доходах"
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="additionalIncome_sb">Пенсии, выплаты и другие доп. доходы</Label>
+        <Textarea
+          id="additionalIncome_sb"
+          value={formData.additionalIncome_sb || ''}
+          onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
+          placeholder="Дополнительные источники дохода (если есть)"
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="creditHistory_sb">Имеются ли действующие кредиты/рассрочки? Где? Суммы платежей? А до этого были?</Label>
+        <Textarea
+          id="creditHistory_sb"
+          value={formData.creditHistory_sb || ''}
+          onChange={(e) => handleInputChange('creditHistory_sb', e.target.value)}
+          placeholder="Информация о кредитной истории"
+          rows={3}
+        />
+      </div>
+    </div>
+  )
+
+  // Step 3: Passport Info
+  const renderPassportInfo = () => (
+    <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="passportSeries">Серия паспорта *</Label>
@@ -921,8 +1267,6 @@ export function InstallmentApplicationForm({
         />
       </div>
 
-      <h3 className="text-lg font-semibold mt-6">Документы</h3>
-
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="inn">ИНН</Label>
@@ -945,9 +1289,12 @@ export function InstallmentApplicationForm({
           />
         </div>
       </div>
+    </div>
+  )
 
-      <h3 className="text-lg font-semibold mt-6">Адреса</h3>
-
+  // Step 4: Addresses
+  const renderAddresses = () => (
+    <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="permanentAddress">Постоянное место жительства (прописка) *</Label>
         <Textarea
@@ -970,136 +1317,16 @@ export function InstallmentApplicationForm({
           rows={3}
         />
       </div>
+    </div>
+  )
 
-      <h3 className="text-lg font-semibold mt-6">Финансовая информация</h3>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="monthlyIncome">
-            Доход в месяц (руб.)
-          </Label>
-          <Input
-            id="monthlyIncome"
-            type="number"
-            value={formData.monthlyIncome || ''}
-            onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
-            placeholder="Например: 50000"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="monthlyExpenses">
-            Расходы в месяц (руб.
-          </Label>
-          <Input
-            id="monthlyExpenses"
-            type="number"
-            value={formData.monthlyExpenses || ''}
-            onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
-            placeholder="Например: 30000"
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="workPlace">
-            Место работы
-          </Label>
-          <Input
-            id="workPlace"
-            value={formData.workPlace || ''}
-            onChange={(e) => handleInputChange('workPlace', e.target.value)}
-            placeholder="Например: ООО 'Компания', менеджер"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="workExperience">
-            Стаж работы
-          </Label>
-          <Input
-            id="workExperience"
-            value={formData.workExperience || ''}
-            onChange={(e) => handleInputChange('workExperience', e.target.value)}
-            placeholder="Например: 3 года"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="employmentInfo_sb">
-          Место работы (организация), должность и стаж на текущем месте (дополнительная информация)
-        </Label>
-        <Textarea
-          id="employmentInfo_sb"
-          value={formData.employmentInfo_sb || ''}
-          onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
-          placeholder="Дополнительная информация о месте работы, должности и стаже"
-          rows={3}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="officialIncome_sb">
-          Официальное трудоустройство и сумма доходов по отдельности (дополнительная информация)
-        </Label>
-        <Textarea
-          id="officialIncome_sb"
-          value={formData.officialIncome_sb || ''}
-          onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
-          placeholder="Дополнительная информация об официальном трудоустройстве и доходах"
-          rows={3}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="additionalIncome_sb">
-          Пенсии, выплаты и другие доп. доходы
-        </Label>
-        <Textarea
-          id="additionalIncome_sb"
-          value={formData.additionalIncome_sb || ''}
-          onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
-          placeholder="Дополнительные источники дохода (если есть)"
-          rows={3}
-        />
-      </div>
-
-      <h3 className="text-lg font-semibold mt-6">Информация о товаре</h3>
-
-      <div className="space-y-2">
-        <Label htmlFor="productName">Наименование товара *</Label>
-        <Input
-          id="productName"
-          required
-          value={formData.productName || ''}
-          onChange={(e) => handleInputChange('productName', e.target.value)}
-          placeholder="Название товара"
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="productPrice">Цена товара</Label>
-          <Input
-            id="productPrice"
-            type="number"
-            value={formData.productPrice || ''}
-            onChange={(e) => handleInputChange('productPrice', e.target.value)}
-            placeholder="0"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="purchaseLocation">Место покупки</Label>
-          <Input
-            id="purchaseLocation"
-            value={formData.purchaseLocation || ''}
-            onChange={(e) => handleInputChange('purchaseLocation', e.target.value)}
-            placeholder="Название магазина или город"
-          />
-        </div>
-      </div>
+  // Keep old function for admin/staff
+  const renderClientPrimaryInfo = () => (
+    <div className="space-y-4">
+      {renderPersonalInfo()}
+      {renderPassportInfo()}
+      {renderAddresses()}
+      {renderFinancialInfo()}
     </div>
   )
 
@@ -1751,78 +1978,168 @@ export function InstallmentApplicationForm({
           </div>
         )
       case 'consent':
-        return (
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <Checkbox
-                id="consent"
-                checked={formData.consentToProcessData || false}
-                onCheckedChange={(checked) =>
-                  handleInputChange('consentToProcessData', checked)
-                }
-              />
-              <Label
-                htmlFor="consent"
-                className="text-sm leading-relaxed cursor-pointer">
-                Нажимая кнопку «Отправить», я даю свое согласие на обработку моих персональных
-                данных, в соответствии с Федеральным законом от 27.07.2006 года №152-ФЗ «О
-                персональных данных», на условиях и для целей, определенных в Согласии на обработку
-                персональных данных *
-              </Label>
-            </div>
-          </div>
-        )
+        return renderConsent()
       default:
         return null
     }
   }
 
+  // Step 6: Consent
+  const renderConsent = () => (
+    <div className="space-y-4">
+      <div className="flex items-start space-x-3">
+        <Checkbox
+          id="consent"
+          checked={formData.consentToProcessData || false}
+          onCheckedChange={(checked) =>
+            handleInputChange('consentToProcessData', checked)
+          }
+        />
+        <Label
+          htmlFor="consent"
+          className="text-sm leading-relaxed cursor-pointer">
+          Нажимая кнопку «Отправить», я даю свое согласие на обработку моих персональных
+          данных, в соответствии с Федеральным законом от 27.07.2006 года №152-ФЗ «О
+          персональных данных», на условиях и для целей, определенных в Согласии на обработку
+          персональных данных *
+        </Label>
+      </div>
+    </div>
+  )
+
+  // Updated renderSection for client steps
+  const renderStepContent = (stepId: string) => {
+    if (isClient) {
+      switch (stepId) {
+        case 'personalInfo':
+          return renderPersonalInfo()
+        case 'financialInfo':
+          return renderFinancialInfo()
+        case 'passportInfo':
+          return renderPassportInfo()
+        case 'addresses':
+          return renderAddresses()
+        case 'productInfo':
+          return renderProductAndTerms()
+        case 'consent':
+          return renderConsent()
+        default:
+          return null
+      }
+    }
+    // For admin/staff, use old renderSection
+    return renderSection(stepId)
+  }
+
+  const isLastStep = currentStep === sections.length - 1
+  const isFirstStep = currentStep === 0
+  const currentStepErrors = stepErrors[currentStep] || []
+  const canProceed = currentStepErrors.length === 0
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Progress Bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Вы уже заполнили {progress}%</span>
+          <span className="text-muted-foreground">
+            Шаг {currentStep + 1} из {sections.length}
+          </span>
+        </div>
+        <Progress value={progress} className="h-2" />
+      </div>
+
+      {/* Steps - Show only active step for clients */}
       <div className="space-y-4">
-        {sections.map((section, index) => {
-          const isAlwaysOpenSection = section.id === 'consent' || section.id === 'productAndTerms'
-          const isOpen = isAlwaysOpenSection ? true : (openSections[section.id] || false)
-          
-          return (
-            <Collapsible
-              key={section.id}
-              open={isOpen}
-              onOpenChange={() => toggleSection(section.id)}>
-              <Card className={index === currentSection ? 'border-primary' : ''}>
-                {isAlwaysOpenSection ? (
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <CardTitle>{section.title}</CardTitle>
-                        <CardDescription>{section.description}</CardDescription>
-                      </div>
+        {!sections.length ? (
+          <div className="text-center p-4 text-muted-foreground">
+            Нет доступных шагов для заполнения
+          </div>
+        ) : isClient ? (
+          // For clients: show only active step
+          (() => {
+            const section = sections[currentStep]
+            const stepErrorsForThisStep = stepErrors[currentStep] || []
+            const sectionContent = renderStepContent(section.id)
+            
+            return (
+              <Card
+                key={section.id}
+                id={`step-${currentStep}`}
+                className="transition-all scroll-mt-4 border-2 border-primary bg-primary/5">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm bg-primary/10 text-primary">
+                          {currentStep + 1}
+                        </span>
+                        {section.title}
+                      </CardTitle>
+                      <CardDescription className="mt-1">{section.description}</CardDescription>
                     </div>
-                  </CardHeader>
-                ) : (
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <CardTitle>{section.title}</CardTitle>
-                          <CardDescription>{section.description}</CardDescription>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${
-                            isOpen ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                )}
-                <CollapsibleContent>
-                  <CardContent>{renderSection(section.id)}</CardContent>
-                </CollapsibleContent>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {stepErrorsForThisStep.length > 0 && (
+                    <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                      <p className="text-sm font-medium text-destructive mb-1">Ошибки заполнения:</p>
+                      <ul className="list-disc list-inside text-sm text-destructive space-y-1">
+                        {stepErrorsForThisStep.map((error, errorIndex) => (
+                          <li key={errorIndex}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {sectionContent}
+                </CardContent>
               </Card>
-            </Collapsible>
-          )
-        })}
+            )
+          })()
+        ) : (
+          // For admin/staff: show only active step
+          (() => {
+            const section = sections[currentStep]
+            if (!section) return null
+            
+            const stepErrorsForThisStep = stepErrors[currentStep] || []
+            const sectionContent = renderSection(section.id)
+            
+            return (
+              <Card
+                key={section.id}
+                id={`step-${currentStep}`}
+                className="transition-all scroll-mt-4 border-2 border-primary bg-primary/5">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm bg-primary/10 text-primary">
+                          {currentStep + 1}
+                        </span>
+                        {section.title}
+                      </CardTitle>
+                      <CardDescription className="mt-1">{section.description}</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {stepErrorsForThisStep.length > 0 && (
+                    <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                      <p className="text-sm font-medium text-destructive mb-1">Ошибки заполнения:</p>
+                      <ul className="list-disc list-inside text-sm text-destructive space-y-1">
+                        {stepErrorsForThisStep.map((error, errorIndex) => (
+                          <li key={errorIndex}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {sectionContent}
+                </CardContent>
+              </Card>
+            )
+          })()
+        )}
       </div>
 
       {error && (
@@ -1831,9 +2148,19 @@ export function InstallmentApplicationForm({
         </div>
       )}
 
-      <div className="flex justify-between justify-end">
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between gap-4 pt-4 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={prevStep}
+          disabled={isFirstStep || submitting}>
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Назад
+        </Button>
         
-      <Button type="submit" disabled={submitting}>
+        {isLastStep ? (
+          <Button type="submit" disabled={submitting || !canProceed}>
             {submitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1843,6 +2170,15 @@ export function InstallmentApplicationForm({
               'Отправить заявку'
             )}
           </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={nextStep}
+            disabled={!canProceed || submitting}>
+            Далее
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
       </div>
     </form>
   )
