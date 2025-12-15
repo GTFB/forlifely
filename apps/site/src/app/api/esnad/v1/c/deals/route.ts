@@ -108,15 +108,86 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           pagination,
         })
 
+    // Get all deals for this user to collect unique statuses (without pagination limit for status collection)
+    const allDealsForStatuses = search
+      ? await dealsRepository.getDealsWithSearch({
+          searchQuery: search,
+          filters: {
+            conditions: filterConditions.filter((c) => c.field !== 'statusName'), // Remove status filter to get all deals
+          },
+          orders,
+          pagination: { page: 1, limit: 1000 }, // Large limit to get all deals for status collection
+        })
+      : await dealsRepository.getDeals({
+          filters: {
+            conditions: filterConditions.filter((c) => c.field !== 'statusName'), // Remove status filter to get all deals
+          },
+          orders,
+          pagination: { page: 1, limit: 1000 }, // Large limit to get all deals for status collection
+        })
+
+    // Collect unique statusNames from user's actual deals
+    const uniqueStatusNames = new Set<string>()
+    for (const deal of allDealsForStatuses.docs) {
+      if (deal.statusName && typeof deal.statusName === 'string') {
+        uniqueStatusNames.add(deal.statusName)
+      }
+    }
+
+    // Load status labels from taxonomy only for statuses that user actually has
+    let statusOptions: Array<{ value: string; label: string }> = []
+    if (uniqueStatusNames.size > 0) {
+      try {
+        const { TaxonomyRepository } = await import('@/shared/repositories/taxonomy.repository')
+        const taxonomyRepository = TaxonomyRepository.getInstance()
+        const statuses = await taxonomyRepository.getTaxonomies({
+          filters: {
+            conditions: [
+              {
+                field: 'entity',
+                operator: 'eq',
+                values: ['deal.statusName'],
+              },
+              {
+                field: 'name',
+                operator: 'in',
+                values: Array.from(uniqueStatusNames),
+              },
+            ],
+          },
+          orders: {
+            orders: [{ field: 'sortOrder', direction: 'asc' }],
+          },
+          pagination: { page: 1, limit: 100 },
+        })
+
+        statusOptions =
+          statuses.docs?.map((tax) => ({
+            value: String(tax.name),
+            label: (tax.title && String(tax.title)) || String(tax.name),
+          })) ?? []
+      } catch (err) {
+        console.error('Failed to load deal status taxonomies for client:', err)
+        // Fallback: use statusName as label if taxonomy lookup fails
+        statusOptions = Array.from(uniqueStatusNames).map((name) => ({
+          value: name,
+          label: name,
+        }))
+      }
+    }
+
     return new Response(
       JSON.stringify({
-        deals: await Promise.all(result.docs.map((deal: any) => processDataClientDeal(deal as LoanApplication))),
+        deals: await Promise.all(
+          result.docs.map((deal: any) => processDataClientDeal(deal as LoanApplication)),
+        ),
         pagination: result.pagination,
+        statusOptions,
       }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      }
+      },
     )
   } catch (error) {
     console.error('Get deals error:', error)

@@ -8,6 +8,7 @@ import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { and, eq, isNull, inArray } from 'drizzle-orm'
+import type { ClientDataIn, KycStatus } from '@/shared/types/esnad'
 
 const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
 
@@ -18,6 +19,11 @@ interface UpdateUserRequest {
   isActive?: boolean
   roleUuids?: string[]
   emailVerified?: boolean
+  kycStatus?: KycStatus
+  monthlyIncome?: string
+  monthlyExpenses?: string
+  workPlace?: string
+  workExperience?: string
 }
 
 const handleGet = async (
@@ -108,7 +114,19 @@ const handlePut = async (
     )
 
     const body = await request.json() as UpdateUserRequest
-    const { email, password, fullName, isActive, roleUuids, emailVerified } = body
+    const {
+      email,
+      password,
+      fullName,
+      isActive,
+      roleUuids,
+      emailVerified,
+      kycStatus,
+      monthlyIncome,
+      monthlyExpenses,
+      workPlace,
+      workExperience,
+    } = body
 
     const usersRepository = UsersRepository.getInstance()
     const existingUser = await usersRepository.findByUuid(uuid)
@@ -172,14 +190,68 @@ const handlePut = async (
       await usersRepository.update(uuid, updateData)
     }
 
-    // Update human fullName if provided
-    if (fullName !== undefined && existingUser.humanAid) {
+    // Update human-related data (fullName, kycStatus, financial info)
+    if (
+      (fullName !== undefined ||
+        kycStatus !== undefined ||
+        monthlyIncome !== undefined ||
+        monthlyExpenses !== undefined ||
+        workPlace !== undefined ||
+        workExperience !== undefined) &&
+      existingUser.humanAid
+    ) {
       const humanRepository = HumanRepository.getInstance()
       const human = await humanRepository.findByHaid(existingUser.humanAid)
       if (human) {
-        await humanRepository.update(human.uuid, {
-          fullName: fullName.trim(),
-        })
+        const humanUpdate: any = {}
+
+        if (fullName !== undefined) {
+          humanUpdate.fullName = fullName.trim()
+        }
+
+        // merge/update dataIn for kycStatus and financial fields
+        if (
+          kycStatus !== undefined ||
+          monthlyIncome !== undefined ||
+          monthlyExpenses !== undefined ||
+          workPlace !== undefined ||
+          workExperience !== undefined
+        ) {
+          let dataIn: ClientDataIn & Record<string, any> = {}
+          if (human.dataIn) {
+            try {
+              dataIn =
+                typeof human.dataIn === 'string'
+                  ? (JSON.parse(human.dataIn) as ClientDataIn & Record<string, any>)
+                  : (human.dataIn as ClientDataIn & Record<string, any>)
+            } catch (err) {
+              console.error('Failed to parse human.dataIn while updating kycStatus/financial info:', err)
+              dataIn = {}
+            }
+          }
+
+          if (kycStatus !== undefined) {
+            dataIn.kycStatus = kycStatus
+          }
+          if (monthlyIncome !== undefined) {
+            dataIn.monthlyIncome = monthlyIncome
+          }
+          if (monthlyExpenses !== undefined) {
+            dataIn.monthlyExpenses = monthlyExpenses
+          }
+          if (workPlace !== undefined) {
+            dataIn.workPlace = workPlace
+          }
+          if (workExperience !== undefined) {
+            dataIn.workExperience = workExperience
+          }
+
+          humanUpdate.dataIn = dataIn as any
+        }
+
+        if (Object.keys(humanUpdate).length > 0) {
+          await humanRepository.update(human.uuid, humanUpdate)
+        }
       }
     }
 

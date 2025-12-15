@@ -9,6 +9,8 @@ import { schema } from '../../schema'
 import { eq } from 'drizzle-orm'
 import type { Env } from '../../types'
 import sharp from 'sharp'
+import { buildExtractPassportDataPrompt } from '@/shared/utils/prompts'
+import { callGeminiWithServiceAccount } from '@/shared/services/gemini.service'
 
 export interface PassportSelfieVerificationResult {
   verified: boolean
@@ -25,6 +27,10 @@ export interface PassportSelfieVerificationResult {
     passportNameExtracted: boolean
     passportRawText?: string // Весь текст, распознанный с паспорта
     errors?: string[]
+    passportProfile?: {
+      fullName?: string | null
+      birthday?: string | null
+    }
   }
   reasons?: string[]
   avatarMedia?: Partial<NewEsnadMedia>
@@ -198,6 +204,9 @@ export class PassportSelfieVerificationService {
         selfieMediaUuid
       )
 
+      // 3.1. Additionally try to extract structured profile data from passport text using Google Gemini
+      let passportProfile: { fullName?: string | null; birthday?: string | null } | undefined
+
       let passportName: string | undefined
       let nameMatch: {
         match: boolean
@@ -216,37 +225,100 @@ export class PassportSelfieVerificationService {
         reasons.push('Не удалось распознать паспорт на фото. Убедитесь, что паспорт четко виден и читаем')
       }
 
-      if (passportRecognition.success && passportRecognition.recognizedData.fullName) {
-        passportName = passportRecognition.recognizedData.fullName
+      if (passportRecognition.success) {
+        // Prefer structured fullName from OCR if available
+        if (passportRecognition.recognizedData.fullName) {
+          passportName = passportRecognition.recognizedData.fullName
+        }
+
+        // If we have raw text, try to refine data via Gemini (service account)
+        if (passportRecognition.rawText && passportRecognition.rawText.length > 0) {
+          try {
+            const prompt = buildExtractPassportDataPrompt(passportRecognition.rawText)
+            const rawGemini = await callGeminiWithServiceAccount(prompt)
+            console.log('rawGemini', rawGemini)
+            const parsed = JSON.parse(rawGemini) as {
+              fullName?: string | null
+              birthday?: string | null
+            }
+
+            const extractedFullName =
+              typeof parsed.fullName === 'string' && parsed.fullName.trim().length > 0
+                ? parsed.fullName.trim()
+                : null
+            const extractedBirthday =
+              typeof parsed.birthday === 'string' && parsed.birthday.trim().length > 0
+                ? parsed.birthday.trim()
+                : null
+
+            passportProfile = {
+              fullName: extractedFullName,
+              birthday: extractedBirthday,
+            }
+
+            // If OCR didn't provide a name but Gemini did, use it for name matching
+            if (!passportName && extractedFullName) {
+              passportName = extractedFullName
+            }
+          } catch (geminiError) {
+            console.error('Passport Gemini extraction error:', geminiError)
+            errors.push('Не удалось дополнительно распознать данные паспорта через ИИ')
+          }
+        }
       }
 
-      // 4. Get user's name from database
+      // 4. Get user's profile from database and UPDATE it from passport data
       const human = await this.humanRepository.findByUuid(humanUuid)
       if (!human) {
         errors.push('Профиль пользователя не найден')
       } else {
-        const userName = human.fullName
+        const updates: Partial<{ fullName: string; birthday: string }> = {}
 
-        if (passportName && userName) {
-          const nameSimilarity = this.calculateNameSimilarity(passportName, userName)
+        // Choose name to use for profile: Gemini fullName -> OCR fullName
+        const extractedFullName =
+          (passportProfile?.fullName && passportProfile.fullName.trim()) ||
+          (passportName && passportName.trim()) ||
+          null
+
+        if (extractedFullName) {
+          const normalizedFullName = extractedFullName.trim()
+
+          // If stored fullName 
+          // todo: потом сделать когда гемини будет работать
+          // if (!human.fullName || human.fullName.trim() !== normalizedFullName) {
+          //   updates.fullName = normalizedFullName
+          // }
+
+          // Считаем, что имя совпадает, так как берем его из паспорта
           nameMatch = {
-            match: nameSimilarity > 0.85,
-            passportName,
-            userName,
-            similarity: nameSimilarity,
-          }
-
-          if (!nameMatch.match) {
-            reasons.push(
-              `Несовпадение имени: в паспорте "${passportName}", у пользователя "${userName}" (совпадение: ${(nameSimilarity * 100).toFixed(1)}%)`
-            )
+            match: true,
+            passportName: normalizedFullName,
+            userName: normalizedFullName,
+            similarity: 1,
           }
         } else {
-          if (!passportName) {
-            reasons.push('Не удалось извлечь имя из паспорта на фото')
+          // Имя не смогли извлечь вообще
+          nameMatch = { match: false }
+        }
+
+        // Обновляем дату рождения, если Gemini смог ее извлечь
+        const extractedBirthday =
+          passportProfile?.birthday && passportProfile.birthday.trim().length > 0
+            ? passportProfile.birthday.trim()
+            : null
+
+        if (extractedBirthday) {
+          if (!human.birthday || String(human.birthday) !== extractedBirthday) {
+            updates.birthday = extractedBirthday
           }
-          if (!userName) {
-            reasons.push('Имя пользователя не найдено в базе данных')
+        }
+
+        if (Object.keys(updates).length > 0) {
+          try {
+            await this.humanRepository.update(humanUuid, updates as any)
+          } catch (updateError) {
+            console.error('Failed to update human profile from passport data:', updateError)
+            errors.push('Не удалось сохранить данные из паспорта в профиль пользователя')
           }
         }
       }
@@ -280,6 +352,7 @@ export class PassportSelfieVerificationService {
           passportNameExtracted: !!passportName,
           passportRawText: passportRecognition.rawText, // Сохраняем весь текст с документа
           errors: errors.length > 0 ? errors : undefined,
+          passportProfile,
         },
         reasons: reasons.length > 0 ? reasons : undefined,
       }

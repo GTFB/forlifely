@@ -23,6 +23,7 @@ interface Deal {
   uuid: string
   title: string
   status: string
+  statusName?: string
   createdAt: string
   dataIn?: any
 }
@@ -40,6 +41,7 @@ export default function DealsPage() {
     total: 0,
     totalPages: 0,
   })
+  const [statusOptions, setStatusOptions] = React.useState<Array<{ value: string; label: string }>>([])
 
   const fetchDeals = React.useCallback(async () => {
     try {
@@ -68,7 +70,7 @@ export default function DealsPage() {
           uuid: string
           title: string
           status: string
-          statusName: string
+          statusName?: string
           createdAt: string
           updatedAt: string
           dataIn: { totalAmount?: number; type?: string } | null
@@ -79,6 +81,7 @@ export default function DealsPage() {
           limit: number
           totalPages: number
         }
+        statusOptions?: Array<{ value: string; label: string }>
       }
 
       setDeals(data.deals)
@@ -88,6 +91,7 @@ export default function DealsPage() {
         total: data.pagination.total,
         totalPages: data.pagination.totalPages,
       })
+      setStatusOptions(data.statusOptions || [])
       setLoading(false)
     } catch (err) {
       console.error('Deals fetch error:', err)
@@ -118,9 +122,10 @@ export default function DealsPage() {
     }).format(date)
   }
 
-  const getStatusVariant = (status: string) => {
-    if (status === 'Активна') return 'default'
-    if (status === 'Закрыта') return 'secondary'
+  const getStatusVariant = (statusName?: string) => {
+    if (statusName === 'ACTIVE' || statusName === 'APPROVED') return 'default'
+    if (statusName === 'COMPLETED') return 'secondary'
+    if (statusName === 'OVERDUE') return 'destructive'
     return 'outline'
   }
 
@@ -157,12 +162,16 @@ export default function DealsPage() {
                   value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value)
-                    setPagination(prev => ({ ...prev, page: 1 }))
+                    setPagination((prev) => ({ ...prev, page: 1 }))
                   }}
-                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
                   <option value="">Все статусы</option>
-                  <option value="Активна">Активна</option>
-                  <option value="Закрыта">Закрыта</option>
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </CardHeader>
@@ -205,7 +214,7 @@ export default function DealsPage() {
                               : '—'}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={getStatusVariant(deal.status)}>
+                            <Badge variant={getStatusVariant(deal.statusName)}>
                               {deal.status}
                             </Badge>
                           </TableCell>

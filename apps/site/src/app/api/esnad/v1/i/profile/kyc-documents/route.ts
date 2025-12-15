@@ -64,7 +64,6 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
 
     // Map frontend document types to backend types
     const typeMap: Record<string, KycDocumentRef['type']> = {
-      'passport': 'passport_main',
       'passport_registration': 'passport_registration',
       'selfie_with_passport': 'selfie_with_passport',
       'income_certificate': 'other',

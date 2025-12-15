@@ -59,7 +59,6 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
           kycDocuments: (dataIn.kycDocuments || []).map((doc) => {
             // Map backend types to frontend document IDs
             const typeMap: Record<string, string> = {
-              'passport_main': 'passport',
               'passport_registration': 'passport_registration',
               'selfie_with_passport': 'selfie_with_passport',
               'other': 'income_certificate',
@@ -169,7 +168,6 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
             kycDocuments: (responseDataIn.kycDocuments || []).map((doc) => {
               // Map backend types to frontend document IDs
               const typeMap: Record<string, string> = {
-                'passport_main': 'passport',
                 'passport_registration': 'passport_registration',
                 'other': 'income_certificate',
               }

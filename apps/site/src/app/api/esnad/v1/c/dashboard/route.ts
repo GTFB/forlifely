@@ -68,18 +68,81 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
     const activeDealsCount = approvedDeals.length
 
     // Get finances for approved deals to calculate next payment and total debt
-    const { FinancesRepository } = await import('@/shared/repositories/finances.repository')
-    const financesRepository = FinancesRepository.getInstance()
-    
     let nextPayment: { amount: number; date: string } | null = null
     let totalDebt = 0
     const now = new Date()
     now.setHours(0, 0, 0, 0)
 
     for (const deal of approvedDeals) {
-      // Try to get payment schedule from deal.dataIn first
+      let hasOutstandingFinances = false
+
+      // 1. Primary source of truth – finances table
+      if (deal.daid) {
+        try {
+          const finances = await db
+            .select()
+            .from(schema.finances)
+            .where(
+              and(
+                eq(schema.finances.fullDaid, deal.daid),
+                isNull(schema.finances.deletedAt)
+              )
+            )
+            .orderBy(schema.finances.order)
+            .execute()
+
+          for (const finance of finances) {
+            const dataIn =
+              typeof finance.dataIn === 'string'
+                ? JSON.parse(finance.dataIn)
+                : finance.dataIn
+
+            const statusName = finance.statusName
+            const paymentDateStr: string | undefined = dataIn?.paymentDate
+
+            // Пропускаем платежи без даты
+            if (!paymentDateStr) {
+              continue
+            }
+
+            // Пропускаем уже оплаченные платежи из расчета следующего платежа и долга
+            if (statusName === 'PAID') {
+              continue
+            }
+
+            hasOutstandingFinances = true
+
+            const amount = parseFloat(finance.sum || '0') || 0
+            const paymentDate = new Date(paymentDateStr)
+            paymentDate.setHours(0, 0, 0, 0)
+
+            // Учитываем этот платеж в общем долге
+            totalDebt += amount
+
+            // Ищем ближайший будущий платеж
+            if (paymentDate >= now) {
+              if (!nextPayment || paymentDate < new Date(nextPayment.date)) {
+                nextPayment = {
+                  amount,
+                  date: paymentDateStr,
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching finances for dashboard:', e)
+        }
+      }
+
+      // Если по сделке есть финансы (PENDING/OVERDUE), считаем, что они — источник истины
+      // и не используем paymentSchedule/цену товара
+      if (hasOutstandingFinances) {
+        continue
+      }
+
+      // 2. Фоллбэк: пробуем взять график из dataIn, если по сделке ещё нет записей в finances
       let paymentSchedule: Array<{ date: string; amount: number; status?: string }> | null = null
-      
+
       if (deal.dataIn) {
         try {
           const dataIn = typeof deal.dataIn === 'string' ? JSON.parse(deal.dataIn) : deal.dataIn
@@ -90,48 +153,16 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           // Ignore parse errors
         }
       }
-      
-      // If no payment schedule in dataIn, try to get from finances table
-      if (!paymentSchedule && deal.daid) {
-        try {
-          const finances = await db
-            .select()
-            .from(schema.finances)
-            .where(
-              and(
-                eq(schema.finances.fullDaid, deal.daid),
-                isNull(schema.finances.deletedAt),
-                eq(schema.finances.statusName, 'PENDING')
-              )
-            )
-            .orderBy(schema.finances.order)
-            .execute()
-          
-          if (finances.length > 0) {
-            paymentSchedule = finances.map((finance) => {
-              const dataIn = typeof finance.dataIn === 'string' ? JSON.parse(finance.dataIn) : finance.dataIn
-              return {
-                date: dataIn?.paymentDate || '',
-                amount: parseFloat(finance.sum || '0'),
-                status: finance.statusName === 'PAID' ? 'Оплачен' : 'Ожидается',
-              }
-            })
-          }
-        } catch (e) {
-          console.error('Error fetching finances:', e)
-        }
-      }
-      
-      // Process payment schedule
+
       if (paymentSchedule && Array.isArray(paymentSchedule)) {
         for (const payment of paymentSchedule) {
           if (payment.status !== 'Оплачен' && payment.date) {
             const paymentDate = new Date(payment.date)
             paymentDate.setHours(0, 0, 0, 0)
-            
+
             // Add to total debt
             totalDebt += payment.amount || 0
-            
+
             // Check if this is the next payment
             if (paymentDate >= now) {
               if (!nextPayment || paymentDate < new Date(nextPayment.date)) {
@@ -144,7 +175,7 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
           }
         }
       } else {
-        // Fallback: use product price as debt if no schedule
+        // 3. Если нет ни finances, ни графика — считаем долг равным стоимости товара
         try {
           const dataIn = typeof deal.dataIn === 'string' ? JSON.parse(deal.dataIn) : deal.dataIn
           const price = parseFloat(dataIn?.productPrice || dataIn?.purchasePrice || '0')

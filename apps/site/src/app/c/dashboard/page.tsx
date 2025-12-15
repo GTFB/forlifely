@@ -56,12 +56,12 @@ export default function ConsumerDashboardPage() {
             statusName?: string
             createdAt: string
             updatedAt: string
-            dataIn: { 
+            dataIn: {
               totalAmount?: number
               productPrice?: number
               purchasePrice?: number
               paymentSchedule?: Array<{ date: string; amount: number; status?: string }>
-              type?: string 
+              type?: string
             } | null
           }>
           pagination: {
@@ -70,6 +70,7 @@ export default function ConsumerDashboardPage() {
             limit: number
             totalPages: number
           }
+          statusOptions?: Array<{ value: string; label: string }>
         }
 
         // Calculate stats from deals

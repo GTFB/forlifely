@@ -201,12 +201,13 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
 
     const updatedDocuments = [...filteredDocuments, newDocument]
 
-    // Update dataIn with new document, verification status, and avatar
+    // Update dataIn with new document, verification metadata, and avatar
     const updatedDataIn: ClientDataIn & Record<string, any> = {
       ...dataIn,
       kycDocuments: updatedDocuments,
       ...(verificationResult && {
-        kycStatus: verificationResult.verified ? 'verified' : 'pending',
+        // Do NOT set kycStatus to verified automatically – this is done by admin
+        kycStatus: dataIn.kycStatus === 'not_started' ? 'pending' : (dataIn.kycStatus || 'pending'),
         lastSelfieVerification: {
           timestamp: new Date().toISOString(),
           verified: verificationResult.verified,

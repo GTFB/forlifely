@@ -174,7 +174,6 @@ export default function InvestorProfilePage() {
 
   const requiredDocuments = [
     { id: 'selfie_with_passport', name: 'Селфи с паспортом', required: true, special: true },
-    { id: 'passport', name: 'Паспорт (главная страница)', required: true },
     { id: 'passport_registration', name: 'Паспорт (страница с регистрацией)', required: true },
     { id: 'income_certificate', name: 'Справка о доходах', required: true },
   ]

@@ -646,7 +646,7 @@ export function InstallmentApplicationForm({
 
       // Validate required files for clients
       if (isClient && (!formData.documentPhotos || formData.documentPhotos.length === 0)) {
-        setError('Необходимо загрузить фото документов')
+        setError('Необходимо загрузить фото товара')
         setSubmitting(false)
         return
       }
@@ -1109,7 +1109,7 @@ export function InstallmentApplicationForm({
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="documentPhotos">
-            Фото документов *
+            Фото товара *
           </Label>
           <Input
             id="documentPhotos"

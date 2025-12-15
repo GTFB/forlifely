@@ -15,7 +15,7 @@ import { EsnadMedia } from './esnad-finance'
 
 export interface EsnadHuman extends Human {
     dataIn: EsnadHumanData
-
+    user?: EsnadUser
 }
 
 export interface EsnadUser extends User {

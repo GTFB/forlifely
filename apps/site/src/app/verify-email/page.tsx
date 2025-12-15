@@ -75,9 +75,6 @@ export default function VerifyEmailPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">Подтверждение email</CardTitle>
-          <CardDescription className="text-center">
-            Введите email и токен из письма, либо перейдите по ссылке из письма.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

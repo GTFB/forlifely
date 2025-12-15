@@ -105,12 +105,14 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
       result = await usersRepository.getFiltered(filters, orders, pagination)
     }
 
-    // Load roles for each user
+    // Load roles and human for each user
     const meRepository = MeRepository.getInstance()
-    const usersWithRoles: UserWithRoles[] = await Promise.all(
+    const usersWithRoles = await Promise.all(
       result.docs.map(async (user) => {
         try {
-          const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id))
+          const userWithRoles = await meRepository.findByIdWithRoles(Number(user.id), {
+            includeHuman: true,
+          })
           return {
             ...user,
             roles: userWithRoles?.roles?.map((role) => ({
@@ -121,13 +123,21 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
               description: role.description ?? null,
               isSystem: role.isSystem ?? null,
             })) || [],
-          }
+            human: userWithRoles?.human
+              ? {
+                  fullName: userWithRoles.human.fullName,
+                  dataIn: userWithRoles.human.dataIn,
+                  birthday: userWithRoles.human.birthday,
+                  email: userWithRoles.human.email,
+                }
+              : undefined,
+          } as UserWithRoles
         } catch (err) {
           console.error(`Failed to load roles for user ${user.uuid}:`, err)
           return {
             ...user,
             roles: [],
-          }
+          } as UserWithRoles
         }
       })
     )

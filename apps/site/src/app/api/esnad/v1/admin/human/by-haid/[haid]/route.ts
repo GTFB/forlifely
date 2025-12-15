@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { HumanRepository } from '@/shared/repositories/human.repository'
+import { UsersRepository } from '@/shared/repositories/users.repository'
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
@@ -10,6 +11,9 @@ const handleGet = async (
     const humanRepository = HumanRepository.getInstance()
     const human = await humanRepository.findByHaid(haid)
 
+    const usersRepository = UsersRepository.getInstance()
+    const user = await usersRepository.findByEmail(human.email)
+    
     if (!human) {
       return NextResponse.json(
         {
@@ -24,7 +28,7 @@ const handleGet = async (
     return NextResponse.json(
       {
         success: true,
-        human,
+        human: { ...human, user: user },
       },
       { status: 200 }
     )

@@ -27,7 +27,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle, User } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle, User, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
@@ -51,8 +51,10 @@ interface User {
   emailVerifiedAt: string | null
   createdAt: string
   updatedAt: string
+  humanAid?: string | null
   roles?: Role[]
   human?: {
+    haid?: string
     fullName: string | null
     dataIn?: any & {
       avatarMedia?: {
@@ -66,6 +68,10 @@ interface User {
         faceMatchConfidence?: number
         error?: string
       }
+      monthlyIncome?: string | number
+      monthlyExpenses?: string | number
+      workPlace?: string
+      workExperience?: string
     }
     birthday?: string | null
     email?: string | null
@@ -84,6 +90,7 @@ export default function EditUserPage() {
 
   const [user, setUser] = React.useState<User | null>(null)
   const [roles, setRoles] = React.useState<Role[]>([])
+  const [kycUpdating, setKycUpdating] = React.useState(false)
 
   const [formData, setFormData] = React.useState({
     email: '',
@@ -92,6 +99,10 @@ export default function EditUserPage() {
     isActive: true,
     emailVerified: false,
     roleUuids: [] as string[],
+    monthlyIncome: '',
+    monthlyExpenses: '',
+    workPlace: '',
+    workExperience: '',
   })
 
   const [rolePopoverOpen, setRolePopoverOpen] = React.useState(false)
@@ -123,6 +134,17 @@ export default function EditUserPage() {
       const data = await response.json() as { success?: boolean; user?: User; error?: string; message?: string }
       if (data.success && data.user) {
         setUser(data.user)
+        let dataIn: any = {}
+        if (data.user.human?.dataIn) {
+          try {
+            dataIn =
+              typeof data.user.human.dataIn === 'string'
+                ? JSON.parse(data.user.human.dataIn)
+                : data.user.human.dataIn
+          } catch (e) {
+            console.error('Failed to parse human.dataIn on admin user edit page:', e)
+          }
+        }
         setFormData({
           email: data.user.email || '',
           fullName: data.user.human?.fullName || '',
@@ -130,6 +152,10 @@ export default function EditUserPage() {
           isActive: data.user.isActive ?? true,
           emailVerified: !!data.user.emailVerifiedAt,
           roleUuids: data.user.roles?.map((r: Role) => r.uuid) || [],
+          monthlyIncome: dataIn.monthlyIncome ? String(dataIn.monthlyIncome) : '',
+          monthlyExpenses: dataIn.monthlyExpenses ? String(dataIn.monthlyExpenses) : '',
+          workPlace: dataIn.workPlace || '',
+          workExperience: dataIn.workExperience || '',
         })
       } else {
         throw new Error(data.message || 'User not found')
@@ -185,6 +211,20 @@ export default function EditUserPage() {
         updateData.password = formData.password
       }
 
+      // Financial info from admin (stored in human.dataIn)
+      if (formData.monthlyIncome.trim() !== '') {
+        updateData.monthlyIncome = formData.monthlyIncome.trim()
+      }
+      if (formData.monthlyExpenses.trim() !== '') {
+        updateData.monthlyExpenses = formData.monthlyExpenses.trim()
+      }
+      if (formData.workPlace.trim() !== '') {
+        updateData.workPlace = formData.workPlace.trim()
+      }
+      if (formData.workExperience.trim() !== '') {
+        updateData.workExperience = formData.workExperience.trim()
+      }
+
       const response = await fetch(`/api/esnad/v1/admin/users/${uuid}`, {
         method: 'PUT',
         credentials: 'include',
@@ -223,6 +263,36 @@ export default function EditUserPage() {
   }
 
   const selectedRoles = roles.filter((role) => formData.roleUuids.includes(role.uuid))
+
+  const handleKycStatusChange = async (status: 'verified' | 'pending' | 'rejected') => {
+    if (!user) return
+    try {
+      setKycUpdating(true)
+      const response = await fetch(`/api/esnad/v1/admin/users/${user.uuid}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ kycStatus: status }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string }
+        throw new Error(errorData.message || errorData.error || 'Failed to update KYC status')
+      }
+
+      const data = await response.json() as { success?: boolean; user?: User; message?: string }
+      if (data.success && data.user) {
+        setUser(data.user)
+      }
+    } catch (err) {
+      console.error('Failed to update KYC status:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update KYC status')
+    } finally {
+      setKycUpdating(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -272,6 +342,14 @@ export default function EditUserPage() {
                 Назад
               </Button>
             </Link>
+            {user?.human?.haid && user?.emailVerifiedAt && (
+              <Link href={`/admin/users/${user.human.haid}/wallet`}>
+                <Button variant="outline" size="sm">
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Кошелек пользователя
+                </Button>
+              </Link>
+            )}
           </div>
 
           {success && (
@@ -374,7 +452,7 @@ export default function EditUserPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form id="admin-user-edit-form" onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="email">
                     Email <span className="text-destructive">*</span>
@@ -550,26 +628,7 @@ export default function EditUserPage() {
                   </div>
                 )}
 
-                <div className="flex gap-2 pt-4">
-                  <Button type="submit" disabled={saving}>
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Сохранение...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Сохранить изменения
-                      </>
-                    )}
-                  </Button>
-                  <Link href="/admin/users">
-                    <Button type="button" variant="outline">
-                      Отмена
-                    </Button>
-                  </Link>
-                </div>
+                <div className="h-16" />
               </form>
             </CardContent>
           </Card>
@@ -647,7 +706,6 @@ export default function EditUserPage() {
 
             const getDocumentTypeLabel = (type: string) => {
               const typeMap: Record<string, string> = {
-                'passport_main': 'Паспорт (главная страница)',
                 'passport_registration': 'Паспорт (страница с регистрацией)',
                 'selfie_with_passport': 'Селфи с паспортом',
                 'selfie': 'Селфи',
@@ -778,7 +836,7 @@ export default function EditUserPage() {
                       })}
                     </div>
                     {dataIn?.kycStatus && (
-                      <div className="pt-2 border-t">
+                      <div className="pt-2 border-t space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium text-muted-foreground">Статус верификации:</span>
                           <Badge variant={
@@ -792,8 +850,107 @@ export default function EditUserPage() {
                             {getStatusLabel(dataIn.kycStatus)}
                           </Badge>
                         </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={kycUpdating || dataIn.kycStatus === 'pending'}
+                            onClick={() => handleKycStatusChange('pending')}
+                          >
+                            {kycUpdating && dataIn.kycStatus === 'pending'
+                              ? <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              : null}
+                            На проверке
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={kycUpdating || dataIn.kycStatus === 'verified'}
+                            onClick={() => handleKycStatusChange('verified')}
+                          >
+                            {kycUpdating && dataIn.kycStatus === 'verified'
+                              ? <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              : null}
+                            Подтвердить KYC
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={kycUpdating || dataIn.kycStatus === 'rejected'}
+                            onClick={() => handleKycStatusChange('rejected')}
+                          >
+                            {kycUpdating && dataIn.kycStatus === 'rejected'
+                              ? <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              : null}
+                            Отклонить KYC
+                          </Button>
+                        </div>
                       </div>
                     )}
+
+                    {/* Финансовая информация (заполняется админом по справке о доходах) */}
+                    <div className="pt-4 border-t space-y-4">
+                      <div>
+                        <p className="text-sm font-medium">Финансовая информация</p>
+                        <p className="text-xs text-muted-foreground">
+                          Данные из справки о доходах, которые админ вносит вручную
+                        </p>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="monthlyIncome">Доход в месяц (руб.)</Label>
+                          <Input
+                            id="monthlyIncome"
+                            type="number"
+                            inputMode="decimal"
+                            value={formData.monthlyIncome}
+                            onChange={(e) =>
+                              setFormData((prev) => ({ ...prev, monthlyIncome: e.target.value }))
+                            }
+                            placeholder="Например, 75000"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="monthlyExpenses">Расходы в месяц (руб.)</Label>
+                          <Input
+                            id="monthlyExpenses"
+                            type="number"
+                            inputMode="decimal"
+                            value={formData.monthlyExpenses}
+                            onChange={(e) =>
+                              setFormData((prev) => ({ ...prev, monthlyExpenses: e.target.value }))
+                            }
+                            placeholder="Например, 30000"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="workPlace">Место работы</Label>
+                          <Input
+                            id="workPlace"
+                            type="text"
+                            value={formData.workPlace}
+                            onChange={(e) =>
+                              setFormData((prev) => ({ ...prev, workPlace: e.target.value }))
+                            }
+                            placeholder="ООО Ромашка"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="workExperience">Стаж работы</Label>
+                          <Input
+                            id="workExperience"
+                            type="text"
+                            value={formData.workExperience}
+                            onChange={(e) =>
+                              setFormData((prev) => ({ ...prev, workExperience: e.target.value }))
+                            }
+                            placeholder="Например, 3 года"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -801,6 +958,28 @@ export default function EditUserPage() {
           })()}
         </div>
       </main>
+      <div className="sticky bottom-0 border-t bg-background/80 backdrop-blur-sm">
+        <div className="p-4 flex gap-2 justify-end">
+          <Button type="submit" form="admin-user-edit-form" disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Сохранение...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Сохранить изменения
+              </>
+            )}
+          </Button>
+          <Link href="/admin/users">
+            <Button type="button" variant="outline">
+              Отмена
+            </Button>
+          </Link>
+        </div>
+      </div>
     </>
   )
 }

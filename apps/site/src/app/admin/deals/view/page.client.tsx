@@ -41,6 +41,7 @@ import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock } f
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/AdminHeader'
+import { EsnadHuman } from '@/shared/types/esnad'
 import Link from 'next/link'
 import qs from 'qs'
 import {
@@ -64,10 +65,21 @@ export default function DealDetailPageClient() {
   const [documentMetadata, setDocumentMetadata] = React.useState<Record<string, { fileName: string }>>({})
   const [humanKycDocuments, setHumanKycDocuments] = React.useState<Array<{ mediaUuid: string; type: string; uploadedAt?: string }>>([])
   const [submitting, setSubmitting] = React.useState(false)
+  const [humanClient, setHumanClient] = React.useState<EsnadHuman | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [requestDialogOpen, setRequestDialogOpen] = React.useState(false)
   const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
   const [loadingManagers, setLoadingManagers] = React.useState(false)
+  const [finances, setFinances] = React.useState<Array<{
+    uuid: string
+    statusName: string
+    paymentDate: string | null
+    sum: number
+    paidAt: string | null
+    paymentNumber: number | null
+    order: number
+  }>>([])
+  const [loadingFinances, setLoadingFinances] = React.useState(false)
   const [formData, setFormData] = React.useState({
     comment: '',
     manager: '',
@@ -169,13 +181,13 @@ export default function DealDetailPageClient() {
                   }
                   
                   const kycDocuments = dataIn?.kycDocuments || []
-                  // Filter only income certificate (type: 'other')
-                  const incomeCertificate = kycDocuments.filter((doc: any) => doc.type === 'other')
-                  setHumanKycDocuments(incomeCertificate)
+                  // Use all KYC documents so we can show selfie, selfie_with_passport, passport_registration, income certificates, etc.
+                  setHumanKycDocuments(kycDocuments)
+                  setHumanClient(humanData.human as EsnadHuman)
 
                   // Load metadata for KYC documents
-                  if (incomeCertificate.length > 0) {
-                    const kycUuids = incomeCertificate.map((doc: any) => doc.mediaUuid).filter(Boolean)
+                  if (kycDocuments.length > 0) {
+                    const kycUuids = kycDocuments.map((doc: any) => doc.mediaUuid).filter(Boolean)
                     if (kycUuids.length > 0) {
                       try {
                         const kycMetadataResponse = await fetch('/api/esnad/v1/admin/files/metadata', {
@@ -246,6 +258,49 @@ export default function DealDetailPageClient() {
 
     fetchManagers()
   }, [])
+
+  // Fetch finances for this deal (after deal is loaded, by external deal ID daid)
+  React.useEffect(() => {
+    const fetchFinances = async () => {
+      const dealId = deal?.daid
+      if (!dealId) return
+
+      try {
+        setLoadingFinances(true)
+
+        const response = await fetch(`/api/esnad/v1/admin/deals/${dealId}/finances`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({ error: 'Failed to load finances' }))) as { error?: string }
+          throw new Error(errorData.error || 'Не удалось загрузить платежи')
+        }
+
+        const data = (await response.json()) as {
+          success: boolean
+          finances: Array<{
+            uuid: string
+            statusName: string
+            paymentDate: string | null
+            sum: number
+            paidAt: string | null
+            paymentNumber: number | null
+            order: number
+          }>
+          total: number
+        }
+        setFinances(data.finances || [])
+      } catch (err) {
+        console.error('Finances fetch error:', err)
+        // Не показываем ошибку пользователю, просто оставляем пустой список
+      } finally {
+        setLoadingFinances(false)
+      }
+    }
+
+    fetchFinances()
+  }, [deal])
 
   const submitLoanDecision = async (endpoint: string) => {
     if (!deal) {
@@ -394,61 +449,99 @@ export default function DealDetailPageClient() {
   }
 
   // Calculate payment schedule - only if deal is approved or schedule already exists
+  // Merge with actual finances data if available
   const paymentSchedule = React.useMemo(() => {
     if (!deal?.dataIn) return []
     
     // Check if deal is approved (APPROVED status means payment schedule should exist)
     const isApproved = deal.statusName === 'APPROVED'
     
+    // Build base schedule from dataIn or calculate it
+    let baseSchedule: Array<{ date: string; amount: number; status: string; number: number }> = []
+    
     // If payment schedule exists in dataIn, use it
     if (deal.dataIn.paymentSchedule && Array.isArray(deal.dataIn.paymentSchedule)) {
-      return deal.dataIn.paymentSchedule
+      baseSchedule = deal.dataIn.paymentSchedule.map((p: any) => ({
+        date: p.date || '',
+        amount: p.amount || 0,
+        status: p.status || 'Ожидается',
+        number: p.number || 0,
+      }))
+    } else if (isApproved) {
+      // Calculate it from deal data (only for approved deals)
+      const productPrice = parseFloat(String(deal.dataIn.productPrice || deal.dataIn.purchasePrice || '0'))
+      const downPayment = parseFloat(String(deal.dataIn.downPayment || '0'))
+      const installmentTerm = deal.dataIn.term?.[0] || parseFloat(String(deal.dataIn.installmentTerm || '0'))
+      const monthlyPayment = parseFloat(String(deal.dataIn.monthlyPayment || '0'))
+      
+      if (productPrice > 0 && installmentTerm > 0) {
+        // Calculate remaining amount after down payment
+        const remainingAmount = productPrice - downPayment
+        const calculatedMonthlyPayment = monthlyPayment > 0 ? monthlyPayment : remainingAmount / installmentTerm
+        
+        // Start date: 30 days from deal creation or today
+        const startDate = new Date(deal.createdAt || new Date())
+        startDate.setDate(startDate.getDate() + 30)
+        
+        for (let i = 0; i < installmentTerm; i++) {
+          const paymentDate = new Date(startDate)
+          paymentDate.setMonth(paymentDate.getMonth() + i)
+          
+          // Last payment might be slightly different to account for rounding
+          const isLastPayment = i === installmentTerm - 1
+          const amount = isLastPayment 
+            ? remainingAmount - (calculatedMonthlyPayment * (installmentTerm - 1))
+            : calculatedMonthlyPayment
+          
+          baseSchedule.push({
+            date: paymentDate.toISOString().split('T')[0],
+            amount: Math.round(amount * 100) / 100,
+            status: 'Ожидается',
+            number: i + 1,
+          })
+        }
+      }
     }
     
-    // Only calculate schedule if deal is approved (but schedule not yet created)
-    // For non-approved deals, don't show payment schedule
-    if (!isApproved) {
+    // If no base schedule, return empty array
+    if (baseSchedule.length === 0) {
       return []
     }
     
-    // Otherwise, calculate it from deal data (only for approved deals)
-    const productPrice = parseFloat(String(deal.dataIn.productPrice || deal.dataIn.purchasePrice || '0'))
-    const downPayment = parseFloat(String(deal.dataIn.downPayment || '0'))
-    const installmentTerm = deal.dataIn.term?.[0] || parseFloat(String(deal.dataIn.installmentTerm || '0'))
-    const monthlyPayment = parseFloat(String(deal.dataIn.monthlyPayment || '0'))
-    
-    if (productPrice <= 0 || installmentTerm <= 0) return []
-    
-    // Calculate remaining amount after down payment
-    const remainingAmount = productPrice - downPayment
-    const calculatedMonthlyPayment = monthlyPayment > 0 ? monthlyPayment : remainingAmount / installmentTerm
-    
-    // Start date: 30 days from deal creation or today
-    const startDate = new Date(deal.createdAt || new Date())
-    startDate.setDate(startDate.getDate() + 30)
-    
-    const schedule: Array<{ date: string; amount: number; status: string; number: number }> = []
-    
-    for (let i = 0; i < installmentTerm; i++) {
-      const paymentDate = new Date(startDate)
-      paymentDate.setMonth(paymentDate.getMonth() + i)
-      
-      // Last payment might be slightly different to account for rounding
-      const isLastPayment = i === installmentTerm - 1
-      const amount = isLastPayment 
-        ? remainingAmount - (calculatedMonthlyPayment * (installmentTerm - 1))
-        : calculatedMonthlyPayment
-      
-      schedule.push({
-        date: paymentDate.toISOString().split('T')[0],
-        amount: Math.round(amount * 100) / 100,
-        status: 'Ожидается',
-        number: i + 1,
+    // Merge with actual finances data
+    // Match finances by paymentNumber or order
+    const enrichedSchedule = baseSchedule.map((payment) => {
+      // Try to find matching finance by paymentNumber first, then by order
+      const matchingFinance = finances.find((f) => {
+        if (f.paymentNumber !== null && f.paymentNumber === payment.number) {
+          return true
+        }
+        if (f.order === payment.number) {
+          return true
+        }
+        return false
       })
-    }
+      
+      if (matchingFinance) {
+        // Override with actual finance data
+        return {
+          ...payment,
+          amount: matchingFinance.sum, // Use actual sum from finance
+          status: matchingFinance.statusName === 'PAID' 
+            ? 'Оплачен' 
+            : matchingFinance.statusName === 'OVERDUE' 
+            ? 'Просрочен' 
+            : 'Ожидается',
+          date: matchingFinance.paymentDate || payment.date, // Use paymentDate from finance if available
+          paidAt: matchingFinance.paidAt, // Add paidAt if available
+        }
+      }
+      
+      return payment
+    })
     
-    return schedule
-  }, [deal])
+    return enrichedSchedule
+  }, [deal, finances])
 
   // Prepare chart data from payment schedule
   const chartData = React.useMemo(() => {
@@ -520,9 +613,17 @@ export default function DealDetailPageClient() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage  alt={deal.dataIn.firstName} /> {/* TODO: Add client avatar */}
+                      <AvatarImage
+                        src={
+                          humanClient?.dataIn?.avatarMedia?.uuid
+                            ? `/api/esnad/v1/media/${humanClient.dataIn.avatarMedia.uuid}`
+                            : undefined
+                        }
+                        alt={deal.dataIn.firstName}
+                      />
                       <AvatarFallback>
-                        {deal.dataIn.firstName[0]} {deal.dataIn.lastName[0]}
+                        {deal.dataIn.firstName?.[0] ?? ''}
+                        {deal.dataIn.lastName ? ` ${deal.dataIn.lastName[0]}` : ''}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -531,7 +632,7 @@ export default function DealDetailPageClient() {
                       <p className="text-sm text-muted-foreground">{deal.dataIn.email}</p>
                     </div>
                   </div>
-                  <Link href={`/admin/users?search=${deal.dataIn.email}`}>
+                  <Link href={`/admin/users/${humanClient?.user?.uuid}`}>
                     <Button variant="outline" className="w-full">
                       Посмотреть профиль
                     </Button>
@@ -578,38 +679,66 @@ export default function DealDetailPageClient() {
                     <AccordionItem value="financial">
                       <AccordionTrigger>Финансовая информация</AccordionTrigger>
                       <AccordionContent>
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">Доход в месяц</TableCell>
-                              <TableCell>
-                                {deal.dataIn.monthlyIncome 
-                                  ? `${Number(deal.dataIn.monthlyIncome).toLocaleString('ru-RU')} руб.`
-                                  : deal.dataIn.officialIncome_sb || 'не указано'}
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Расходы в месяц</TableCell>
-                              <TableCell>
-                                {deal.dataIn.monthlyExpenses 
-                                  ? `${Number(deal.dataIn.monthlyExpenses).toLocaleString('ru-RU')} руб.`
-                                  : 'не указано'}
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Место работы</TableCell>
-                              <TableCell>
-                                {deal.dataIn.workPlace || deal.dataIn.employmentInfo_sb || 'не указано'}
-                              </TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Стаж работы</TableCell>
-                              <TableCell>
-                                {deal.dataIn.workExperience || 'не указано'}
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
+                        {(() => {
+                          // financial data from human profile (admin-filled) has priority over deal snapshot
+                          const rawHumanDataIn = humanClient?.dataIn
+                          const humanDataIn =
+                            rawHumanDataIn && typeof rawHumanDataIn === 'string'
+                              ? (() => {
+                                  try {
+                                    return JSON.parse(rawHumanDataIn)
+                                  } catch {
+                                    return {}
+                                  }
+                                })()
+                              : (rawHumanDataIn as any) || {}
+
+                          const monthlyIncome =
+                            humanDataIn.monthlyIncome ??
+                            deal.dataIn.monthlyIncome ??
+                            deal.dataIn.officialIncome_sb
+
+                          const monthlyExpenses =
+                            humanDataIn.monthlyExpenses ?? deal.dataIn.monthlyExpenses
+
+                          const workPlace =
+                            humanDataIn.workPlace ??
+                            deal.dataIn.workPlace ??
+                            deal.dataIn.employmentInfo_sb
+
+                          const workExperience =
+                            humanDataIn.workExperience ?? deal.dataIn.workExperience
+
+                          const formatMoney = (value: any) => {
+                            if (value === undefined || value === null || value === '') return 'не указано'
+                            const num = Number(value)
+                            if (Number.isNaN(num)) return String(value)
+                            return `${num.toLocaleString('ru-RU')} руб.`
+                          }
+
+                          return (
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">Доход в месяц</TableCell>
+                                  <TableCell>{formatMoney(monthlyIncome)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Расходы в месяц</TableCell>
+                                  <TableCell>{formatMoney(monthlyExpenses)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Место работы</TableCell>
+                                  <TableCell>{workPlace || 'не указано'}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Стаж работы</TableCell>
+                                  <TableCell>{workExperience || 'не указано'}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          )
+                        })()}
                       </AccordionContent>
                     </AccordionItem>
 
@@ -650,12 +779,22 @@ export default function DealDetailPageClient() {
                             
                             // Add deal documents
                             documentUuids.forEach((uuid) => {
-                              allDocuments.push({ uuid, label: 'Документ заявки', source: 'deal' })
+                              allDocuments.push({ uuid, label: 'Фото товара', source: 'deal' })
                             })
                             
-                            // Add KYC income certificate documents
+                            // Add KYC documents: selfie, selfie_with_passport, passport_registration, income certificate, etc.
                             humanKycDocuments.forEach((doc) => {
-                              allDocuments.push({ uuid: doc.mediaUuid, label: 'Справка о доходах', source: 'kyc' })
+                              let label = 'KYC документ'
+                              if (doc.type === 'selfie') {
+                                label = 'Селфи клиента'
+                              } else if (doc.type === 'selfie_with_passport') {
+                                label = 'Селфи с паспортом'
+                              } else if (doc.type === 'passport_registration') {
+                                label = 'Паспорт (страница с регистрацией)'
+                              } else if (doc.type === 'other') {
+                                label = 'Справка о доходах'
+                              }
+                              allDocuments.push({ uuid: doc.mediaUuid, label, source: 'kyc' })
                             })
                             
                             if (allDocuments.length === 0) {

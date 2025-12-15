@@ -679,7 +679,7 @@ export default function AdminUsersPage() {
                         />
                       </TableHead>
                       <TableHead>ID</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Полное имя (email)</TableHead>
                       <TableHead>Human AID</TableHead>
                       <TableHead>Роли</TableHead>
                       <TableHead>Статус</TableHead>
@@ -702,7 +702,11 @@ export default function AdminUsersPage() {
                         <TableCell className="font-medium">
                           {user.id}
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          {user.human?.fullName
+                            ? `${user.human.fullName} (${user.email})`
+                            : `(${user.email})`}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">
                           {user.humanAid || '-'}
                         </TableCell>

@@ -73,24 +73,25 @@ const formatCurrency = (amount: number): string => {
 export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean = true): Promise<EsnadJournal[]> => {
   // Map action types to readable names
   const actionNames: Record<string, string> = {
-    'USER_JOURNAL_LOGIN': 'Вход в систему',
-    'USER_JOURNAL_LOGOUT': 'Выход из системы',
-    'USER_JOURNAL_REGISTRATION': 'Регистрация',
-    'USER_JOURNAL_EMAIL_VERIFICATION': 'Подтверждение email',
-    'USER_JOURNAL_PASSWORD_RESET_REQUEST': 'Запрос сброса пароля',
-    'USER_JOURNAL_PASSWORD_RESET_CONFIRM': 'Подтверждение сброса пароля',
-    'USER_JOURNAL_PASSWORD_RESET': 'Сброс пароля',
-    'USER_JOURNAL_SELFIE_VERIFICATION': 'Верификация селфи с паспортом',
-    'USER_JOURNAL_WALLET_DEPOSIT': 'Пополнение кошелька',
-    'USER_JOURNAL_FINANCE_PAID': 'Гашение платежа',
-    'LOAN_APPLICATION_SNAPSHOT': 'Заявка на рассрочку',
-    'DEAL_STATUS_CHANGE': 'Изменение статуса',
-    'DEAL_APPROVED': 'Одобрение',
-    'DEAL_REJECTED': 'Отказ',
-    'DEAL_CANCELLED': 'Отмена',
-    'INVESTOR_REGISTERED': 'Новый инвестор',
-    'PAYMENT_RECEIVED': 'Получен платеж',
-  }
+  'USER_JOURNAL_LOGIN': 'Вход в систему',
+  'USER_JOURNAL_LOGOUT': 'Выход из системы',
+  'USER_JOURNAL_REGISTRATION': 'Регистрация',
+  'USER_JOURNAL_EMAIL_VERIFICATION': 'Подтверждение email',
+  'USER_JOURNAL_PASSWORD_RESET_REQUEST': 'Запрос сброса пароля',
+  'USER_JOURNAL_PASSWORD_RESET_CONFIRM': 'Подтверждение сброса пароля',
+  'USER_JOURNAL_PASSWORD_RESET': 'Сброс пароля',
+  'USER_JOURNAL_SELFIE_VERIFICATION': 'Верификация селфи с паспортом',
+  'USER_JOURNAL_WALLET_DEPOSIT': 'Пополнение кошелька',
+  'USER_JOURNAL_FINANCE_PAID': 'Гашение платежа',
+  'USER_JOURNAL_SUPPORT_CHAT_CREATED': 'Создан чат поддержки',
+  'LOAN_APPLICATION_SNAPSHOT': 'Заявка на рассрочку',
+  'DEAL_STATUS_CHANGE': 'Изменение статуса',
+  'DEAL_APPROVED': 'Одобрение',
+  'DEAL_REJECTED': 'Отказ',
+  'DEAL_CANCELLED': 'Отмена',
+  'INVESTOR_REGISTERED': 'Новый инвестор',
+  'PAYMENT_RECEIVED': 'Получен платеж',
+}
 
   const meRepository = MeRepository.getInstance()
 
@@ -155,6 +156,48 @@ export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean 
         } catch (error) {
           console.error('Failed to enrich journal description:', error)
           // Continue with original journal if enrichment fails
+        }
+      }
+
+      // For USER_JOURNAL_SUPPORT_CHAT_CREATED, enrich description with chat and user info
+      if (originalAction === 'USER_JOURNAL_SUPPORT_CHAT_CREATED' && rawDetails) {
+        try {
+          const userDetails = rawDetails.user as
+            | {
+                email?: string
+              }
+            | undefined
+
+          const chatDetails = rawDetails.chat as
+            | {
+                title?: string
+                statusName?: string
+              }
+            | undefined
+
+          const userEmail = userDetails?.email || 'неизвестный пользователь'
+          const chatTitle = chatDetails?.title || 'чат поддержки'
+          const chatStatus = chatDetails?.statusName
+
+          const descriptionParts = [`Создано обращение в чат поддержки "${chatTitle}"`, `для пользователя ${userEmail}`]
+          if (chatStatus) {
+            descriptionParts.push(`(статус: ${chatStatus})`)
+          }
+
+          const description = descriptionParts.join(' ')
+
+          const enrichedDetails = {
+            ...rawDetails,
+            description,
+            originalAction,
+          }
+
+          updatedJournal = {
+            ...updatedJournal,
+            details: enrichedDetails,
+          }
+        } catch (error) {
+          console.error('Failed to enrich support chat creation description:', error)
         }
       }
 
