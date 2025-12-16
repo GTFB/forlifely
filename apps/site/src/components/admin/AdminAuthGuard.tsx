@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, ReactNode } from "react"
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { useRoomSocket } from "@/hooks/use-user-socket"
+import { useAdminSocket } from "@/components/admin/AdminSocketProvider"
 
 interface AdminAuthGuardProps {
   children: ReactNode
@@ -13,6 +15,8 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
   const router = useRouter()
   const pathname = usePathname()
   const [checking, setChecking] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const { emit } = useAdminSocket()
 
   // Redirect to login
   const redirectToLogin = () => {
@@ -93,12 +97,13 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         }
         
         // Check if current user is admin
-        const isAdmin = await checkUserAuth()
-        if (!isAdmin) {
+        const isAdminResult = await checkUserAuth()
+        if (!isAdminResult) {
           isCheckingRef.current = false
           return
         }
         
+        setIsAdmin(true)
         setChecking(false)
         hasCheckedRef.current = true
       } catch (err) {
@@ -112,14 +117,26 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     checkAuth()
   }, [router])
 
+  // Subscribe to admin room socket when admin is authenticated
+  useRoomSocket(
+    isAdmin && !checking ? "admin" : "",
+    {
+      'update-admin': (data: { type: string; [key: string]: unknown }) => {
+        // Emit event through context so pages can subscribe to specific event types
+        emit(data)
+      }
+    }
+  )
+
   // Periodic auth check (every minute) - skip for create-new-user page
   useEffect(() => {
     if (pathname === '/admin/create-new-user' || pathname === '/admin/create-new-user/') {
       return
     }
 
-    const interval = setInterval(() => {
-      checkUserAuth()
+    const interval = setInterval(async () => {
+      const isAdminResult = await checkUserAuth()
+      setIsAdmin(isAdminResult)
     }, 60000) // 60 seconds = 1 minute
 
     // Cleanup interval on unmount

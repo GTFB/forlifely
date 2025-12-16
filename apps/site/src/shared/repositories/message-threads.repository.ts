@@ -18,6 +18,7 @@ import { sql, and, eq } from 'drizzle-orm'
 import { logUserJournalEvent } from '../services/user-journal.service'
 import type { Env } from '../types'
 import { buildRequestEnv } from '../env'
+import { sendToRoom } from '@/lib/socket'
 
 export class MessageThreadsRepository extends BaseRepository<MessageThread> {
   constructor() {
@@ -68,6 +69,9 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       },
     }) as EsnadSupportChat
     env = env ?? buildRequestEnv()
+    await sendToRoom('admin', 'update-admin', {
+      type: 'support-chat-created',
+    })
     // Log to journal if env is provided
     if (env) {
       try {

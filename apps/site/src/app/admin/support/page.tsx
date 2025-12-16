@@ -23,6 +23,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
 import { EsnadSupportChat } from '@/shared/types/esnad-support'
+import { useAdminSocketEvent } from '@/components/admin/AdminSocketProvider'
 
 interface Operator {
   uuid: string
@@ -39,54 +40,59 @@ export default function AdminSupportPage() {
   const [operatorFilter, setOperatorFilter] = React.useState<string>('all')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        // Fetch operators (admins) and tickets in parallel
-        const [operatorsResponse, ticketsResponse] = await Promise.all([
-          fetch('/api/esnad/v1/admin/users/managers', {
-            credentials: 'include',
-          }),
-          fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
-            credentials: 'include',
-          }),
-        ])
-        
-        if (!operatorsResponse.ok) {
-          throw new Error('Failed to fetch operators')
-        }
-        
-        if (!ticketsResponse.ok) {
-          throw new Error('Failed to fetch support tickets')
-        }
-        
-        const operatorsData = await operatorsResponse.json() as { docs: Array<{
-          uuid: string
-          humanAid: string | null
-          fullName: string | null
-        }> }
-        
-        const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
-        
-        setOperators(operatorsData.docs.map(op => ({
-          uuid: op.uuid,
-          humanAid: op.humanAid,
-          fullName: op.fullName,
-        })))
-        setTickets(ticketsData.docs)
-      } catch (err) {
-        console.error('Data fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load data')
-      } finally {
-        setLoading(false)
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Fetch operators (admins) and tickets in parallel
+      const [operatorsResponse, ticketsResponse] = await Promise.all([
+        fetch('/api/esnad/v1/admin/users/managers', {
+          credentials: 'include',
+        }),
+        fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
+          credentials: 'include',
+        }),
+      ])
+      
+      if (!operatorsResponse.ok) {
+        throw new Error('Failed to fetch operators')
       }
+      
+      if (!ticketsResponse.ok) {
+        throw new Error('Failed to fetch support tickets')
+      }
+      
+      const operatorsData = await operatorsResponse.json() as { docs: Array<{
+        uuid: string
+        humanAid: string | null
+        fullName: string | null
+      }> }
+      
+      const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
+      
+      setOperators(operatorsData.docs.map(op => ({
+        uuid: op.uuid,
+        humanAid: op.humanAid,
+        fullName: op.fullName,
+      })))
+      setTickets(ticketsData.docs)
+    } catch (err) {
+      console.error('Data fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
     }
-
-    fetchData()
   }, [])
+
+  React.useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Subscribe to support-chat-created event to refresh the table
+  useAdminSocketEvent('support-chat-created', () => {
+    fetchData()
+  }, [fetchData])
 
   const formatDate = (dateString: string | Date | null | undefined) => {
     if (!dateString) return ''
@@ -144,18 +150,18 @@ export default function AdminSupportPage() {
     return operator?.fullName || haid
   }
 
-  if (loading) {
-    return (
-      <>
-        <AdminHeader title="Поддержка" />
-        <main className="flex-1 overflow-y-auto">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </main>
-      </>
-    )
-  }
+  // if (loading) {
+  //   return (
+  //     <>
+  //       <AdminHeader title="Поддержка" />
+  //       <main className="flex-1 overflow-y-auto">
+  //         <div className="flex items-center justify-center py-12">
+  //           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+  //         </div>
+  //       </main>
+  //     </>
+  //   )
+  // }
 
   if (error) {
     return (
