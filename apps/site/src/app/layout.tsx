@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
 import PwaLoader from "@/components/PwaLoader";
 import { MeProvider } from "@/providers/MeProvider";
+import { SocketUrlProvider } from "@/providers/SocketUrlProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -85,12 +86,13 @@ export default function RootLayout({
 
       <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>
         <PwaLoader />
-        <MeProvider refetchInterval={6000000} refetchOnFocus={true}>
-
-          <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
-            {children}
-          </ThemeProvider>
-        </MeProvider>
+        <SocketUrlProvider socketUrl={process.env.NEXT_PUBLIC_SOCKET_URL}>
+          <MeProvider refetchInterval={6000000} refetchOnFocus={true}>
+            <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
+              {children}
+            </ThemeProvider>
+          </MeProvider>
+        </SocketUrlProvider>
       </body>
     </html>
   );

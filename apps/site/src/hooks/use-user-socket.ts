@@ -1,9 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
-console.log("SOCKET_URL", process.env);
+import { useSocketUrl } from "@/providers/SocketUrlProvider";
 
 type EventHandlers = Record<string, (...args: any[]) => void>;
 
@@ -13,6 +11,7 @@ type EventHandlers = Record<string, (...args: any[]) => void>;
  * @param handlers - Объект с обработчиками событий { eventName: handler }
  */
 export const useUserSocket = (userId: string, handlers?: EventHandlers) => {
+  const socketUrl = useSocketUrl();
   const handlersRef = useRef<EventHandlers | undefined>(handlers);
   
   // Обновляем ref при изменении handlers
@@ -23,14 +22,14 @@ export const useUserSocket = (userId: string, handlers?: EventHandlers) => {
   useEffect(() => {
     // ЗАЩИТА: Если URL не задан, просто выходим.
     // Сокеты не будут работать, но и приложение не упадет.
-    if (!SOCKET_URL) {
+    if (!socketUrl) {
       console.warn("Socket URL is missing, realtime features disabled");
       return;
     }
 
     if (!userId) return;
 
-    const socket = io(SOCKET_URL, {
+    const socket = io(socketUrl, {
       transports: ["websocket"],
     });
 
@@ -66,7 +65,7 @@ export const useUserSocket = (userId: string, handlers?: EventHandlers) => {
       }
       socket.disconnect();
     };
-  }, [userId]);
+  }, [userId, socketUrl]);
 };
 
 /**
@@ -75,9 +74,9 @@ export const useUserSocket = (userId: string, handlers?: EventHandlers) => {
  * @param handlers - Объект с обработчиками событий { eventName: handler }
  */
 export const useRoomSocket = (roomName: string, handlers?: EventHandlers) => {
+  const socketUrl = useSocketUrl();
   const handlersRef = useRef<EventHandlers | undefined>(handlers);
-  console.log("roomName", roomName);
-  console.log("SOCKET_URL", SOCKET_URL);
+  
   // Обновляем ref при изменении handlers
   useEffect(() => {
     handlersRef.current = handlers;
@@ -86,14 +85,14 @@ export const useRoomSocket = (roomName: string, handlers?: EventHandlers) => {
   useEffect(() => {
     // ЗАЩИТА: Если URL не задан, просто выходим.
     // Сокеты не будут работать, но и приложение не упадет.
-    if (!SOCKET_URL) {
+    if (!socketUrl) {
       console.warn("Socket URL is missing, realtime features disabled");
       return;
     }
 
     if (!roomName) return;
 
-    const socket = io(SOCKET_URL, {
+    const socket = io(socketUrl, {
       transports: ["websocket"],
     });
 
@@ -129,5 +128,5 @@ export const useRoomSocket = (roomName: string, handlers?: EventHandlers) => {
       }
       socket.disconnect();
     };
-  }, [roomName]);
+  }, [roomName, socketUrl]);
 };
