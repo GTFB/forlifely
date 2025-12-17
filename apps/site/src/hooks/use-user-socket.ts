@@ -75,7 +75,8 @@ export const useUserSocket = (userId: string, handlers?: EventHandlers) => {
  */
 export const useRoomSocket = (roomName: string, handlers?: EventHandlers) => {
   const handlersRef = useRef<EventHandlers | undefined>(handlers);
-  
+  console.log("roomName", roomName);
+  console.log("SOCKET_URL", SOCKET_URL);
   // Обновляем ref при изменении handlers
   useEffect(() => {
     handlersRef.current = handlers;
