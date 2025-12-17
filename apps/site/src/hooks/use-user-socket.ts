@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
+console.log("SOCKET_URL", process.env);
 
 type EventHandlers = Record<string, (...args: any[]) => void>;
 
