@@ -39,6 +39,9 @@ WORKDIR /app/apps/site
 ARG NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 
+# Debug: вывод переменной во время сборки (ее будет видно в логах Dokploy)
+RUN echo "NEXT_PUBLIC_SOCKET_URL is set to: $NEXT_PUBLIC_SOCKET_URL"
+
 RUN bun run build
 
 # Production stage
