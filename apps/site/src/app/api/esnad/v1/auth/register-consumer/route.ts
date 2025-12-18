@@ -14,7 +14,10 @@ type RegisterConsumerRequest = {
   email: string
   password: string
   confirmPassword: string
-  fullName?: string
+  fullName?: string // Backward compatibility
+  firstName?: string
+  lastName?: string
+  middleName?: string
   phone?: string
 }
 
@@ -30,13 +33,14 @@ const jsonHeaders = {
 } as const
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const RUSSIAN_TEXT_REGEX = /^[А-Яа-яЁё\s-]+$/
 
 export const onRequestPost = async (context: RequestContext): Promise<Response> => {
   const { request, env } = context
 
   try {
     const body = (await request.json()) as RegisterConsumerRequest
-    const { email, password, confirmPassword, fullName, phone } = body
+    const { email, password, confirmPassword, fullName, firstName, lastName, middleName, phone } = body
 
     if (!email || !password || !confirmPassword) {
       return new Response(
@@ -68,6 +72,55 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
       )
     }
 
+    // Normalize name fields
+    const normalizedLastName = lastName?.trim() || ''
+    const normalizedFirstName = firstName?.trim() || ''
+    const normalizedMiddleName = middleName?.trim() || ''
+    const normalizedFullName = fullName?.trim() || ''
+
+    // Validate new fields if any are provided
+    const hasNewFields = normalizedLastName || normalizedFirstName || normalizedMiddleName
+    if (hasNewFields) {
+      if (!normalizedLastName) {
+        return new Response(
+          JSON.stringify({ error: 'Фамилия обязательна для заполнения' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+      if (!normalizedFirstName) {
+        return new Response(
+          JSON.stringify({ error: 'Имя обязательно для заполнения' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+
+      // Validate Russian text format
+      if (!RUSSIAN_TEXT_REGEX.test(normalizedLastName)) {
+        return new Response(
+          JSON.stringify({ error: 'Фамилия должна содержать только русские буквы, пробелы и дефисы' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+      if (!RUSSIAN_TEXT_REGEX.test(normalizedFirstName)) {
+        return new Response(
+          JSON.stringify({ error: 'Имя должно содержать только русские буквы, пробелы и дефисы' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+      if (normalizedMiddleName && !RUSSIAN_TEXT_REGEX.test(normalizedMiddleName)) {
+        return new Response(
+          JSON.stringify({ error: 'Отчество должно содержать только русские буквы, пробелы и дефисы' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+    }
+
+    // Build fullName from separate fields or use provided fullName
+    const computedFullName = [normalizedLastName, normalizedFirstName, normalizedMiddleName]
+      .filter(Boolean)
+      .join(' ')
+    const fullNameToStore = computedFullName || normalizedFullName || email
+
     const usersRepository = UsersRepository.getInstance()
     const existingUser = await usersRepository.findByEmail(email)
 
@@ -82,13 +135,24 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
     const { hashedPassword, salt } = await preparePassword(password)
 
     const humanRepository = HumanRepository.getInstance()
+    
+    // Prepare dataIn with name fields
+    const dataIn: Record<string, unknown> = {
+      phone,
+    }
+    
+    // Add name fields to dataIn if provided
+    if (hasNewFields) {
+      if (normalizedFirstName) dataIn.firstName = normalizedFirstName
+      if (normalizedLastName) dataIn.lastName = normalizedLastName
+      if (normalizedMiddleName) dataIn.middleName = normalizedMiddleName
+    }
+    
     const human = await humanRepository.generateClientByEmail(email, {
-      fullName: fullName || email,
+      fullName: fullNameToStore,
       type: 'CLIENT',
       statusName: 'PENDING',
-      dataIn: {
-        phone,
-      },
+      dataIn,
     })
 
     let createdUser: EsnadUser

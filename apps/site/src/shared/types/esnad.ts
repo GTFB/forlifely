@@ -29,6 +29,9 @@ export interface NewEsnadHuman extends NewHuman {
 export interface EsnadHumanData {
     phone?: string
     avatarMedia?: Partial<EsnadMedia> | null
+    firstName?: string
+    lastName?: string
+    middleName?: string
 }
 
 export interface DealDataIn {

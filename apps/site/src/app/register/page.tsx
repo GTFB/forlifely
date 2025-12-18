@@ -14,7 +14,9 @@ import { Logo } from "@/components/misc/logo/logo"
 export default function RegisterPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    fullName: "",
+    lastName: "",
+    firstName: "",
+    middleName: "",
     email: "",
     phone: "",
     password: "",
@@ -51,6 +53,17 @@ export default function RegisterPage() {
       return
     }
 
+    // Validate required fields
+    if (!formData.lastName?.trim()) {
+      setError("Фамилия обязательна для заполнения.")
+      return
+    }
+
+    if (!formData.firstName?.trim()) {
+      setError("Имя обязательно для заполнения.")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -63,7 +76,9 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           confirmPassword: formData.confirmPassword,
-          fullName: formData.fullName,
+          lastName: formData.lastName.trim(),
+          firstName: formData.firstName.trim(),
+          middleName: formData.middleName?.trim() || undefined,
           phone: formData.phone,
         }),
       })
@@ -115,17 +130,64 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="fullName">ФИО</Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder="Иванов Иван Иванович"
-                value={formData.fullName}
-                onChange={handleChange}
-                disabled={loading || completed}
-                autoComplete="name"
-              />
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="lastName">
+                  Фамилия <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  placeholder="Иванов"
+                  value={formData.lastName}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+                    setFormData((prev) => ({ ...prev, lastName: filtered }))
+                  }}
+                  required
+                  disabled={loading || completed}
+                  autoComplete="family-name"
+                  pattern="^[А-Яа-яЁё\s-]+$"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">
+                  Имя <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  placeholder="Иван"
+                  value={formData.firstName}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+                    setFormData((prev) => ({ ...prev, firstName: filtered }))
+                  }}
+                  required
+                  disabled={loading || completed}
+                  autoComplete="given-name"
+                  pattern="^[А-Яа-яЁё\s-]+$"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middleName">Отчество</Label>
+                <Input
+                  id="middleName"
+                  type="text"
+                  placeholder="Иванович"
+                  value={formData.middleName}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+                    setFormData((prev) => ({ ...prev, middleName: filtered }))
+                  }}
+                  disabled={loading || completed}
+                  autoComplete="additional-name"
+                  pattern="^[А-Яа-яЁё\s-]+$"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
