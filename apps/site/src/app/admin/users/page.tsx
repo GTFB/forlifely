@@ -55,7 +55,7 @@ import {
 } from '@/components/ui/command'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Search, MoreHorizontal, Loader2, Download, Plus } from 'lucide-react'
+import { Search, MoreHorizontal, Loader2, Download, Plus, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import { EsnadUser } from '@/shared/types/esnad'
@@ -69,7 +69,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface UserWithRoles extends EsnadUser {
+interface UserWithRoles extends Omit<EsnadUser, 'human'> {
   roles?: Array<{
     uuid: string
     raid: string | null
@@ -78,6 +78,9 @@ interface UserWithRoles extends EsnadUser {
     description: string | null
     isSystem: boolean | null
   }>
+  human?: (EsnadUser['human'] & {
+    kycStatus?: string
+  }) | null
 }
 
 interface Role {
@@ -246,6 +249,68 @@ export default function AdminUsersPage() {
       month: 'short',
       year: 'numeric',
     }).format(date)
+  }
+
+  // Extract KYC status from human (prefer kycStatus field, fallback to dataIn)
+  const getKycStatus = (user: UserWithRoles): string | undefined => {
+    // First try to use kycStatus field if available (from API)
+    if (user.human?.kycStatus) {
+      return user.human.kycStatus
+    }
+    
+    // Fallback to parsing dataIn
+    if (!user.human?.dataIn) return undefined
+    
+    try {
+      const dataIn = typeof user.human.dataIn === 'string'
+        ? JSON.parse(user.human.dataIn)
+        : user.human.dataIn
+      
+      return dataIn?.kycStatus
+    } catch (e) {
+      console.error('Failed to parse human.dataIn for KYC status:', e)
+      return undefined
+    }
+  }
+
+  // Render KYC badge (same logic as in admin/users/[haid]/page.tsx)
+  const renderKycBadge = (status?: string) => {
+    switch (status) {
+      case 'verified':
+        return (
+          <Badge className="bg-green-600">
+            <CheckCircle className="mr-1 h-3 w-3" />
+            Верифицирован
+          </Badge>
+        )
+      case 'pending':
+        return (
+          <Badge variant="secondary">
+            <Clock className="mr-1 h-3 w-3" />
+            На проверке
+          </Badge>
+        )
+      case 'rejected':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="mr-1 h-3 w-3" />
+            Отклонен
+          </Badge>
+        )
+      case 'more_info':
+        return (
+          <Badge variant="outline">
+            Нужно уточнение
+          </Badge>
+        )
+      case 'not_started':
+      default:
+        return (
+          <Badge variant="outline">
+            Не начата
+          </Badge>
+        )
+    }
   }
 
   const users = data?.docs || []
@@ -683,6 +748,7 @@ export default function AdminUsersPage() {
                       <TableHead>Human AID</TableHead>
                       <TableHead>Роли</TableHead>
                       <TableHead>Статус</TableHead>
+                      <TableHead>Верификация (KYC)</TableHead>
                       <TableHead>Дата регистрации</TableHead>
                       <TableHead>Дата подтверждения почты</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
@@ -731,6 +797,9 @@ export default function AdminUsersPage() {
                             variant={user.isActive ? 'default' : 'destructive'}>
                             {user.isActive ? 'Активен' : 'Заблокирован'}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {renderKycBadge(getKycStatus(user))}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(user.createdAt)}

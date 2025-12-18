@@ -50,6 +50,30 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
       )
     }
 
+    // Check for HEIC/HEIF format (should be converted on client, but check as safety net)
+    const fileName = file.name.toLowerCase()
+    const mimeType = file.type.toLowerCase()
+    const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || 
+                   mimeType === 'image/heic' || mimeType === 'image/heif'
+    
+    if (isHeic) {
+      console.log('HEIC file rejected on server (selfie)', {
+        fileName: file.name,
+        mimeType: file.type,
+        size: file.size,
+        humanAid: human.haid,
+      })
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'UNSUPPORTED_MEDIA_TYPE',
+          message: 'Формат HEIC не поддерживается. Пожалуйста, загрузите JPG/PNG или включите "Наиболее совместимый" в настройках камеры iPhone.',
+        },
+        { status: 415 }
+      )
+    }
+
     // Validate file type (only images allowed for selfie)
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedMimeTypes.includes(file.type)) {

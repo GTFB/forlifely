@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Info, Upload, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { isHeicFile, convertHeicToJpeg } from '@/shared/utils/heic-converter'
 
 interface Profile {
   id: string
@@ -40,6 +41,7 @@ export default function InvestorProfilePage() {
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
   const [uploading, setUploading] = React.useState<Record<string, boolean>>({})
+  const [converting, setConverting] = React.useState<Record<string, boolean>>({})
   const [error, setError] = React.useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null)
   const [passwordError, setPasswordError] = React.useState<string | null>(null)
@@ -234,12 +236,34 @@ export default function InvestorProfilePage() {
 
   const handleFileUpload = async (documentType: string, file: File) => {
     try {
-      setUploading(prev => ({ ...prev, [documentType]: true }))
       setError(null)
       setUploadSuccess(null)
 
+      // Check file size (limit to 20MB)
+      const maxSize = 20 * 1024 * 1024 // 20MB
+      if (file.size > maxSize) {
+        setError('Файл слишком большой. Максимальный размер: 20 МБ')
+        return
+      }
+
+      // Convert HEIC to JPEG if needed
+      let fileToUpload = file
+      if (isHeicFile(file)) {
+        try {
+          setConverting(prev => ({ ...prev, [documentType]: true }))
+          fileToUpload = await convertHeicToJpeg(file)
+        } catch (conversionError) {
+          setError(conversionError instanceof Error ? conversionError.message : 'Не удалось обработать фото в формате HEIC')
+          return
+        } finally {
+          setConverting(prev => ({ ...prev, [documentType]: false }))
+        }
+      }
+
+      setUploading(prev => ({ ...prev, [documentType]: true }))
+
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', fileToUpload)
       formData.append('type', documentType)
 
       // Special handling for selfie with passport - use verification endpoint
@@ -538,10 +562,10 @@ export default function InvestorProfilePage() {
                           <div>
                             <Input
                               type="file"
-                              accept={doc.id === 'selfie_with_passport' ? 'image/*' : 'image/*,.pdf'}
+                              accept={doc.id === 'selfie_with_passport' ? 'image/*,.heic,.heif' : 'image/*,.pdf,.heic,.heif'}
                               className="hidden"
                               id={`file-${doc.id}`}
-                              disabled={uploading[doc.id]}
+                              disabled={uploading[doc.id] || converting[doc.id]}
                               onChange={(e) => {
                                 const file = e.target.files?.[0]
                                 if (file) {
@@ -553,10 +577,15 @@ export default function InvestorProfilePage() {
                             />
                             <Label
                               htmlFor={`file-${doc.id}`}
-                              className={uploading[doc.id] ? "cursor-not-allowed opacity-50" : "cursor-pointer"}>
-                              <Button variant="outline" size="sm" disabled={uploading[doc.id]} asChild>
+                              className={(uploading[doc.id] || converting[doc.id]) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}>
+                              <Button variant="outline" size="sm" disabled={uploading[doc.id] || converting[doc.id]} asChild>
                                 <span>
-                                  {uploading[doc.id] ? (
+                                  {converting[doc.id] ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Конвертация...
+                                    </>
+                                  ) : uploading[doc.id] ? (
                                     <>
                                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                       Загрузка...

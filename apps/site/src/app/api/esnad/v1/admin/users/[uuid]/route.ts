@@ -9,6 +9,8 @@ import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { and, eq, isNull, inArray } from 'drizzle-orm'
 import type { ClientDataIn, KycStatus } from '@/shared/types/esnad'
+import { logUserJournalEvent } from '@/shared/services/user-journal.service'
+import { buildRequestEnv } from '@/shared/env'
 
 const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
 
@@ -24,6 +26,17 @@ interface UpdateUserRequest {
   monthlyExpenses?: string
   workPlace?: string
   workExperience?: string
+  // OCR/Passport fields
+  birthday?: string
+  sex?: string
+  placeOfBirth?: string
+  registrationAddress?: string
+  passportSeries?: string
+  passportNumber?: string
+  passportIssueDate?: string
+  passportIssuedBy?: string
+  passportDivisionCode?: string
+  citizenship?: string
 }
 
 const handleGet = async (
@@ -126,6 +139,16 @@ const handlePut = async (
       monthlyExpenses,
       workPlace,
       workExperience,
+      birthday,
+      sex,
+      placeOfBirth,
+      registrationAddress,
+      passportSeries,
+      passportNumber,
+      passportIssueDate,
+      passportIssuedBy,
+      passportDivisionCode,
+      citizenship,
     } = body
 
     const usersRepository = UsersRepository.getInstance()
@@ -190,67 +213,175 @@ const handlePut = async (
       await usersRepository.update(uuid, updateData)
     }
 
-    // Update human-related data (fullName, kycStatus, financial info)
+    // Track which passport/OCR fields were updated for journaling
+    const updatedPassportFields: string[] = []
+    
+    // Update human-related data (fullName, kycStatus, financial info, passport fields)
     if (
       (fullName !== undefined ||
+        birthday !== undefined ||
+        sex !== undefined ||
         kycStatus !== undefined ||
         monthlyIncome !== undefined ||
         monthlyExpenses !== undefined ||
         workPlace !== undefined ||
-        workExperience !== undefined) &&
+        workExperience !== undefined ||
+        placeOfBirth !== undefined ||
+        registrationAddress !== undefined ||
+        passportSeries !== undefined ||
+        passportNumber !== undefined ||
+        passportIssueDate !== undefined ||
+        passportIssuedBy !== undefined ||
+        passportDivisionCode !== undefined ||
+        citizenship !== undefined) &&
       existingUser.humanAid
     ) {
       const humanRepository = HumanRepository.getInstance()
       const human = await humanRepository.findByHaid(existingUser.humanAid)
       if (human) {
         const humanUpdate: any = {}
+        const now = new Date().toISOString()
 
         if (fullName !== undefined) {
           humanUpdate.fullName = fullName.trim()
+          updatedPassportFields.push('fullName')
         }
 
-        // merge/update dataIn for kycStatus and financial fields
-        if (
-          kycStatus !== undefined ||
-          monthlyIncome !== undefined ||
-          monthlyExpenses !== undefined ||
-          workPlace !== undefined ||
-          workExperience !== undefined
-        ) {
-          let dataIn: ClientDataIn & Record<string, any> = {}
-          if (human.dataIn) {
-            try {
-              dataIn =
-                typeof human.dataIn === 'string'
-                  ? (JSON.parse(human.dataIn) as ClientDataIn & Record<string, any>)
-                  : (human.dataIn as ClientDataIn & Record<string, any>)
-            } catch (err) {
-              console.error('Failed to parse human.dataIn while updating kycStatus/financial info:', err)
-              dataIn = {}
+        if (birthday !== undefined) {
+          humanUpdate.birthday = birthday.trim() || null
+          updatedPassportFields.push('birthday')
+        }
+
+        if (sex !== undefined) {
+          humanUpdate.sex = sex.trim() || null
+          updatedPassportFields.push('sex')
+        }
+
+        // merge/update dataIn for kycStatus, financial fields, and passport fields
+        let dataIn: ClientDataIn & Record<string, any> = {}
+        if (human.dataIn) {
+          try {
+            dataIn =
+              typeof human.dataIn === 'string'
+                ? (JSON.parse(human.dataIn) as ClientDataIn & Record<string, any>)
+                : (human.dataIn as ClientDataIn & Record<string, any>)
+          } catch (err) {
+            console.error('Failed to parse human.dataIn while updating:', err)
+            dataIn = {}
+          }
+        }
+
+        // Initialize verifiedProfile if it doesn't exist
+        if (!dataIn.verifiedProfile) {
+          dataIn.verifiedProfile = { fields: {} }
+        }
+        if (!dataIn.verifiedProfile.fields) {
+          dataIn.verifiedProfile.fields = {}
+        }
+
+        // Update financial fields
+        if (kycStatus !== undefined) {
+          dataIn.kycStatus = kycStatus
+        }
+        if (monthlyIncome !== undefined) {
+          dataIn.monthlyIncome = monthlyIncome
+        }
+        if (monthlyExpenses !== undefined) {
+          dataIn.monthlyExpenses = monthlyExpenses
+        }
+        if (workPlace !== undefined) {
+          dataIn.workPlace = workPlace
+        }
+        if (workExperience !== undefined) {
+          dataIn.workExperience = workExperience
+        }
+
+        // Update passport/OCR fields in dataIn and track sources
+        const updateField = (key: string, value: string | undefined) => {
+          if (value !== undefined) {
+            const trimmedValue = value.trim() || null
+            dataIn[key] = trimmedValue
+            
+            // Track source as manual (admin override)
+            dataIn.verifiedProfile.fields[key] = {
+              value: trimmedValue,
+              source: 'manual',
+              updatedAt: now,
+              updatedByUserUuid: currentUserWithRoles.uuid,
             }
+            
+            updatedPassportFields.push(key)
           }
-
-          if (kycStatus !== undefined) {
-            dataIn.kycStatus = kycStatus
-          }
-          if (monthlyIncome !== undefined) {
-            dataIn.monthlyIncome = monthlyIncome
-          }
-          if (monthlyExpenses !== undefined) {
-            dataIn.monthlyExpenses = monthlyExpenses
-          }
-          if (workPlace !== undefined) {
-            dataIn.workPlace = workPlace
-          }
-          if (workExperience !== undefined) {
-            dataIn.workExperience = workExperience
-          }
-
-          humanUpdate.dataIn = dataIn as any
         }
+
+        updateField('placeOfBirth', placeOfBirth)
+        updateField('registrationAddress', registrationAddress)
+        updateField('passportSeries', passportSeries)
+        updateField('passportNumber', passportNumber)
+        updateField('passportIssueDate', passportIssueDate)
+        updateField('passportIssuedBy', passportIssuedBy)
+        updateField('passportDivisionCode', passportDivisionCode)
+        updateField('citizenship', citizenship)
+
+        // Also track fullName, birthday, sex in verifiedProfile if they were updated
+        if (fullName !== undefined) {
+          dataIn.verifiedProfile.fields.fullName = {
+            value: fullName.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+        if (birthday !== undefined) {
+          dataIn.verifiedProfile.fields.birthday = {
+            value: birthday.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+        if (sex !== undefined) {
+          dataIn.verifiedProfile.fields.sex = {
+            value: sex.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+
+        humanUpdate.dataIn = dataIn as any
 
         if (Object.keys(humanUpdate).length > 0) {
           await humanRepository.update(human.uuid, humanUpdate)
+          
+          // Log journal event if passport/OCR fields were updated
+          if (updatedPassportFields.length > 0) {
+            try {
+              const env = buildRequestEnv()
+              await logUserJournalEvent(
+                env,
+                'USER_JOURNAL_ADMIN_OCR_OVERRIDE',
+                {
+                  id: existingUser.id,
+                  uuid: existingUser.uuid,
+                  email: existingUser.email,
+                  humanAid: existingUser.humanAid,
+                  dataIn: existingUser.dataIn as any,
+                },
+                {
+                  adminUser: {
+                    uuid: currentUserWithRoles.uuid,
+                    email: currentUserWithRoles.email,
+                  },
+                  updatedFields: updatedPassportFields,
+                  source: 'manual',
+                }
+              )
+            } catch (journalError) {
+              console.error('Failed to log admin OCR override event', journalError)
+              // Don't fail update if journal logging fails
+            }
+          }
         }
       }
     }

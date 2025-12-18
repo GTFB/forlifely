@@ -84,7 +84,8 @@ export type EsnadUserJournalActions =
     'USER_JOURNAL_SELFIE_VERIFICATION' |
     'USER_JOURNAL_WALLET_DEPOSIT' |
     'USER_JOURNAL_FINANCE_PAID' |
-    'USER_JOURNAL_SUPPORT_CHAT_CREATED'
+    'USER_JOURNAL_SUPPORT_CHAT_CREATED' |
+    'USER_JOURNAL_ADMIN_OCR_OVERRIDE'
 export interface EsnadUserJournalDetails {
     user: {
         uuid: string

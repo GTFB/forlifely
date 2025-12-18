@@ -13,6 +13,7 @@ export const JOURNAL_ACTION_NAMES: Record<string, string> = {
   'USER_JOURNAL_WALLET_DEPOSIT': 'Пополнение кошелька',
   'USER_JOURNAL_FINANCE_PAID': 'Гашение платежа',
   'USER_JOURNAL_SUPPORT_CHAT_CREATED': 'Создан чат поддержки',
+  'USER_JOURNAL_ADMIN_OCR_OVERRIDE': 'Ручная правка OCR данных админом',
   'LOAN_APPLICATION_SNAPSHOT': 'Заявка на рассрочку',
   'DEAL_STATUS_CHANGE': 'Изменение статуса заявки',
   'DEAL_APPROVED': 'Одобрение заявки',

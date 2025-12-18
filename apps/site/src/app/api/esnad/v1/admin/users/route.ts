@@ -124,12 +124,26 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
               isSystem: role.isSystem ?? null,
             })) || [],
             human: userWithRoles?.human
-              ? {
-                  fullName: userWithRoles.human.fullName,
-                  dataIn: userWithRoles.human.dataIn,
-                  birthday: userWithRoles.human.birthday,
-                  email: userWithRoles.human.email,
-                }
+              ? (() => {
+                  // Parse dataIn to extract kycStatus
+                  let kycStatus: string | undefined = undefined
+                  try {
+                    const dataIn = typeof userWithRoles.human.dataIn === 'string'
+                      ? JSON.parse(userWithRoles.human.dataIn)
+                      : userWithRoles.human.dataIn
+                    kycStatus = dataIn?.kycStatus
+                  } catch (e) {
+                    // Ignore parsing errors
+                  }
+                  
+                  return {
+                    fullName: userWithRoles.human.fullName,
+                    dataIn: userWithRoles.human.dataIn,
+                    birthday: userWithRoles.human.birthday,
+                    email: userWithRoles.human.email,
+                    kycStatus: kycStatus || 'not_started',
+                  }
+                })()
               : undefined,
           } as UserWithRoles
         } catch (err) {

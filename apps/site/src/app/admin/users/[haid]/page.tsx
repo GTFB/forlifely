@@ -74,6 +74,7 @@ interface User {
       workExperience?: string
     }
     birthday?: string | null
+    sex?: string | null
     email?: string | null
   }
 }
@@ -104,6 +105,24 @@ export default function EditUserPage() {
     workPlace: '',
     workExperience: '',
   })
+
+  const [ocrFormData, setOcrFormData] = React.useState({
+    fullName: '',
+    birthday: '',
+    sex: '',
+    placeOfBirth: '',
+    registrationAddress: '',
+    passportSeries: '',
+    passportNumber: '',
+    passportIssueDate: '',
+    passportIssuedBy: '',
+    passportDivisionCode: '',
+    citizenship: '',
+  })
+
+  const [ocrSaving, setOcrSaving] = React.useState(false)
+  const [ocrError, setOcrError] = React.useState<string | null>(null)
+  const [ocrSuccess, setOcrSuccess] = React.useState(false)
 
   const [rolePopoverOpen, setRolePopoverOpen] = React.useState(false)
 
@@ -156,6 +175,21 @@ export default function EditUserPage() {
           monthlyExpenses: dataIn.monthlyExpenses ? String(dataIn.monthlyExpenses) : '',
           workPlace: dataIn.workPlace || '',
           workExperience: dataIn.workExperience || '',
+        })
+
+        // Initialize OCR form data from human and dataIn
+        setOcrFormData({
+          fullName: data.user.human?.fullName || '',
+          birthday: data.user.human?.birthday || '',
+          sex: data.user.human?.sex || '',
+          placeOfBirth: dataIn.placeOfBirth || '',
+          registrationAddress: dataIn.registrationAddress || '',
+          passportSeries: dataIn.passportSeries || '',
+          passportNumber: dataIn.passportNumber || '',
+          passportIssueDate: dataIn.passportIssueDate || '',
+          passportIssuedBy: dataIn.passportIssuedBy || '',
+          passportDivisionCode: dataIn.passportDivisionCode || '',
+          citizenship: dataIn.citizenship || '',
         })
       } else {
         throw new Error(data.message || 'User not found')
@@ -263,6 +297,86 @@ export default function EditUserPage() {
   }
 
   const selectedRoles = roles.filter((role) => formData.roleUuids.includes(role.uuid))
+
+  const handleOcrSave = async () => {
+    if (!user) return
+    
+    try {
+      setOcrSaving(true)
+      setOcrError(null)
+      setOcrSuccess(false)
+
+      const updateData: any = {}
+      
+      // Include all fields (allow empty values to clear fields)
+      if (ocrFormData.fullName !== undefined) updateData.fullName = ocrFormData.fullName.trim() || null
+      if (ocrFormData.birthday !== undefined) updateData.birthday = ocrFormData.birthday.trim() || null
+      if (ocrFormData.sex !== undefined) updateData.sex = ocrFormData.sex.trim() || null
+      if (ocrFormData.placeOfBirth !== undefined) updateData.placeOfBirth = ocrFormData.placeOfBirth.trim() || null
+      if (ocrFormData.registrationAddress !== undefined) updateData.registrationAddress = ocrFormData.registrationAddress.trim() || null
+      if (ocrFormData.passportSeries !== undefined) updateData.passportSeries = ocrFormData.passportSeries.trim() || null
+      if (ocrFormData.passportNumber !== undefined) updateData.passportNumber = ocrFormData.passportNumber.trim() || null
+      if (ocrFormData.passportIssueDate !== undefined) updateData.passportIssueDate = ocrFormData.passportIssueDate.trim() || null
+      if (ocrFormData.passportIssuedBy !== undefined) updateData.passportIssuedBy = ocrFormData.passportIssuedBy.trim() || null
+      if (ocrFormData.passportDivisionCode !== undefined) updateData.passportDivisionCode = ocrFormData.passportDivisionCode.trim() || null
+      if (ocrFormData.citizenship !== undefined) updateData.citizenship = ocrFormData.citizenship.trim() || null
+
+      const response = await fetch(`/api/esnad/v1/admin/users/${user.uuid}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string }
+        throw new Error(errorData.message || errorData.error || 'Failed to update OCR data')
+      }
+
+      const data = await response.json() as { success?: boolean; user?: User; message?: string }
+      if (data.success && data.user) {
+        setUser(data.user)
+        setOcrSuccess(true)
+        setTimeout(() => setOcrSuccess(false), 3000)
+        
+        // Reload page data
+        await fetchUser()
+      } else {
+        throw new Error(data.message || 'Failed to update OCR data')
+      }
+    } catch (err) {
+      console.error('Failed to update OCR data:', err)
+      setOcrError(err instanceof Error ? err.message : 'Failed to update OCR data')
+    } finally {
+      setOcrSaving(false)
+    }
+  }
+
+  const handleOcrReset = () => {
+    if (!user) return
+    
+    const dataIn = typeof user.human!.dataIn === 'string' 
+      ? JSON.parse(user.human!.dataIn) 
+      : user.human!.dataIn
+    
+    setOcrFormData({
+      fullName: user.human?.fullName || '',
+      birthday: user.human?.birthday || '',
+      sex: user.human?.sex || '',
+      placeOfBirth: dataIn.placeOfBirth || '',
+      registrationAddress: dataIn.registrationAddress || '',
+      passportSeries: dataIn.passportSeries || '',
+      passportNumber: dataIn.passportNumber || '',
+      passportIssueDate: dataIn.passportIssueDate || '',
+      passportIssuedBy: dataIn.passportIssuedBy || '',
+      passportDivisionCode: dataIn.passportDivisionCode || '',
+      citizenship: dataIn.citizenship || '',
+    })
+    setOcrError(null)
+    setOcrSuccess(false)
+  }
 
   const handleKycStatusChange = async (status: 'verified' | 'pending' | 'rejected') => {
     if (!user) return
@@ -632,6 +746,171 @@ export default function EditUserPage() {
               </form>
             </CardContent>
           </Card>
+
+          {/* OCR / Паспортные данные (правка админом) */}
+          {user && user.human && (
+            <Card>
+              <CardHeader>
+                <CardTitle>OCR / Паспортные данные (правка админом)</CardTitle>
+                <CardDescription>
+                  Редактирование распознанных данных и паспортных полей. Изменения сохраняются с пометкой источника "manual".
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {ocrError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{ocrError}</AlertDescription>
+                  </Alert>
+                )}
+                {ocrSuccess && (
+                  <Alert className="mb-4 bg-green-50 border-green-200">
+                    <AlertDescription className="text-green-800">
+                      Данные успешно сохранены
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-fullName">ФИО</Label>
+                      <Input
+                        id="ocr-fullName"
+                        value={ocrFormData.fullName}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, fullName: e.target.value }))}
+                        placeholder="Иванов Иван Иванович"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-birthday">Дата рождения</Label>
+                      <Input
+                        id="ocr-birthday"
+                        type="date"
+                        value={ocrFormData.birthday}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, birthday: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-sex">Пол</Label>
+                      <Select
+                        value={ocrFormData.sex}
+                        onValueChange={(value) => setOcrFormData((prev) => ({ ...prev, sex: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите пол" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="M">Мужской</SelectItem>
+                          <SelectItem value="F">Женский</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-placeOfBirth">Место рождения</Label>
+                      <Input
+                        id="ocr-placeOfBirth"
+                        value={ocrFormData.placeOfBirth}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, placeOfBirth: e.target.value }))}
+                        placeholder="г. Москва"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-registrationAddress">Адрес регистрации</Label>
+                      <Input
+                        id="ocr-registrationAddress"
+                        value={ocrFormData.registrationAddress}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, registrationAddress: e.target.value }))}
+                        placeholder="Полный адрес регистрации"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-citizenship">Гражданство</Label>
+                      <Input
+                        id="ocr-citizenship"
+                        value={ocrFormData.citizenship}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, citizenship: e.target.value }))}
+                        placeholder="РФ"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-passportSeries">Серия паспорта</Label>
+                      <Input
+                        id="ocr-passportSeries"
+                        value={ocrFormData.passportSeries}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportSeries: e.target.value }))}
+                        placeholder="1234"
+                        maxLength={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-passportNumber">Номер паспорта</Label>
+                      <Input
+                        id="ocr-passportNumber"
+                        value={ocrFormData.passportNumber}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportNumber: e.target.value }))}
+                        placeholder="567890"
+                        maxLength={6}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-passportIssueDate">Дата выдачи паспорта</Label>
+                      <Input
+                        id="ocr-passportIssueDate"
+                        type="date"
+                        value={ocrFormData.passportIssueDate}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportIssueDate: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-passportIssuedBy">Кем выдан паспорт</Label>
+                      <Input
+                        id="ocr-passportIssuedBy"
+                        value={ocrFormData.passportIssuedBy}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportIssuedBy: e.target.value }))}
+                        placeholder="Наименование органа"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-passportDivisionCode">Код подразделения</Label>
+                      <Input
+                        id="ocr-passportDivisionCode"
+                        value={ocrFormData.passportDivisionCode}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportDivisionCode: e.target.value }))}
+                        placeholder="123-456"
+                        pattern="[0-9]{3}-[0-9]{3}"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Button
+                      type="button"
+                      onClick={handleOcrSave}
+                      disabled={ocrSaving}
+                    >
+                      {ocrSaving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Сохранение...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Сохранить вручную
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleOcrReset}
+                      disabled={ocrSaving}
+                    >
+                      Сбросить правки
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Данные из заявки */}
           {user && user.human?.dataIn && (
