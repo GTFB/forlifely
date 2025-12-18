@@ -218,6 +218,8 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
           nameMatch: verificationResult.nameMatch.match,
           passportRawText: verificationResult.details.passportRawText, // Весь текст с паспорта для админа
           reasons: verificationResult.reasons,
+          reasonCodes: verificationResult.details.reasonCodes, // Structured reason codes
+          highRisk: verificationResult.details.highRisk, // High risk flag
           error: verificationError, // Store error for admin
         }),
       },
@@ -231,12 +233,17 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
       kycDocuments: updatedDocuments,
       ...(verificationResult && {
         // Do NOT set kycStatus to verified automatically – this is done by admin
-        kycStatus: dataIn.kycStatus === 'not_started' ? 'pending' : (dataIn.kycStatus || 'pending'),
+        // If high risk, set to more_info for manual review
+        kycStatus: verificationResult.details.highRisk 
+          ? 'more_info' 
+          : (dataIn.kycStatus === 'not_started' ? 'pending' : (dataIn.kycStatus || 'pending')),
         lastSelfieVerification: {
           timestamp: new Date().toISOString(),
           verified: verificationResult.verified,
           faceMatchConfidence: verificationResult.faceMatch.similarity,
           error: verificationError || undefined, // Store error for admin
+          highRisk: verificationResult.details.highRisk, // High risk flag
+          reasonCodes: verificationResult.details.reasonCodes, // Reason codes
         },
       }),
       // Save avatar media if extraction was successful

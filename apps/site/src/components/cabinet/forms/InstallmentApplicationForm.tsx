@@ -16,6 +16,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMe } from '@/providers/MeProvider'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
@@ -162,30 +168,16 @@ function parseFullName(fullName: string | undefined | null): {
 }
 
 // Steps for client form (6 steps)
+// Simplified CLIENT_STEPS - only 3 steps for better UX
 const CLIENT_STEPS = [
   {
-    id: 'personalInfo',
-    title: 'Личные данные',
-    description: 'Введите ваши личные данные',
-  },
-  {
-    id: 'financialInfo',
-    title: 'Финансовая информация',
-    description: 'Информация о доходах и работе',
-  },
-  {
-    id: 'passportInfo',
-    title: 'Паспортные данные',
-    description: 'Данные паспорта и документов',
-  },
-  {
-    id: 'addresses',
-    title: 'Адреса',
-    description: 'Адреса регистрации и проживания',
+    id: 'contacts',
+    title: 'Контакты',
+    description: 'Введите ваши контактные данные',
   },
   {
     id: 'productInfo',
-    title: 'Информация о товаре',
+    title: 'Покупка',
     description: 'Информация о товаре и условиях рассрочки',
   },
   {
@@ -340,16 +332,14 @@ export function InstallmentApplicationForm({
     
     if (!section) return errors
 
-    // Client steps validation
+    // Client steps validation (simplified - only core fields required)
     if (isClient) {
       switch (section.id) {
-        case 'personalInfo': {
+        case 'contacts': {
+          // Only core contact fields required
           if (!formData.lastName?.trim()) errors.push('Фамилия обязательна для заполнения')
           if (!formData.firstName?.trim()) errors.push('Имя обязательно для заполнения')
-          if (!formData.dateOfBirth) errors.push('Дата рождения обязательна для заполнения')
-          if (!formData.placeOfBirth?.trim()) errors.push('Место рождения обязательно для заполнения')
           if (!formData.phoneNumber?.trim()) errors.push('Телефон обязателен для заполнения')
-          if (!formData.citizenship?.trim()) errors.push('Гражданство обязательно для заполнения')
           
           // Validate Russian text
           if (formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName)) {
@@ -363,30 +353,11 @@ export function InstallmentApplicationForm({
           }
           break
         }
-        case 'financialInfo': {
-          if (!formData.monthlyIncome?.trim()) errors.push('Доход в месяц обязателен для заполнения')
-          if (!formData.workPlace?.trim()) errors.push('Место работы обязательно для заполнения')
-          break
-        }
-        case 'passportInfo': {
-          if (!formData.passportSeries?.trim()) errors.push('Серия паспорта обязательна для заполнения')
-          if (!formData.passportNumber?.trim()) errors.push('Номер паспорта обязателен для заполнения')
-          if (!formData.passportIssueDate) errors.push('Дата выдачи паспорта обязательна для заполнения')
-          if (!formData.passportIssuedBy?.trim()) errors.push('Кем выдан паспорт обязательно для заполнения')
-          if (!formData.passportDivisionCode?.trim()) errors.push('Код подразделения обязателен для заполнения')
-          break
-        }
-        case 'addresses': {
-          if (!formData.permanentAddress?.trim()) errors.push('Постоянное место жительства обязательно для заполнения')
-          break
-        }
         case 'productInfo': {
-          if (!formData.productName?.trim()) errors.push('Название товара обязательно для заполнения')
+          // Only core product fields required
           if (!formData.purchasePrice?.trim()) errors.push('Стоимость покупки обязательна для заполнения')
           if (!formData.installmentTerm?.trim()) errors.push('Срок рассрочки обязателен для заполнения')
-          if (!formData.documentPhotos || formData.documentPhotos.length === 0) {
-            errors.push('Необходимо загрузить фото документов')
-          }
+          // documentPhotos is now optional - can be requested later
           break
         }
         case 'consent': {
@@ -896,12 +867,7 @@ export function InstallmentApplicationForm({
         }
       }
 
-      // Validate required files for clients
-      if (isClient && (!formData.documentPhotos || formData.documentPhotos.length === 0)) {
-        setError('Необходимо загрузить фото товара')
-        setSubmitting(false)
-        return
-      }
+      // documentPhotos is now optional for clients - can be requested later via ADDITIONAL_INFO_REQUESTED
 
       // Prepare FormData for multipart/form-data
       const formDataToSend = new FormData()
@@ -953,7 +919,314 @@ export function InstallmentApplicationForm({
     }
   }
 
-  // Step 1: Personal Info
+  // Simplified Step 1: Contacts (for clients)
+  const renderContacts = () => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="lastName">
+            Фамилия * <span className="text-muted-foreground">(только русские буквы)</span>
+          </Label>
+          <Input
+            id="lastName"
+            value={formData.lastName || ''}
+            onChange={(e) => {
+              const value = e.target.value
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('lastName', filtered)
+            }}
+            required
+            pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="firstName">
+            Имя * <span className="text-muted-foreground">(только русские буквы)</span>
+          </Label>
+          <Input
+            id="firstName"
+            value={formData.firstName || ''}
+            onChange={(e) => {
+              const value = e.target.value
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('firstName', filtered)
+            }}
+            required
+            pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="middleName">
+            Отчество <span className="text-muted-foreground">(только русские буквы)</span>
+          </Label>
+          <Input
+            id="middleName"
+            value={formData.middleName || ''}
+            onChange={(e) => {
+              const value = e.target.value
+              const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
+              handleInputChange('middleName', filtered)
+            }}
+            pattern="^[А-Яа-яЁё\s-]+$"
+            className={formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phoneNumber">Телефон *</Label>
+        <Input
+          id="phoneNumber"
+          type="tel"
+          value={formData.phoneNumber || ''}
+          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+          placeholder="+7 (___) ___-__-__"
+          required
+        />
+      </div>
+
+      {/* Additional fields accordion */}
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="additional-info">
+          <AccordionTrigger className="text-sm">
+            Дополнительные сведения (необязательно)
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4 pt-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Дата рождения</Label>
+                <DateTimePicker
+                  mode="date"
+                  value={formData.dateOfBirth ? new Date(formData.dateOfBirth) : null}
+                  onChange={(date) => {
+                    const dateString = date ? date.toISOString().split('T')[0] : ''
+                    handleInputChange('dateOfBirth', dateString)
+                  }}
+                  placeholder="Выберите дату рождения"
+                  dateFormat="dd.MM.yyyy"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="placeOfBirth">Место рождения</Label>
+                <Input
+                  id="placeOfBirth"
+                  value={formData.placeOfBirth || ''}
+                  onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
+                  placeholder="Город, область"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="citizenship">Гражданство</Label>
+                <Input
+                  id="citizenship"
+                  value={formData.citizenship || ''}
+                  onChange={(e) => handleInputChange('citizenship', e.target.value)}
+                  placeholder="РФ"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maritalStatus">Семейное положение</Label>
+                <Select
+                  value={formData.maritalStatus || ''}
+                  onValueChange={(value) => handleInputChange('maritalStatus', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите семейное положение" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Холост/не замужем</SelectItem>
+                    <SelectItem value="married">Женат/замужем</SelectItem>
+                    <SelectItem value="divorced">В разводе</SelectItem>
+                    <SelectItem value="widowed">Вдова/вдовец</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="numberOfChildren">Количество детей</Label>
+              <Input
+                id="numberOfChildren"
+                type="number"
+                min="0"
+                value={formData.numberOfChildren || ''}
+                onChange={(e) => handleInputChange('numberOfChildren', e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            {/* Passport Info */}
+            <div className="pt-4 border-t space-y-4">
+              <h4 className="font-medium text-sm">Паспортные данные</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="passportSeries">Серия паспорта</Label>
+                  <Input
+                    id="passportSeries"
+                    value={formData.passportSeries || ''}
+                    onChange={(e) => handleInputChange('passportSeries', e.target.value)}
+                    placeholder="1234"
+                    maxLength={4}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="passportNumber">Номер паспорта</Label>
+                  <Input
+                    id="passportNumber"
+                    value={formData.passportNumber || ''}
+                    onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+                    placeholder="567890"
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="passportIssueDate">Дата выдачи паспорта</Label>
+                <DateTimePicker
+                  mode="date"
+                  value={formData.passportIssueDate ? new Date(formData.passportIssueDate) : null}
+                  onChange={(date) => {
+                    const dateString = date ? date.toISOString().split('T')[0] : ''
+                    handleInputChange('passportIssueDate', dateString)
+                  }}
+                  placeholder="Выберите дату выдачи"
+                  dateFormat="dd.MM.yyyy"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="passportIssuedBy">Кем выдан паспорт</Label>
+                <Textarea
+                  id="passportIssuedBy"
+                  value={formData.passportIssuedBy || ''}
+                  onChange={(e) => handleInputChange('passportIssuedBy', e.target.value)}
+                  placeholder="Наименование органа, выдавшего паспорт"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="passportDivisionCode">Код подразделения</Label>
+                <Input
+                  id="passportDivisionCode"
+                  value={formData.passportDivisionCode || ''}
+                  onChange={(e) => handleInputChange('passportDivisionCode', e.target.value)}
+                  placeholder="123-456"
+                  pattern="[0-9]{3}-[0-9]{3}"
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="inn">ИНН</Label>
+                  <Input
+                    id="inn"
+                    value={formData.inn || ''}
+                    onChange={(e) => handleInputChange('inn', e.target.value)}
+                    placeholder="123456789012"
+                    maxLength={12}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="snils">СНИЛС</Label>
+                  <Input
+                    id="snils"
+                    value={formData.snils || ''}
+                    onChange={(e) => handleInputChange('snils', e.target.value)}
+                    placeholder="123-456-789 12"
+                    maxLength={14}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Addresses */}
+            <div className="pt-4 border-t space-y-4">
+              <h4 className="font-medium text-sm">Адреса</h4>
+              <div className="space-y-2">
+                <Label htmlFor="permanentAddress">Постоянное место жительства (прописка)</Label>
+                <Textarea
+                  id="permanentAddress"
+                  value={formData.permanentAddress || ''}
+                  onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
+                  placeholder="Полный адрес регистрации"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="registrationAddress">Адрес фактического проживания</Label>
+                <Textarea
+                  id="registrationAddress"
+                  value={formData.registrationAddress || ''}
+                  onChange={(e) => handleInputChange('registrationAddress', e.target.value)}
+                  placeholder="Полный адрес фактического проживания (если отличается от прописки)"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            {/* Financial Info */}
+            <div className="pt-4 border-t space-y-4">
+              <h4 className="font-medium text-sm">Финансовая информация</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyIncome">Доход в месяц (руб.)</Label>
+                  <Input
+                    id="monthlyIncome"
+                    type="number"
+                    value={formData.monthlyIncome || ''}
+                    onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
+                    placeholder="Например: 50000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyExpenses">Расходы в месяц (руб.)</Label>
+                  <Input
+                    id="monthlyExpenses"
+                    type="number"
+                    value={formData.monthlyExpenses || ''}
+                    onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
+                    placeholder="Например: 30000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="workPlace">Место работы</Label>
+                  <Input
+                    id="workPlace"
+                    value={formData.workPlace || ''}
+                    onChange={(e) => handleInputChange('workPlace', e.target.value)}
+                    placeholder="Например: ООО 'Компания', менеджер"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="workExperience">Стаж работы</Label>
+                  <Input
+                    id="workExperience"
+                    value={formData.workExperience || ''}
+                    onChange={(e) => handleInputChange('workExperience', e.target.value)}
+                    placeholder="Например: 3 года"
+                  />
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  )
+
+  // Step 1: Personal Info (keep for admin/staff)
   const renderPersonalInfo = () => (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
@@ -1327,6 +1600,140 @@ export function InstallmentApplicationForm({
       {renderPassportInfo()}
       {renderAddresses()}
       {renderFinancialInfo()}
+    </div>
+  )
+
+  // Simplified Product Info for clients
+  const renderProductInfo = () => (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="purchasePrice">Цена товара (стоимость покупки) *</Label>
+          <Input
+            id="purchasePrice"
+            type="number"
+            value={formData.purchasePrice || ''}
+            onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
+            placeholder="Например: 50000"
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="downPayment">Первый взнос</Label>
+          <Input
+            id="downPayment"
+            type="number"
+            value={formData.downPayment || ''}
+            onChange={(e) => handleInputChange('downPayment', e.target.value)}
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="installmentTerm">Срок рассрочки *</Label>
+          <span className="text-sm font-medium">
+            {(() => {
+              const termValue = Math.max(3, Math.min(24, parseInt(formData.installmentTerm || '6')))
+              return `${termValue} ${getMonthWord(termValue)}`
+            })()}
+          </span>
+        </div>
+        <Slider
+          id="installmentTerm"
+          min={3}
+          max={24}
+          step={1}
+          value={[Math.max(3, Math.min(24, parseInt(formData.installmentTerm || '6')))]}
+          onValueChange={(value) => handleInputChange('installmentTerm', String(value[0]))}
+          className="w-full"
+        />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>3 {getMonthWord(3)}</span>
+          <span>24 {getMonthWord(24)}</span>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="productName">Название товара</Label>
+        <Input
+          id="productName"
+          value={formData.productName || ''}
+          onChange={(e) => handleInputChange('productName', e.target.value)}
+          placeholder="Например: Смартфон iPhone 15"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="documentPhotos">
+          Фото товара (необязательно, можно загрузить позже)
+        </Label>
+        <Input
+          id="documentPhotos"
+          type="file"
+          multiple
+          accept="image/*,.pdf"
+          onChange={(e) => {
+            const files = Array.from(e.target.files || [])
+            handleInputChange('documentPhotos', files as File[])
+          }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Если не загрузите сейчас, мы можем запросить фото позже
+        </p>
+      </div>
+
+      {/* Additional product fields */}
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value="additional-product-info">
+          <AccordionTrigger className="text-sm">
+            Дополнительная информация о покупке (необязательно)
+          </AccordionTrigger>
+          <AccordionContent className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="purchaseLocation">Место покупки</Label>
+              <Input
+                id="purchaseLocation"
+                value={formData.purchaseLocation || ''}
+                onChange={(e) => handleInputChange('purchaseLocation', e.target.value)}
+                placeholder="Например: Магазин электроники"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="partnerLocation">У какого партнера или где находится товар?</Label>
+              <Input
+                id="partnerLocation"
+                value={formData.partnerLocation || ''}
+                onChange={(e) => handleInputChange('partnerLocation', e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comfortableMonthlyPayment">Комфортный ежемесячный платеж</Label>
+              <Input
+                id="comfortableMonthlyPayment"
+                type="number"
+                value={formData.comfortableMonthlyPayment || ''}
+                onChange={(e) => handleInputChange('comfortableMonthlyPayment', e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="convenientPaymentDate">Удобная дата для оплаты (число месяца)</Label>
+              <Input
+                id="convenientPaymentDate"
+                type="number"
+                min="1"
+                max="31"
+                value={formData.convenientPaymentDate || ''}
+                onChange={(e) => handleInputChange('convenientPaymentDate', e.target.value)}
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 
@@ -2007,10 +2414,17 @@ export function InstallmentApplicationForm({
     </div>
   )
 
-  // Updated renderSection for client steps
+  // Updated renderSection for client steps (simplified)
   const renderStepContent = (stepId: string) => {
     if (isClient) {
       switch (stepId) {
+        case 'contacts':
+          return renderContacts()
+        case 'productInfo':
+          return renderProductInfo()
+        case 'consent':
+          return renderConsent()
+        // Keep old step IDs for backward compatibility if needed
         case 'personalInfo':
           return renderPersonalInfo()
         case 'financialInfo':
@@ -2019,10 +2433,6 @@ export function InstallmentApplicationForm({
           return renderPassportInfo()
         case 'addresses':
           return renderAddresses()
-        case 'productInfo':
-          return renderProductAndTerms()
-        case 'consent':
-          return renderConsent()
         default:
           return null
       }

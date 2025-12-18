@@ -12,6 +12,19 @@ import sharp from 'sharp'
 import { buildExtractPassportDataPrompt } from '@/shared/utils/prompts'
 import { callGeminiWithServiceAccount } from '@/shared/services/gemini.service'
 
+// Reason codes for structured error handling
+export enum VerificationReasonCode {
+  NO_FACES = 'NO_FACES',
+  TOO_FEW_FACES = 'TOO_FEW_FACES',
+  TOO_MANY_FACES = 'TOO_MANY_FACES',
+  FACE_MISMATCH = 'FACE_MISMATCH',
+  PASSPORT_NOT_READABLE = 'PASSPORT_NOT_READABLE',
+  NO_FACE_IN_PASSPORT = 'NO_FACE_IN_PASSPORT',
+  NAME_MISMATCH = 'NAME_MISMATCH',
+  LOW_CONFIDENCE = 'LOW_CONFIDENCE',
+  POSSIBLE_FOREIGN_PASSPORT = 'POSSIBLE_FOREIGN_PASSPORT',
+}
+
 export interface PassportSelfieVerificationResult {
   verified: boolean
   faceMatch: FaceComparisonResult
@@ -31,6 +44,8 @@ export interface PassportSelfieVerificationResult {
       fullName?: string | null
       birthday?: string | null
     }
+    reasonCodes?: VerificationReasonCode[] // Structured reason codes
+    highRisk?: boolean // Flag for admin if suspicious
   }
   reasons?: string[]
   avatarMedia?: Partial<NewEsnadMedia>
@@ -182,6 +197,9 @@ export class PassportSelfieVerificationService {
     const reasons: string[] = []
 
     try {
+      const reasonCodes: VerificationReasonCode[] = []
+      let highRisk = false
+
       // 1. Get single image from storage (person holding passport)
       const selfieBlob = await this.fileStorageService.getFileContent(selfieMediaUuid)
       const selfieBytes = await this.blobToUint8Array(selfieBlob)
@@ -192,10 +210,13 @@ export class PassportSelfieVerificationService {
 
       if (selfieFaces === 0) {
         reasons.push('Лица не обнаружены на фото')
+        reasonCodes.push(VerificationReasonCode.NO_FACES)
       } else if (selfieFaces === 1) {
         reasons.push('Обнаружено только одно лицо. На фото должно быть видно ваше лицо и лицо в паспорте')
+        reasonCodes.push(VerificationReasonCode.TOO_FEW_FACES)
       } else if (selfieFaces > 2) {
         reasons.push(`Обнаружено слишком много лиц (${selfieFaces}). На фото должно быть только ваше лицо и лицо в паспорте`)
+        reasonCodes.push(VerificationReasonCode.TOO_MANY_FACES)
       }
       // Если обнаружено ровно 2 лица - это нормально (одно на селфи, одно в паспорте)
 
@@ -223,6 +244,7 @@ export class PassportSelfieVerificationService {
 
       if (!hasPassportText) {
         reasons.push('Не удалось распознать паспорт на фото. Убедитесь, что паспорт четко виден и читаем')
+        reasonCodes.push(VerificationReasonCode.PASSPORT_NOT_READABLE)
       }
 
       if (passportRecognition.success) {
@@ -283,22 +305,56 @@ export class PassportSelfieVerificationService {
         if (extractedFullName) {
           const normalizedFullName = extractedFullName.trim()
 
-          // If stored fullName 
-          // todo: потом сделать когда гемини будет работать
-          // if (!human.fullName || human.fullName.trim() !== normalizedFullName) {
-          //   updates.fullName = normalizedFullName
-          // }
+          // Compare passport name with user's profile name (not just accept it)
+          const userFullName = human.fullName || ''
+          const normalizedUserFullName = userFullName.trim()
+          
+          // Also check dataIn for firstName/lastName if fullName is not set
+          let userProfileName = normalizedUserFullName
+          if (!userProfileName && human.dataIn) {
+            const dataIn = typeof human.dataIn === 'string' 
+              ? JSON.parse(human.dataIn) 
+              : human.dataIn
+            const firstName = dataIn?.firstName || ''
+            const lastName = dataIn?.lastName || ''
+            const middleName = dataIn?.middleName || ''
+            if (firstName || lastName) {
+              userProfileName = [lastName, firstName, middleName].filter(Boolean).join(' ').trim()
+            }
+          }
 
-          // Считаем, что имя совпадает, так как берем его из паспорта
+          // Calculate name similarity
+          let nameSimilarity = 0
+          if (userProfileName) {
+            nameSimilarity = this.calculateNameSimilarity(normalizedFullName, userProfileName)
+          } else {
+            // If user has no name in profile yet, we can't verify - this is suspicious
+            nameSimilarity = 0
+            highRisk = true
+            reasonCodes.push(VerificationReasonCode.NAME_MISMATCH)
+            reasons.push('Имя из паспорта не совпадает с профилем пользователя или профиль не заполнен')
+          }
+
+          // Name match threshold: 0.8 similarity
+          const nameMatchThreshold = 0.8
+          const nameMatches = nameSimilarity >= nameMatchThreshold
+
+          if (!nameMatches && userProfileName) {
+            highRisk = true
+            reasonCodes.push(VerificationReasonCode.NAME_MISMATCH)
+            reasons.push(`Имя из паспорта "${normalizedFullName}" не совпадает с именем в профиле "${userProfileName}" (совпадение: ${(nameSimilarity * 100).toFixed(1)}%)`)
+          }
+
           nameMatch = {
-            match: true,
+            match: nameMatches,
             passportName: normalizedFullName,
-            userName: normalizedFullName,
-            similarity: 1,
+            userName: userProfileName || normalizedFullName,
+            similarity: nameSimilarity,
           }
         } else {
           // Имя не смогли извлечь вообще
           nameMatch = { match: false }
+          reasonCodes.push(VerificationReasonCode.PASSPORT_NOT_READABLE)
         }
 
         // Обновляем дату рождения, если Gemini смог ее извлечь
@@ -323,23 +379,138 @@ export class PassportSelfieVerificationService {
         }
       }
 
-      // 5. Determine overall verification result
+      // 5. Real face comparison: compare selfie face with passport face
+      let faceMatch: FaceComparisonResult = {
+        match: false,
+        similarity: 0,
+        confidence: 0,
+        sourceImageFaces: 0,
+        targetImageFaces: 0,
+      }
+
+      if (selfieFaces === 2) {
+        // Determine which face is selfie (larger, usually top/center) and which is passport (smaller, usually bottom)
+        // Sort faces by size (area) - larger is likely selfie, smaller is passport
+        const sortedFaces = [...faces].sort((a, b) => {
+          const areaA = a.boundingBox.width * a.boundingBox.height
+          const areaB = b.boundingBox.width * b.boundingBox.height
+          return areaB - areaA // Descending order
+        })
+
+        const selfieFace = sortedFaces[0] // Larger face (selfie)
+        const passportFace = sortedFaces[1] // Smaller face (passport)
+
+        // Extract face regions from the image
+        try {
+          const imageBuffer = Buffer.from(selfieBytes)
+          const image = sharp(imageBuffer)
+          const metadata = await image.metadata()
+
+          if (metadata.width && metadata.height) {
+            // Crop selfie face
+            const selfieCrop = {
+              left: Math.max(0, Math.floor(selfieFace.boundingBox.x)),
+              top: Math.max(0, Math.floor(selfieFace.boundingBox.y)),
+              width: Math.min(metadata.width - Math.floor(selfieFace.boundingBox.x), Math.ceil(selfieFace.boundingBox.width)),
+              height: Math.min(metadata.height - Math.floor(selfieFace.boundingBox.y), Math.ceil(selfieFace.boundingBox.height)),
+            }
+
+            // Crop passport face
+            const passportCrop = {
+              left: Math.max(0, Math.floor(passportFace.boundingBox.x)),
+              top: Math.max(0, Math.floor(passportFace.boundingBox.y)),
+              width: Math.min(metadata.width - Math.floor(passportFace.boundingBox.x), Math.ceil(passportFace.boundingBox.width)),
+              height: Math.min(metadata.height - Math.floor(passportFace.boundingBox.y), Math.ceil(passportFace.boundingBox.height)),
+            }
+
+            // Extract face images
+            const [selfieFaceImage, passportFaceImage] = await Promise.all([
+              image.extract(selfieCrop).jpeg().toBuffer(),
+              image.extract(passportCrop).jpeg().toBuffer(),
+            ])
+
+            // Compare faces
+            const comparisonResult = await this.faceProvider.compareFaces(
+              new Uint8Array(selfieFaceImage),
+              new Uint8Array(passportFaceImage),
+              0.7 // Similarity threshold for face matching
+            )
+
+            faceMatch = {
+              match: comparisonResult.match,
+              similarity: comparisonResult.similarity,
+              confidence: comparisonResult.confidence,
+              sourceImageFaces: 1,
+              targetImageFaces: 1,
+            }
+
+            // If faces don't match, it's high risk
+            if (!comparisonResult.match) {
+              highRisk = true
+              reasonCodes.push(VerificationReasonCode.FACE_MISMATCH)
+              reasons.push(`Лица не совпадают (совпадение: ${(comparisonResult.similarity * 100).toFixed(1)}%). Возможно, используется чужой паспорт.`)
+            } else if (comparisonResult.similarity < 0.85 || comparisonResult.confidence < 0.7) {
+              // Low confidence match - flag for manual review
+              highRisk = true
+              reasonCodes.push(VerificationReasonCode.LOW_CONFIDENCE)
+              reasons.push(`Низкая уверенность в совпадении лиц (совпадение: ${(comparisonResult.similarity * 100).toFixed(1)}%, уверенность: ${(comparisonResult.confidence * 100).toFixed(1)}%). Требуется ручная проверка.`)
+            }
+          }
+        } catch (faceComparisonError) {
+          console.error('Face comparison error:', faceComparisonError)
+          // Fallback to old logic if face extraction fails
+          faceMatch = {
+            match: selfieFaces === 2,
+            similarity: selfieFaces === 2 ? 0.9 : 0,
+            confidence: selfieFaces === 2 ? Math.min(faces[0]?.confidence || 0.8, faces[1]?.confidence || 0.8) : 0,
+            sourceImageFaces: selfieFaces === 2 ? 1 : 0,
+            targetImageFaces: selfieFaces === 2 ? 1 : 0,
+          }
+          // If we can't compare faces, it's suspicious
+          if (selfieFaces === 2) {
+            highRisk = true
+            reasonCodes.push(VerificationReasonCode.LOW_CONFIDENCE)
+            reasons.push('Не удалось сравнить лица. Требуется ручная проверка.')
+          }
+        }
+      } else {
+        // Not enough faces for comparison
+        faceMatch = {
+          match: false,
+          similarity: 0,
+          confidence: 0,
+          sourceImageFaces: selfieFaces,
+          targetImageFaces: 0,
+        }
+      }
+
+      // 6. Determine overall verification result
       // Verification passes if:
       // - Exactly 2 faces detected (one on selfie, one in passport)
       // - Passport text detected
+      // - Faces match (real comparison)
       // - Name matches (if extracted)
-      // - No reasons (errors) found
-      const faceDetected = selfieFaces === 2 // Must be exactly 2 faces (one on selfie, one in passport)
-      const verified: boolean = Boolean(faceDetected && hasPassportText && nameMatch.match && reasons.length === 0)
+      // - No critical reasons found
+      const faceDetected = selfieFaces === 2
+      const facesMatch = faceMatch.match
+      const criticalReasons = reasonCodes.filter(code => 
+        code === VerificationReasonCode.FACE_MISMATCH || 
+        code === VerificationReasonCode.POSSIBLE_FOREIGN_PASSPORT ||
+        code === VerificationReasonCode.NAME_MISMATCH
+      )
+      
+      const verified: boolean = Boolean(
+        faceDetected && 
+        hasPassportText && 
+        facesMatch && 
+        nameMatch.match && 
+        criticalReasons.length === 0 &&
+        !highRisk
+      )
 
-      // Create face match result
-      // We have one image with 2 faces (one on selfie, one in passport photo)
-      const faceMatch: FaceComparisonResult = {
-        match: selfieFaces === 2, // Must be exactly 2 faces
-        similarity: selfieFaces === 2 ? 0.9 : 0, // High similarity if 2 faces detected
-        confidence: selfieFaces === 2 ? Math.min(faces[0]?.confidence || 0.8, faces[1]?.confidence || 0.8) : 0,
-        sourceImageFaces: selfieFaces === 2 ? 1 : 0, // One face on selfie
-        targetImageFaces: selfieFaces === 2 ? 1 : 0, // One face in passport
+      // If high risk but not verified, add POSSIBLE_FOREIGN_PASSPORT code
+      if (highRisk && !verified && !reasonCodes.includes(VerificationReasonCode.POSSIBLE_FOREIGN_PASSPORT)) {
+        reasonCodes.push(VerificationReasonCode.POSSIBLE_FOREIGN_PASSPORT)
       }
 
       const result = {
@@ -353,6 +524,8 @@ export class PassportSelfieVerificationService {
           passportRawText: passportRecognition.rawText, // Сохраняем весь текст с документа
           errors: errors.length > 0 ? errors : undefined,
           passportProfile,
+          reasonCodes: reasonCodes.length > 0 ? reasonCodes : undefined,
+          highRisk,
         },
         reasons: reasons.length > 0 ? reasons : undefined,
       }

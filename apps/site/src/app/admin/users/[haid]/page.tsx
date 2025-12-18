@@ -27,7 +27,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle, User, Wallet } from 'lucide-react'
+import { Check, ChevronsUpDown, Loader2, Save, ArrowLeft, FileText, ExternalLink, CheckCircle, Clock, XCircle, User, Wallet, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
@@ -67,6 +67,8 @@ interface User {
         verified?: boolean
         faceMatchConfidence?: number
         error?: string
+        highRisk?: boolean
+        reasonCodes?: string[]
       }
       monthlyIncome?: string | number
       monthlyExpenses?: string | number
@@ -523,8 +525,16 @@ export default function EditUserPage() {
                     </div>
                     {user.human.dataIn.lastSelfieVerification && (
                       <div>
-                        <p className="text-sm font-medium">Последняя верификация селфи:</p>
-                        <div className="mt-1 text-sm text-muted-foreground space-y-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium">Последняя верификация селфи:</p>
+                          {user.human.dataIn.lastSelfieVerification.highRisk && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              High Risk
+                            </Badge>
+                          )}
+                        </div>
+                        <div className={`mt-1 text-sm space-y-1 ${user.human.dataIn.lastSelfieVerification.highRisk ? 'p-2 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-900' : ''}`}>
                           <div className="flex items-center gap-2">
                             {user.human.dataIn.lastSelfieVerification.verified ? (
                               <CheckCircle className="h-4 w-4 text-green-600" />
@@ -541,6 +551,18 @@ export default function EditUserPage() {
                             <p>
                               Совпадение лиц: {Math.round(user.human.dataIn.lastSelfieVerification.faceMatchConfidence * 100)}%
                             </p>
+                          )}
+                          {user.human.dataIn.lastSelfieVerification.reasonCodes && user.human.dataIn.lastSelfieVerification.reasonCodes.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium mb-1">Коды причин:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {user.human.dataIn.lastSelfieVerification.reasonCodes.map((code: string, idx: number) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {code}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
                           )}
                           {user.human.dataIn.lastSelfieVerification.error && (
                             <Alert variant="destructive" className="mt-2">
@@ -1055,14 +1077,39 @@ export default function EditUserPage() {
                                       ? JSON.parse(doc.verificationResult.details)
                                       : doc.verificationResult.details
                                     
+                                    const isHighRisk = verificationDetails.highRisk === true
+                                    const reasonCodes = verificationDetails.reasonCodes || []
+                                    
                                     return (
-                                      <div className="mt-2 space-y-2">
+                                      <div className={`mt-2 space-y-2 ${isHighRisk ? 'p-3 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-900' : ''}`}>
+                                        {isHighRisk && (
+                                          <div className="flex items-center gap-2 mb-2">
+                                            <Badge variant="destructive" className="text-xs">
+                                              <AlertTriangle className="h-3 w-3 mr-1" />
+                                              High Risk
+                                            </Badge>
+                                          </div>
+                                        )}
+                                        
                                         {verificationDetails?.error && (
                                           <Alert variant="destructive">
                                             <AlertDescription className="text-xs">
                                               <strong>Ошибка верификации:</strong> {verificationDetails.error}
                                             </AlertDescription>
                                           </Alert>
+                                        )}
+                                        
+                                        {reasonCodes.length > 0 && (
+                                          <div className="space-y-1">
+                                            <p className="text-xs font-medium text-muted-foreground">Коды причин:</p>
+                                            <div className="flex flex-wrap gap-1">
+                                              {reasonCodes.map((code: string, idx: number) => (
+                                                <Badge key={idx} variant="outline" className="text-xs">
+                                                  {code}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
                                         )}
                                         
                                         {verificationDetails?.reasons && Array.isArray(verificationDetails.reasons) && verificationDetails.reasons.length > 0 && (

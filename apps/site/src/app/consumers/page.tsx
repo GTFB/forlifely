@@ -57,19 +57,85 @@ const steps = [
   },
 ];
 
-const initialFormState = {
-  firstName: "",
-  lastName: "",
-  phone: "",
-  email: "",
-  productPrice: "50000",
-  term: [6] as number[],
+// Helper function for month word declension
+function getMonthWord(months: number): string {
+  const lastDigit = months % 10;
+  const lastTwoDigits = months % 100;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+    return "месяцев";
+  }
+
+  if (lastDigit === 1) {
+    return "месяц";
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return "месяца";
+  }
+
+  return "месяцев";
+}
+
+const MIN_PRICE = 3000;
+const MAX_PRICE = 300000;
+
+const getInitialFormState = () => {
+  // Read from URL query params if available
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    const productPriceParam = params.get("productPrice");
+    const termParam = params.get("term");
+
+    return {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      productPrice: productPriceParam || "50000",
+      term: termParam ? [parseInt(termParam, 10)] : [6] as number[],
+    };
+  }
+
+  return {
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    productPrice: "50000",
+    term: [6] as number[],
+  };
 };
 
 export default function ConsumersPage() {
-  const [formData, setFormData] = React.useState(initialFormState);
+  const [formData, setFormData] = React.useState(getInitialFormState);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  // Read query params on mount and update form
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const productPriceParam = params.get("productPrice");
+    const termParam = params.get("term");
+
+    if (productPriceParam || termParam) {
+      setFormData((prev) => ({
+        ...prev,
+        ...(productPriceParam && { productPrice: productPriceParam }),
+        ...(termParam && { term: [Math.max(3, Math.min(24, parseInt(termParam, 10)))] }),
+      }));
+    }
+
+    // Scroll to application section if hash is present
+    if (window.location.hash === "#application") {
+      setTimeout(() => {
+        const element = document.getElementById("application");
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, []);
 
   const price = parseFloat(formData.productPrice) || 0;
   const months = formData.term[0] || 6;
@@ -119,7 +185,7 @@ export default function ConsumersPage() {
         type: "success",
         message: "Заявка отправлена! Мы свяжемся с вами в ближайшее время.",
       });
-      setFormData({ ...initialFormState });
+      setFormData(getInitialFormState());
     } catch (error) {
       const message =
         error instanceof Error
@@ -219,7 +285,12 @@ export default function ConsumersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="productPrice">Стоимость товара, ₽</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="productPrice">Стоимость товара</Label>
+                    <span className="text-xs text-muted-foreground">
+                      от {MIN_PRICE.toLocaleString("ru-RU")} до {MAX_PRICE.toLocaleString("ru-RU")} ₽
+                    </span>
+                  </div>
                   <Input
                     id="productPrice"
                     type="number"
@@ -228,15 +299,17 @@ export default function ConsumersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, productPrice: e.target.value })
                     }
-                    min="3000"
-                    max="300000"
+                    min={MIN_PRICE}
+                    max={MAX_PRICE}
                   />
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="term">Срок, мес.</Label>
-                    <span className="text-sm font-medium">{months} месяцев</span>
+                    <Label htmlFor="term">Срок</Label>
+                    <span className="text-sm font-medium">
+                      {months} {getMonthWord(months)}
+                    </span>
                   </div>
                   <Slider
                     id="term"
@@ -250,18 +323,31 @@ export default function ConsumersPage() {
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>3</span>
-                    <span>24</span>
+                    <span>3 {getMonthWord(3)}</span>
+                    <span>24 {getMonthWord(24)}</span>
                   </div>
                 </div>
 
                 {monthlyPayment > 0 && (
-                  <div className="rounded-lg border bg-muted/50 p-6">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Ежемесячный платеж:
-                    </p>
-                    <p className="text-4xl font-bold">
-                      {formatCurrency(monthlyPayment)}
+                  <div className="rounded-lg border bg-muted/50 p-6 space-y-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Ежемесячный платеж:
+                      </p>
+                      <p className="text-4xl font-bold">
+                        {formatCurrency(monthlyPayment)}
+                      </p>
+                    </div>
+                    <div className="pt-3 border-t">
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Сумма к выплате:
+                      </p>
+                      <p className="text-2xl font-semibold">
+                        {formatCurrency(price)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Расчёт предварительный
                     </p>
                   </div>
                 )}
@@ -288,7 +374,7 @@ export default function ConsumersPage() {
       </section>
 
       {/* Conditions Section */}
-      <section className="py-16 md:py-32">
+      <section id="conditions" className="py-16 md:py-32">
         <div className="mx-auto max-w-5xl px-6">
           <h2 className="text-3xl md:text-4xl font-semibold mb-12 text-center">
             Условия в деталях

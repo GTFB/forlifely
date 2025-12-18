@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/accordion'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock } from 'lucide-react'
+import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock, AlertTriangle, Save } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/AdminHeader'
@@ -85,6 +85,14 @@ export default function DealDetailPageClient() {
     manager: '',
     requestMessage: '',
   })
+
+  const [priorityData, setPriorityData] = React.useState({
+    priority: 'low' as 'low' | 'medium' | 'high',
+    priorityReason: '',
+  })
+  const [prioritySaving, setPrioritySaving] = React.useState(false)
+  const [priorityError, setPriorityError] = React.useState<string | null>(null)
+  const [prioritySuccess, setPrioritySuccess] = React.useState(false)
   const breadcrumbs = React.useMemo(() => {
     const base = [
       { label: 'Панель администратора', href: '/admin/dashboard' },
@@ -128,6 +136,14 @@ export default function DealDetailPageClient() {
         
         setTimeout(() => {
           setDeal(fetchedDeal)
+          
+          // Initialize priority data from deal
+          const dataIn = fetchedDeal.dataIn as LoanApplicationDataIn
+          setPriorityData({
+            priority: dataIn.priority || 'low',
+            priorityReason: dataIn.priorityReason || '',
+          })
+          
           setLoading(false)
         }, 500)
 
@@ -364,6 +380,56 @@ export default function DealDetailPageClient() {
     await submitLoanDecision('/api/esnad/v1/admin/loans/cancel')
   }
 
+  const handlePriorityUpdate = async () => {
+    if (!deal) return
+
+    try {
+      setPrioritySaving(true)
+      setPriorityError(null)
+      setPrioritySuccess(false)
+
+      const response = await fetch('/api/esnad/v1/admin/loan-application/priority', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uuid: deal.uuid,
+          priority: priorityData.priority,
+          priorityReason: priorityData.priorityReason.trim() || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})) as { error?: string; message?: string }
+        throw new Error(errorData.message || errorData.error || 'Failed to update priority')
+      }
+
+      const data = await response.json() as { success?: boolean; deal?: LoanApplication; message?: string }
+      if (data.success && data.deal) {
+        setDeal(data.deal)
+        
+        // Update priority form data from response
+        const updatedDataIn = data.deal.dataIn as LoanApplicationDataIn
+        setPriorityData({
+          priority: updatedDataIn.priority || 'low',
+          priorityReason: updatedDataIn.priorityReason || '',
+        })
+        
+        setPrioritySuccess(true)
+        setTimeout(() => setPrioritySuccess(false), 3000)
+      } else {
+        throw new Error(data.message || 'Failed to update priority')
+      }
+    } catch (err) {
+      console.error('Failed to update priority:', err)
+      setPriorityError(err instanceof Error ? err.message : 'Failed to update priority')
+    } finally {
+      setPrioritySaving(false)
+    }
+  }
+
   const handleRequestInfo = async () => {
     if (!deal) {
       setActionError('Заявка не найдена')
@@ -596,9 +662,40 @@ export default function DealDetailPageClient() {
       />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
-          <h1 className="text-3xl font-bold">
-            {deal.dataIn.firstName} {deal.dataIn.lastName} - {deal.id}
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">
+              {deal.dataIn.firstName} {deal.dataIn.lastName} - {deal.id}
+            </h1>
+            {/* Priority Badge */}
+            {deal.dataIn.priority === 'high' && (
+              <Badge variant="destructive" className="text-base px-4 py-2">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                High Priority
+              </Badge>
+            )}
+            {deal.dataIn.priority === 'medium' && (
+              <Badge variant="secondary" className="text-base px-4 py-2">
+                Medium Priority
+              </Badge>
+            )}
+          </div>
+          
+          {/* Priority Reason */}
+          {deal.dataIn.priority === 'high' && deal.dataIn.priorityReason && (
+            <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900 p-4">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-100 mb-1">
+                Причина высокого приоритета:
+              </p>
+              <p className="text-sm text-orange-800 dark:text-orange-200">
+                {deal.dataIn.priorityReason}
+              </p>
+              {deal.dataIn.priorityUpdatedAt && (
+                <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                  Обновлено: {formatDate(deal.dataIn.priorityUpdatedAt)}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Колонка 1: Данные */}
@@ -856,6 +953,76 @@ export default function DealDetailPageClient() {
 
             {/* Колонка 3: Принятие решения */}
             <div className="space-y-4">
+              {/* Priority Management Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Приоритет заявки</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {priorityError && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                      {priorityError}
+                    </div>
+                  )}
+                  {prioritySuccess && (
+                    <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
+                      Приоритет успешно обновлен
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="priority">Приоритет</Label>
+                    <Select
+                      value={priorityData.priority}
+                      onValueChange={(value: 'low' | 'medium' | 'high') =>
+                        setPriorityData((prev) => ({ ...prev, priority: value }))
+                      }
+                    >
+                      <SelectTrigger id="priority">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low (Низкий)</SelectItem>
+                        <SelectItem value="medium">Medium (Средний)</SelectItem>
+                        <SelectItem value="high">High (Высокий)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="priorityReason">Причина (опционально)</Label>
+                    <Textarea
+                      id="priorityReason"
+                      value={priorityData.priorityReason}
+                      onChange={(e) =>
+                        setPriorityData((prev) => ({ ...prev, priorityReason: e.target.value }))
+                      }
+                      placeholder="Укажите причину приоритета..."
+                      rows={3}
+                      maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {priorityData.priorityReason.length}/500 символов
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handlePriorityUpdate}
+                    disabled={prioritySaving}
+                    className="w-full"
+                  >
+                    {prioritySaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Сохранение...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Сохранить приоритет
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
               <Card className="sticky top-4">
                 <CardHeader>
                   <CardTitle>Решение Службы Безопасности</CardTitle>

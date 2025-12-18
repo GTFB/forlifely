@@ -62,27 +62,17 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         !userWithRolesForCheck.roles.some((r) => r.name === 'Administrator' || r.name === 'admin')
     }) || false
 
-    // Validate required files for clients
-    if (isClient && documentPhotos.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Необходимо загрузить фото документов' }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
-    }
+    // documentPhotos is now optional for clients - can be requested later via ADDITIONAL_INFO_REQUESTED
     
-    // Validate required fields
+    // Validate required fields (simplified - only core fields)
     const requiredFields = [
       'firstName',
       'lastName',
       'phoneNumber',
-      'permanentAddress',
       'purchasePrice',
-      'downPayment',
       'installmentTerm',
     ]
+    // downPayment and permanentAddress are now optional
 
     for (const field of requiredFields) {
       if (!body[field]) {

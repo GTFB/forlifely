@@ -147,6 +147,11 @@ export interface LoanApplicationDataIn {
     term: number[]
     decision?: LoanApplicationDecision
     additionalInfoRequest?: AdditionalInfoRequest
+    // Priority fields
+    priority?: 'low' | 'medium' | 'high'
+    priorityReason?: string
+    priorityUpdatedAt?: string
+    priorityUpdatedByUserUuid?: string
     // Additional optional fields
     middleName?: string
     productName?: string
