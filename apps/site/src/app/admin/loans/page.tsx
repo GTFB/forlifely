@@ -19,8 +19,10 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import qs from 'qs'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import debounce from 'lodash/debounce'
+import { cn } from '@/lib/utils'
+import { useNotice } from '@/components/admin/AdminNoticesProvider'
 import type { 
   LoanApplication,
 } from '@/shared/types/esnad'
@@ -218,6 +220,25 @@ export default function AdminLoansPage() {
     }
   }, [fetchLoans])
 
+  // Subscribe to new loans count changes and refresh table
+  const newLoansCount = useNotice('new_loans_count')
+  const prevCountRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    // Skip initial render
+    if (prevCountRef.current === undefined) {
+      prevCountRef.current = newLoansCount
+      return
+    }
+
+    // Only refresh if count actually changed
+    if (prevCountRef.current !== newLoansCount) {
+      prevCountRef.current = newLoansCount
+      // Use non-debounced version for immediate update
+      fetchLoansBase()
+    }
+  }, [newLoansCount, fetchLoansBase])
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
@@ -277,18 +298,18 @@ export default function AdminLoansPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <>
-        <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        </main>
-      </>
-    )
-  }
+  // if (loading) {
+  //   return (
+  //     <>
+  //       <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
+  //       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+  //         <div className="flex items-center justify-center py-12">
+  //           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+  //         </div>
+  //       </main>
+  //     </>
+  //   )
+  // }
 
   if (error) {
     return (
@@ -369,22 +390,28 @@ export default function AdminLoansPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loans.map((loan) => (
-                    <TableRow
-                      key={loan.daid} 
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/admin/deals/view?uuid=${loan.uuid}`)}>
-                      <TableCell className="font-medium"><Link href={`/admin/deals/view?uuid=${loan.uuid}`}>{loan.daid}</Link></TableCell>
-                      <TableCell>{`${loan.dataIn.firstName} ${loan.dataIn.lastName}`.trim()}</TableCell>
-                      <TableCell>{formatCurrency(Number(loan.dataIn.productPrice))}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(loan.statusName)}>
-                          {getStatusLabel(loan.statusName)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(loan.createdAt)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {loans.map((loan) => {
+                    const viewedAt = (loan.dataIn as any)?.veiwed_at
+                    const isUnread = !viewedAt
+                    return (
+                      <TableRow
+                        key={loan.daid} 
+                        className={cn('cursor-pointer', isUnread && 'font-semibold')}
+                        onClick={() => router.push(`/admin/deals/view?uuid=${loan.uuid}`)}>
+                        <TableCell className={cn('font-medium', isUnread && 'font-semibold')}>
+                          <Link href={`/admin/deals/view?uuid=${loan.uuid}`}>{loan.daid}</Link>
+                        </TableCell>
+                        <TableCell>{`${loan.dataIn.firstName} ${loan.dataIn.lastName}`.trim()}</TableCell>
+                        <TableCell>{formatCurrency(Number(loan.dataIn.productPrice))}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(loan.statusName)}>
+                            {getStatusLabel(loan.statusName)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(loan.createdAt)}</TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             )}

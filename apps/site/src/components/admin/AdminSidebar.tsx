@@ -46,6 +46,8 @@ import { Logo } from '@/components/misc/logo/logo'
 import { useResizableSidebar } from '@/packages/hooks/use-resizable-sidebar'
 import { useTheme } from '@/packages/hooks/use-theme'
 import { User, Sun, Moon } from 'lucide-react'
+import { useNotice } from './AdminNoticesProvider'
+import { Badge } from '@/components/ui/badge'
 
 export interface NavigationItem {
   title: string
@@ -186,6 +188,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
     return groups
   }
+  const newLoans = useNotice('new_loans_count')
 
   return (
     <Sidebar>
@@ -208,6 +211,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const active = isActive(item.url)
+                      const isLoansItem = item.url === '/admin/loans'
+                      const hasNewLoans = typeof newLoans === 'number' && newLoans > 0
                       return (
                         <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton
@@ -216,9 +221,14 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                             className={cn(
                               active && 'bg-sidebar-accent text-sidebar-accent-foreground'
                             )}>
-                            <Link href={item.url}>
+                            <Link href={item.url} className="flex w-full items-center gap-2">
                               <Icon className="h-4 w-4" />
-                              <span>{item.title}</span>
+                              <span className="flex-1 text-left">{item.title}</span>
+                              {isLoansItem && hasNewLoans && (
+                                <Badge variant="secondary" className="ml-auto">
+                                  {newLoans}
+                                </Badge>
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

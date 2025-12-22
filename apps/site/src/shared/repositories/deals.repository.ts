@@ -37,6 +37,7 @@ import {
 import { ScoringWeights } from "../types/scoring";
 import { SettingsRepository } from "./settings.repository";
 import { buildAdminNewLoanApplicationEmailHtml } from "../services/email-templates.service";
+import { sendToRoom } from "@/lib/socket";
 
 const ADMIN_CONTACT_MESSAGE = ' Пожалуйста, свяжитесь с администратором системы.';
 const INTERNAL_DECISION_ERROR_MESSAGE = `Произошла внутренняя ошибка при обработке решения.${ADMIN_CONTACT_MESSAGE}`;
@@ -255,6 +256,13 @@ export class DealsRepository extends BaseRepository<Deal>{
             console.error('Failed to send admin notifications for new loan application:', error)
             // Не прерываем основной процесс создания заявки из‑за ошибок уведомлений
         }
+
+        // Отправить сигнал админам об обновлении уведомлений (новая заявка добавлена)
+        await sendToRoom('admin', 'update-admin', {
+            type: 'admin-updated-notices',
+        }).catch((err) => {
+            console.error('Failed to send admin-updated-notices socket event:', err);
+        });
 
         // Ensure user with 'client' role exists
         await this.ensureClientUser(sanitizedFormData.email, client)
@@ -997,5 +1005,34 @@ export class DealsRepository extends BaseRepository<Deal>{
                 totalPages,
             },
         };
+    }
+
+    /**
+     * Пометить заявку как просмотренную
+     */
+    public async markAsViewed(uuid: string, viewedAt: string | Date = new Date()): Promise<Deal> {
+        const deal = await this.findByUuid(uuid) as Deal | null;
+        if (!deal) {
+            throw new Error(`Сделка не найдена.${ADMIN_CONTACT_MESSAGE}`);
+        }
+
+        const dataIn = this.normalizeLoanApplicationDataIn(deal.dataIn as any);
+        const nextDataIn = {
+            ...dataIn,
+            veiwed_at: viewedAt instanceof Date ? viewedAt.toISOString() : viewedAt,
+        };
+
+        const updatedDeal = await this.update(uuid, {
+            dataIn: nextDataIn,
+        });
+
+        // Отправить сигнал админам об обновлении уведомлений
+        await sendToRoom('admin', 'update-admin', {
+            type: 'admin-updated-notices',
+        }).catch((err) => {
+            console.error('Failed to send admin-updated-notices socket event:', err);
+        });
+
+        return updatedDeal;
     }
 }

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sidebar"
 import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
 import { AdminSocketProvider } from "@/components/admin/AdminSocketProvider"
+import { AdminNoticesProvider } from "@/components/admin/AdminNoticesProvider"
 import { BottomNavigation } from "@/components/cabinet/BottomNavigation"
 import {
   LayoutDashboard,
@@ -132,13 +133,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="h-screen w-full bg-background overflow-hidden">
       <AdminStateProvider>
         <AdminSocketProvider>
-          <AdminAuthGuard>
-            <AskForNotificationPush />
-            <SidebarWrapper>
-              {children}
-            </SidebarWrapper>
-            <BottomNavigation navigationItems={adminNavigationItems} />
-          </AdminAuthGuard>
+          <AdminNoticesProvider>
+            <AdminAuthGuard>
+              <AskForNotificationPush />
+              <SidebarWrapper>
+                {children}
+              </SidebarWrapper>
+              <BottomNavigation navigationItems={adminNavigationItems} />
+            </AdminAuthGuard>
+          </AdminNoticesProvider>
         </AdminSocketProvider>
       </AdminStateProvider>
     </div>
