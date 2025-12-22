@@ -68,7 +68,7 @@ export default function HeroSection() {
                                 className="mt-12">
                                 <div className="mx-auto flex flex-col gap-4 sm:flex-row sm:justify-center">
                                     <Button asChild size="lg" className="rounded-lg">
-                                        <Link href="/clients">Получить рассрочку</Link>
+                                        <Link href="/consumers">Получить рассрочку</Link>
                                     </Button>
                                     <Button asChild size="lg" variant="outline" className="rounded-lg">
                                         <Link href="/investors">Стать инвестором</Link>

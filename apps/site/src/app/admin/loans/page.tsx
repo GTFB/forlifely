@@ -6,13 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,28 +22,24 @@ import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { useCallback, useEffect, useMemo } from 'react'
 import debounce from 'lodash/debounce'
 import type { 
-  TaxonomyOption, 
-  TaxonomyResponse,
   LoanApplication,
-  
- } from '@/shared/types/esnad'
- import type { 
-    DbPaginatedResult,
-    DbPaginationResult,
-  } from '@/shared/types/shared'
- 
+} from '@/shared/types/esnad'
+import type { 
+  DbPaginatedResult,
+  DbPaginationResult,
+} from '@/shared/types/shared'
 
 const INITIAL_LIMIT = 10
+const LOAN_STATUSES = ['NEW', 'SCORING'] // Only show these statuses
 
-export default function AdminDealsPage() {
+export default function AdminLoansPage() {
   const router = useRouter()
-  const [deals, setDeals] = React.useState<LoanApplication[]>([])
+  const [loans, setLoans] = React.useState<LoanApplication[]>([])
   const [pagination, setPagination] = React.useState<DbPaginationResult>({
     total: 0,
     page: 1,
     limit: INITIAL_LIMIT,
     totalPages: 1,
-    
   })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -61,21 +50,6 @@ export default function AdminDealsPage() {
   const [searchQuery, setSearchQuery] = React.useState(search || '')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   
-  // Initialize filters from URL params
-  const [statusFilter, setStatusFilter] = React.useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      return params.get('status') || 'all'
-    }
-    return 'all'
-  })
-  const [managerFilter, setManagerFilter] = React.useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      return params.get('manager') || 'all'
-    }
-    return 'all'
-  })
   const [currentPage, setCurrentPage] = React.useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -83,9 +57,6 @@ export default function AdminDealsPage() {
     }
     return 1
   })
-  const [statusOptions, setStatusOptions] = React.useState<TaxonomyOption[]>([])
-  const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
-  const [loadingManagers, setLoadingManagers] = React.useState(false)
   
   // Initialize date filters from URL params (null if not present)
   const [dateRange, setDateRange] = React.useState<{ start: Date | null; end: Date | null }>(() => {
@@ -127,7 +98,7 @@ export default function AdminDealsPage() {
       } else {
         delete params.search
       }
-      const newUrl = `/admin/deals?${qs.stringify(params)}`
+      const newUrl = `/admin/loans?${qs.stringify(params)}`
       window.history.replaceState({}, '', newUrl)
     }, 500)
 
@@ -137,12 +108,6 @@ export default function AdminDealsPage() {
   // Update URL when filters change
   React.useEffect(() => {
     const params = new URLSearchParams()
-    if (statusFilter !== 'all') {
-      params.set('status', statusFilter)
-    }
-    if (managerFilter !== 'all') {
-      params.set('manager', managerFilter)
-    }
     if (currentPage > 1) {
       params.set('page', currentPage.toString())
     }
@@ -158,10 +123,10 @@ export default function AdminDealsPage() {
 
     const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`
     window.history.replaceState({}, '', newUrl)
-  }, [statusFilter, managerFilter, currentPage, debouncedSearchQuery, dateRange])
+  }, [currentPage, debouncedSearchQuery, dateRange])
 
-  // Base fetch function
-  const fetchDealsBase = useCallback(async () => {
+  // Base fetch function - always filter by NEW and SCORING statuses
+  const fetchLoansBase = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -177,28 +142,12 @@ export default function AdminDealsPage() {
         values: string[]
       }> = []
 
-      // Always exclude NEW and SCORING statuses (they are shown on /admin/loans page)
+      // Always filter by NEW and SCORING statuses
       filtersConditions.push({
         field: 'statusName',
-        operator: 'notIn',
-        values: ['NEW', 'SCORING'],
+        operator: 'in',
+        values: LOAN_STATUSES,
       })
-
-      if (statusFilter !== 'all') {
-        filtersConditions.push({
-          field: 'statusName',
-          operator: 'eq',
-          values: [statusFilter],
-        })
-      }
-
-      if (managerFilter !== 'all') {
-        filtersConditions.push({
-          field: 'dataIn.managerUuid',
-          operator: 'eq',
-          values: [managerFilter],
-        })
-      }
 
       // Add date filters if provided
       if (dateRange.start) {
@@ -242,106 +191,32 @@ export default function AdminDealsPage() {
       }
 
       const data = (await response.json()) as DbPaginatedResult<LoanApplication>
-      setDeals(data.docs)
+      setLoans(data.docs)
       setPagination(data.pagination)
       setError(null)
     } catch (err) {
-      console.error('Deals fetch error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load deals')
-      setDeals([])
+      console.error('Loans fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load loans')
+      setLoans([])
     } finally {
       setLoading(false)
     }
-  }, [currentPage, statusFilter, managerFilter, pagination.limit, debouncedSearchQuery, dateRange])
+  }, [currentPage, pagination.limit, debouncedSearchQuery, dateRange])
 
-  // Debounced version of fetchDeals
-  const fetchDeals = useMemo(
-    () => debounce(fetchDealsBase, 600),
-    [fetchDealsBase]
+  // Debounced version of fetchLoans
+  const fetchLoans = useMemo(
+    () => debounce(fetchLoansBase, 600),
+    [fetchLoansBase]
   )
 
   useEffect(() => {
-    fetchDeals()
+    fetchLoans()
 
     // Cleanup debounced function on unmount
     return () => {
-      fetchDeals.cancel()
+      fetchLoans.cancel()
     }
-  }, [fetchDeals])
-
-  React.useEffect(() => {
-    const fetchStatuses = async () => {
-      try {
-        const filtersPayload = {
-          conditions: [
-            {
-              field: 'entity',
-              operator: 'eq',
-              values: ['deal.statusName'],
-            },
-          ],
-        }
-
-        const ordersPayload = {
-          orders: [{ field: 'sortOrder', direction: 'asc' }],
-        }
-
-        const queryParams = qs.stringify({
-          limit: 100,
-          filters: JSON.stringify(filtersPayload),
-          orders: JSON.stringify(ordersPayload),
-        }, {
-          encode: true,
-          arrayFormat: 'brackets',
-        })
-
-        const response = await fetch(`/api/admin/taxonomies?${queryParams}`, {
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          throw new Error(await response.text())
-        }
-
-        const data = (await response.json()) as TaxonomyResponse
-        setStatusOptions(data.docs ?? [])
-      } catch (err) {
-        console.error('Failed to load status taxonomies', err)
-      }
-    }
-
-    fetchStatuses()
-  }, [])
-
-  React.useEffect(() => {
-    const fetchManagers = async () => {
-      try {
-        setLoadingManagers(true)
-        const response = await fetch('/api/esnad/v1/admin/users/managers', {
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch managers')
-        }
-
-        const result = await response.json() as { docs?: Array<{ uuid: string; fullName?: string | null; email: string }> }
-        const managersList = (result.docs || []).map((manager) => ({
-          uuid: manager.uuid,
-          fullName: manager.fullName || null,
-          email: manager.email,
-        }))
-        setManagers(managersList)
-      } catch (err) {
-        console.error('Failed to load managers', err)
-        setManagers([])
-      } finally {
-        setLoadingManagers(false)
-      }
-    }
-
-    fetchManagers()
-  }, [])
+  }, [fetchLoans])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
@@ -363,69 +238,29 @@ export default function AdminDealsPage() {
 
   const getStatusVariant = (status?: string | null) => {
     switch (status) {
-      case 'APPROVED':
-      case 'ACTIVE':
-        return 'default'
       case 'NEW':
       case 'SCORING':
         return 'secondary'
-      case 'REJECTED':
-      case 'OVERDUE':
-        return 'destructive'
-      case 'COMPLETED':
-        return 'outline'
       default:
         return 'outline'
     }
   }
 
   const getStatusLabel = (status?: string | null) => {
-    if (status) {
-      const option = statusOptions.find((opt) => opt.name === status)
-      if (option) {
-        return option.title ?? option.name
-      }
-    }
-
     switch (status) {
       case 'NEW':
         return 'Новая заявка'
       case 'SCORING':
         return 'Скоринг'
-      case 'INFO_REQUESTED':
-        return 'Запрошены данные'
-      case 'APPROVED':
-        return 'Одобрена'
-      case 'REJECTED':
-        return 'Отклонена'
-      case 'ACTIVE':
-        return 'Активна'
-      case 'COMPLETED':
-        return 'Завершена'
-      case 'OVERDUE':
-        return 'Просрочена'
       default:
         return status ?? 'Неизвестно'
     }
   }
 
-  const normalizeManager = (name: string | null | undefined) => (name?.trim() ? name.trim() : 'Не назначен')
-
-  const uniqueStatuses = statusOptions
-    .filter((option) => option.name)
-    .map((option) => ({
-      value: option.name,
-      label: option.title ?? option.name,
-    }))
-
-  const managerOptions = managers.map((manager) => ({
-    value: manager.uuid,
-    label: manager.fullName || manager.email,
-  }))
   const breadcrumbs = React.useMemo(
     () => [
       { label: 'Панель администратора', href: '/admin/dashboard' },
-      { label: 'Управление заявками', href: '/admin/deals' },
+      { label: 'Заявки на рассрочку', href: '/admin/loans' },
     ],
     [],
   )
@@ -441,10 +276,11 @@ export default function AdminDealsPage() {
       setCurrentPage((prev) => prev + 1)
     }
   }
+
   if (loading) {
     return (
       <>
-        <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
+        <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -457,7 +293,7 @@ export default function AdminDealsPage() {
   if (error) {
     return (
       <>
-        <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
+        <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
@@ -469,10 +305,10 @@ export default function AdminDealsPage() {
 
   return (
     <>
-      <AdminHeader title="Управление заявками" breadcrumbItems={breadcrumbs} />
+      <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
-        <h1 className="text-3xl font-bold">Управление заявками</h1>
+        <h1 className="text-3xl font-bold">Заявки на рассрочку (Новая / Скоринг)</h1>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -485,45 +321,6 @@ export default function AdminDealsPage() {
                 className="pl-10"
               />
             </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value)
-                setCurrentPage(1) // Reset to first page when filter changes
-              }}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Статус" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все статусы</SelectItem>
-                {uniqueStatuses
-                  .filter((status) => status.value !== 'NEW' && status.value !== 'SCORING')
-                  .map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={managerFilter}
-              onValueChange={(value) => {
-                setManagerFilter(value)
-                setCurrentPage(1) // Reset to first page when filter changes
-              }}
-              disabled={loadingManagers}>
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder={loadingManagers ? 'Загрузка...' : 'Менеджер'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Все менеджеры</SelectItem>
-                {managerOptions.map((manager) => (
-                  <SelectItem key={manager.value} value={manager.value}>
-                    {manager.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex items-center gap-2">
             <DateTimePicker
@@ -553,12 +350,12 @@ export default function AdminDealsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Заявки</CardTitle>
+            <CardTitle>Заявки (Новая / Скоринг)</CardTitle>
           </CardHeader>
           <CardContent>
-            {deals.length === 0 ? (
+            {loans.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
-                Нет заявок
+                Нет заявок со статусами "Новая" или "Скоринг"
               </p>
             ) : (
               <Table>
@@ -568,45 +365,24 @@ export default function AdminDealsPage() {
                     <TableHead>Клиент</TableHead>
                     <TableHead>Сумма</TableHead>
                     <TableHead>Статус</TableHead>
-                    <TableHead>Ответственный</TableHead>
+                    <TableHead>Дата создания</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {deals.map((deal) => (
+                  {loans.map((loan) => (
                     <TableRow
-                      key={deal.daid} 
+                      key={loan.daid} 
                       className="cursor-pointer"
-                      onClick={() => router.push(`/admin/deals/view?uuid=${deal.uuid}`)}>
-                      <TableCell className="font-medium"><Link href={`/admin/deals/view?uuid=${deal.uuid}`}>{deal.daid}</Link></TableCell>
-                      <TableCell>{`${deal.dataIn.firstName} ${deal.dataIn.lastName}`.trim()}</TableCell>
-                      <TableCell>{formatCurrency(Number(deal.dataIn.productPrice))}</TableCell>
+                      onClick={() => router.push(`/admin/deals/view?uuid=${loan.uuid}`)}>
+                      <TableCell className="font-medium"><Link href={`/admin/deals/view?uuid=${loan.uuid}`}>{loan.daid}</Link></TableCell>
+                      <TableCell>{`${loan.dataIn.firstName} ${loan.dataIn.lastName}`.trim()}</TableCell>
+                      <TableCell>{formatCurrency(Number(loan.dataIn.productPrice))}</TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(deal.statusName)}>
-                          {getStatusLabel(deal.statusName)}
+                        <Badge variant={getStatusVariant(loan.statusName)}>
+                          {getStatusLabel(loan.statusName)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const dealWithManager = deal as LoanApplication & { managerName?: string | null }
-                          const managerName = dealWithManager.managerName
-                          
-                          // If managerName is already loaded from API, use it
-                          if (managerName) {
-                            return managerName
-                          }
-                          
-                          // Otherwise, try to find manager by UUID from dataIn
-                          const managerUuid = (deal.dataIn as any)?.managerUuid
-                          if (managerUuid && managers.length > 0) {
-                            const manager = managers.find(m => m.uuid === managerUuid)
-                            if (manager) {
-                              return manager.fullName || manager.email
-                            }
-                          }
-                          
-                          return normalizeManager(null)
-                        })()}
-                      </TableCell>
+                      <TableCell>{formatDate(loan.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -615,7 +391,7 @@ export default function AdminDealsPage() {
 
             <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
               <div>
-                Показано {deals.length} из {pagination.total} заявок
+                Показано {loans.length} из {pagination.total} заявок
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1}>
@@ -640,4 +416,3 @@ export default function AdminDealsPage() {
     </>
   )
 }
-

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import RoleAuthGuard from '@/components/guards/RoleAuthGuard'
 import { ConsumerSidebar } from './ConsumerSidebar'
 import { ConsumerHeader } from './ConsumerHeader'
 import { BottomNavigation } from './BottomNavigation'
@@ -120,5 +121,9 @@ function ConsumerLayoutInner({
 }
 
 export function ConsumerLayout(props: ConsumerLayoutProps) {
-  return <ConsumerLayoutInner {...props} />
+  return (
+    <RoleAuthGuard allowedRoles={['client']} redirectTo="/login">
+      <ConsumerLayoutInner {...props} />
+    </RoleAuthGuard>
+  )
 }

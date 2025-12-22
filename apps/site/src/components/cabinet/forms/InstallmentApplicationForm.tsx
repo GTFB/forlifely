@@ -131,42 +131,6 @@ interface FormData {
   consentToProcessData: boolean
 }
 
-/**
- * Разбирает полное имя (ФИО) на отдельные компоненты
- * @param fullName - Полное имя в формате "Фамилия Имя Отчество" или "Фамилия Имя"
- * @returns Объект с полями firstName, lastName, middleName
- */
-function parseFullName(fullName: string | undefined | null): {
-  firstName: string
-  lastName: string
-  middleName: string
-} {
-  if (!fullName || typeof fullName !== 'string') {
-    return { firstName: '', lastName: '', middleName: '' }
-  }
-
-  const parts = fullName.trim().split(/\s+/).filter(Boolean)
-
-  if (parts.length === 0) {
-    return { firstName: '', lastName: '', middleName: '' }
-  }
-
-  if (parts.length === 1) {
-    return { lastName: parts[0], firstName: '', middleName: '' }
-  }
-
-  if (parts.length === 2) {
-    return { lastName: parts[0], firstName: parts[1], middleName: '' }
-  }
-
-  // 3 или более частей: Фамилия Имя Отчество
-  return {
-    lastName: parts[0],
-    firstName: parts[1],
-    middleName: parts.slice(2).join(' '),
-  }
-}
-
 // Steps for client form (6 steps)
 // Simplified CLIENT_STEPS - only 3 steps for better UX
 const CLIENT_STEPS = [
@@ -535,19 +499,6 @@ export function InstallmentApplicationForm({
         updated.phoneNumber = meUser.phone
       }
 
-      // Parse fullName and fill firstName, lastName, middleName
-      if (meUser.name && meUser.name !== meUser.email) {
-        const nameParts = parseFullName(meUser.name)
-        if (nameParts.lastName && !prev.lastName) {
-          updated.lastName = nameParts.lastName
-        }
-        if (nameParts.firstName && !prev.firstName) {
-          updated.firstName = nameParts.firstName
-        }
-        if (nameParts.middleName && !prev.middleName) {
-          updated.middleName = nameParts.middleName
-        }
-      }
 
       return updated
     })
@@ -573,18 +524,16 @@ export function InstallmentApplicationForm({
         }
       }
 
-      // Fill ФИО from fullName
-      if (human.fullName && !prev.lastName && !prev.firstName && !prev.middleName) {
-        const nameParts = parseFullName(human.fullName)
-        if (nameParts.lastName && !prev.lastName) {
-          updated.lastName = nameParts.lastName
-        }
-        if (nameParts.firstName && !prev.firstName) {
-          updated.firstName = nameParts.firstName
-        }
-        if (nameParts.middleName && !prev.middleName) {
-          updated.middleName = nameParts.middleName
-        }
+      // Fill ФИО: use separate fields from dataIn directly, without validation
+      // Use values exactly as they are in dataIn
+      if (!prev.lastName && dataIn.lastName) {
+        updated.lastName = String(dataIn.lastName).trim()
+      }
+      if (!prev.firstName && dataIn.firstName) {
+        updated.firstName = String(dataIn.firstName).trim()
+      }
+      if (!prev.middleName && dataIn.middleName) {
+        updated.middleName = String(dataIn.middleName).trim()
       }
 
       // Fill email
@@ -603,17 +552,6 @@ export function InstallmentApplicationForm({
       // Fill phone from dataIn
       if (dataIn.phone && !prev.phoneNumber) {
         updated.phoneNumber = dataIn.phone
-      }
-
-      // Fill Личные данные from dataIn
-      if (dataIn.firstName && !prev.firstName) {
-        updated.firstName = dataIn.firstName
-      }
-      if (dataIn.lastName && !prev.lastName) {
-        updated.lastName = dataIn.lastName
-      }
-      if (dataIn.middleName && !prev.middleName) {
-        updated.middleName = dataIn.middleName
       }
       if (dataIn.dateOfBirth && !prev.dateOfBirth) {
         updated.dateOfBirth = dataIn.dateOfBirth

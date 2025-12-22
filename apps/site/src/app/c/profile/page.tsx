@@ -16,6 +16,9 @@ interface Profile {
   id: string
   email: string
   name: string
+  firstName?: string
+  lastName?: string
+  middleName?: string
   phone?: string
   address?: string
   kycStatus?: string
@@ -34,6 +37,7 @@ interface Profile {
 }
 
 export default function ProfilePage() {
+  
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
@@ -45,10 +49,15 @@ export default function ProfilePage() {
   const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null)
   const [changingPassword, setChangingPassword] = React.useState(false)
   const [formData, setFormData] = React.useState({
-    name: '',
+    lastName: '',
+    firstName: '',
+    middleName: '',
     phone: '',
     address: '',
   })
+  const [firstNameError, setFirstNameError] = React.useState<string | null>(null)
+  const [lastNameError, setLastNameError] = React.useState<string | null>(null)
+  const [middleNameError, setMiddleNameError] = React.useState<string | null>(null)
   const [passwordData, setPasswordData] = React.useState({
     currentPassword: '',
     newPassword: '',
@@ -69,8 +78,33 @@ export default function ProfilePage() {
 
         const data = await response.json() as { profile: Profile }
         setProfile(data.profile)
+        
+        // Parse name from fullName or use separate fields if available
+        let lastName = ''
+        let firstName = ''
+        let middleName = ''
+        
+        if (data.profile.lastName && data.profile.firstName) {
+          // Use separate fields if available
+          lastName = data.profile.lastName
+          firstName = data.profile.firstName
+          middleName = data.profile.middleName || ''
+        } else if (data.profile.name) {
+          // Parse fullName into parts
+          const nameParts = data.profile.name.trim().split(/\s+/)
+          if (nameParts.length >= 2) {
+            lastName = nameParts[0] || ''
+            firstName = nameParts[1] || ''
+            middleName = nameParts.slice(2).join(' ') || ''
+          } else if (nameParts.length === 1) {
+            firstName = nameParts[0] || ''
+          }
+        }
+        
         setFormData({
-          name: data.profile.name || '',
+          lastName,
+          firstName,
+          middleName,
           phone: data.profile.phone || '',
           address: data.profile.address || '',
         })
@@ -85,21 +119,114 @@ export default function ProfilePage() {
     fetchProfile()
   }, [])
 
+  // Validate Cyrillic characters
+  const cyrillicRegex = /^[А-Яа-яЁё\s-]*$/
+
+  // Handle first name change with validation
+  const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, firstName: value }))
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setFirstNameError("Имя должно содержать только кириллические символы")
+    } else {
+      setFirstNameError(null)
+    }
+  }
+
+  // Handle last name change with validation
+  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, lastName: value }))
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setLastNameError("Фамилия должна содержать только кириллические символы")
+    } else {
+      setLastNameError(null)
+    }
+  }
+
+  // Handle middle name change with validation
+  const handleMiddleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, middleName: value }))
+    
+    // Validate on change (only if value is provided)
+    if (value && !cyrillicRegex.test(value)) {
+      setMiddleNameError("Отчество должно содержать только кириллические символы")
+    } else {
+      setMiddleNameError(null)
+    }
+  }
+
+  // Check if form is valid
+  const isFormValid = () => {
+    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
+    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
+    const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
+    return firstNameValid && lastNameValid && middleNameValid
+  }
+
   const handleSave = async () => {
     try {
       setSaving(true)
       setError(null)
 
+      // Validate Cyrillic characters before submit
+      const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
+      const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
+      const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
+
+      if (!firstNameValid) {
+        setFirstNameError("Имя должно содержать только кириллические символы")
+      }
+      if (!lastNameValid) {
+        setLastNameError("Фамилия должна содержать только кириллические символы")
+      }
+      if (!middleNameValid) {
+        setMiddleNameError("Отчество должно содержать только кириллические символы")
+      }
+
+      if (!firstNameValid || !lastNameValid || !middleNameValid) {
+        setError("Пожалуйста, исправьте ошибки в форме перед отправкой")
+        setSaving(false)
+        return
+      }
+
       const response = await fetch('/api/esnad/v1/c/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          lastName: formData.lastName.trim(),
+          firstName: formData.firstName.trim(),
+          middleName: formData.middleName?.trim() || undefined,
+          phone: formData.phone,
+          address: formData.address,
+        }),
       })
 
       if (!response.ok) {
         const data = await response.json() as { error?: string; message?: string }
-        throw new Error(data.error || data.message || 'Failed to update profile')
+        const errorMessage = data.error || data.message || 'Failed to update profile'
+        
+        // Check if error is about Cyrillic validation
+        if (errorMessage.includes("кириллические символы") || errorMessage.includes("русские буквы") || 
+            errorMessage.includes("Имя") || errorMessage.includes("Фамилия") || errorMessage.includes("Отчество")) {
+          if (errorMessage.includes("Имя")) {
+            setFirstNameError("Имя должно содержать только кириллические символы")
+          }
+          if (errorMessage.includes("Фамилия")) {
+            setLastNameError("Фамилия должна содержать только кириллические символы")
+          }
+          if (errorMessage.includes("Отчество")) {
+            setMiddleNameError("Отчество должно содержать только кириллические символы")
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
 
       // Reload profile
@@ -109,6 +236,36 @@ export default function ProfilePage() {
       if (reloadResponse.ok) {
         const data = await reloadResponse.json() as { profile: Profile }
         setProfile(data.profile)
+        
+        // Update form data with reloaded values
+        let lastName = ''
+        let firstName = ''
+        let middleName = ''
+        
+        if (data.profile.lastName && data.profile.firstName) {
+          lastName = data.profile.lastName
+          firstName = data.profile.firstName
+          middleName = data.profile.middleName || ''
+        } else if (data.profile.name) {
+          const nameParts = data.profile.name.trim().split(/\s+/)
+          if (nameParts.length >= 2) {
+            lastName = nameParts[0] || ''
+            firstName = nameParts[1] || ''
+            middleName = nameParts.slice(2).join(' ') || ''
+          } else if (nameParts.length === 1) {
+            firstName = nameParts[0] || ''
+          }
+        }
+        
+        setFormData((prev) => ({
+          ...prev,
+          lastName,
+          firstName,
+          middleName,
+        }))
+        setFirstNameError(null)
+        setLastNameError(null)
+        setMiddleNameError(null)
       }
     } catch (err) {
       console.error('Save error:', err)
@@ -316,14 +473,65 @@ export default function ProfilePage() {
                 <CardTitle>Личные данные</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">ФИО *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Иванов Иван Иванович"
-                  />
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">
+                      Фамилия <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Иванов"
+                      value={formData.lastName}
+                      onChange={handleLastNameChange}
+                      className={lastNameError ? "border-destructive" : ""}
+                      aria-invalid={!!lastNameError}
+                      aria-describedby={lastNameError ? "lastName-error" : undefined}
+                    />
+                    {lastNameError && (
+                      <p id="lastName-error" className="text-xs text-destructive">
+                        {lastNameError}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">
+                      Имя <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="Иван"
+                      value={formData.firstName}
+                      onChange={handleFirstNameChange}
+                      className={firstNameError ? "border-destructive" : ""}
+                      aria-invalid={!!firstNameError}
+                      aria-describedby={firstNameError ? "firstName-error" : undefined}
+                    />
+                    {firstNameError && (
+                      <p id="firstName-error" className="text-xs text-destructive">
+                        {firstNameError}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">Отчество</Label>
+                    <Input
+                      id="middleName"
+                      type="text"
+                      placeholder="Иванович"
+                      value={formData.middleName}
+                      onChange={handleMiddleNameChange}
+                      className={middleNameError ? "border-destructive" : ""}
+                      aria-invalid={!!middleNameError}
+                      aria-describedby={middleNameError ? "middleName-error" : undefined}
+                    />
+                    {middleNameError && (
+                      <p id="middleName-error" className="text-xs text-destructive">
+                        {middleNameError}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -365,7 +573,7 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <Button onClick={handleSave} disabled={saving}>
+                <Button onClick={handleSave} disabled={saving || !isFormValid()}>
                   {saving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

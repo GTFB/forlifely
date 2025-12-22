@@ -69,6 +69,11 @@ const navigationGroups: NavigationGroup[] = [
       },
       {
         title: 'Заявки',
+        url: '/admin/loans',
+        icon: FileText,
+      },
+      {
+        title: 'Сделки',
         url: '/admin/deals',
         icon: FileText,
       },

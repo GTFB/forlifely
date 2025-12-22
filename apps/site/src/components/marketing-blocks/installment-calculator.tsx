@@ -46,6 +46,7 @@ export default function InstallmentCalculator() {
   const [term, setTerm] = React.useState<number[]>([6]);
   const [priceError, setPriceError] = React.useState<string | null>(null);
   const [isPriceFocused, setIsPriceFocused] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -58,11 +59,40 @@ export default function InstallmentCalculator() {
 
   // Format price input (remove non-digits, clamp)
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\s/g, "").replace(/\D/g, ""); // Remove spaces and non-digits
-    setProductPrice(value);
+    const input = e.target;
+    const cursorPosition = input.selectionStart || 0;
     
-    if (value) {
-      const numValue = parseFloat(value);
+    // Remove all spaces and non-digits to get raw number
+    const rawValue = input.value.replace(/\s/g, "").replace(/\D/g, "");
+    
+    // Calculate new cursor position after formatting
+    // Count digits before cursor in original value
+    const beforeCursor = input.value.substring(0, cursorPosition);
+    const digitsBeforeCursor = beforeCursor.replace(/\s/g, "").replace(/\D/g, "").length;
+    
+    setProductPrice(rawValue);
+    
+    // Restore cursor position after formatting
+    if (rawValue) {
+      setTimeout(() => {
+        if (inputRef.current && isPriceFocused) {
+          const formatted = parseFloat(rawValue).toLocaleString("ru-RU");
+          // Find position in formatted string that corresponds to digitsBeforeCursor
+          let newPosition = 0;
+          let digitCount = 0;
+          for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
+            if (/\d/.test(formatted[i])) {
+              digitCount++;
+            }
+            newPosition = i + 1;
+          }
+          inputRef.current.setSelectionRange(newPosition, newPosition);
+        }
+      }, 0);
+    }
+    
+    if (rawValue) {
+      const numValue = parseFloat(rawValue);
       if (numValue < MIN_PRICE) {
         setPriceError(`Минимальная сумма: ${MIN_PRICE.toLocaleString("ru-RU")} ₽`);
       } else if (numValue > MAX_PRICE) {
@@ -93,16 +123,12 @@ export default function InstallmentCalculator() {
     setIsPriceFocused(true);
   };
 
-  // Get display value for price input
+  // Get display value for price input - always show formatted with spaces
   const getPriceDisplayValue = () => {
     if (!productPrice) return "";
-    if (isPriceFocused) {
-      // Show raw value while editing
-      return productPrice;
-    }
-    // Show formatted value when not focused
     const numValue = parseFloat(productPrice);
     if (isNaN(numValue)) return productPrice;
+    // Always show formatted value with spaces (e.g., "123 000")
     return numValue.toLocaleString("ru-RU");
   };
 
@@ -193,6 +219,7 @@ export default function InstallmentCalculator() {
                 </span>
               </div>
               <Input
+                ref={inputRef}
                 id="productPrice"
                 type="text"
                 inputMode="numeric"

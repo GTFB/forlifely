@@ -29,7 +29,7 @@ export default function AudienceSegments() {
                             <p className="text-sm mb-4">
                                 Приобретайте нужные товары сейчас, оплачивая их стоимость частями. Без процентов, скрытых комиссий и штрафов. Получите одобрение онлайн за 60 минут.
                             </p>
-                            <Link href="/clients" className="text-sm text-primary hover:underline">
+                            <Link href="/consumers" className="text-sm text-primary hover:underline">
                                 Рассчитать платеж →
                             </Link>
                         </CardContent>

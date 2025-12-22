@@ -18,6 +18,9 @@ interface UpdateUserRequest {
   email?: string
   password?: string
   fullName?: string
+  firstName?: string
+  lastName?: string
+  middleName?: string
   isActive?: boolean
   roleUuids?: string[]
   emailVerified?: boolean
@@ -131,6 +134,9 @@ const handlePut = async (
       email,
       password,
       fullName,
+      firstName,
+      lastName,
+      middleName,
       isActive,
       roleUuids,
       emailVerified,
@@ -216,9 +222,33 @@ const handlePut = async (
     // Track which passport/OCR fields were updated for journaling
     const updatedPassportFields: string[] = []
     
-    // Update human-related data (fullName, kycStatus, financial info, passport fields)
+    // Validate Cyrillic characters if firstName, lastName, or middleName are provided
+    const RUSSIAN_TEXT_REGEX = /^[А-Яа-яЁё\s-]+$/
+    if (firstName !== undefined && firstName && !RUSSIAN_TEXT_REGEX.test(firstName)) {
+      return NextResponse.json(
+        { error: 'Имя должно содержать только кириллические символы' },
+        { status: 400 }
+      )
+    }
+    if (lastName !== undefined && lastName && !RUSSIAN_TEXT_REGEX.test(lastName)) {
+      return NextResponse.json(
+        { error: 'Фамилия должна содержать только кириллические символы' },
+        { status: 400 }
+      )
+    }
+    if (middleName !== undefined && middleName && !RUSSIAN_TEXT_REGEX.test(middleName)) {
+      return NextResponse.json(
+        { error: 'Отчество должно содержать только кириллические символы' },
+        { status: 400 }
+      )
+    }
+
+    // Update human-related data (fullName, firstName, lastName, middleName, kycStatus, financial info, passport fields)
     if (
       (fullName !== undefined ||
+        firstName !== undefined ||
+        lastName !== undefined ||
+        middleName !== undefined ||
         birthday !== undefined ||
         sex !== undefined ||
         kycStatus !== undefined ||
@@ -242,8 +272,19 @@ const handlePut = async (
         const humanUpdate: any = {}
         const now = new Date().toISOString()
 
-        if (fullName !== undefined) {
-          humanUpdate.fullName = fullName.trim()
+        // Build fullName from separate fields or use provided fullName
+        let computedFullName = fullName
+        if (!computedFullName && (firstName || lastName)) {
+          const nameParts = [
+            lastName?.trim() || '',
+            firstName?.trim() || '',
+            middleName?.trim() || '',
+          ].filter(Boolean)
+          computedFullName = nameParts.join(' ') || human.fullName
+        }
+
+        if (computedFullName !== undefined) {
+          humanUpdate.fullName = computedFullName.trim() || null
           updatedPassportFields.push('fullName')
         }
 
@@ -269,6 +310,17 @@ const handlePut = async (
             console.error('Failed to parse human.dataIn while updating:', err)
             dataIn = {}
           }
+        }
+
+        // Update firstName, lastName, middleName in dataIn
+        if (firstName !== undefined) {
+          dataIn.firstName = firstName.trim() || undefined
+        }
+        if (lastName !== undefined) {
+          dataIn.lastName = lastName.trim() || undefined
+        }
+        if (middleName !== undefined) {
+          dataIn.middleName = middleName.trim() || undefined
         }
 
         // Initialize verifiedProfile if it doesn't exist
@@ -323,10 +375,34 @@ const handlePut = async (
         updateField('passportDivisionCode', passportDivisionCode)
         updateField('citizenship', citizenship)
 
-        // Also track fullName, birthday, sex in verifiedProfile if they were updated
-        if (fullName !== undefined) {
+        // Also track fullName, firstName, lastName, middleName, birthday, sex in verifiedProfile if they were updated
+        if (computedFullName !== undefined) {
           dataIn.verifiedProfile.fields.fullName = {
-            value: fullName.trim() || null,
+            value: computedFullName.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+        if (firstName !== undefined) {
+          dataIn.verifiedProfile.fields.firstName = {
+            value: firstName.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+        if (lastName !== undefined) {
+          dataIn.verifiedProfile.fields.lastName = {
+            value: lastName.trim() || null,
+            source: 'manual',
+            updatedAt: now,
+            updatedByUserUuid: currentUserWithRoles.uuid,
+          }
+        }
+        if (middleName !== undefined) {
+          dataIn.verifiedProfile.fields.middleName = {
+            value: middleName.trim() || null,
             source: 'manual',
             updatedAt: now,
             updatedByUserUuid: currentUserWithRoles.uuid,

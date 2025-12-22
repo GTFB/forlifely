@@ -18,6 +18,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useSearchParams } from "next/navigation";
 
 const conditions = [
   { parameter: "Сумма", value: "от 3 000 до 300 000 ₽" },
@@ -81,22 +82,6 @@ const MIN_PRICE = 3000;
 const MAX_PRICE = 300000;
 
 const getInitialFormState = () => {
-  // Read from URL query params if available
-  if (typeof window !== "undefined") {
-    const params = new URLSearchParams(window.location.search);
-    const productPriceParam = params.get("productPrice");
-    const termParam = params.get("term");
-
-    return {
-      firstName: "",
-      lastName: "",
-      phone: "",
-      email: "",
-      productPrice: productPriceParam || "50000",
-      term: termParam ? [parseInt(termParam, 10)] : [6] as number[],
-    };
-  }
-
   return {
     firstName: "",
     lastName: "",
@@ -108,15 +93,19 @@ const getInitialFormState = () => {
 };
 
 export default function ConsumersPage() {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = React.useState(getInitialFormState);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [feedback, setFeedback] = React.useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [isPriceFocused, setIsPriceFocused] = React.useState(false);
+  const priceInputRef = React.useRef<HTMLInputElement>(null);
+  const [firstNameError, setFirstNameError] = React.useState<string | null>(null);
+  const [lastNameError, setLastNameError] = React.useState<string | null>(null);
 
   // Read query params on mount and update form
   React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const productPriceParam = params.get("productPrice");
-    const termParam = params.get("term");
+    const productPriceParam = searchParams.get("productPrice");
+    const termParam = searchParams.get("term");
 
     if (productPriceParam || termParam) {
       setFormData((prev) => ({
@@ -127,7 +116,7 @@ export default function ConsumersPage() {
     }
 
     // Scroll to application section if hash is present
-    if (window.location.hash === "#application") {
+    if (typeof window !== "undefined" && window.location.hash === "#application") {
       setTimeout(() => {
         const element = document.getElementById("application");
         if (element) {
@@ -135,7 +124,7 @@ export default function ConsumersPage() {
         }
       }, 100);
     }
-  }, []);
+  }, [searchParams]);
 
   const price = parseFloat(formData.productPrice) || 0;
   const months = formData.term[0] || 6;
@@ -150,8 +139,126 @@ export default function ConsumersPage() {
     }).format(value);
   };
 
+  // Format price input (remove non-digits, clamp)
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const cursorPosition = input.selectionStart || 0;
+    
+    // Remove all spaces and non-digits to get raw number
+    const rawValue = input.value.replace(/\s/g, "").replace(/\D/g, "");
+    
+    // Calculate new cursor position after formatting
+    // Count digits before cursor in original value
+    const beforeCursor = input.value.substring(0, cursorPosition);
+    const digitsBeforeCursor = beforeCursor.replace(/\s/g, "").replace(/\D/g, "").length;
+    
+    setFormData({ ...formData, productPrice: rawValue });
+    
+    // Restore cursor position after formatting
+    if (rawValue) {
+      setTimeout(() => {
+        if (priceInputRef.current && isPriceFocused) {
+          const formatted = parseFloat(rawValue).toLocaleString("ru-RU");
+          // Find position in formatted string that corresponds to digitsBeforeCursor
+          let newPosition = 0;
+          let digitCount = 0;
+          for (let i = 0; i < formatted.length && digitCount < digitsBeforeCursor; i++) {
+            if (/\d/.test(formatted[i])) {
+              digitCount++;
+            }
+            newPosition = i + 1;
+          }
+          priceInputRef.current.setSelectionRange(newPosition, newPosition);
+        }
+      }, 0);
+    }
+  };
+
+  // Clamp price on blur
+  const handlePriceBlur = () => {
+    setIsPriceFocused(false);
+    if (formData.productPrice) {
+      const numValue = parseFloat(formData.productPrice);
+      if (!isNaN(numValue)) {
+        const clamped = Math.max(MIN_PRICE, Math.min(MAX_PRICE, numValue));
+        setFormData({ ...formData, productPrice: clamped.toString() });
+      }
+    }
+  };
+
+  // Handle focus
+  const handlePriceFocus = () => {
+    setIsPriceFocused(true);
+  };
+
+  // Get display value for price input - always show formatted with spaces
+  const getPriceDisplayValue = () => {
+    if (!formData.productPrice) return "";
+    const numValue = parseFloat(formData.productPrice);
+    if (isNaN(numValue)) return formData.productPrice;
+    // Always show formatted value with spaces (e.g., "123 000")
+    return numValue.toLocaleString("ru-RU");
+  };
+
+  // Validate Cyrillic characters
+  const cyrillicRegex = /^[А-Яа-яЁё\s-]*$/;
+
+  // Handle first name change with validation
+  const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, firstName: value });
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setFirstNameError("Имя должно содержать только кириллические символы");
+    } else {
+      setFirstNameError(null);
+    }
+  };
+
+  // Handle last name change with validation
+  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, lastName: value });
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setLastNameError("Фамилия должна содержать только кириллические символы");
+    } else {
+      setLastNameError(null);
+    }
+  };
+
+  // Check if form is valid
+  const isFormValid = () => {
+    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName);
+    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName);
+    return firstNameValid && lastNameValid && 
+           formData.firstName.trim() !== "" && 
+           formData.lastName.trim() !== "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate before submit
+    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName);
+    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName);
+
+    if (!firstNameValid) {
+      setFirstNameError("Имя должно содержать только кириллические символы");
+    }
+    if (!lastNameValid) {
+      setLastNameError("Фамилия должна содержать только кириллические символы");
+    }
+
+    if (!firstNameValid || !lastNameValid) {
+      setFeedback({
+        type: "error",
+        message: "Пожалуйста, исправьте ошибки в форме перед отправкой",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     setFeedback(null);
@@ -178,7 +285,19 @@ export default function ConsumersPage() {
       }))) as { success: boolean; message?: string };
 
       if (!response.ok || !result?.success) {
-        throw new Error(result?.message ?? "Не удалось отправить заявку");
+        const errorMessage = result?.message ?? "Не удалось отправить заявку";
+        
+        // Check if error is about Cyrillic validation
+        if (errorMessage.includes("кириллические символы") || errorMessage.includes("Имя") || errorMessage.includes("Фамилия")) {
+          if (errorMessage.includes("Имя")) {
+            setFirstNameError("Имя должно содержать только кириллические символы");
+          }
+          if (errorMessage.includes("Фамилия")) {
+            setLastNameError("Фамилия должна содержать только кириллические символы");
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       setFeedback({
@@ -186,6 +305,8 @@ export default function ConsumersPage() {
         message: "Заявка отправлена! Мы свяжемся с вами в ближайшее время.",
       });
       setFormData(getInitialFormState());
+      setFirstNameError(null);
+      setLastNameError(null);
     } catch (error) {
       const message =
         error instanceof Error
@@ -235,11 +356,17 @@ export default function ConsumersPage() {
                       type="text"
                       placeholder="Иван"
                       value={formData.firstName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, firstName: e.target.value })
-                      }
+                      onChange={handleFirstNameChange}
+                      className={firstNameError ? "border-destructive" : ""}
+                      aria-invalid={!!firstNameError}
+                      aria-describedby={firstNameError ? "firstName-error" : undefined}
                       required
                     />
+                    {firstNameError && (
+                      <p id="firstName-error" className="text-xs text-destructive">
+                        {firstNameError}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Фамилия *</Label>
@@ -248,11 +375,17 @@ export default function ConsumersPage() {
                       type="text"
                       placeholder="Иванов"
                       value={formData.lastName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lastName: e.target.value })
-                      }
+                      onChange={handleLastNameChange}
+                      className={lastNameError ? "border-destructive" : ""}
+                      aria-invalid={!!lastNameError}
+                      aria-describedby={lastNameError ? "lastName-error" : undefined}
                       required
                     />
+                    {lastNameError && (
+                      <p id="lastName-error" className="text-xs text-destructive">
+                        {lastNameError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -292,15 +425,15 @@ export default function ConsumersPage() {
                     </span>
                   </div>
                   <Input
+                    ref={priceInputRef}
                     id="productPrice"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Например: 50000"
-                    value={formData.productPrice}
-                    onChange={(e) =>
-                      setFormData({ ...formData, productPrice: e.target.value })
-                    }
-                    min={MIN_PRICE}
-                    max={MAX_PRICE}
+                    value={getPriceDisplayValue()}
+                    onChange={handlePriceChange}
+                    onFocus={handlePriceFocus}
+                    onBlur={handlePriceBlur}
                   />
                 </div>
 
@@ -364,7 +497,12 @@ export default function ConsumersPage() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  size="lg" 
+                  disabled={isSubmitting || !isFormValid()}
+                >
                   {isSubmitting ? "Отправляем..." : "Подать заявку"}
                 </Button>
               </form>

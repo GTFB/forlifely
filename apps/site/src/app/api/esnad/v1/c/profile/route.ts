@@ -32,10 +32,10 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
     }
 
     // Parse dataIn if it's a string
-    let dataIn: ClientDataIn = {}
+    let dataIn: ClientDataIn & { firstName?: string; lastName?: string; middleName?: string } = {}
     if (human.dataIn) {
       try {
-        dataIn = typeof human.dataIn === 'string' ? (JSON.parse(human.dataIn) as ClientDataIn) : (human.dataIn as ClientDataIn)
+        dataIn = typeof human.dataIn === 'string' ? (JSON.parse(human.dataIn) as ClientDataIn & { firstName?: string; lastName?: string; middleName?: string }) : (human.dataIn as ClientDataIn & { firstName?: string; lastName?: string; middleName?: string })
       } catch (error) {
         console.error('Ошибка при парсинге human.dataIn:', error)
         dataIn = {}
@@ -53,6 +53,9 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
           uuid: user.uuid,
           email: user.email,
           name: human.fullName || user.email,
+          firstName: dataIn.firstName || undefined,
+          lastName: dataIn.lastName || undefined,
+          middleName: dataIn.middleName || undefined,
           phone,
           address,
           kycStatus: dataIn.kycStatus || 'not_started',
@@ -97,10 +100,10 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
   const { request, user } = context
 
   try {
-    const body = (await request.json()) as UpdateProfileKycRequest | { name?: string; phone?: string; address?: string }
+    const body = (await request.json()) as UpdateProfileKycRequest | { name?: string; firstName?: string; lastName?: string; middleName?: string; phone?: string; address?: string }
 
-    // Check if this is a profile update (name, phone, address) or KYC documents update
-    if ('name' in body || 'phone' in body || 'address' in body) {
+    // Check if this is a profile update (name, firstName, lastName, middleName, phone, address) or KYC documents update
+    if ('name' in body || 'firstName' in body || 'lastName' in body || 'middleName' in body || 'phone' in body || 'address' in body) {
       // Profile update (name, phone, address)
       let human = user.human
       if (!human) {
@@ -131,9 +134,56 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
         }
       }
 
+      // Validate Cyrillic characters if firstName, lastName, or middleName are provided
+      const RUSSIAN_TEXT_REGEX = /^[А-Яа-яЁё\s-]+$/
+      if (body.firstName !== undefined && body.firstName && !RUSSIAN_TEXT_REGEX.test(body.firstName)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Имя должно содержать только кириллические символы',
+          },
+          { status: 400 }
+        )
+      }
+      if (body.lastName !== undefined && body.lastName && !RUSSIAN_TEXT_REGEX.test(body.lastName)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Фамилия должна содержать только кириллические символы',
+          },
+          { status: 400 }
+        )
+      }
+      if (body.middleName !== undefined && body.middleName && !RUSSIAN_TEXT_REGEX.test(body.middleName)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Отчество должно содержать только кириллические символы',
+          },
+          { status: 400 }
+        )
+      }
+
+      // Build fullName from separate fields or use provided name
+      let fullName = body.name
+      if (!fullName && (body.firstName || body.lastName)) {
+        const nameParts = [
+          body.lastName?.trim() || dataIn.lastName || '',
+          body.firstName?.trim() || dataIn.firstName || '',
+          body.middleName?.trim() || dataIn.middleName || '',
+        ].filter(Boolean)
+        fullName = nameParts.join(' ') || human.fullName
+      }
+
       // Update dataIn with new values
       const updatedDataIn: ClientDataIn & Record<string, any> = {
         ...dataIn,
+        ...(body.firstName !== undefined && { firstName: body.firstName.trim() }),
+        ...(body.lastName !== undefined && { lastName: body.lastName.trim() }),
+        ...(body.middleName !== undefined && { middleName: body.middleName.trim() || undefined }),
         ...(body.phone !== undefined && { phone: body.phone }),
         ...(body.address !== undefined && { permanentAddress: body.address }),
       }
@@ -141,7 +191,7 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
       // Update human profile
       const humanRepository = HumanRepository.getInstance()
       const updatedHuman = await humanRepository.update(human.uuid, {
-        fullName: body.name || human.fullName,
+        fullName: fullName || human.fullName,
         dataIn: updatedDataIn as any,
       })
 
@@ -162,6 +212,9 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
             uuid: user.uuid,
             email: user.email,
             name: updatedHuman.fullName || user.email,
+            firstName: responseDataIn.firstName || undefined,
+            lastName: responseDataIn.lastName || undefined,
+            middleName: responseDataIn.middleName || undefined,
             phone: responseDataIn.phone || undefined,
             address: responseDataIn.permanentAddress || responseDataIn.registrationAddress || undefined,
             kycStatus: responseDataIn.kycStatus || 'not_started',

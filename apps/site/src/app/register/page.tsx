@@ -27,6 +27,9 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [completed, setCompleted] = useState(false)
+  const [firstNameError, setFirstNameError] = useState<string | null>(null)
+  const [lastNameError, setLastNameError] = useState<string | null>(null)
+  const [middleNameError, setMiddleNameError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target
@@ -34,6 +37,56 @@ export default function RegisterPage() {
       ...prev,
       [id]: value,
     }))
+  }
+
+  // Validate Cyrillic characters
+  const cyrillicRegex = /^[А-Яа-яЁё\s-]*$/
+
+  // Handle first name change with validation
+  const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, firstName: value }))
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setFirstNameError("Имя должно содержать только кириллические символы")
+    } else {
+      setFirstNameError(null)
+    }
+  }
+
+  // Handle last name change with validation
+  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, lastName: value }))
+    
+    // Validate on change
+    if (value && !cyrillicRegex.test(value)) {
+      setLastNameError("Фамилия должна содержать только кириллические символы")
+    } else {
+      setLastNameError(null)
+    }
+  }
+
+  // Handle middle name change with validation
+  const handleMiddleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData((prev) => ({ ...prev, middleName: value }))
+    
+    // Validate on change (only if value is provided)
+    if (value && !cyrillicRegex.test(value)) {
+      setMiddleNameError("Отчество должно содержать только кириллические символы")
+    } else {
+      setMiddleNameError(null)
+    }
+  }
+
+  // Check if form is valid
+  const isFormValid = () => {
+    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
+    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
+    const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
+    return firstNameValid && lastNameValid && middleNameValid
   }
 
   const handleAcceptTermsChange = (checked: boolean | "indeterminate") => {
@@ -64,6 +117,26 @@ export default function RegisterPage() {
       return
     }
 
+    // Validate Cyrillic characters before submit
+    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
+    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
+    const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
+
+    if (!firstNameValid) {
+      setFirstNameError("Имя должно содержать только кириллические символы")
+    }
+    if (!lastNameValid) {
+      setLastNameError("Фамилия должна содержать только кириллические символы")
+    }
+    if (!middleNameValid) {
+      setMiddleNameError("Отчество должно содержать только кириллические символы")
+    }
+
+    if (!firstNameValid || !lastNameValid || !middleNameValid) {
+      setError("Пожалуйста, исправьте ошибки в форме перед отправкой")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -88,11 +161,30 @@ export default function RegisterPage() {
         | null
 
       if (!response.ok || !data?.success) {
-        throw new Error(data?.error || data?.message || "Не удалось завершить регистрацию")
+        const errorMessage = data?.error || data?.message || "Не удалось завершить регистрацию"
+        
+        // Check if error is about Cyrillic validation
+        if (errorMessage.includes("кириллические символы") || errorMessage.includes("русские буквы") || 
+            errorMessage.includes("Имя") || errorMessage.includes("Фамилия") || errorMessage.includes("Отчество")) {
+          if (errorMessage.includes("Имя")) {
+            setFirstNameError("Имя должно содержать только кириллические символы")
+          }
+          if (errorMessage.includes("Фамилия")) {
+            setLastNameError("Фамилия должна содержать только кириллические символы")
+          }
+          if (errorMessage.includes("Отчество")) {
+            setMiddleNameError("Отчество должно содержать только кириллические символы")
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
 
       setSuccess(data.message || "Регистрация завершена. Проверьте email, чтобы подтвердить адрес.")
       setCompleted(true)
+      setFirstNameError(null)
+      setLastNameError(null)
+      setMiddleNameError(null)
       
       // Redirect to login page after a short delay
       setTimeout(() => {
@@ -140,16 +232,20 @@ export default function RegisterPage() {
                   type="text"
                   placeholder="Иванов"
                   value={formData.lastName}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
-                    setFormData((prev) => ({ ...prev, lastName: filtered }))
-                  }}
+                  onChange={handleLastNameChange}
+                  className={lastNameError ? "border-destructive" : ""}
+                  aria-invalid={!!lastNameError}
+                  aria-describedby={lastNameError ? "lastName-error" : undefined}
                   required
                   disabled={loading || completed}
                   autoComplete="family-name"
                   pattern="^[А-Яа-яЁё\s-]+$"
                 />
+                {lastNameError && (
+                  <p id="lastName-error" className="text-xs text-destructive">
+                    {lastNameError}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="firstName">
@@ -160,16 +256,20 @@ export default function RegisterPage() {
                   type="text"
                   placeholder="Иван"
                   value={formData.firstName}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
-                    setFormData((prev) => ({ ...prev, firstName: filtered }))
-                  }}
+                  onChange={handleFirstNameChange}
+                  className={firstNameError ? "border-destructive" : ""}
+                  aria-invalid={!!firstNameError}
+                  aria-describedby={firstNameError ? "firstName-error" : undefined}
                   required
                   disabled={loading || completed}
                   autoComplete="given-name"
                   pattern="^[А-Яа-яЁё\s-]+$"
                 />
+                {firstNameError && (
+                  <p id="firstName-error" className="text-xs text-destructive">
+                    {firstNameError}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="middleName">Отчество</Label>
@@ -178,15 +278,19 @@ export default function RegisterPage() {
                   type="text"
                   placeholder="Иванович"
                   value={formData.middleName}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    const filtered = value.replace(/[^А-Яа-яЁё\s-]/g, '')
-                    setFormData((prev) => ({ ...prev, middleName: filtered }))
-                  }}
+                  onChange={handleMiddleNameChange}
+                  className={middleNameError ? "border-destructive" : ""}
+                  aria-invalid={!!middleNameError}
+                  aria-describedby={middleNameError ? "middleName-error" : undefined}
                   disabled={loading || completed}
                   autoComplete="additional-name"
                   pattern="^[А-Яа-яЁё\s-]+$"
                 />
+                {middleNameError && (
+                  <p id="middleName-error" className="text-xs text-destructive">
+                    {middleNameError}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -263,7 +367,11 @@ export default function RegisterPage() {
               </Label>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || completed}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || completed || !isFormValid()}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

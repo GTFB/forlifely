@@ -61,6 +61,15 @@ const parseRequestBody = async (request: Request): Promise<LoanApplicationDataIn
         throw new BadRequestError(`Missing required fields: ${missingFields.join(", ")}`)
     }
 
+    // Validate Cyrillic characters for firstName and lastName
+    const cyrillicRegex = /^[А-Яа-яЁё\s-]+$/
+    if (firstName && !cyrillicRegex.test(firstName)) {
+        throw new BadRequestError("Имя должно содержать только кириллические символы")
+    }
+    if (lastName && !cyrillicRegex.test(lastName)) {
+        throw new BadRequestError("Фамилия должна содержать только кириллические символы")
+    }
+
     return {
         type: "LOAN_APPLICATION",
         firstName,
