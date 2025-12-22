@@ -12,14 +12,22 @@ import { EsnadText } from "@/shared/types/esnad";
 type BlogPostPageClientProps = {
   slug: string;
   post: EsnadText;
+  url: string;
 };
 
-export default function BlogPostPageClient({ slug, post }: BlogPostPageClientProps) {
+export default function BlogPostPageClient({ slug, post, url }: BlogPostPageClientProps) {
   const pathname = usePathname();
 
   const [copied, setCopied] = React.useState(false);
+  const [currentUrl, setCurrentUrl] = React.useState(url);
 
-  const currentUrl = typeof window !== "undefined" ? window.location.origin + pathname : "";
+  // Update URL on client side to handle different ports/domains
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCurrentUrl(window.location.origin + pathname);
+    }
+  }, [pathname]);
+
   const content = post.content;
 
   const handleCopy = () => {
@@ -87,9 +95,7 @@ export default function BlogPostPageClient({ slug, post }: BlogPostPageClientPro
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-                  currentUrl
-                )}`}
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -99,7 +105,7 @@ export default function BlogPostPageClient({ slug, post }: BlogPostPageClientPro
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a
-                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}`}
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -109,9 +115,7 @@ export default function BlogPostPageClient({ slug, post }: BlogPostPageClientPro
             </Button>
             <Button variant="outline" size="sm" asChild>
               <a
-                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-                  currentUrl
-                )}`}
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

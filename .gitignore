@@ -158,3 +158,5 @@ external/
 **/test-results/**
 
 data/site
+
+apps/site/public/media

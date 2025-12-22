@@ -194,12 +194,8 @@ export function TipTapEditor({
     action();
   };
 
-  const addImage = (imageSlug: string) => {
-    if (editor && imageSlug) {
-      // Convert slug to full URL and encode special characters (cyrillic, spaces, etc.)
-      // This ensures proper URL encoding for TipTap without affecting other components
-      const encodedSlug = encodeURIComponent(imageSlug);
-      const imageUrl = `/images/${encodedSlug}`;
+  const addImage = (imageUrl: string) => {
+    if (editor && imageUrl) {
       console.log("Adding image to editor:", imageUrl);
       editor.chain().focus().setImage({ src: imageUrl }).run();
     }
@@ -217,10 +213,7 @@ export function TipTapEditor({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
-      formData.append("alt", file.name.replace(/\.[^/.]+$/, ""));
-
-      const response = await fetch("/api/admin/media/upload", {
+      const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
         method: "POST",
         body: formData,
       });
@@ -229,11 +222,11 @@ export function TipTapEditor({
         throw new Error("File upload error");
       }
 
-      const result = await response.json() as { fullFileName?: string };
-      const fullFileName = result.fullFileName;
+      const result = await response.json() as { data?: { url?: string } };
+      const url = result.data?.url;
 
-      if (fullFileName) {
-        addImage(fullFileName);
+      if (url) {
+        addImage(url);
       }
     } catch (error) {
       console.error("Error uploading file:", error);

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, jsonb, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, numeric, jsonb, boolean } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const media = pgTable('media', {
@@ -12,7 +12,7 @@ export const media = pgTable('media', {
   filePath: text('file_path'),
   mimeType: text('mime_type'),
   sizeBytes: numeric('size_bytes'),
-  isPublic: integer('is_public').default(1),
+  isPublic: boolean('is_public').default(true),
   type: text('type'),
   uploaderAid: text('uploader_aid'),
   order: numeric('order').default('0'),

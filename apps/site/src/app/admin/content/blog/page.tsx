@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus, ExternalLink } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
 import { EsnadText } from '@/shared/types/esnad'
@@ -156,32 +156,55 @@ export default function AdminBlogPage() {
                       <TableHead>Категория</TableHead>
                       <TableHead>Дата создания</TableHead>
                       <TableHead>Обновлено</TableHead>
+                      <TableHead>Публичная страница</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {blogPosts.map((post) => (
-                      <TableRow
-                        key={post.id}
-                        className="cursor-pointer"
-                        onClick={() => router.push(`/admin/content/blog/${post.taid}`)}>
-                        <TableCell className="font-medium">{post.title || 'Без названия'}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {post.dataIn?.slug || '-'}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(post.statusName)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {post.category || '-'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(post.createdAt || '')}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(post.updatedAt || '')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {blogPosts.map((post) => {
+                      const publicUrl = post.statusName === 'PUBLISHED' && post.dataIn?.slug 
+                        ? `/blog/${post.dataIn.slug}` 
+                        : null
+                      
+                      return (
+                        <TableRow
+                          key={post.id}
+                          className="cursor-pointer"
+                          onClick={() => router.push(`/admin/content/blog/${post.taid}`)}>
+                          <TableCell className="font-medium">{post.title || 'Без названия'}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {post.dataIn?.slug || '-'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(post.statusName)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {post.category || '-'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatDate(post.createdAt || '')}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatDate(post.updatedAt || '')}
+                          </TableCell>
+                          <TableCell>
+                            {publicUrl ? (
+                              <a
+                                href={publicUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                Открыть
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               )}

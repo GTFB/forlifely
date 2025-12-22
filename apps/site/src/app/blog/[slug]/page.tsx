@@ -62,6 +62,9 @@ export default async function BlogPostPage({ params }: PageProps) {
   if (!post) {
     return notFound();
   }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.PUBLIC_SITE_URL || 'https://esnad.finance'
+  const url = `${siteUrl}/blog/${slug}`
   
-  return <BlogPostPageClient slug={slug} post={post} />
+  return <BlogPostPageClient slug={slug} post={post} url={url} />
 }

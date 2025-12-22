@@ -53,10 +53,18 @@ export function MediaUpload({
   // Load media list on component mount to ensure we have the data
   const loadMediaList = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/media");
+      const response = await fetch("/api/esnad/v1/admin/files/list?limit=100");
       const data = await response.json();
-      if (data.media) {
-        setMediaList(data.media);
+      if (data.data) {
+        setMediaList(
+          data.data.map((item: any) => ({
+            slug: item.uuid || item.fileName,
+            title: item.title || item.fileName,
+            url: item.url || `/media/${item.fileName}`,
+            alt: item.alt || item.fileName,
+            type: item.type || "image",
+          })),
+        );
       }
     } catch (error) {
       console.error("Error loading media list:", error);
@@ -85,11 +93,8 @@ export function MediaUpload({
         // Create FormData for file upload
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
-        formData.append("alt", file.name.replace(/\.[^/.]+$/, ""));
-
-        // Upload file
-        const response = await fetch("/api/admin/media/upload", {
+        // Upload file (public)
+        const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
           method: "POST",
           body: formData,
         });
@@ -98,16 +103,12 @@ export function MediaUpload({
           throw new Error("File upload error");
         }
 
-        const result = await response.json();
-        const fileName = result.fileName; // This will be the filename with extension
-        const fullFileName = result.fullFileName; // This will be the filename with extension
+        const result = await response.json() as { data?: { uuid?: string; fileName?: string; url?: string } };
+        const fileName = result.data?.fileName || file.name;
+        const fileUrl = result.data?.url || `/media/${fileName}`;
 
         onChange(fileName);
-
-        // Set preview immediately with full filename
-        if (fullFileName) {
-          setPreview(`/images/${fullFileName}`);
-        }
+        setPreview(fileUrl);
 
         // Reload media list to get the new item with full URL
         await loadMediaList();

@@ -20,11 +20,13 @@ import Image from "next/image";
 import path from "path";
 
 interface Media {
-  slug: string;
+  uuid: string;
+  fileName: string;
   title: string;
   url: string;
   alt?: string;
-  type?: "image" | "video" | "document" | "audio";
+  type?: string;
+  mimeType?: string;
 }
 
 interface MediaSelectorPopoverProps {
@@ -55,13 +57,19 @@ export function MediaSelectorPopover({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load media list when popover opens
-  const loadMediaList = useCallback(async () => {
+  const loadMediaList = useCallback(async (search?: string) => {
     setIsLoadingMedia(true);
     try {
-      const response = await fetch("/api/admin/media");
-      const data = await response.json() as { media?: Media[] };
-      if (data.media) {
-        setMediaList(data.media);
+      const params = new URLSearchParams();
+      if (search) {
+        params.append("search", search);
+      }
+      params.append("limit", "100"); // Load more items for better UX
+      
+      const response = await fetch(`/api/esnad/v1/admin/files/list?${params.toString()}`);
+      const data = await response.json() as { success?: boolean; data?: Media[] };
+      if (data.success && data.data) {
+        setMediaList(data.data);
       }
     } catch (error) {
       console.error("Error loading media list:", error);
@@ -70,12 +78,16 @@ export function MediaSelectorPopover({
     }
   }, []);
 
-  // Load media when popover opens
+  // Load media when popover opens or search query changes
   useEffect(() => {
     if (isPopoverOpen) {
-      loadMediaList();
+      // Debounce search query
+      const timeoutId = setTimeout(() => {
+        loadMediaList(searchQuery);
+      }, 300);
+      return () => clearTimeout(timeoutId);
     }
-  }, [isPopoverOpen, loadMediaList]);
+  }, [isPopoverOpen, searchQuery, loadMediaList]);
 
   const handleFileSelect = useCallback(
     async (file: File) => {
@@ -103,27 +115,28 @@ export function MediaSelectorPopover({
         try {
           const formData = new FormData();
           formData.append("file", file);
-          formData.append("title", file.name.replace(/\.[^/.]+$/, ""));
-          formData.append("alt", file.name.replace(/\.[^/.]+$/, ""));
+          formData.append("filename", file.name);
 
-          const response = await fetch("/api/admin/media/upload", {
+          const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
             method: "POST",
             body: formData,
           });
 
           if (!response.ok) {
-            throw new Error("File upload error");
+            const errorData = await response.json().catch(() => ({})) as { message?: string };
+            throw new Error(errorData.message || "File upload error");
           }
 
-          const result = await response.json() as { fileName?: string };
-          const fileName = result.fileName;
-          if (fileName) {
-            onChange(fileName);
+          const result = await response.json() as { success?: boolean; data?: { uuid: string; url: string; fileName?: string } };
+          if (result.success && result.data) {
+            const mediaUrl = result.data.url || (result.data.fileName ? `/media/${result.data.fileName}` : result.data.uuid);
+            onChange(mediaUrl);
+            await loadMediaList(searchQuery);
           }
-          await loadMediaList();
         } catch (error) {
           console.error("Error uploading file:", error);
-          alert("File upload error");
+          const message = error instanceof Error ? error.message : "File upload error";
+          alert(message);
         }
       }
     },
@@ -147,15 +160,18 @@ export function MediaSelectorPopover({
   };
 
   const handleMediaSelect = (media: Media | null) => {
-    onChange(media ? media.slug : "");
+    if (!media) {
+      onChange("");
+      setIsPopoverOpen(false);
+      return;
+    }
+    const mediaUrl = media.url || (media.fileName ? `/media/${media.fileName}` : media.uuid);
+    onChange(mediaUrl);
     setIsPopoverOpen(false);
   };
 
-  const filteredMedia = mediaList.filter(
-    (media) =>
-      media.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      media.slug.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  // Media is already filtered on server side, but we keep the list for display
+  const filteredMedia = mediaList;
 
   const showNoneOption =
     !searchQuery || "none".includes(searchQuery.toLowerCase());
@@ -240,14 +256,17 @@ export function MediaSelectorPopover({
               )}
 
               {/* Media items */}
-              {filteredMedia.map((media) => (
+              {filteredMedia.map((media) => {
+                const isImage = media.type === "image" || media.mimeType?.startsWith("image/");
+                const mediaUrl = media.url || (media.fileName ? `/media/${media.fileName}` : media.uuid);
+                return (
                 <div
-                  key={media.slug}
+                  key={media.uuid}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted cursor-pointer"
                   onClick={() => handleMediaSelect(media)}
                 >
                   <div className="relative w-12 h-12 flex-shrink-0">
-                    {media.type === "image" ? (
+                    {isImage ? (
                       <div className="w-full h-full rounded overflow-hidden bg-muted flex items-center justify-center">
                         <Image
                           src={media.url}
@@ -281,11 +300,11 @@ export function MediaSelectorPopover({
                       {path.basename(media.url)}
                     </p>
                   </div>
-                  {value === media.slug && (
+                  {(value === media.uuid || value === mediaUrl) && (
                     <Check className="h-4 w-4 text-primary" />
                   )}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>

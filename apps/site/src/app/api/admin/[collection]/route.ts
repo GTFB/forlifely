@@ -7,6 +7,7 @@ import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
+import { buildRequestEnv } from '@/shared/env'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -96,9 +97,9 @@ async function hashPasswordFields(collection: string, data: Record<string, any>)
 }
 
 async function handleGet(context: AuthenticatedRequestContext): Promise<Response> {
-  const { env, request, params } = context
+  const { request, params } = context
   const collection = params?.collection as string
-
+  const env = buildRequestEnv()
   if (!collection || !isAllowedCollection(collection)) {
     return new Response(JSON.stringify({ error: 'Invalid collection' }), {
       status: 400,
