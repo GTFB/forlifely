@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import type { User, Role, Human, Employee, Location, UserRole } from '../schema/types'
 import { schema } from '../schema/schema'
 import { createDb, notDeleted, withNotDeleted, type SiteDb } from './utils'
+import { TaskAssignee } from '../types/tasks'
 
 export interface UserWithRoles extends User {
   user: User
@@ -249,5 +250,53 @@ export class MeRepository {
       .limit(1)
 
     return location
+  }
+
+  /**
+   * Find task assignees (administrators by default) with human names
+   */
+  public async findTaskAssignees(
+    roleNames: string[] = ['Administrator', 'admin'],
+    alwaysIncludeUuid?: string
+  ): Promise<TaskAssignee[]> {
+    const users = await this.db
+      .select()
+      .from(schema.users)
+      .where(withNotDeleted(schema.users.deletedAt))
+      .execute()
+
+    const assignees: TaskAssignee[] = []
+    const seen = new Set<string>()
+
+    for (const user of users) {
+      if (!user.isActive) {
+        continue
+      }
+
+      const roles = await this.getUserRoles(user.uuid)
+      const hasAllowedRole =
+        roles.some((role) => roleNames.includes(role.name || '') || role.isSystem === true) ||
+        (alwaysIncludeUuid ? user.uuid === alwaysIncludeUuid : false)
+
+      if (!hasAllowedRole) {
+        continue
+      }
+
+      let name = user.email || 'Не указан'
+      const human = user.humanAid ? await this.getHuman(user.humanAid) : undefined
+      if (human?.fullName) {
+        name = human.fullName
+      }
+
+      if (!seen.has(user.uuid)) {
+        seen.add(user.uuid)
+        assignees.push({
+          uuid: user.uuid,
+          name,
+        })
+      }
+    }
+
+    return assignees
   }
 }

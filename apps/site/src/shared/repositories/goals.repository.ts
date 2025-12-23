@@ -11,7 +11,11 @@ import {
   EsnadGoal,
   NewEsnadGoal,
 } from '../types/esnad-finance'
-import { parseJson } from './utils'
+import { AdminTaskDataIn } from '../types/tasks'
+import { parseJson, withNotDeleted } from './utils'
+import { desc, eq, inArray } from 'drizzle-orm'
+
+export const ADMIN_TASK_TYPE = 'ADMIN_TASK'
 
 export class GoalsRepository extends BaseRepository<Goal> {
   constructor() {
@@ -39,6 +43,76 @@ export class GoalsRepository extends BaseRepository<Goal> {
 
   protected async beforeUpdate(_: string, data: Partial<NewEsnadGoal>): Promise<void> {
     return
+  }
+
+  public async getAdminTasks(options: { assigneeUuid?: string; statuses?: string[] } = {}): Promise<Goal[]> {
+    const where = withNotDeleted(
+      this.schema.deletedAt,
+      eq(this.schema.type, ADMIN_TASK_TYPE),
+      options.assigneeUuid ? eq(this.schema.xaid, options.assigneeUuid) : undefined,
+      options.statuses && options.statuses.length > 0 ? inArray(this.schema.statusName, options.statuses) : undefined
+    )
+
+    const rows = await this.db
+      .select()
+      .from(this.schema)
+      .where(where)
+      .orderBy(desc(this.schema.updatedAt), desc(this.schema.createdAt))
+      .execute()
+
+    return rows as Goal[]
+  }
+
+  public async findAdminTaskByUuid(uuid: string): Promise<Goal | null> {
+    const where = withNotDeleted(
+      this.schema.deletedAt,
+      eq(this.schema.uuid, uuid),
+      eq(this.schema.type, ADMIN_TASK_TYPE)
+    )
+
+    const [goal] = await this.db
+      .select()
+      .from(this.schema)
+      .where(where)
+      .limit(1)
+      .execute()
+
+    return goal ? (goal as Goal) : null
+  }
+
+  public async createAdminTask(data: {
+    title: string
+    statusName?: string
+    priority?: 'low' | 'medium' | 'high'
+    assigneeUuid?: string
+    assigneeName?: string
+    assigneeAvatar?: string
+    clientLink?: string
+    createdByUuid?: string
+    deadline?: string
+  }): Promise<Goal> {
+    const taskDataIn: AdminTaskDataIn = {
+      priority: data.priority,
+      assigneeUuid: data.assigneeUuid,
+      assigneeName: data.assigneeName,
+      assigneeAvatar: data.assigneeAvatar,
+      clientLink: data.clientLink,
+      createdByUuid: data.createdByUuid,
+      deadline: data.deadline,
+    }
+
+    const createdGoal = await this.create({
+      title: data.title,
+      statusName: data.statusName,
+      type: ADMIN_TASK_TYPE,
+      cycle: 'ONCE',
+      xaid: data.assigneeUuid,
+      dataIn: taskDataIn,
+      order: '0',
+      isPublic: 1,
+    })
+
+    return createdGoal as Goal
   }
 
   public async createCollectionGoalFromFinance(

@@ -43,25 +43,32 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { CurrentUser, TaskApi, TaskAssignee, TaskPriority, TaskStatus } from '@/shared/types/tasks'
 
-interface Task {
-  id: string
-  title: string
-  clientLink: string
-  priority: 'low' | 'medium' | 'high'
-  assignee: {
-    name: string
-    avatar?: string
-  }
-  date: string
-  status: 'todo' | 'in-progress' | 'done'
-}
+type Task = TaskApi & { id: string; date: string }
 
 const statusColumns = [
   { id: 'todo', title: 'К выполнению' },
   { id: 'in-progress', title: 'В работе' },
   { id: 'done', title: 'Выполнено' },
 ]
+
+const mapApiTask = (task: TaskApi): Task => ({
+  id: task.uuid,
+  uuid: task.uuid,
+  title: task.title,
+  clientLink: task.clientLink || '',
+  priority: task.priority || 'medium',
+  assignee: {
+    uuid: task.assignee?.uuid,
+    name: task.assignee?.name || 'Не назначен',
+    avatar: task.assignee?.avatar ?? null,
+  },
+  date: task.updatedAt || task.createdAt || new Date().toISOString(),
+  status: task.status || 'todo',
+})
+
+const assigneeKey = (assignee: TaskAssignee): string => assignee.uuid || assignee.name
 
 function DroppableColumn({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -135,7 +142,7 @@ function DraggableTask({ task }: { task: Task }) {
           </div>
         </div>
         <CardDescription className="text-xs">
-          <Link href={task.clientLink} className="text-primary hover:underline">
+          <Link href={task.clientLink || '#'} className="text-primary hover:underline">
             {task.clientLink}
           </Link>
         </CardDescription>
@@ -147,7 +154,7 @@ function DraggableTask({ task }: { task: Task }) {
           </Badge>
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
-              <AvatarImage src={task.assignee.avatar} alt={task.assignee.name} />
+              <AvatarImage src={task.assignee.avatar || undefined} alt={task.assignee.name} />
               <AvatarFallback className="text-xs">
                 {task.assignee.name
                   .split(' ')
@@ -176,6 +183,8 @@ export default function AdminTasksPage() {
   const [tasks, setTasks] = React.useState<Task[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null)
+  const [assignees, setAssignees] = React.useState<TaskAssignee[]>([])
   const [managerFilter, setManagerFilter] = React.useState<string>('all')
   const [activeId, setActiveId] = React.useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -183,9 +192,9 @@ export default function AdminTasksPage() {
   const [formData, setFormData] = React.useState({
     title: '',
     clientLink: '',
-    priority: 'medium' as 'low' | 'medium' | 'high',
-    assignee: '',
-    status: 'todo' as 'todo' | 'in-progress' | 'done',
+    priority: 'medium' as TaskPriority,
+    assigneeUuid: '',
+    status: 'todo' as TaskStatus,
   })
 
   const sensors = useSensors(
@@ -206,90 +215,66 @@ export default function AdminTasksPage() {
     const fetchTasks = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API endpoint
-        // const response = await fetch('/api/admin/tasks', { credentials: 'include' })
-        
-        // Mock data
-        setTimeout(() => {
-          setTasks([
-            {
-              id: 'task-1',
-              title: 'Проверить документы заявки deal-001',
-              clientLink: '/admin/deals/deal-001',
-              priority: 'high',
-              assignee: { name: 'Иванов И.И.' },
-              date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'todo',
-            },
-            {
-              id: 'task-2',
-              title: 'Связаться с клиентом по заявке deal-002',
-              clientLink: '/admin/deals/deal-002',
-              priority: 'medium',
-              assignee: { name: 'Петрова М.С.' },
-              date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'todo',
-            },
-            {
-              id: 'task-3',
-              title: 'Запросить дополнительные документы',
-              clientLink: '/admin/deals/deal-003',
-              priority: 'high',
-              assignee: { name: 'Сидоров П.А.' },
-              date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'in-progress',
-            },
-            {
-              id: 'task-4',
-              title: 'Одобрить заявку deal-004',
-              clientLink: '/admin/deals/deal-004',
-              priority: 'medium',
-              assignee: { name: 'Козлова А.Д.' },
-              date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'in-progress',
-            },
-            {
-              id: 'task-5',
-              title: 'Проверить кредитную историю',
-              clientLink: '/admin/deals/deal-005',
-              priority: 'low',
-              assignee: { name: 'Иванов И.И.' },
-              date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'in-progress',
-            },
-            {
-              id: 'task-6',
-              title: 'Завершить обработку заявки deal-006',
-              clientLink: '/admin/deals/deal-006',
-              priority: 'medium',
-              assignee: { name: 'Петрова М.С.' },
-              date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'done',
-            },
-            {
-              id: 'task-7',
-              title: 'Отправить уведомление клиенту',
-              clientLink: '/admin/deals/deal-007',
-              priority: 'low',
-              assignee: { name: 'Сидоров П.А.' },
-              date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'done',
-            },
-            {
-              id: 'task-8',
-              title: 'Проверить поручителя',
-              clientLink: '/admin/deals/deal-008',
-              priority: 'high',
-              assignee: { name: 'Козлова А.Д.' },
-              date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-              status: 'done',
-            },
-          ])
-          setLoading(false)
-        }, 500)
+        setError(null)
+
+        const meResponse = await fetch('/api/auth/me', { credentials: 'include' })
+        if (!meResponse.ok) {
+          throw new Error('Не удалось загрузить пользователя')
+        }
+        const meData = (await meResponse.json()) as {
+          user: { uuid: string; name?: string; email?: string; roles?: { name?: string }[] }
+        }
+        const roles = meData.user.roles || []
+        const isAdmin = roles.some((role) => role?.name === 'Administrator' || role?.name === 'admin')
+        const me: CurrentUser = {
+          uuid: meData.user.uuid,
+          name: meData.user.name || meData.user.email || 'Пользователь',
+          roles,
+          isAdmin,
+        }
+        setCurrentUser(me)
+        if (!isAdmin) {
+          setManagerFilter(me.uuid)
+          setFormData((prev) => ({ ...prev, assigneeUuid: prev.assigneeUuid || me.uuid }))
+        }
+
+        const [tasksResponse, assigneesResponse] = await Promise.all([
+          fetch('/api/esnad/v1/admin/tasks', { credentials: 'include' }),
+          fetch('/api/esnad/v1/admin/tasks/assignees', { credentials: 'include' }),
+        ])
+
+        const tasksPayload = await tasksResponse.json().catch(() => null)
+        const assigneesPayload = await assigneesResponse.json().catch(() => null)
+
+        if (!tasksResponse.ok) {
+          const message =
+            (tasksPayload as { message?: string })?.message || 'Не удалось загрузить задачи'
+          throw new Error(message)
+        }
+
+        if (assigneesResponse.ok && (assigneesPayload as { assignees?: TaskAssignee[] }).assignees) {
+          const apiAssignees = (assigneesPayload as { assignees: TaskAssignee[] }).assignees
+          const merged = [...apiAssignees]
+          if (!merged.some((a) => a.uuid === me.uuid)) {
+            merged.push({ uuid: me.uuid, name: me.name })
+          }
+          setAssignees(merged)
+          if (isAdmin) {
+            setFormData((prev) => ({
+              ...prev,
+              assigneeUuid: prev.assigneeUuid || merged[0]?.uuid || me.uuid,
+            }))
+          }
+        } else {
+          setAssignees([{ uuid: me.uuid, name: me.name }])
+        }
+
+        const payload = tasksPayload as { tasks?: TaskApi[] }
+        setTasks((payload.tasks || []).map(mapApiTask))
       } catch (err) {
         console.error('Tasks fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load tasks')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить задачи')
+      } finally {
         setLoading(false)
       }
     }
@@ -297,11 +282,17 @@ export default function AdminTasksPage() {
     fetchTasks()
   }, [])
 
+  React.useEffect(() => {
+    if (currentUser && !formData.assigneeUuid) {
+      setFormData((prev) => ({ ...prev, assigneeUuid: currentUser.uuid }))
+    }
+  }, [currentUser, formData.assigneeUuid])
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (!over) {
@@ -313,20 +304,65 @@ export default function AdminTasksPage() {
     const newStatus = over.id as string
 
     if (statusColumns.some((col) => col.id === newStatus)) {
+      const previousTasks = tasks
       setTasks((prevTasks) =>
         prevTasks.map((task) =>
           task.id === taskId ? { ...task, status: newStatus as Task['status'] } : task
         )
       )
-      // TODO: Update task status via API
+
+      try {
+        const response = await fetch(`/api/esnad/v1/admin/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: newStatus }),
+        })
+        const payload = await response.json().catch(() => null)
+        if (!response.ok) {
+          const message =
+            (payload as { message?: string; error?: string })?.message ||
+            (payload as { message?: string; error?: string })?.error ||
+            'Не удалось обновить статус задачи'
+          throw new Error(message)
+        }
+        if ((payload as { task?: TaskApi }).task) {
+          setTasks((prev) =>
+            prev.map((task) =>
+              task.id === taskId ? mapApiTask((payload as { task: TaskApi }).task) : task
+            )
+          )
+        }
+      } catch (err) {
+        console.error('Task update error:', err)
+        setError(err instanceof Error ? err.message : 'Не удалось обновить статус задачи')
+        setTasks(previousTasks)
+      }
     }
 
     setActiveId(null)
   }
 
+  const assigneeOptions = React.useMemo(() => {
+    const map = new Map<string, TaskAssignee>()
+    assignees.forEach((assignee) => {
+      const key = assigneeKey(assignee)
+      if (!map.has(key)) {
+        map.set(key, assignee)
+      }
+    })
+    if (currentUser) {
+      const key = currentUser.uuid || currentUser.name
+      if (!map.has(key)) {
+        map.set(key, { uuid: currentUser.uuid, name: currentUser.name })
+      }
+    }
+    return Array.from(map.values())
+  }, [assignees, currentUser])
+
   const filteredTasks = tasks.filter((task) => {
     if (managerFilter === 'all') return true
-    return task.assignee.name === managerFilter
+    return assigneeKey(task.assignee) === managerFilter
   })
 
   const tasksByStatus = {
@@ -335,48 +371,61 @@ export default function AdminTasksPage() {
     done: filteredTasks.filter((task) => task.status === 'done'),
   }
 
-  const uniqueManagers = Array.from(new Set(tasks.map((task) => task.assignee.name)))
   const activeTask = tasks.find((task) => task.id === activeId)
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!currentUser) {
+      setError('Не удалось определить пользователя')
+      return
+    }
     try {
       setSubmitting(true)
       setError(null)
 
-      // TODO: Replace with actual API endpoint
-      // const response = await fetch('/api/admin/tasks', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   credentials: 'include',
-      //   body: JSON.stringify(formData),
-      // })
+      const selectedAssignee = assigneeOptions.find(
+        (option) => assigneeKey(option) === (formData.assigneeUuid || currentUser.uuid)
+      )
+      const assigneeUuid = currentUser.isAdmin
+        ? selectedAssignee?.uuid || currentUser.uuid
+        : currentUser.uuid
 
-      // Mock: Create new task
-      const newTask: Task = {
-        id: `task-${Date.now()}`,
-        title: formData.title,
-        clientLink: formData.clientLink,
-        priority: formData.priority,
-        assignee: {
-          name: formData.assignee || uniqueManagers[0] || 'Не назначен',
-        },
-        date: new Date().toISOString(),
-        status: formData.status,
+      const response = await fetch('/api/esnad/v1/admin/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: formData.title,
+          clientLink: formData.clientLink || undefined,
+          priority: formData.priority,
+          status: formData.status,
+          assigneeUuid,
+        }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message =
+          (payload as { message?: string; error?: string })?.message ||
+          (payload as { message?: string; error?: string })?.error ||
+          'Не удалось создать задачу'
+        throw new Error(message)
       }
 
-      setTasks((prev) => [...prev, newTask])
+      if ((payload as { task?: TaskApi }).task) {
+        setTasks((prev) => [...prev, mapApiTask((payload as { task: TaskApi }).task)])
+      }
       setFormData({
         title: '',
         clientLink: '',
         priority: 'medium',
-        assignee: '',
+        assigneeUuid: currentUser.uuid,
         status: 'todo',
       })
       setDialogOpen(false)
     } catch (err) {
       console.error('Create task error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create task')
+      setError(err instanceof Error ? err.message : 'Не удалось создать задачу')
     } finally {
       setSubmitting(false)
     }
@@ -416,15 +465,15 @@ export default function AdminTasksPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Менеджер задач</h1>
           <div className="flex gap-2">
-            <Select value={managerFilter} onValueChange={setManagerFilter}>
-              <SelectTrigger className="w-[200px]">
+            <Select value={managerFilter} onValueChange={setManagerFilter} disabled={!currentUser?.isAdmin}>
+              <SelectTrigger className="w-[200px]" disabled={!currentUser?.isAdmin}>
                 <SelectValue placeholder="Ответственный" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все</SelectItem>
-                {uniqueManagers.map((manager) => (
-                  <SelectItem key={manager} value={manager}>
-                    {manager}
+                {assigneeOptions.map((manager) => (
+                  <SelectItem key={assigneeKey(manager)} value={assigneeKey(manager)}>
+                    {manager.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -490,17 +539,18 @@ export default function AdminTasksPage() {
                   <div className="space-y-2">
                     <Label htmlFor="assignee">Ответственный *</Label>
                     <Select
-                      value={formData.assignee}
+                      value={formData.assigneeUuid}
                       onValueChange={(value) =>
-                        setFormData((prev) => ({ ...prev, assignee: value }))
-                      }>
+                        setFormData((prev) => ({ ...prev, assigneeUuid: value }))
+                      }
+                      disabled={currentUser ? !currentUser.isAdmin : false}>
                       <SelectTrigger id="assignee">
                         <SelectValue placeholder="Выберите ответственного" />
                       </SelectTrigger>
                       <SelectContent>
-                        {uniqueManagers.map((manager) => (
-                          <SelectItem key={manager} value={manager}>
-                            {manager}
+                        {assigneeOptions.map((manager) => (
+                          <SelectItem key={assigneeKey(manager)} value={assigneeKey(manager)}>
+                            {manager.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
