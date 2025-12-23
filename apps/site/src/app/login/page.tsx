@@ -208,7 +208,9 @@ export default function LoginPage() {
       }
 
       // Redirect to determined URL
-      router.push(redirectUrl)
+      console.log("redirectUrl", redirectUrl)
+      // Use window.location for reliable redirect after login
+      window.location.href = redirectUrl
     } catch (err) {
       setError(err instanceof Error ? err.message : t.errors.unknownError)
     } finally {

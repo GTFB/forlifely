@@ -85,7 +85,7 @@ export default function VerifyEmailPage() {
                     ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                     : status === "error"
                     ? "border-destructive bg-destructive/10 text-destructive"
-                    : "border-primary/30 bg-primary/5 text-primary-foreground"
+                    : "border-primary/30 bg-primary/5 text-primary"
                 }`}
               >
                 {message}

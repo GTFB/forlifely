@@ -19,6 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import type { Value as E164Number } from "react-phone-number-input";
+
+const PhoneInput = dynamic(
+  () => import("@/components/ui/phone-input").then((mod) => mod.PhoneInput),
+  { ssr: false }
+);
 
 const conditions = [
   { parameter: "Сумма", value: "от 3 000 до 300 000 ₽" },
@@ -391,15 +398,14 @@ export default function ConsumersPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Телефон *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
+                  <PhoneInput
+                    defaultCountry="RU"
                     placeholder="+7 (999) 999-99-99"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
+                    value={(formData.phone || "") as E164Number}
+                    onChange={(value) =>
+                      setFormData({ ...formData, phone: value ?? "" })
                     }
-                    required
+                    hideCountrySelector
                   />
                 </div>
 

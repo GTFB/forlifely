@@ -291,7 +291,7 @@ ${colors.dim}Press Ctrl+C to stop all processes${colors.reset}
 const nextProcess = spawnProcess(
   '[Next.js]',
   'next',
-  ['dev', '-p', NEXT_PORT],
+  ['dev', '-p', NEXT_PORT, '-H', '0.0.0.0'],
   colors.green
 );
 

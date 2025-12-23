@@ -50,6 +50,7 @@ export interface PhoneInputProps {
   placeholder?: string
   className?: string
   defaultCountry?: string
+  hideCountrySelector?: boolean
 }
 
 export function PhoneInput({
@@ -59,16 +60,19 @@ export function PhoneInput({
   placeholder = "Enter phone number",
   className,
   defaultCountry = "RU",
+  hideCountrySelector = false,
 }: PhoneInputProps) {
   const [flags, setFlags] = React.useState<Record<string, React.ComponentType<{ className?: string; title?: string }>>>({})
   
   React.useEffect(() => {
-    loadFlags().then((Flags) => {
-      if (Flags) {
-        setFlags(createFlagsMap(Flags))
-      }
-    })
-  }, [])
+    if (!hideCountrySelector) {
+      loadFlags().then((Flags) => {
+        if (Flags) {
+          setFlags(createFlagsMap(Flags))
+        }
+      })
+    }
+  }, [hideCountrySelector])
 
   return (
     <PhoneInputWithCountry
@@ -81,6 +85,7 @@ export function PhoneInput({
       flags={flags}
       className={cn(
         "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        hideCountrySelector && "[&_.PhoneInputCountry]:hidden",
         className
       )}
     />

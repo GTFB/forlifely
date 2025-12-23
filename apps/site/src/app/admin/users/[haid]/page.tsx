@@ -97,9 +97,6 @@ export default function EditUserPage() {
 
   const [formData, setFormData] = React.useState({
     email: '',
-    lastName: '',
-    firstName: '',
-    middleName: '',
     password: '',
     isActive: true,
     emailVerified: false,
@@ -109,12 +106,11 @@ export default function EditUserPage() {
     workPlace: '',
     workExperience: '',
   })
-  const [firstNameError, setFirstNameError] = React.useState<string | null>(null)
-  const [lastNameError, setLastNameError] = React.useState<string | null>(null)
-  const [middleNameError, setMiddleNameError] = React.useState<string | null>(null)
 
   const [ocrFormData, setOcrFormData] = React.useState({
-    fullName: '',
+    lastName: '',
+    firstName: '',
+    middleName: '',
     birthday: '',
     sex: '',
     placeOfBirth: '',
@@ -126,6 +122,9 @@ export default function EditUserPage() {
     passportDivisionCode: '',
     citizenship: '',
   })
+  const [ocrFirstNameError, setOcrFirstNameError] = React.useState<string | null>(null)
+  const [ocrLastNameError, setOcrLastNameError] = React.useState<string | null>(null)
+  const [ocrMiddleNameError, setOcrMiddleNameError] = React.useState<string | null>(null)
 
   const [ocrSaving, setOcrSaving] = React.useState(false)
   const [ocrError, setOcrError] = React.useState<string | null>(null)
@@ -195,9 +194,6 @@ export default function EditUserPage() {
         
         setFormData({
           email: data.user.email || '',
-          lastName,
-          firstName,
-          middleName,
           password: '',
           isActive: data.user.isActive ?? true,
           emailVerified: !!data.user.emailVerifiedAt,
@@ -209,10 +205,11 @@ export default function EditUserPage() {
         })
 
         // Initialize OCR form data from human and dataIn
-        // Use computed fullName from parsed fields
-        const ocrFullName = [lastName, firstName, middleName].filter(Boolean).join(' ') || data.user.human?.fullName || ''
+        // Use separate name fields
         setOcrFormData({
-          fullName: ocrFullName,
+          lastName: dataIn.lastName || lastName || '',
+          firstName: dataIn.firstName || firstName || '',
+          middleName: dataIn.middleName || middleName || '',
           birthday: data.user.human?.birthday || '',
           sex: data.user.human?.sex || '',
           placeOfBirth: dataIn.placeOfBirth || '',
@@ -261,51 +258,40 @@ export default function EditUserPage() {
   // Validate Cyrillic characters
   const cyrillicRegex = /^[А-Яа-яЁё\s-]*$/
 
-  // Handle first name change with validation
-  const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle OCR first name change with validation
+  const handleOcrFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setFormData((prev) => ({ ...prev, firstName: value }))
+    setOcrFormData((prev) => ({ ...prev, firstName: value }))
     
-    // Validate on change
     if (value && !cyrillicRegex.test(value)) {
-      setFirstNameError("Имя должно содержать только кириллические символы")
+      setOcrFirstNameError("Имя должно содержать только кириллические символы")
     } else {
-      setFirstNameError(null)
+      setOcrFirstNameError(null)
     }
   }
 
-  // Handle last name change with validation
-  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle OCR last name change with validation
+  const handleOcrLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setFormData((prev) => ({ ...prev, lastName: value }))
+    setOcrFormData((prev) => ({ ...prev, lastName: value }))
     
-    // Validate on change
     if (value && !cyrillicRegex.test(value)) {
-      setLastNameError("Фамилия должна содержать только кириллические символы")
+      setOcrLastNameError("Фамилия должна содержать только кириллические символы")
     } else {
-      setLastNameError(null)
+      setOcrLastNameError(null)
     }
   }
 
-  // Handle middle name change with validation
-  const handleMiddleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle OCR middle name change with validation
+  const handleOcrMiddleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setFormData((prev) => ({ ...prev, middleName: value }))
+    setOcrFormData((prev) => ({ ...prev, middleName: value }))
     
-    // Validate on change (only if value is provided)
     if (value && !cyrillicRegex.test(value)) {
-      setMiddleNameError("Отчество должно содержать только кириллические символы")
+      setOcrMiddleNameError("Отчество должно содержать только кириллические символы")
     } else {
-      setMiddleNameError(null)
+      setOcrMiddleNameError(null)
     }
-  }
-
-  // Check if form is valid
-  const isFormValid = () => {
-    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
-    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
-    const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
-    return firstNameValid && lastNameValid && middleNameValid
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,33 +300,9 @@ export default function EditUserPage() {
     setError(null)
     setSuccess(false)
 
-    // Validate Cyrillic characters before submit
-    const firstNameValid = !formData.firstName || cyrillicRegex.test(formData.firstName)
-    const lastNameValid = !formData.lastName || cyrillicRegex.test(formData.lastName)
-    const middleNameValid = !formData.middleName || cyrillicRegex.test(formData.middleName)
-
-    if (!firstNameValid) {
-      setFirstNameError("Имя должно содержать только кириллические символы")
-    }
-    if (!lastNameValid) {
-      setLastNameError("Фамилия должна содержать только кириллические символы")
-    }
-    if (!middleNameValid) {
-      setMiddleNameError("Отчество должно содержать только кириллические символы")
-    }
-
-    if (!firstNameValid || !lastNameValid || !middleNameValid) {
-      setError("Пожалуйста, исправьте ошибки в форме перед отправкой")
-      setSaving(false)
-      return
-    }
-
     try {
       const updateData: any = {
         email: formData.email.trim(),
-        lastName: formData.lastName.trim(),
-        firstName: formData.firstName.trim(),
-        middleName: formData.middleName?.trim() || undefined,
         isActive: formData.isActive,
         emailVerified: formData.emailVerified,
         roleUuids: formData.roleUuids,
@@ -377,21 +339,6 @@ export default function EditUserPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({})) as { message?: string; error?: string }
         const errorMessage = errorData.message || errorData.error || 'Failed to update user'
-        
-        // Check if error is about Cyrillic validation
-        if (errorMessage.includes("кириллические символы") || errorMessage.includes("русские буквы") || 
-            errorMessage.includes("Имя") || errorMessage.includes("Фамилия") || errorMessage.includes("Отчество")) {
-          if (errorMessage.includes("Имя")) {
-            setFirstNameError("Имя должно содержать только кириллические символы")
-          }
-          if (errorMessage.includes("Фамилия")) {
-            setLastNameError("Фамилия должна содержать только кириллические символы")
-          }
-          if (errorMessage.includes("Отчество")) {
-            setMiddleNameError("Отчество должно содержать только кириллические символы")
-          }
-        }
-        
         throw new Error(errorMessage)
       }
 
@@ -401,11 +348,8 @@ export default function EditUserPage() {
         if (data.user) {
           setUser(data.user)
         }
-        // Clear password field and errors after successful save
+        // Clear password field after successful save
         setFormData((prev) => ({ ...prev, password: '' }))
-        setFirstNameError(null)
-        setLastNameError(null)
-        setMiddleNameError(null)
         // Redirect after 1 second
         setTimeout(() => {
           router.push('/admin/users')
@@ -434,7 +378,12 @@ export default function EditUserPage() {
       const updateData: any = {}
       
       // Include all fields (allow empty values to clear fields)
-      if (ocrFormData.fullName !== undefined) updateData.fullName = ocrFormData.fullName.trim() || null
+      // Compute fullName from separate fields
+      const computedFullName = [ocrFormData.lastName, ocrFormData.firstName, ocrFormData.middleName].filter(Boolean).join(' ') || null
+      if (computedFullName !== null) updateData.fullName = computedFullName
+      if (ocrFormData.lastName !== undefined) updateData.lastName = ocrFormData.lastName.trim() || null
+      if (ocrFormData.firstName !== undefined) updateData.firstName = ocrFormData.firstName.trim() || null
+      if (ocrFormData.middleName !== undefined) updateData.middleName = ocrFormData.middleName.trim() || null
       if (ocrFormData.birthday !== undefined) updateData.birthday = ocrFormData.birthday.trim() || null
       if (ocrFormData.sex !== undefined) updateData.sex = ocrFormData.sex.trim() || null
       if (ocrFormData.placeOfBirth !== undefined) updateData.placeOfBirth = ocrFormData.placeOfBirth.trim() || null
@@ -486,11 +435,11 @@ export default function EditUserPage() {
       ? JSON.parse(user.human!.dataIn) 
       : user.human!.dataIn
     
-    // Use computed fullName from formData or fallback to human.fullName
-    const computedFullName = [formData.lastName, formData.firstName, formData.middleName].filter(Boolean).join(' ') || user.human?.fullName || ''
-    
+    // Use separate name fields from dataIn
     setOcrFormData({
-      fullName: computedFullName,
+      lastName: dataIn.lastName || '',
+      firstName: dataIn.firstName || '',
+      middleName: dataIn.middleName || '',
       birthday: user.human?.birthday || '',
       sex: user.human?.sex || '',
       placeOfBirth: dataIn.placeOfBirth || '',
@@ -504,6 +453,9 @@ export default function EditUserPage() {
     })
     setOcrError(null)
     setOcrSuccess(false)
+    setOcrFirstNameError(null)
+    setOcrLastNameError(null)
+    setOcrMiddleNameError(null)
   }
 
   const handleKycStatusChange = async (status: 'verified' | 'pending' | 'rejected') => {
@@ -731,63 +683,6 @@ export default function EditUserPage() {
                   />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Фамилия</Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      placeholder="Иванов"
-                      value={formData.lastName}
-                      onChange={handleLastNameChange}
-                      className={lastNameError ? "border-destructive" : ""}
-                      aria-invalid={!!lastNameError}
-                      aria-describedby={lastNameError ? "lastName-error" : undefined}
-                    />
-                    {lastNameError && (
-                      <p id="lastName-error" className="text-xs text-destructive">
-                        {lastNameError}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">Имя</Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      placeholder="Иван"
-                      value={formData.firstName}
-                      onChange={handleFirstNameChange}
-                      className={firstNameError ? "border-destructive" : ""}
-                      aria-invalid={!!firstNameError}
-                      aria-describedby={firstNameError ? "firstName-error" : undefined}
-                    />
-                    {firstNameError && (
-                      <p id="firstName-error" className="text-xs text-destructive">
-                        {firstNameError}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="middleName">Отчество</Label>
-                    <Input
-                      id="middleName"
-                      type="text"
-                      placeholder="Иванович"
-                      value={formData.middleName}
-                      onChange={handleMiddleNameChange}
-                      className={middleNameError ? "border-destructive" : ""}
-                      aria-invalid={!!middleNameError}
-                      aria-describedby={middleNameError ? "middleName-error" : undefined}
-                    />
-                    {middleNameError && (
-                      <p id="middleName-error" className="text-xs text-destructive">
-                        {middleNameError}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="password">Новый пароль</Label>
                   <Input
@@ -962,16 +857,63 @@ export default function EditUserPage() {
                   </Alert>
                 )}
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
-                      <Label htmlFor="ocr-fullName">ФИО</Label>
+                      <Label htmlFor="ocr-lastName">Фамилия</Label>
                       <Input
-                        id="ocr-fullName"
-                        value={ocrFormData.fullName}
-                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, fullName: e.target.value }))}
-                        placeholder="Иванов Иван Иванович"
+                        id="ocr-lastName"
+                        type="text"
+                        placeholder="Иванов"
+                        value={ocrFormData.lastName}
+                        onChange={handleOcrLastNameChange}
+                        className={ocrLastNameError ? "border-destructive" : ""}
+                        aria-invalid={!!ocrLastNameError}
+                        aria-describedby={ocrLastNameError ? "ocr-lastName-error" : undefined}
                       />
+                      {ocrLastNameError && (
+                        <p id="ocr-lastName-error" className="text-xs text-destructive">
+                          {ocrLastNameError}
+                        </p>
+                      )}
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-firstName">Имя</Label>
+                      <Input
+                        id="ocr-firstName"
+                        type="text"
+                        placeholder="Иван"
+                        value={ocrFormData.firstName}
+                        onChange={handleOcrFirstNameChange}
+                        className={ocrFirstNameError ? "border-destructive" : ""}
+                        aria-invalid={!!ocrFirstNameError}
+                        aria-describedby={ocrFirstNameError ? "ocr-firstName-error" : undefined}
+                      />
+                      {ocrFirstNameError && (
+                        <p id="ocr-firstName-error" className="text-xs text-destructive">
+                          {ocrFirstNameError}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ocr-middleName">Отчество</Label>
+                      <Input
+                        id="ocr-middleName"
+                        type="text"
+                        placeholder="Иванович"
+                        value={ocrFormData.middleName}
+                        onChange={handleOcrMiddleNameChange}
+                        className={ocrMiddleNameError ? "border-destructive" : ""}
+                        aria-invalid={!!ocrMiddleNameError}
+                        aria-describedby={ocrMiddleNameError ? "ocr-middleName-error" : undefined}
+                      />
+                      {ocrMiddleNameError && (
+                        <p id="ocr-middleName-error" className="text-xs text-destructive">
+                          {ocrMiddleNameError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="ocr-birthday">Дата рождения</Label>
                       <Input
@@ -1456,7 +1398,7 @@ export default function EditUserPage() {
       </main>
       <div className="sticky bottom-0 border-t bg-background/80 backdrop-blur-sm">
         <div className="p-4 flex gap-2 justify-end">
-          <Button type="submit" form="admin-user-edit-form" disabled={saving || !isFormValid()}>
+          <Button type="submit" form="admin-user-edit-form" disabled={saving}>
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
