@@ -615,6 +615,103 @@ export class DealsRepository extends BaseRepository<Deal>{
         }
     }
 
+    public async updateLoanApplicationDealByClientWhileScoring(
+        uuid: string,
+        dataIn: LoanApplicationDataIn,
+        title?: string,
+    ): Promise<{
+        updatedDeal: LoanApplication
+        journal: JournalLoanApplicationSnapshot
+    }> {
+        const deal = await this.findByUuid(uuid) as LoanApplication | undefined
+        if (!deal) {
+            throw new Error(`Сделка не найдена.${ADMIN_CONTACT_MESSAGE}`)
+        }
+
+        if (deal.statusName !== 'SCORING') {
+            throw new Error('Редактирование доступно только для заявок в статусе SCORING.')
+        }
+
+        const currentDataIn = this.normalizeLoanApplicationDataIn(deal.dataIn)
+        if (currentDataIn.type !== 'LOAN_APPLICATION') {
+            throw new Error(`Сделка не является заявкой на кредит.${ADMIN_CONTACT_MESSAGE}`)
+        }
+
+        const sanitizedDataIn: LoanApplicationDataIn = {
+            type: 'LOAN_APPLICATION',
+            firstName: dataIn.firstName?.trim() ?? '',
+            lastName: dataIn.lastName?.trim() ?? '',
+            phone: dataIn.phone?.trim() ?? '',
+            email: dataIn.email?.trim().toLowerCase() ?? '',
+            productPrice: dataIn.productPrice?.trim() ?? '',
+            term: Array.isArray(dataIn.term)
+                ? dataIn.term
+                    .map((value) => Number(value))
+                    .filter((value) => Number.isFinite(value))
+                : [],
+            ...(dataIn.middleName && { middleName: dataIn.middleName.trim() }),
+            ...(dataIn.productName && { productName: dataIn.productName.trim() }),
+            ...(dataIn.purchaseLocation && { purchaseLocation: dataIn.purchaseLocation.trim() }),
+            ...(dataIn.downPayment && { downPayment: dataIn.downPayment.trim() }),
+            ...(dataIn.comfortableMonthlyPayment && { comfortableMonthlyPayment: dataIn.comfortableMonthlyPayment.trim() }),
+            ...(dataIn.monthlyPayment && { monthlyPayment: dataIn.monthlyPayment.trim() }),
+            ...(dataIn.partnerLocation && { partnerLocation: dataIn.partnerLocation.trim() }),
+            ...(dataIn.convenientPaymentDate && { convenientPaymentDate: dataIn.convenientPaymentDate.trim() }),
+            ...(dataIn.officialIncome_sb && { officialIncome_sb: dataIn.officialIncome_sb.trim() }),
+            ...(dataIn.additionalIncome_sb && { additionalIncome_sb: dataIn.additionalIncome_sb.trim() }),
+            ...(dataIn.employmentInfo_sb && { employmentInfo_sb: dataIn.employmentInfo_sb.trim() }),
+            ...(dataIn.monthlyIncome && { monthlyIncome: dataIn.monthlyIncome.trim() }),
+            ...(dataIn.monthlyExpenses && { monthlyExpenses: dataIn.monthlyExpenses.trim() }),
+            ...(dataIn.workPlace && { workPlace: dataIn.workPlace.trim() }),
+            ...(dataIn.workExperience && { workExperience: dataIn.workExperience.trim() }),
+        }
+
+        // Remove viewed_at field from dataIn when user updates the deal
+        // This ensures the deal is marked as unread again after user edits it
+        const { viewed_at, ...dataInWithoutViewedAt } = sanitizedDataIn as any
+        const finalDataIn = dataInWithoutViewedAt as LoanApplicationDataIn
+
+        const simulatedDeal = {
+            ...deal,
+            dataIn: finalDataIn,
+        } as LoanApplication
+
+        const rejectionReason = await this.checkStopFactors(simulatedDeal)
+
+        const currentDataOutRaw = deal.dataOut ?? {}
+        const currentDataOut = typeof currentDataOutRaw === 'string'
+            ? (() => {
+                try {
+                    return JSON.parse(currentDataOutRaw) as Record<string, unknown>
+                } catch {
+                    return {}
+                }
+            })()
+            : (currentDataOutRaw as Record<string, unknown>)
+
+        const nextDataOut: Record<string, unknown> = { ...currentDataOut }
+
+        let nextStatusName: LoanApplication['statusName'] = 'SCORING'
+        if (rejectionReason) {
+            nextStatusName = 'REJECTED'
+            nextDataOut.rejection_reason = rejectionReason
+        } else {
+            const score = await this.calculateScore(simulatedDeal)
+            nextDataOut.scoring_result = {
+                score,
+                red_flags_checked: true,
+            }
+            delete nextDataOut.rejection_reason
+        }
+
+        return await this.updateLoanApplicationDeal(uuid, {
+            ...(title ? { title } : {}),
+            statusName: nextStatusName,
+            dataIn: finalDataIn,
+            dataOut: nextDataOut,
+        })
+    }
+
     /**
      * Одобрение заявки на кредит
      * Обновляет статус на APPROVED, сохраняет комментарий СБ и менеджера,
@@ -1019,7 +1116,7 @@ export class DealsRepository extends BaseRepository<Deal>{
         const dataIn = this.normalizeLoanApplicationDataIn(deal.dataIn as any);
         const nextDataIn = {
             ...dataIn,
-            veiwed_at: viewedAt instanceof Date ? viewedAt.toISOString() : viewedAt,
+            viewed_at: viewedAt instanceof Date ? viewedAt.toISOString() : viewedAt,
         };
 
         const updatedDeal = await this.update(uuid, {

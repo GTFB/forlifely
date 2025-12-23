@@ -43,17 +43,18 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
 
     // Check if roles filter is present
     const roleUuids = url.searchParams.getAll('roles')
+    const kycStatus = url.searchParams.get('kycStatus')
     
     let result
-    if (roleUuids.length > 0) {
+    if (roleUuids.length > 0 || kycStatus) {
       // Filter users by roles using a custom query
       const db = createDb()
       const page = pagination.page || 1
       const limit = pagination.limit || 20
       const offset = (page - 1) * limit
 
-      // Build query to get users with specific roles
-      const usersResult = await db
+      // Build query to get users with specific roles and/or KYC status
+      const query = db
         .selectDistinct({
           id: schema.users.id,
           uuid: schema.users.uuid,
@@ -67,25 +68,63 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           // Add other fields as necessary from EsnadUser type
         })
         .from(schema.users)
-        .innerJoin(schema.userRoles, eq(schema.users.uuid, schema.userRoles.userUuid))
-        .where(and(
-          inArray(schema.userRoles.roleUuid, roleUuids),
-          isNull(schema.users.deletedAt)
-        ))
+
+      // Add join for roles filter if needed
+      if (roleUuids.length > 0) {
+        query.innerJoin(schema.userRoles, eq(schema.users.uuid, schema.userRoles.userUuid))
+      }
+
+      // Add join for humans if KYC filter is needed
+      if (kycStatus) {
+        query.innerJoin(schema.humans, eq(schema.users.humanAid, schema.humans.haid))
+      }
+
+      // Build where conditions
+      const whereConditions = [isNull(schema.users.deletedAt)]
+      
+      if (roleUuids.length > 0) {
+        whereConditions.push(inArray(schema.userRoles.roleUuid, roleUuids))
+      }
+
+      if (kycStatus) {
+        if (kycStatus === 'not_started') {
+          // For not_started, check if kycStatus is null, undefined, or 'not_started'
+          whereConditions.push(
+            sql`(
+              ${schema.humans.dataIn}::jsonb->>'kycStatus' IS NULL OR
+              ${schema.humans.dataIn}::jsonb->>'kycStatus' = 'not_started' OR
+              ${schema.humans.dataIn}::jsonb->>'kycStatus' = ''
+            )`
+          )
+        } else {
+          whereConditions.push(
+            sql`${schema.humans.dataIn}::jsonb->>'kycStatus' = ${kycStatus}`
+          )
+        }
+      }
+
+      const usersResult = await query
+        .where(and(...whereConditions))
         .orderBy(desc(schema.users.createdAt))
         .limit(limit)
         .offset(offset)
         .execute()
 
       // Get total count
-      const [countResult] = await db
+      const countQuery = db
         .select({ total: sql<number>`count(distinct ${schema.users.id})` })
         .from(schema.users)
-        .innerJoin(schema.userRoles, eq(schema.users.uuid, schema.userRoles.userUuid))
-        .where(and(
-          inArray(schema.userRoles.roleUuid, roleUuids),
-          isNull(schema.users.deletedAt)
-        ))
+
+      if (roleUuids.length > 0) {
+        countQuery.innerJoin(schema.userRoles, eq(schema.users.uuid, schema.userRoles.userUuid))
+      }
+
+      if (kycStatus) {
+        countQuery.innerJoin(schema.humans, eq(schema.users.humanAid, schema.humans.haid))
+      }
+
+      const [countResult] = await countQuery
+        .where(and(...whereConditions))
         .execute()
 
       const total = countResult?.total || 0

@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withAdminGuard, AuthenticatedRequestContext } from "@/shared/api-guard"
 import { DealsRepository } from "@/shared/repositories/deals.repository"
+import { createDb } from "@/shared/repositories/utils"
+import { schema } from "@/shared/schema"
 import { and, inArray, isNull, sql } from "drizzle-orm"
 
 type AdminNotices = Record<string, number>
@@ -20,13 +22,28 @@ const handleGet = async (
           inArray(dealsRepository.schema.statusName, ["NEW", "SCORING"]),
           isNull(dealsRepository.schema.deletedAt),
           sql`COALESCE(${dealsRepository.schema.dataIn}::jsonb->>'type', '') = 'LOAN_APPLICATION'`,
-          sql`COALESCE(${dealsRepository.schema.dataIn}::jsonb->>'veiwed_at', '') = ''`
+          sql`COALESCE(${dealsRepository.schema.dataIn}::jsonb->>'viewed_at', '') = ''`
+        )
+      )
+      .execute()
+
+    // Get count of users with KYC status 'pending'
+    const db = createDb()
+    const [kycPendingResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.users)
+      .innerJoin(schema.humans, sql`${schema.users.humanAid} = ${schema.humans.haid}`)
+      .where(
+        and(
+          isNull(schema.users.deletedAt),
+          sql`${schema.humans.dataIn}::jsonb->>'kycStatus' = 'pending'`
         )
       )
       .execute()
 
     const response: AdminNotices = {
       new_loans_count: rows.length,
+      kyc_pending_count: Number(kycPendingResult?.count || 0),
     }
 
     return NextResponse.json(response, { status: 200 })

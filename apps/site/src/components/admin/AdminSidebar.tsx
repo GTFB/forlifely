@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Database,
   Settings,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/providers/MeProvider'
@@ -78,6 +79,11 @@ const navigationGroups: NavigationGroup[] = [
         title: 'Сделки',
         url: '/admin/deals',
         icon: FileText,
+      },
+      {
+        title: 'Транзакции',
+        url: '/admin/transactions',
+        icon: CreditCard,
       },
     ],
   },
@@ -189,6 +195,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     return groups
   }
   const newLoans = useNotice('new_loans_count')
+  const kycPending = useNotice('kyc_pending_count')
 
   return (
     <Sidebar>
@@ -212,7 +219,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                       const Icon = item.icon
                       const active = isActive(item.url)
                       const isLoansItem = item.url === '/admin/loans'
+                      const isUsersItem = item.url === '/admin/users'
                       const hasNewLoans = typeof newLoans === 'number' && newLoans > 0
+                      const hasKycPending = typeof kycPending === 'number' && kycPending > 0
                       return (
                         <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton
@@ -227,6 +236,19 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                               {isLoansItem && hasNewLoans && (
                                 <Badge variant="secondary" className="ml-auto">
                                   {newLoans}
+                                </Badge>
+                              )}
+                              {isUsersItem && hasKycPending && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className="ml-auto cursor-pointer hover:bg-secondary/80"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    window.location.href = '/admin/users?kycStatus=pending'
+                                  }}
+                                >
+                                  {kycPending}
                                 </Badge>
                               )}
                             </Link>

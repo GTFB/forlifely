@@ -391,7 +391,7 @@ export default function AdminLoansPage() {
                 </TableHeader>
                 <TableBody>
                   {loans.map((loan) => {
-                    const viewedAt = (loan.dataIn as any)?.veiwed_at
+                    const viewedAt = (loan.dataIn as any)?.viewed_at
                     const isUnread = !viewedAt
                     return (
                       <TableRow

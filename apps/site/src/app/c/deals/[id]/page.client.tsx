@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -12,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Loader2, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
@@ -22,6 +24,7 @@ interface DealDetail {
     uuid: string
     title: string
     status: string
+    statusName?: string
     createdAt: string
     dataIn?: any
     dataOut?: any
@@ -268,9 +271,16 @@ export default function DealDetailPageClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Сделка {deal.id}</h1>
-        <Badge variant={deal.status === 'Активна' ? 'default' : 'secondary'}>
-          {deal.status}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant={deal.status === 'Активна' ? 'default' : 'secondary'}>
+            {deal.status}
+          </Badge>
+          {deal.statusName === 'SCORING' && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/c/deals/${dealId}/edit`}>Редактировать</Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

@@ -4,6 +4,8 @@ import type { DbFilters } from '@/shared/types/shared'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { processDataClientDeal } from '../route'
 import { LoanApplication } from '@/shared/types/esnad'
+import { HumanRepository } from '@/shared/repositories/human.repository'
+import { FileStorageService } from '@/shared/services/file-storage.service'
 
 /**
  * GET /api/c/deals/[id]
@@ -90,18 +92,242 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
   }
 }
 
+/**
+ * PUT /api/c/deals/[id]
+ * Update deal details by ID (allowed only while SCORING)
+ */
+export const onRequestPut = async (context: AuthenticatedRequestContext) => {
+  const { params } = context
+  const id = params?.id
+
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Deal ID is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
+    const { human } = context.user
+
+    if (!human?.haid) {
+      return new Response(JSON.stringify({ error: 'Human profile not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const dealsRepository = DealsRepository.getInstance()
+
+    const filters: DbFilters = {
+      conditions: [
+        { field: 'daid', operator: 'eq', values: [id] },
+        { field: 'clientAid', operator: 'eq', values: [human.haid] },
+        { field: 'dataIn', operator: 'like', values: ['%"type":"LOAN_APPLICATION"%'] },
+      ],
+    }
+
+    const result = await dealsRepository.getDeals({
+      filters,
+      pagination: { page: 1, limit: 1 },
+    })
+
+    const deal = result.docs[0] as LoanApplication | undefined
+
+    if (!deal) {
+      return new Response(JSON.stringify({ error: 'Deal not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (deal.statusName !== 'SCORING') {
+      return new Response(JSON.stringify({ error: 'Editing is allowed only for SCORING status' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const formData = await context.request.formData()
+    const body: Record<string, any> = {}
+
+    for (const [key, value] of formData.entries()) {
+      if (key === 'documentPhotos') continue
+      const fileValue = value as File | string
+      if (fileValue instanceof File) continue
+      body[key] = fileValue
+    }
+
+    const documentPhotos = formData
+      .getAll('documentPhotos')
+      .filter((item): item is File => item instanceof File)
+
+    const requiredFields = ['firstName', 'lastName', 'phoneNumber', 'purchasePrice', 'installmentTerm']
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return new Response(JSON.stringify({ error: `Отсутствует обязательное поле: ${field}` }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    const russianPattern = /^[А-Яа-яЁё\s-]+$/
+    if (body.firstName && !russianPattern.test(String(body.firstName).trim())) {
+      return new Response(JSON.stringify({ error: 'Имя должно содержать только русские буквы, пробелы и дефисы' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    if (body.lastName && !russianPattern.test(String(body.lastName).trim())) {
+      return new Response(JSON.stringify({ error: 'Фамилия должна содержать только русские буквы, пробелы и дефисы' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    if (body.middleName && !russianPattern.test(String(body.middleName).trim())) {
+      return new Response(JSON.stringify({ error: 'Отчество должно содержать только русские буквы, пробелы и дефисы' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const installmentTerm = parseInt(body.installmentTerm || '0', 10)
+    if (isNaN(installmentTerm) || installmentTerm <= 0) {
+      return new Response(JSON.stringify({ error: 'Неверный срок рассрочки' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const humanRepository = HumanRepository.getInstance()
+
+    const fullName = [body.lastName, body.firstName, body.middleName].filter(Boolean).join(' ').trim() || human.fullName
+    const currentHumanDataIn =
+      typeof human.dataIn === 'string'
+        ? (JSON.parse(human.dataIn) as Record<string, unknown>)
+        : (human.dataIn as Record<string, unknown>) || {}
+
+    const updatedHumanDataIn: Record<string, unknown> = {
+      ...currentHumanDataIn,
+      phone: body.phoneNumber || currentHumanDataIn.phone,
+      ...(body.firstName && { firstName: body.firstName }),
+      ...(body.lastName && { lastName: body.lastName }),
+      ...(body.middleName && { middleName: body.middleName }),
+      ...(body.dateOfBirth && { dateOfBirth: body.dateOfBirth }),
+      ...(body.placeOfBirth && { placeOfBirth: body.placeOfBirth }),
+      ...(body.citizenship && { citizenship: body.citizenship }),
+      ...(body.maritalStatus && { maritalStatus: body.maritalStatus }),
+      ...(body.numberOfChildren && { numberOfChildren: body.numberOfChildren }),
+      ...(body.passportSeries && { passportSeries: body.passportSeries }),
+      ...(body.passportNumber && { passportNumber: body.passportNumber }),
+      ...(body.passportIssueDate && { passportIssueDate: body.passportIssueDate }),
+      ...(body.passportIssuedBy && { passportIssuedBy: body.passportIssuedBy }),
+      ...(body.passportDivisionCode && { passportDivisionCode: body.passportDivisionCode }),
+      ...(body.inn && { inn: body.inn }),
+      ...(body.snils && { snils: body.snils }),
+      ...(body.permanentAddress && { permanentAddress: body.permanentAddress }),
+      ...(body.registrationAddress && { registrationAddress: body.registrationAddress }),
+      ...(body.employmentInfo_sb && { employmentInfo_sb: String(body.employmentInfo_sb).trim() }),
+      ...(body.officialIncome_sb && { officialIncome_sb: String(body.officialIncome_sb).trim() }),
+      ...(body.additionalIncome_sb && { additionalIncome_sb: String(body.additionalIncome_sb).trim() }),
+      ...(body.monthlyIncome && { monthlyIncome: String(body.monthlyIncome).trim() }),
+      ...(body.monthlyExpenses && { monthlyExpenses: String(body.monthlyExpenses).trim() }),
+      ...(body.workPlace && { workPlace: String(body.workPlace).trim() }),
+      ...(body.workExperience && { workExperience: String(body.workExperience).trim() }),
+    }
+
+    await humanRepository.update(human.uuid, {
+      fullName,
+      birthday: body.dateOfBirth || human.birthday,
+      dataIn: updatedHumanDataIn,
+    })
+
+    const applicantName = `${String(body.firstName).trim()} ${String(body.lastName).trim()}`.trim()
+    let dealTitle = deal.title || 'Заявка на кредит'
+    if (body.productName) {
+      dealTitle = String(body.productName).trim()
+      if (applicantName) dealTitle += ` - ${applicantName}`
+    } else if (applicantName) {
+      dealTitle = `Заявка на кредит - ${applicantName}`
+    }
+
+    const updated = await dealsRepository.updateLoanApplicationDealByClientWhileScoring(deal.uuid, {
+      type: 'LOAN_APPLICATION',
+      firstName: String(body.firstName),
+      lastName: String(body.lastName),
+      middleName: body.middleName ? String(body.middleName) : undefined,
+      phone: String(body.phoneNumber),
+      email: String(human.email || '').trim().toLowerCase(),
+      productPrice: String(body.purchasePrice),
+      term: [installmentTerm],
+      productName: body.productName,
+      purchaseLocation: body.purchaseLocation,
+      downPayment: body.downPayment,
+      comfortableMonthlyPayment: body.comfortableMonthlyPayment,
+      monthlyPayment: body.monthlyPayment,
+      partnerLocation: body.partnerLocation,
+      convenientPaymentDate: body.convenientPaymentDate,
+      ...(body.officialIncome_sb && { officialIncome_sb: String(body.officialIncome_sb) }),
+      ...(body.additionalIncome_sb && { additionalIncome_sb: String(body.additionalIncome_sb) }),
+      ...(body.employmentInfo_sb && { employmentInfo_sb: String(body.employmentInfo_sb) }),
+      ...(body.monthlyIncome && { monthlyIncome: String(body.monthlyIncome) }),
+      ...(body.monthlyExpenses && { monthlyExpenses: String(body.monthlyExpenses) }),
+      ...(body.workPlace && { workPlace: String(body.workPlace) }),
+      ...(body.workExperience && { workExperience: String(body.workExperience) }),
+    }, dealTitle)
+
+    if (documentPhotos.length > 0) {
+      const fileStorageService = FileStorageService.getInstance()
+      const uploadedFiles: string[] = []
+
+      for (const file of documentPhotos) {
+        try {
+          const media = await fileStorageService.uploadFile(file, updated.updatedDeal.uuid, file.name, human.haid)
+          uploadedFiles.push(media.uuid)
+        } catch (error) {
+          console.error('Ошибка при загрузке файла:', error)
+        }
+      }
+
+      if (uploadedFiles.length > 0) {
+        await dealsRepository.attachDocumentsToDeal(updated.updatedDeal.uuid, uploadedFiles)
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Заявка обновлена',
+        deal: await processDataClientDeal(updated.updatedDeal as LoanApplication),
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+  } catch (error) {
+    console.error('Update deal error:', error)
+    return new Response(JSON.stringify({ error: 'Failed to update deal', details: String(error) }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+}
+
 export const onRequestOptions = async () =>
   new Response(null, {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Credentials': 'true',
     },
   })
 
 export const GET = withClientGuard(onRequestGet)  
+export const PUT = withClientGuard(onRequestPut)
 
 export async function OPTIONS() {
   return onRequestOptions()

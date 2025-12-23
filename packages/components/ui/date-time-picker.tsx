@@ -25,6 +25,8 @@ export interface DateTimePickerProps {
   locale?: Locale
   toDate?: Date
   fromDate?: Date
+  fromYear?: number
+  toYear?: number
 }
 
 export function DateTimePicker({
@@ -40,6 +42,8 @@ export function DateTimePicker({
   locale,
   toDate,
   fromDate,
+  fromYear,
+  toYear,
 }: DateTimePickerProps) {
   const [internalValue, setInternalValue] = React.useState<Date | null>(
     defaultValue || value || null
@@ -230,6 +234,9 @@ export function DateTimePicker({
                 return false
               }}
               locale={locale}
+              captionLayout="dropdown"
+              fromYear={fromYear}
+              toYear={toYear}
               classNames={{
                 root: "w-full min-w-[300px]"
               }}

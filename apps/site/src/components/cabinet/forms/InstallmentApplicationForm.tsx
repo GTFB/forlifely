@@ -27,6 +27,13 @@ import { useMe } from '@/providers/MeProvider'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { EsnadHuman } from '@/shared/types/esnad'
 import { Progress } from '@/components/ui/progress'
+import dynamic from 'next/dynamic'
+import type { Value as E164Number } from 'react-phone-number-input'
+
+const PhoneInput = dynamic(
+  () => import('@/components/ui/phone-input').then((mod) => mod.PhoneInput),
+  { ssr: false }
+)
 
 interface FormData {
   // Client Primary Info
@@ -214,8 +221,16 @@ function getMonthWord(months: number): string {
 
 export function InstallmentApplicationForm({
   human,
+  initialValues,
+  submitUrl = '/api/esnad/v1/c/installment-application',
+  submitMethod = 'POST',
+  successRedirectUrl = '/c/deals',
 }: {
   human?: EsnadHuman
+  initialValues?: Partial<FormData>
+  submitUrl?: string
+  submitMethod?: 'POST' | 'PUT' | 'PATCH'
+  successRedirectUrl?: string
 }) {
   const router = useRouter()
   const { user: meUser, loading: meLoading } = useMe()
@@ -235,6 +250,19 @@ export function InstallmentApplicationForm({
     // Default installment term to 6 months so backend always получает значение
     installmentTerm: '6',
   })
+
+  const didApplyInitialValuesRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!initialValues) return
+    if (didApplyInitialValuesRef.current) return
+
+    setFormData((prev) => ({
+      ...prev,
+      ...initialValues,
+    }))
+
+    didApplyInitialValuesRef.current = true
+  }, [initialValues])
 
   const toggleSection = (sectionId: string) => {
     // Don't allow closing consent and productAndTerms sections
@@ -452,7 +480,46 @@ export function InstallmentApplicationForm({
     }
   }, [sections.length])
 
+  // Format division code: XXX-XXX (6 digits with hyphen)
+  const formatDivisionCode = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '')
+    // Limit to 6 digits
+    const limited = digits.slice(0, 6)
+    // Add hyphen after 3rd digit if we have more than 3 digits
+    if (limited.length <= 3) {
+      return limited
+    }
+    return `${limited.slice(0, 3)}-${limited.slice(3)}`
+  }
+
+  // Format SNILS: XXX-XXX-XXX XX (11 digits with hyphens and space)
+  const formatSnils = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '')
+    // Limit to 11 digits
+    const limited = digits.slice(0, 11)
+    
+    if (limited.length <= 3) {
+      return limited
+    } else if (limited.length <= 6) {
+      return `${limited.slice(0, 3)}-${limited.slice(3)}`
+    } else if (limited.length <= 9) {
+      return `${limited.slice(0, 3)}-${limited.slice(3, 6)}-${limited.slice(6)}`
+    } else {
+      return `${limited.slice(0, 3)}-${limited.slice(3, 6)}-${limited.slice(6, 9)} ${limited.slice(9)}`
+    }
+  }
+
   const handleInputChange = (field: keyof FormData, value: any) => {
+    // Apply mask for division code
+    if (field === 'passportDivisionCode' && typeof value === 'string') {
+      value = formatDivisionCode(value)
+    }
+    // Apply mask for SNILS
+    if (field === 'snils' && typeof value === 'string') {
+      value = formatSnils(value)
+    }
     setFormData((prev) => ({ ...prev, [field]: value }))
     // Clear step errors when user starts typing
     if (stepErrors[currentStep] && stepErrors[currentStep].length > 0) {
@@ -835,8 +902,8 @@ export function InstallmentApplicationForm({
         })
       }
 
-      const response = await fetch('/api/esnad/v1/c/installment-application', {
-        method: 'POST',
+      const response = await fetch(submitUrl, {
+        method: submitMethod,
         credentials: 'include',
         body: formDataToSend,
       })
@@ -846,9 +913,9 @@ export function InstallmentApplicationForm({
         throw new Error(data.error || 'Failed to submit application')
       }
 
-      const data = await response.json() as { dealId?: string; dealUuid?: string }
-      // Redirect to deals list or deal detail page
-      router.push(`/c/deals`)
+      await response.json().catch(() => null)
+      // Redirect after success
+      router.push(successRedirectUrl)
     } catch (err) {
       console.error('Submit error:', err)
       setError(err instanceof Error ? err.message : 'Failed to submit application')
@@ -915,13 +982,12 @@ export function InstallmentApplicationForm({
 
       <div className="space-y-2">
         <Label htmlFor="phoneNumber">Телефон *</Label>
-        <Input
-          id="phoneNumber"
-          type="tel"
-          value={formData.phoneNumber || ''}
-          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-          placeholder="+7 (___) ___-__-__"
-          required
+        <PhoneInput
+          defaultCountry="RU"
+          placeholder="+7 (999) 999-99-99"
+          value={(formData.phoneNumber || '') as E164Number}
+          onChange={(value) => handleInputChange('phoneNumber', value ?? '')}
+          hideCountrySelector
         />
       </div>
 
@@ -1250,13 +1316,12 @@ export function InstallmentApplicationForm({
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="phoneNumber">Телефон *</Label>
-          <Input
-            id="phoneNumber"
-            type="tel"
-            value={formData.phoneNumber || ''}
-            onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-            placeholder="+7 (___) ___-__-__"
-            required
+          <PhoneInput
+            defaultCountry="RU"
+            placeholder="+7 (999) 999-99-99"
+            value={(formData.phoneNumber || '') as E164Number}
+            onChange={(value) => handleInputChange('phoneNumber', value ?? '')}
+            hideCountrySelector
           />
         </div>
         <div className="space-y-2">

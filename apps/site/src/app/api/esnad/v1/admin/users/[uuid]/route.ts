@@ -11,6 +11,7 @@ import { and, eq, isNull, inArray } from 'drizzle-orm'
 import type { ClientDataIn, KycStatus } from '@/shared/types/esnad'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { buildRequestEnv } from '@/shared/env'
+import { sendToRoom } from '@/packages/lib/socket'
 
 const ADMIN_ROLE_NAMES = ['Administrator', 'admin']
 
@@ -332,6 +333,7 @@ const handlePut = async (
         }
 
         // Update financial fields
+        const kycStatusChanged = kycStatus !== undefined && dataIn.kycStatus !== kycStatus
         if (kycStatus !== undefined) {
           dataIn.kycStatus = kycStatus
         }
@@ -456,6 +458,18 @@ const handlePut = async (
             } catch (journalError) {
               console.error('Failed to log admin OCR override event', journalError)
               // Don't fail update if journal logging fails
+            }
+          }
+
+          // Send socket notification if KYC status was changed
+          if (kycStatusChanged) {
+            try {
+              await sendToRoom('admin', 'update-admin', {
+                type: 'admin-updated-notices',
+              })
+            } catch (socketError) {
+              console.error('Failed to send admin-updated-notices socket event:', socketError)
+              // Don't fail update if socket notification fails
             }
           }
         }

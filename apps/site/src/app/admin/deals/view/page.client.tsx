@@ -729,11 +729,20 @@ export default function DealDetailPageClient() {
                       <p className="text-sm text-muted-foreground">{deal.dataIn.email}</p>
                     </div>
                   </div>
-                  <Link href={`/admin/users/${humanClient?.user?.uuid}`}>
-                    <Button variant="outline" className="w-full">
-                      Посмотреть профиль
-                    </Button>
-                  </Link>
+                  <div className="flex flex-col gap-2">
+                    <Link href={`/admin/users/${humanClient?.user?.uuid}`}>
+                      <Button variant="outline" className="w-full">
+                        Посмотреть профиль
+                      </Button>
+                    </Link>
+                    {deal.clientAid && (
+                      <Link href={`/admin/users/${deal.clientAid}/wallet`}>
+                        <Button variant="outline" className="w-full">
+                          Посмотреть кошелёк
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 

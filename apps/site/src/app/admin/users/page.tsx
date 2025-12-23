@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -93,30 +94,32 @@ interface Role {
 }
 
 export default function AdminUsersPage() {
-
+  const searchParams = useSearchParams()
 
   const [data, setData] = React.useState<DbPaginatedResult<UserWithRoles> | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const urlParams = new URLSearchParams(window.location.search)
-  const search = urlParams.get('search')
-  const roleFilter = urlParams.get('role')
-  const [searchQuery, setSearchQuery] = React.useState(search)
-  const [selectedRole, setSelectedRole] = React.useState<string>(roleFilter || 'all')
+  const [searchQuery, setSearchQuery] = React.useState(searchParams.get('search') || '')
+  const [selectedRole, setSelectedRole] = React.useState<string>(searchParams.get('role') || 'all')
+  const [selectedKycStatus, setSelectedKycStatus] = React.useState<string>(searchParams.get('kycStatus') || 'all')
+  const [kycPendingCount, setKycPendingCount] = React.useState<number>(0)
   const [debouncedSearchQuery, setDebouncedSearchQuery] = React.useState('')
   const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set())
   const [pagination, setPagination] = React.useState({
     page: 1,
     limit: 20,
   })
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const search = urlParams.get('search')
 
-    if (search) {
-      setSearchQuery(search)
-    }
-  }, [])
+  // Sync state with URL params when they change
+  React.useEffect(() => {
+    const search = searchParams.get('search')
+    const roleFilter = searchParams.get('role')
+    const kycFilter = searchParams.get('kycStatus')
+
+    setSearchQuery(search || '')
+    setSelectedRole(roleFilter || 'all')
+    setSelectedKycStatus(kycFilter || 'all')
+  }, [searchParams])
 
 
   const [sheetOpen, setSheetOpen] = React.useState(false)
@@ -167,7 +170,8 @@ export default function AdminUsersPage() {
       
       const params = qs.parse(window.location.search.replace('?', '').split('#')[0])
       const currentRoleInUrl = params.role || 'all'
-      if(params.search === searchQuery && currentRoleInUrl === selectedRole) {
+      const currentKycInUrl = params.kycStatus || 'all'
+      if(params.search === searchQuery && currentRoleInUrl === selectedRole && currentKycInUrl === selectedKycStatus) {
         return
       }
       if (searchQuery) {
@@ -180,12 +184,17 @@ export default function AdminUsersPage() {
       } else {
         delete params.role
       }
+      if (selectedKycStatus && selectedKycStatus !== 'all') {
+        params.kycStatus = selectedKycStatus
+      } else {
+        delete params.kycStatus
+      }
       const newUrl = `/admin/users?${qs.stringify(params)}`
       window.history.replaceState({}, '', newUrl)
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedRole])
+  }, [searchQuery, selectedRole, selectedKycStatus])
 
   // Base fetch function
   const fetchUsersBase = useCallback(async () => {
@@ -204,6 +213,9 @@ export default function AdminUsersPage() {
       }
       if (selectedRole && selectedRole !== 'all') {
         params.append('roles', selectedRole)
+      }
+      if (selectedKycStatus && selectedKycStatus !== 'all') {
+        params.append('kycStatus', selectedKycStatus)
       }
 
       const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
@@ -224,7 +236,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [pagination.page, pagination.limit, debouncedSearchQuery, selectedRole])
+  }, [pagination.page, pagination.limit, debouncedSearchQuery, selectedRole, selectedKycStatus])
 
   // Debounced version of fetchUsers
   const fetchUsers = useMemo(
@@ -498,6 +510,33 @@ export default function AdminUsersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="relative">
+              <Select
+                value={selectedKycStatus}
+                onValueChange={(value) => {
+                  setSelectedKycStatus(value)
+                  setPagination((prev) => ({ ...prev, page: 1 }))
+                }}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Все статусы KYC" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все статусы KYC</SelectItem>
+                  <SelectItem value="pending">На проверке</SelectItem>
+                  <SelectItem value="verified">Верифицирован</SelectItem>
+                  <SelectItem value="rejected">Отклонён</SelectItem>
+                  <SelectItem value="not_started">Не начата</SelectItem>
+                </SelectContent>
+              </Select>
+              {kycPendingCount > 0 && selectedKycStatus === 'all' && (
+                <Badge 
+                  variant="secondary" 
+                  className="absolute -top-2 -right-2 h-5 min-w-5 flex items-center justify-center px-1.5 text-xs"
+                >
+                  {kycPendingCount}
+                </Badge>
+              )}
+            </div>
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetContent className="overflow-y-auto">
                 <SheetHeader>

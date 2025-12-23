@@ -258,6 +258,19 @@ export default function EditUserPage() {
   // Validate Cyrillic characters
   const cyrillicRegex = /^[А-Яа-яЁё\s-]*$/
 
+  // Format division code: XXX-XXX (6 digits with hyphen)
+  const formatDivisionCode = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '')
+    // Limit to 6 digits
+    const limited = digits.slice(0, 6)
+    // Add hyphen after 3rd digit if we have more than 3 digits
+    if (limited.length <= 3) {
+      return limited
+    }
+    return `${limited.slice(0, 3)}-${limited.slice(3)}`
+  }
+
   // Handle OCR first name change with validation
   const handleOcrFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -1008,7 +1021,7 @@ export default function EditUserPage() {
                       <Input
                         id="ocr-passportDivisionCode"
                         value={ocrFormData.passportDivisionCode}
-                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportDivisionCode: e.target.value }))}
+                        onChange={(e) => setOcrFormData((prev) => ({ ...prev, passportDivisionCode: formatDivisionCode(e.target.value) }))}
                         placeholder="123-456"
                         pattern="[0-9]{3}-[0-9]{3}"
                       />
