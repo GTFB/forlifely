@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { createSession, jsonWithSession } from '@/shared/session'
+import { createSession, isSecureRequest, jsonWithSession } from '@/shared/session'
 import { generateAid } from '@/shared/generate-aid'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { Env } from '@/shared/types'
@@ -146,7 +146,11 @@ async function handlePost(request: Request, env: Env) {
         name,
         role: 'admin',
       },
-      env.AUTH_SECRET
+      env.AUTH_SECRET,
+      {
+        secure: isSecureRequest(request),
+        sameSite: 'Lax',
+      }
     )
 
     return jsonWithSession(

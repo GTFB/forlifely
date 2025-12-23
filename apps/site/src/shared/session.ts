@@ -7,6 +7,57 @@ import { UserWithRoles, SessionData, SessionUser } from './types'
 const COOKIE_NAME = 'session'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days in seconds
 
+type SameSite = 'Strict' | 'Lax' | 'None'
+
+export type SessionCookieOptions = {
+  secure?: boolean
+  sameSite?: SameSite
+}
+
+export function isSecureRequest(request: Request): boolean {
+  const xfProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  if (xfProto) return xfProto.toLowerCase() === 'https'
+
+  const cfVisitor = request.headers.get('cf-visitor')
+  if (cfVisitor) {
+    try {
+      const parsed = JSON.parse(cfVisitor) as { scheme?: string }
+      if (parsed?.scheme) return parsed.scheme === 'https'
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    return new URL(request.url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function buildSessionCookie(
+  value: string,
+  maxAge: number,
+  options?: SessionCookieOptions
+): string {
+  const secure =
+    options?.secure ??
+    // Fallback: in production prefer Secure cookies (most deployments are HTTPS)
+    (process.env.NODE_ENV === 'production')
+  const sameSite: SameSite = options?.sameSite ?? 'Lax'
+
+  const parts = [
+    `${COOKIE_NAME}=${value}`,
+    'Path=/',
+    'HttpOnly',
+    ...(secure ? ['Secure'] : []),
+    `SameSite=${sameSite}`,
+    `Max-Age=${maxAge}`,
+  ]
+
+  return parts.join('; ')
+}
+
 /**
  * Derives encryption key from AUTH_SECRET
  */
@@ -100,7 +151,11 @@ async function decrypt(encrypted: string, secret: string): Promise<string | null
 /**
  * Creates an encrypted session cookie
  */
-export async function createSession(user: SessionUser, secret: string): Promise<string> {
+export async function createSession(
+  user: SessionUser,
+  secret: string,
+  options?: SessionCookieOptions
+): Promise<string> {
   const sessionData: SessionData = {
     user,
     expiresAt: Date.now() + COOKIE_MAX_AGE * 1000,
@@ -108,7 +163,7 @@ export async function createSession(user: SessionUser, secret: string): Promise<
   
   const encrypted = await encrypt(JSON.stringify(sessionData), secret)
   
-  return `${COOKIE_NAME}=${encrypted}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE}`
+  return buildSessionCookie(encrypted, COOKIE_MAX_AGE, options)
 }
 
 /**
@@ -151,8 +206,8 @@ export async function getSession(request: Request, secret: string): Promise<Sess
 /**
  * Clears the session cookie
  */
-export function clearSession(): string {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`
+export function clearSession(options?: SessionCookieOptions): string {
+  return buildSessionCookie('', 0, options)
 }
 
 /**

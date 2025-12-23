@@ -1046,7 +1046,7 @@ export default function EditUserPage() {
             </Card>
           )}
 
-          {/* Данные из заявки */}
+          {/* Данные из заявки - временно скрыто
           {user && user.human?.dataIn && (
             <Card>
               <CardHeader>
@@ -1104,6 +1104,7 @@ export default function EditUserPage() {
               </CardContent>
             </Card>
           )}
+          */}
 
           {/* KYC Документы */}
           {user && user.human?.dataIn && (() => {
@@ -1192,6 +1193,25 @@ export default function EditUserPage() {
                                     const isHighRisk = verificationDetails.highRisk === true
                                     const reasonCodes = verificationDetails.reasonCodes || []
                                     
+                                    // Function to translate reason codes to human-readable text
+                                    const getReasonCodeText = (code: string): string => {
+                                      const codeMap: Record<string, string> = {
+                                        'NO_FACES': 'Лица не обнаружены на фото',
+                                        'TOO_FEW_FACES': 'Обнаружено только одно лицо. На фото должно быть видно ваше лицо и лицо в паспорте',
+                                        'TOO_MANY_FACES': 'Обнаружено слишком много лиц. На фото должно быть только ваше лицо и лицо в паспорте',
+                                        'FACE_MISMATCH': 'Лица на фото не совпадают',
+                                        'PASSPORT_NOT_READABLE': 'Не удалось распознать паспорт на фото. Убедитесь, что паспорт четко виден и читаем',
+                                        'NO_FACE_IN_PASSPORT': 'Лицо в паспорте не обнаружено',
+                                        'NAME_MISMATCH': 'Имена не совпадают',
+                                        'LOW_CONFIDENCE': 'Низкая уверенность в верификации',
+                                        'POSSIBLE_FOREIGN_PASSPORT': 'Возможно, зарубежный паспорт',
+                                      }
+                                      return codeMap[code] || code
+                                    }
+                                    
+                                    // Remove duplicates using Set
+                                    const uniqueReasonCodes = Array.from(new Set(reasonCodes as string[]))
+                                    
                                     return (
                                       <div className={`mt-2 space-y-2 ${isHighRisk ? 'p-3 bg-red-50 dark:bg-red-950/20 rounded border border-red-200 dark:border-red-900' : ''}`}>
                                         {isHighRisk && (
@@ -1211,14 +1231,12 @@ export default function EditUserPage() {
                                           </Alert>
                                         )}
                                         
-                                        {reasonCodes.length > 0 && (
+                                        {uniqueReasonCodes.length > 0 && (
                                           <div className="space-y-1">
-                                            <p className="text-xs font-medium text-muted-foreground">Коды причин:</p>
-                                            <div className="flex flex-wrap gap-1">
-                                              {reasonCodes.map((code: string, idx: number) => (
-                                                <Badge key={idx} variant="outline" className="text-xs">
-                                                  {code}
-                                                </Badge>
+                                            <p className="text-xs font-medium text-muted-foreground">Причины отклонения:</p>
+                                            <div className="space-y-1">
+                                              {uniqueReasonCodes.map((code, idx) => (
+                                                <p key={idx} className="text-xs text-muted-foreground">• {getReasonCodeText(code)}</p>
                                               ))}
                                             </div>
                                           </div>

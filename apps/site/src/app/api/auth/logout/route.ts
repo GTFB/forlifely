@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 
-import { clearSession, getSession } from '@/shared/session'
+import { clearSession, getSession, isSecureRequest } from '@/shared/session'
 import type { Env } from '@/shared/types'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
@@ -32,7 +32,10 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
     status: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Set-Cookie': clearSession(),
+      'Set-Cookie': clearSession({
+        secure: isSecureRequest(request),
+        sameSite: 'Lax',
+      }),
     },
   })
 }

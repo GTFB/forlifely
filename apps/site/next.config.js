@@ -25,12 +25,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
-  allowedDevOrigins: [
-    'localhost',
-    '127.0.0.1',
-    '192.168.0.107',
-    '0.0.0.0',
-  ],
   //  
   experimental: {
     // optimizeCss: true, 

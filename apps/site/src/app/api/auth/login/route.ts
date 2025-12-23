@@ -1,4 +1,4 @@
-import { createSession, jsonWithSession } from '@/shared/session'
+import { createSession, isSecureRequest, jsonWithSession } from '@/shared/session'
 import { verifyPassword } from '@/shared/password'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
@@ -94,7 +94,11 @@ export async function POST(request: Request) {
         name: human?.fullName || persistedUser.email,
         role: isAdmin ? 'admin' : 'user',
       },
-      env.AUTH_SECRET
+      env.AUTH_SECRET,
+      {
+        secure: isSecureRequest(request),
+        sameSite: 'Lax',
+      }
     )
 
     try {
