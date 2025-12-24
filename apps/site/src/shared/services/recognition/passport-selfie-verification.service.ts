@@ -665,12 +665,14 @@ export class PassportSelfieVerificationService {
         return null
       }
 
-      if (faces.length > 1) {
-        console.warn('Multiple faces detected in selfie, using the first one')
-      }
-
-      // 3. Get the primary face bounding box
-      const face = faces[0]
+      // 3. Choose the most likely "selfie" face.
+      // For photos where the user holds a passport, there can be 2 faces:
+      // one real face (usually larger) and one in the passport (usually smaller).
+      const face = [...faces].sort((a, b) => {
+        const areaA = a.boundingBox.width * a.boundingBox.height
+        const areaB = b.boundingBox.width * b.boundingBox.height
+        return areaB - areaA
+      })[0]
       const { boundingBox } = face
 
       // 4. Load and process image with sharp

@@ -5,6 +5,7 @@ import { HumanRepository } from '@/shared/repositories/human.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
 import { PassportSelfieVerificationService } from '@/shared/services/recognition/passport-selfie-verification.service'
 import { GoogleVisionProvider } from '@/shared/services/recognition/providers/google-vision.provider'
+import { SelfieImageNormalizationService } from '@/shared/services/recognition/selfie-image-normalization.service'
 import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
 import { NewEsnadMedia } from '@/shared/types/esnad-finance'
 
@@ -102,34 +103,17 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
 
     const existingDocuments: KycDocumentRef[] = dataIn.kycDocuments || []
 
-    // Upload selfie file (photo where person is holding passport)
-    const fileStorageService = FileStorageService.getInstance()
-    const selfieMedia = await fileStorageService.uploadFile(
-      file,
-      human.uuid,
-      file.name,
-      human.haid
-    )
-
-    // Remove existing selfie_with_passport document if exists
-    const filteredDocuments = existingDocuments.filter(doc => doc.type !== 'selfie_with_passport')
-
-    let verificationResult: Awaited<ReturnType<PassportSelfieVerificationService['verifySelfieWithPassport']>> | null = null
-    let avatarMedia: Partial<NewEsnadMedia> | null = null
-    let newDocument: KycDocumentRef
-
-    // Always perform verification (passport should be visible in the photo)
-    // Initialize Google Vision provider with service account credentials
+    // Initialize Google Vision provider early (used both for normalization and verification)
     let googleProvider: GoogleVisionProvider
-    
+
     // Try to load service account credentials from JSON file path or JSON string
     const serviceAccountPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH
     const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
-    
+
     if (serviceAccountPath || serviceAccountJson) {
       try {
         let credentials: any
-        
+
         if (serviceAccountPath) {
           // Load from file path
           const fs = await import('fs/promises')
@@ -141,11 +125,13 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
           // Load from JSON string in environment variable
           credentials = JSON.parse(serviceAccountJson)
         }
-        
+
         googleProvider = new GoogleVisionProvider(credentials)
       } catch (error) {
         console.error('Failed to load Google service account credentials:', error)
-        throw new Error('Failed to load Google service account credentials. Please check GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.')
+        throw new Error(
+          'Failed to load Google service account credentials. Please check GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.'
+        )
       }
     } else {
       // Fallback to API key (if still needed for backward compatibility)
@@ -156,10 +142,34 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
         console.error('  - GOOGLE_SERVICE_ACCOUNT_PATH (path to JSON file)')
         console.error('  - GOOGLE_SERVICE_ACCOUNT_JSON (JSON string)')
         console.error('  - GOOGLE_VISION_API_KEY (API key, deprecated)')
-        throw new Error('Google Vision credentials not configured. Please set GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.')
+        throw new Error(
+          'Google Vision credentials not configured. Please set GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON environment variable.'
+        )
       }
       googleProvider = new GoogleVisionProvider(apiKey.trim())
     }
+
+    // Best-effort normalization: EXIF rotation + optional "mirror" fix before saving
+    const normalizationService = new SelfieImageNormalizationService(googleProvider)
+    const normalizedSelfie = await normalizationService.normalizeMirrorIfNeeded(file)
+
+    // Upload selfie file (photo where person is holding passport)
+    const fileStorageService = FileStorageService.getInstance()
+    const selfieMedia = await fileStorageService.uploadFile(
+      normalizedSelfie.file,
+      human.uuid,
+      normalizedSelfie.file.name,
+      human.haid
+    )
+
+    // Remove existing selfie_with_passport document if exists
+    const filteredDocuments = existingDocuments.filter(doc => doc.type !== 'selfie_with_passport')
+
+    let verificationResult: Awaited<ReturnType<PassportSelfieVerificationService['verifySelfieWithPassport']>> | null = null
+    let avatarMedia: Partial<NewEsnadMedia> | null = null
+    let newDocument: KycDocumentRef
+
+    // Always perform verification (passport should be visible in the photo)
     const verificationService = new PassportSelfieVerificationService(
       googleProvider,
       googleProvider
@@ -175,8 +185,8 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
         process.env as any
       )
 
-      // Extract and save avatar from selfie if verification successful
-      if (verificationResult.verified && verificationResult.details.facesDetectedInSelfie === 1) {
+      // Extract and save avatar from selfie whenever a face is detected in the photo
+      if (verificationResult.details.facesDetectedInSelfie >= 1) {
         avatarMedia = await verificationService.extractAvatarFromSelfie(
           selfieMedia.uuid,
           human.uuid,
