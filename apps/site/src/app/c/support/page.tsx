@@ -26,9 +26,12 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { EsnadSupportChat } from '@/shared/types/esnad-support'
+import { useUserSocket } from '@/hooks/use-user-socket'
+import { useMe } from '@/providers/MeProvider'
 
 export default function SupportPage() {
   const router = useRouter()
+  const { user: meUser } = useMe()
   const [tickets, setTickets] = React.useState<EsnadSupportChat[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -39,30 +42,50 @@ export default function SupportPage() {
     message: '',
   })
 
-  React.useEffect(() => {
-    const fetchTickets = async () => {
-      try {
+  const fetchTickets = React.useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) {
         setLoading(true)
-        const response = await fetch('/api/esnad/v1/c/support?orderBy=updatedAt&orderDirection=desc', {
-          credentials: 'include',
-        })
+      }
+      const response = await fetch('/api/esnad/v1/c/support?orderBy=updatedAt&orderDirection=desc', {
+        credentials: 'include',
+      })
 
-        if (!response.ok) {
-          throw new Error('Failed to load tickets')
-        }
+      if (!response.ok) {
+        throw new Error('Failed to load tickets')
+      }
 
-        const data = await response.json() as { docs?: EsnadSupportChat[] }
-        setTickets(data.docs || [])
-      } catch (err) {
-        console.error('Tickets fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load tickets')
-      } finally {
+      const data = await response.json() as { docs?: EsnadSupportChat[] }
+      setTickets(data.docs || [])
+      setError(null)
+    } catch (err) {
+      console.error('Tickets fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load tickets')
+    } finally {
+      if (showLoading) {
         setLoading(false)
       }
     }
-
-    fetchTickets()
   }, [])
+
+  React.useEffect(() => {
+    fetchTickets(true)
+  }, [fetchTickets])
+
+  // Subscribe to client-updated-support socket event
+  useUserSocket(
+    meUser?.humanAid || '',
+    meUser?.humanAid
+      ? {
+          'update-client': (data: { type: string; [key: string]: unknown }) => {
+            if (data.type === 'client-updated-support') {
+              // Update tickets without showing loading indicator to preserve pagination/scroll position
+              fetchTickets(false)
+            }
+          },
+        }
+      : undefined
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -259,26 +282,33 @@ export default function SupportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tickets.map((ticket) => (
-                    <TableRow
-                      key={ticket.maid}
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/c/support/${ticket.maid}`)}>
-                      <TableCell className="font-medium">{ticket.maid}</TableCell>
-                      <TableCell>{ticket.title || '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(ticket.statusName)}>
-                          {getStatusLabel(ticket.statusName)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.createdAt?.toString() || '')}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.updatedAt?.toString() || '')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {tickets.map((ticket) => {
+                    const hasUnread = (ticket as any).hasUnreadMessages === true
+                    return (
+                      <TableRow
+                        key={ticket.maid}
+                        className="cursor-pointer"
+                        onClick={() => router.push(`/c/support/${ticket.maid}`)}>
+                        <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
+                          {ticket.maid}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold' : ''}>
+                          {ticket.title || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(ticket.statusName)}>
+                            {getStatusLabel(ticket.statusName)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold text-muted-foreground' : 'text-muted-foreground'}>
+                          {formatDate(ticket.createdAt?.toString() || '')}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold text-muted-foreground' : 'text-muted-foreground'}>
+                          {formatDate(ticket.updatedAt?.toString() || '')}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             )}

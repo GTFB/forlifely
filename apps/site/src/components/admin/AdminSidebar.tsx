@@ -196,6 +196,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   }
   const newLoans = useNotice('new_loans_count')
   const kycPending = useNotice('kyc_pending_count')
+  const unreadSupportChats = useNotice('unread_support_chats_count')
 
   return (
     <Sidebar>
@@ -220,8 +221,10 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                       const active = isActive(item.url)
                       const isLoansItem = item.url === '/admin/loans'
                       const isUsersItem = item.url === '/admin/users'
+                      const isSupportItem = item.url === '/admin/support'
                       const hasNewLoans = typeof newLoans === 'number' && newLoans > 0
                       const hasKycPending = typeof kycPending === 'number' && kycPending > 0
+                      const hasUnreadSupportChats = typeof unreadSupportChats === 'number' && unreadSupportChats > 0
                       return (
                         <SidebarMenuItem key={item.url}>
                           <SidebarMenuButton
@@ -249,6 +252,11 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                                   }}
                                 >
                                   {kycPending}
+                                </Badge>
+                              )}
+                              {isSupportItem && hasUnreadSupportChats && (
+                                <Badge variant="secondary" className="ml-auto">
+                                  {unreadSupportChats}
                                 </Badge>
                               )}
                             </Link>

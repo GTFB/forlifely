@@ -11,6 +11,8 @@ import { Loader2, ArrowLeft, Send, Image as ImageIcon, X, Lock } from 'lucide-re
 import type { EsnadSupportChat, EsnadSupportMessage } from '@/shared/types/esnad-support'
 import { Input } from '@/components/ui/input'
 import { useConsumerHeader } from '@/components/cabinet/ConsumerHeaderContext'
+import { useRoomSocket } from '@/hooks/use-user-socket'
+import { SupportMessage } from '@/components/support/SupportMessage'
 
 interface ChatDetail {
   chat: EsnadSupportChat
@@ -131,6 +133,126 @@ export default function SupportChatPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages.length, loadingMessages])
+
+  // Ref to track latest message timestamp
+  const latestMessageTimestampRef = React.useRef<string | null>(null)
+  const [isPageActive, setIsPageActive] = React.useState<boolean>(true)
+  const pageActiveRef = React.useRef<boolean>(true)
+  const markRequestInFlightRef = React.useRef<boolean>(false)
+
+  // Track tab/visibility state to avoid sending view requests when page is inactive
+  React.useEffect(() => {
+    const updateActivity = () => {
+      const active = document.visibilityState === 'visible' && document.hasFocus()
+      setIsPageActive(active)
+      pageActiveRef.current = active
+    }
+
+    updateActivity()
+
+    document.addEventListener('visibilitychange', updateActivity)
+    window.addEventListener('focus', updateActivity)
+    window.addEventListener('blur', updateActivity)
+
+    return () => {
+      document.removeEventListener('visibilitychange', updateActivity)
+      window.removeEventListener('focus', updateActivity)
+      window.removeEventListener('blur', updateActivity)
+    }
+  }, [])
+
+  // Update ref when messages change
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      const latestMessage = messages[messages.length - 1]
+      if (latestMessage?.createdAt) {
+        latestMessageTimestampRef.current = latestMessage.createdAt instanceof Date
+          ? latestMessage.createdAt.toISOString()
+          : String(latestMessage.createdAt)
+      }
+    }
+  }, [messages])
+
+  // Mark admin messages as viewed when page is active
+  const markAdminMessagesViewed = React.useCallback(async () => {
+    if (!maid) return
+    if (!pageActiveRef.current) return
+
+    const hasUnviewedAdminMessages = messages.some(
+      (msg) => msg.dataIn?.sender_role === 'admin' && !msg.dataIn?.client_viewed_at
+    )
+
+    if (!hasUnviewedAdminMessages) return
+    if (markRequestInFlightRef.current) return
+
+    markRequestInFlightRef.current = true
+    try {
+      await fetch(`/api/esnad/v1/c/support/${maid}/messages/view`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (error) {
+      console.error('Failed to mark admin messages as viewed', error)
+    } finally {
+      markRequestInFlightRef.current = false
+    }
+  }, [maid, messages])
+
+  React.useEffect(() => {
+    if (isPageActive) {
+      void markAdminMessagesViewed()
+    }
+  }, [isPageActive, messages, markAdminMessagesViewed])
+
+  // Fetch new messages function
+  const fetchNewMessages = React.useCallback(async () => {
+    const afterTimestamp = latestMessageTimestampRef.current
+    if (!afterTimestamp) return
+
+    try {
+      const response = await fetch(
+        `/api/esnad/v1/c/support/${maid}/messages/new?after=${encodeURIComponent(afterTimestamp)}`,
+        { credentials: 'include' }
+      )
+
+      if (!response.ok) {
+        console.error('Failed to fetch new messages')
+        return
+      }
+
+      const data = await response.json() as { success?: boolean; data?: { messages: EsnadSupportMessage[] } }
+      if (data.success && data.data?.messages && data.data.messages.length > 0) {
+        // Reverse messages to maintain order (newest at bottom)
+        const reversedNewMessages = [...data.data.messages].reverse()
+        setMessages((prev) => {
+          // Check if messages already exist to avoid duplicates
+          const existingUuids = new Set(prev.map((m) => m.uuid))
+          const uniqueNewMessages = reversedNewMessages.filter((m) => !existingUuids.has(m.uuid))
+          if (uniqueNewMessages.length > 0) {
+            // Scroll to bottom after adding new messages
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
+            return [...prev, ...uniqueNewMessages]
+          }
+          return prev
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch new messages:', error)
+    }
+  }, [maid])
+
+  // Subscribe to socket events for new messages
+  useRoomSocket(
+    maid ? `chat:${maid}` : '',
+    {
+      'new-message': () => {
+        // When new message event is received, fetch new messages
+        fetchNewMessages()
+      },
+    }
+  )
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -416,46 +538,29 @@ export default function SupportChatPage() {
                 Сообщений пока нет
               </div>
             ) : (
-              messages.map((message) => {
-                const messageDataIn = message.dataIn as any
-                const isPhoto = messageDataIn?.messageType === 'photo'
-                const content = messageDataIn?.content || ''
-                const mediaUuid = messageDataIn?.mediaUuid
-
-                return (
-                  <div
-                    key={message.uuid}
-                    className="flex flex-col gap-2 p-4 rounded-lg bg-muted/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {messageDataIn?.humanHaid === chat.dataIn.humanHaid
-                            ? 'Вы'
-                            : 'Поддержка'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDate(message.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                    {isPhoto && mediaUuid ? (
-                      <div className="space-y-2">
-                        <img
-                          src={`/api/esnad/v1/c/files/${mediaUuid}`}
-                          alt="Photo"
-                          className="max-w-md rounded-lg"
-                          onError={(e) => {
-                            ;(e.target as HTMLImageElement).style.display = 'none'
-                          }}
-                        />
-                        {content && <p className="text-sm">{content}</p>}
-                      </div>
-                    ) : (
-                      <p className="text-sm whitespace-pre-wrap">{content}</p>
-                    )}
-                  </div>
-                )
-              })
+              messages.map((message) => (
+                <SupportMessage
+                  key={message.uuid}
+                  message={message}
+                  chat={chat}
+                  formatDate={formatDate}
+                  isClientView={true}
+                  onViewStatusUpdate={(messageUuid, viewStatus) => {
+                    setMessages((prev) =>
+                      prev.map((msg) => {
+                        if (msg.uuid === messageUuid) {
+                          const updatedDataIn = {
+                            ...(msg.dataIn as any),
+                            ...viewStatus,
+                          }
+                          return { ...msg, dataIn: updatedDataIn }
+                        }
+                        return msg
+                      })
+                    )
+                  }}
+                />
+              ))
             )}
             <div ref={messagesEndRef} />
           </div>

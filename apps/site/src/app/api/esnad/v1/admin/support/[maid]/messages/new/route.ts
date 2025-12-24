@@ -12,9 +12,16 @@ const handleGet = async (
 
   try {
     const url = new URL(request.url)
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '20', 10), 100)
-    const offset = (page - 1) * limit
+    const afterTimestamp = url.searchParams.get('after')
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100)
+
+    if (!afterTimestamp) {
+      return NextResponse.json({
+        success: false,
+        error: 'BAD_REQUEST',
+        message: 'after parameter is required',
+      }, { status: 400 })
+    }
 
     const messageThreadsRepository = MessageThreadsRepository.getInstance()
     const messagesRepository = MessagesRepository.getInstance()
@@ -48,12 +55,12 @@ const handleGet = async (
       }, { status: 404 })
     }
 
-    // Get paginated messages
-    const result = await messagesRepository.findByChatMaidPaginated(maid, page, limit)
+    // Get new messages after timestamp
+    const newMessages = await messagesRepository.findNewMessagesAfterTimestamp(maid, afterTimestamp, limit)
 
     // Parse dataIn for each message and load human data
     const parsedMessages = await Promise.all(
-      result.messages.map(async (msg) => {
+      newMessages.map(async (msg) => {
         let parsedDataIn: any = {}
         if (msg.dataIn) {
           try {
@@ -112,17 +119,10 @@ const handleGet = async (
       success: true,
       data: {
         messages: parsedMessages,
-        pagination: {
-          page,
-          limit,
-          total: result.total,
-          totalPages: Math.max(1, Math.ceil(result.total / limit)),
-          hasMore: result.hasMore,
-        },
       },
     })
   } catch (error) {
-    console.error('Failed to fetch messages', error)
+    console.error('Failed to fetch new messages', error)
     const message = error instanceof Error ? error.message : 'Unexpected error'
 
     return NextResponse.json({

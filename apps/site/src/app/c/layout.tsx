@@ -7,6 +7,7 @@ import ConsumerAuthGuard from '@/components/cabinet/ConsumerAuthGuard'
 import { ConsumerLayout } from '@/components/cabinet/ConsumerLayout'
 import { AskForNotificationPush } from '@/components/AskForNotificationPush'
 import { ConsumerHeaderProvider, useConsumerHeader } from '@/components/cabinet/ConsumerHeaderContext'
+import { ClientNoticesProvider } from '@/components/cabinet/ClientNoticesProvider'
 
 const getHeaderForPath = (pathname: string): {
   title: string
@@ -101,12 +102,14 @@ function ConsumerCabinetLayoutInner({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <ConsumerAuthGuard>
-        <AskForNotificationPush />
-        <ConsumerLayout
-          headerTitle={header.title}
-          headerBreadcrumbs={header.breadcrumbItems}>
-          {children}
-        </ConsumerLayout>
+        <ClientNoticesProvider>
+          <AskForNotificationPush />
+          <ConsumerLayout
+            headerTitle={header.title}
+            headerBreadcrumbs={header.breadcrumbItems}>
+            {children}
+          </ConsumerLayout>
+        </ClientNoticesProvider>
       </ConsumerAuthGuard>
     </div>
   )

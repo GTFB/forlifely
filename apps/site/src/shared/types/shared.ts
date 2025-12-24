@@ -40,6 +40,7 @@ export interface MeUser {
     email: string
     name: string
     phone?: string
+    humanAid?: string | null
     roles: Array<{
       uuid: string
       raid: string

@@ -236,28 +236,39 @@ export default function AdminSupportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTickets.map((ticket) => (
-                    <TableRow
-                      key={ticket.id}
-                      className="cursor-pointer"
-                      onClick={() => router.push(`/admin/support/${ticket.maid}`)}>
-                      <TableCell className="font-medium">{ticket.maid}</TableCell>
-                      <TableCell>{ticket.title || 'Без темы'}</TableCell>
-                      <TableCell>{ticket.dataIn?.humanHaid || 'Неизвестный пользователь'}</TableCell>
-                      <TableCell>{getOperatorName(ticket.dataIn?.managerHaid)}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(ticket.statusName)}>
-                          {getStatusLabel(ticket.statusName)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(ticket.updatedAt)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredTickets.map((ticket) => {
+                    const hasUnread = (ticket as any).hasUnreadMessages === true
+                    return (
+                      <TableRow
+                        key={ticket.id}
+                        className="cursor-pointer"
+                        onClick={() => router.push(`/admin/support/${ticket.maid}`)}>
+                        <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
+                          {ticket.maid}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold' : ''}>
+                          {ticket.title || 'Без темы'}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold' : ''}>
+                          {ticket.dataIn?.humanHaid || 'Неизвестный пользователь'}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold' : ''}>
+                          {getOperatorName(ticket.dataIn?.managerHaid)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(ticket.statusName)}>
+                            {getStatusLabel(ticket.statusName)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold text-muted-foreground' : 'text-muted-foreground'}>
+                          {formatDate(ticket.createdAt)}
+                        </TableCell>
+                        <TableCell className={hasUnread ? 'font-bold text-muted-foreground' : 'text-muted-foreground'}>
+                          {formatDate(ticket.updatedAt)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             )}

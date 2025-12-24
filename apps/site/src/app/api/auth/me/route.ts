@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
       email: dbUser.email,
       name: human?.fullName || dbUser.email,
       phone,
+      humanAid: dbUser.humanAid || null,
       roles: roles.map((role) => ({
         uuid: role.uuid,
         raid: role.raid,

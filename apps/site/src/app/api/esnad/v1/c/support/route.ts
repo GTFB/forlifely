@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
+import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { EsnadSupportChat, EsnadSupportChatDataIn } from '@/shared/types/esnad-support'
 import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
@@ -75,29 +76,36 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     })
 
     const messageThreadsRepository = MessageThreadsRepository.getInstance()
+    const messagesRepository = MessagesRepository.getInstance()
     const result = await messageThreadsRepository.getFilteredSupportChats(filters, orders, pagination)
 
-    // Parse dataIn for each chat
-    const chatsWithParsedData = result.docs.map((chat) => {
-      let parsedDataIn: EsnadSupportChatDataIn | null = null
-      if (chat.dataIn) {
-        try {
-          if (typeof chat.dataIn === 'string') {
-            parsedDataIn = JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
-          } else {
-            parsedDataIn = chat.dataIn as EsnadSupportChatDataIn
+    // Parse dataIn for each chat and check for unread messages
+    const chatsWithParsedData = await Promise.all(
+      result.docs.map(async (chat) => {
+        let parsedDataIn: EsnadSupportChatDataIn | null = null
+        if (chat.dataIn) {
+          try {
+            if (typeof chat.dataIn === 'string') {
+              parsedDataIn = JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
+            } else {
+              parsedDataIn = chat.dataIn as EsnadSupportChatDataIn
+            }
+          } catch (error) {
+            console.error('Failed to parse dataIn for chat', chat.maid, error)
           }
-        } catch (error) {
-          console.error('Failed to parse dataIn for chat', chat.maid, error)
         }
-      }
 
-      return {
-        ...chat,
-        dataIn: parsedDataIn || { humanHaid: user.humanAid },
-        type: 'SUPPORT' as const,
-      } as EsnadSupportChat
-    })
+        // Check if chat has unread messages from admin
+        const hasUnreadMessages = await messagesRepository.hasUnreadAdminMessages(chat.maid)
+
+        return {
+          ...chat,
+          dataIn: parsedDataIn || { humanHaid: user.humanAid },
+          type: 'SUPPORT' as const,
+          hasUnreadMessages,
+        } as EsnadSupportChat & { hasUnreadMessages: boolean }
+      })
+    )
 
     return NextResponse.json({
       docs: chatsWithParsedData,
@@ -161,7 +169,8 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
           chat.maid,
           message.trim(),
           'text',
-          user.humanAid
+          user.humanAid,
+          'client'
         )
       } catch (messageError) {
         console.error('Failed to add initial message to chat', messageError)

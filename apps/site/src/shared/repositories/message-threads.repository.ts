@@ -14,11 +14,11 @@ import {
   } from '../types/esnad-support'
 import { MessagesRepository } from './messages.repository'
 import { UsersRepository } from './users.repository'
-import { sql, and, eq } from 'drizzle-orm'
+import { sql, and, eq, isNull, inArray } from 'drizzle-orm'
 import { logUserJournalEvent } from '../services/user-journal.service'
 import type { Env } from '../types'
 import { buildRequestEnv } from '../env'
-import { sendToRoom } from '@/lib/socket'
+import { sendToRoom, sendToUser } from '@/packages/lib/socket'
 
 export class MessageThreadsRepository extends BaseRepository<MessageThread> {
   constructor() {
@@ -207,7 +207,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
     return buildDbOrders(this.schema, orders)
   }
 
-  public async addMessageToSupportChat( chatMaid: MessageThread['maid'], content: string, messageType: EsnadSupportMessageType, humanHaid: EsnadHuman['haid'], mediaUuid?: string ): Promise<EsnadSupportMessage> {
+  public async addMessageToSupportChat( chatMaid: MessageThread['maid'], content: string, messageType: EsnadSupportMessageType, humanHaid: EsnadHuman['haid'], senderRole: 'client' | 'admin', mediaUuid?: string ): Promise<EsnadSupportMessage> {
     if(!humanHaid) {
       throw new Error('Human haid is required to add message to support chat')
     }
@@ -224,8 +224,47 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
         content: content,
         messageType: messageType,
         humanHaid: humanHaid,
+        sender_role: senderRole,
         ...(mediaUuid && { mediaUuid }),
       },
+    }
+    try {
+      await sendToRoom(`chat:${chatMaid}`, 'new-message', {
+      })
+      await sendToRoom('admin', 'update-admin', {
+        type: 'admin-updated-notices',
+      })
+      
+      // If admin sent a message, notify the client
+      if (senderRole === 'admin') {
+        // Get client's humanHaid from chat
+        const chat = await this.findByMaid(chatMaid)
+        if (chat) {
+          let chatDataIn: EsnadSupportChatDataIn | null = null
+          if (chat.dataIn) {
+            try {
+              chatDataIn = typeof chat.dataIn === 'string'
+                ? JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
+                : chat.dataIn as EsnadSupportChatDataIn
+            } catch (error) {
+              console.error('Failed to parse chat dataIn', error)
+            }
+          }
+          
+          const clientHaid = chatDataIn?.humanHaid
+          if (clientHaid) {
+            await sendToUser(clientHaid, 'update-client', {
+              type: 'client-updated-notices',
+            })
+            await sendToUser(clientHaid, 'update-client', {
+              type: 'client-updated-support',
+            })
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Failed to send socket events:', socketError)
+      // Don't fail update if socket notification fails
     }
     return await messageRepository.create(messageData) as EsnadSupportMessage
   }
@@ -285,6 +324,104 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       updatedAt: new Date() 
     });
     return updatedChat as EsnadSupportChat;
+  }
+
+  /**
+   * Count support chats with unread messages from clients (for admin)
+   * Returns the number of unique chats that have at least one unread message from a client
+   */
+  public async countChatsWithUnreadClientMessages(): Promise<number> {
+    const messagesRepository = MessagesRepository.getInstance()
+    
+    // Get all messages from clients that are not read by admin
+    const unreadMessages = await this.db
+      .select({ maid: schema.messages.maid })
+      .from(schema.messages)
+      .where(
+        and(
+          isNull(schema.messages.deletedAt),
+          sql`COALESCE(${schema.messages.dataIn}::jsonb->>'sender_role', '') = 'client'`,
+          sql`COALESCE(${schema.messages.dataIn}::jsonb->>'admin_viewed_at', '') = ''`
+        )
+      )
+      .execute()
+
+    // Get unique chat maids with unread messages
+    const unreadChatMaids = new Set<string>()
+    for (const message of unreadMessages) {
+      if (message.maid) {
+        unreadChatMaids.add(message.maid)
+      }
+    }
+
+    if (unreadChatMaids.size === 0) {
+      return 0
+    }
+
+    // Count support chats that have unread messages
+    const unreadChatMaidsArray = Array.from(unreadChatMaids)
+    const supportChatsWithUnread = await this.db
+      .select({ count: sql<number>`count(distinct ${this.schema.maid})` })
+      .from(this.schema)
+      .where(
+        and(
+          eq(this.schema.type, 'SUPPORT'),
+          isNull(this.schema.deletedAt),
+          inArray(this.schema.maid, unreadChatMaidsArray)
+        )
+      )
+      .execute()
+
+    return Number(supportChatsWithUnread[0]?.count || 0)
+  }
+
+  /**
+   * Count support chats with unread messages from admin (for client)
+   * Returns the number of unique chats that have at least one unread message from an admin
+   * @param clientHaid - The client's human haid to filter chats by
+   */
+  public async countChatsWithUnreadAdminMessages(clientHaid: string): Promise<number> {
+    // Get all messages from admins that are not read by client
+    const unreadMessages = await this.db
+      .select({ maid: schema.messages.maid })
+      .from(schema.messages)
+      .where(
+        and(
+          isNull(schema.messages.deletedAt),
+          sql`COALESCE(${schema.messages.dataIn}::jsonb->>'sender_role', '') = 'admin'`,
+          sql`COALESCE(${schema.messages.dataIn}::jsonb->>'client_viewed_at', '') = ''`
+        )
+      )
+      .execute()
+
+    // Get unique chat maids with unread messages
+    const unreadChatMaids = new Set<string>()
+    for (const message of unreadMessages) {
+      if (message.maid) {
+        unreadChatMaids.add(message.maid)
+      }
+    }
+
+    if (unreadChatMaids.size === 0) {
+      return 0
+    }
+
+    // Count support chats that have unread messages and belong to the client
+    const unreadChatMaidsArray = Array.from(unreadChatMaids)
+    const supportChatsWithUnread = await this.db
+      .select({ count: sql<number>`count(distinct ${this.schema.maid})` })
+      .from(this.schema)
+      .where(
+        and(
+          eq(this.schema.type, 'SUPPORT'),
+          isNull(this.schema.deletedAt),
+          inArray(this.schema.maid, unreadChatMaidsArray),
+          sql`${this.schema.dataIn}::jsonb->>'humanHaid' = ${clientHaid}`
+        )
+      )
+      .execute()
+
+    return Number(supportChatsWithUnread[0]?.count || 0)
   }
 }
 

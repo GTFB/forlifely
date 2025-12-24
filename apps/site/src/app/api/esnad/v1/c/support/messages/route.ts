@@ -154,6 +154,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
       messageContent,
       messageType,
       user.humanAid,
+      'client',
       mediaUuid
     )
 

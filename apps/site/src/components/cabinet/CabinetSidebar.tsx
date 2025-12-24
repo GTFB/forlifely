@@ -28,6 +28,8 @@ import { Logo } from '@/components/misc/logo/logo'
 import { useResizableSidebar } from '@/packages/hooks/use-resizable-sidebar'
 import { useTheme } from '@/packages/hooks/use-theme'
 import { User, Sun, Moon, Star } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { useClientNotice } from './ClientNoticesProvider'
 
 export interface NavigationItem {
   title: string
@@ -51,6 +53,7 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
   const pathname = usePathname()
   const { handleMouseDown } = useResizableSidebar()
   const { theme, setTheme } = useTheme()
+  const unreadSupportChats = useClientNotice('unread_support_chats_count')
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light')
@@ -70,6 +73,8 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
             {navigationItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.url || pathname?.startsWith(item.url + '/')
+              const isSupportItem = item.url === '/c/support'
+              const hasUnreadSupportChats = typeof unreadSupportChats === 'number' && unreadSupportChats > 0
               return (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
@@ -78,9 +83,14 @@ export function CabinetSidebar({ user, title, navigationItems, profileUrl = '/c/
                     className={cn(
                       isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
                     )}>
-                    <Link href={item.url}>
+                    <Link href={item.url} className="flex w-full items-center gap-2">
                       <Icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <span className="flex-1 text-left">{item.title}</span>
+                      {isSupportItem && hasUnreadSupportChats && (
+                        <Badge variant="secondary" className="ml-auto">
+                          {unreadSupportChats}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -342,7 +342,8 @@ describe("MessageThreadsRepository", () => {
         chat.maid,
         messageContent,
         "text",
-        testHumanHaid
+        testHumanHaid,
+        "client"
       );
 
       expect(message).toBeDefined();
@@ -377,6 +378,7 @@ describe("MessageThreadsRepository", () => {
         messageContent,
         "photo",
         testHumanHaid,
+        "client",
         mediaUuid
       );
 
@@ -404,7 +406,8 @@ describe("MessageThreadsRepository", () => {
           chat.maid,
           "Test",
           "text",
-          "" as any
+          "" as any,
+          "client"
         )
       ).rejects.toThrow("Human haid is required to add message to support chat");
 
@@ -424,7 +427,8 @@ describe("MessageThreadsRepository", () => {
           chat.maid,
           "",
           "text",
-          testHumanHaid
+          testHumanHaid,
+          "client"
         )
       ).rejects.toThrow("Content is required to add message to support chat");
 
@@ -444,7 +448,8 @@ describe("MessageThreadsRepository", () => {
           chat.maid,
           "Test",
           "" as any,
-          testHumanHaid
+          testHumanHaid,
+          "client"
         )
       ).rejects.toThrow("Message type is required to add message to support chat");
 
@@ -620,6 +625,7 @@ describe("MessageThreadsRepository", () => {
     });
   });
 });
+
 
 
 

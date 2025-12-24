@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { withAdminGuard, AuthenticatedRequestContext } from "@/shared/api-guard"
 import { DealsRepository } from "@/shared/repositories/deals.repository"
+import { MessageThreadsRepository } from "@/shared/repositories/message-threads.repository"
 import { createDb } from "@/shared/repositories/utils"
 import { schema } from "@/shared/schema"
 import { and, inArray, isNull, sql } from "drizzle-orm"
@@ -41,9 +42,14 @@ const handleGet = async (
       )
       .execute()
 
+    // Get count of support chats with unread messages from clients
+    const messageThreadsRepository = MessageThreadsRepository.getInstance()
+    const unreadSupportChatsCount = await messageThreadsRepository.countChatsWithUnreadClientMessages()
+
     const response: AdminNotices = {
       new_loans_count: rows.length,
       kyc_pending_count: Number(kycPendingResult?.count || 0),
+      unread_support_chats_count: unreadSupportChatsCount,
     }
 
     return NextResponse.json(response, { status: 200 })

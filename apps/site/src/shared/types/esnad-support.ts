@@ -17,6 +17,9 @@ export interface EsnadSupportMessageDataIn {
     content: string
     messageType: EsnadSupportMessageType
     mediaUuid?: string // UUID of uploaded media file (for photo/document messages)
+    sender_role: 'admin' | 'client'
+    admin_viewed_at?: string
+    client_viewed_at?: string
 }
 export type EsnadSupportMessageType = 'text' | 'voice' | 'photo' | 'document'
 
