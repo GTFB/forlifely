@@ -24,6 +24,9 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
 import { EsnadSupportChat } from '@/shared/types/esnad-support'
 import { useAdminSocketEvent } from '@/components/admin/AdminSocketProvider'
+import { cn } from '@/lib/utils'
+import { useNotice } from '@/components/admin/AdminNoticesProvider'
+import { useRef, useEffect } from 'react'
 
 interface Operator {
   uuid: string
@@ -40,6 +43,50 @@ export default function AdminSupportPage() {
   const [operatorFilter, setOperatorFilter] = React.useState<string>('all')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
 
+  // Base fetch function without loading state (for silent updates)
+  const fetchDataBase = React.useCallback(async () => {
+    try {
+      setError(null)
+      
+      // Fetch operators (admins) and tickets in parallel
+      const [operatorsResponse, ticketsResponse] = await Promise.all([
+        fetch('/api/esnad/v1/admin/users/managers', {
+          credentials: 'include',
+        }),
+        fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
+          credentials: 'include',
+        }),
+      ])
+      
+      if (!operatorsResponse.ok) {
+        throw new Error('Failed to fetch operators')
+      }
+      
+      if (!ticketsResponse.ok) {
+        throw new Error('Failed to fetch support tickets')
+      }
+      
+      const operatorsData = await operatorsResponse.json() as { docs: Array<{
+        uuid: string
+        humanAid: string | null
+        fullName: string | null
+      }> }
+      
+      const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
+      
+      setOperators(operatorsData.docs.map(op => ({
+        uuid: op.uuid,
+        humanAid: op.humanAid,
+        fullName: op.fullName,
+      })))
+      setTickets(ticketsData.docs)
+    } catch (err) {
+      console.error('Data fetch error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    }
+  }, [])
+
+  // Full fetch function with loading state (for initial load)
   const fetchData = React.useCallback(async () => {
     try {
       setLoading(true)
@@ -89,10 +136,29 @@ export default function AdminSupportPage() {
     fetchData()
   }, [fetchData])
 
-  // Subscribe to support-chat-created event to refresh the table
+  // Subscribe to support-chat-created event to refresh the table (silent update)
   useAdminSocketEvent('support-chat-created', () => {
-    fetchData()
-  }, [fetchData])
+    fetchDataBase()
+  }, [fetchDataBase])
+
+  // Subscribe to unread support chats count changes and refresh table (silent update)
+  const unreadSupportChatsCount = useNotice('unread_support_chats_count')
+  const prevCountRef = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    // Skip initial render
+    if (prevCountRef.current === undefined) {
+      prevCountRef.current = unreadSupportChatsCount
+      return
+    }
+
+    // Only refresh if count actually changed
+    if (prevCountRef.current !== unreadSupportChatsCount) {
+      prevCountRef.current = unreadSupportChatsCount
+      // Use non-loading version for immediate update without changing pagination
+      fetchDataBase()
+    }
+  }, [unreadSupportChatsCount, fetchDataBase])
 
   const formatDate = (dateString: string | Date | null | undefined) => {
     if (!dateString) return ''
@@ -241,7 +307,7 @@ export default function AdminSupportPage() {
                     return (
                       <TableRow
                         key={ticket.id}
-                        className="cursor-pointer"
+                        className={cn('cursor-pointer', hasUnread && 'bg-[var(--primary-light)]')}
                         onClick={() => router.push(`/admin/support/${ticket.maid}`)}>
                         <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
                           {ticket.maid}

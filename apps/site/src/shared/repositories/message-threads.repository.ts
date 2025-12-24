@@ -234,6 +234,9 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       await sendToRoom('admin', 'update-admin', {
         type: 'admin-updated-notices',
       })
+      await sendToRoom('admin', 'update-admin', {
+        type: 'admin-updated-support',
+      })
       
       // If admin sent a message, notify the client
       if (senderRole === 'admin') {
@@ -261,6 +264,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
             })
           }
         }
+      } else {
       }
     } catch (socketError) {
       console.error('Failed to send socket events:', socketError)

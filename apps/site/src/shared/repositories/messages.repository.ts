@@ -211,6 +211,9 @@ export class MessagesRepository extends BaseRepository<Message> {
                     await sendToRoom('admin', 'update-admin', {
                         type: 'admin-updated-notices',
                     })
+                    await sendToRoom('admin', 'update-admin', {
+                      type: 'admin-updated-support',
+                    })
                 }catch (socketError) {
                     console.error('Failed to send admin-updated-notices socket event:', socketError)
                 }

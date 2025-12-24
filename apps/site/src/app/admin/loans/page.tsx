@@ -396,7 +396,7 @@ export default function AdminLoansPage() {
                     return (
                       <TableRow
                         key={loan.daid} 
-                        className={cn('cursor-pointer', isUnread && 'font-semibold')}
+                        className={cn('cursor-pointer', isUnread && 'font-semibold bg-[var(--primary-light)]')}
                         onClick={() => router.push(`/admin/deals/view?uuid=${loan.uuid}`)}>
                         <TableCell className={cn('font-medium', isUnread && 'font-semibold')}>
                           <Link href={`/admin/deals/view?uuid=${loan.uuid}`}>{loan.daid}</Link>

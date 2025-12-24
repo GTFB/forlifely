@@ -28,6 +28,7 @@ import { useRouter } from 'next/navigation'
 import type { EsnadSupportChat } from '@/shared/types/esnad-support'
 import { useUserSocket } from '@/hooks/use-user-socket'
 import { useMe } from '@/providers/MeProvider'
+import { cn } from '@/lib/utils'
 
 export default function SupportPage() {
   const router = useRouter()
@@ -287,7 +288,7 @@ export default function SupportPage() {
                     return (
                       <TableRow
                         key={ticket.maid}
-                        className="cursor-pointer"
+                        className={cn('cursor-pointer', hasUnread && 'bg-[var(--primary-light)]')}
                         onClick={() => router.push(`/c/support/${ticket.maid}`)}>
                         <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
                           {ticket.maid}

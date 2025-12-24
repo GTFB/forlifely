@@ -794,8 +794,13 @@ export default function AdminUsersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user.uuid}>
+                    {users.map((user) => {
+                      const kycStatus = getKycStatus(user)
+                      const isKycPending = kycStatus === 'pending'
+                      return (
+                      <TableRow 
+                        key={user.uuid}
+                        className={cn(isKycPending && 'bg-[var(--primary-light)]')}>
                         <TableCell>
                           <Checkbox
                             checked={selectedUsers.has(user.uuid)}
@@ -879,7 +884,8 @@ export default function AdminUsersPage() {
                           </DropdownMenu>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      )
+                    })}
                   </TableBody>
                 </Table>
                 {data && data.pagination.totalPages > 1 && (
