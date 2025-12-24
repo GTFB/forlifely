@@ -32,7 +32,7 @@ import type {
 } from '@/shared/types/shared'
 
 const INITIAL_LIMIT = 10
-const LOAN_STATUSES = ['NEW', 'SCORING'] // Only show these statuses
+const LOAN_STATUSES = ['NEW', 'SCORING', 'ADDITIONAL_INFO_REQUESTED'] // Only show these statuses
 
 export default function AdminLoansPage() {
   const router = useRouter()
@@ -262,6 +262,8 @@ export default function AdminLoansPage() {
       case 'NEW':
       case 'SCORING':
         return 'secondary'
+      case 'ADDITIONAL_INFO_REQUESTED':
+        return 'default'
       default:
         return 'outline'
     }
@@ -273,6 +275,8 @@ export default function AdminLoansPage() {
         return 'Новая заявка'
       case 'SCORING':
         return 'Скоринг'
+      case 'ADDITIONAL_INFO_REQUESTED':
+        return 'Дополнительная информация запрошена'
       default:
         return status ?? 'Неизвестно'
     }
@@ -329,7 +333,7 @@ export default function AdminLoansPage() {
       <AdminHeader title="Заявки на рассрочку" breadcrumbItems={breadcrumbs} />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
-        <h1 className="text-3xl font-bold">Заявки на рассрочку (Новая / Скоринг)</h1>
+        <h1 className="text-3xl font-bold">Заявки на рассрочку</h1>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -371,12 +375,12 @@ export default function AdminLoansPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Заявки (Новая / Скоринг)</CardTitle>
+            <CardTitle>Заявки</CardTitle>
           </CardHeader>
           <CardContent>
             {loans.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
-                Нет заявок со статусами "Новая" или "Скоринг"
+                Нет заявок
               </p>
             ) : (
               <Table>

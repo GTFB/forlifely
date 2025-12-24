@@ -177,11 +177,11 @@ export default function AdminDealsPage() {
         values: string[]
       }> = []
 
-      // Always exclude NEW and SCORING statuses (they are shown on /admin/loans page)
+      // Always exclude NEW, SCORING and ADDITIONAL_INFO_REQUESTED statuses (they are shown on /admin/loans page)
       filtersConditions.push({
         field: 'statusName',
         operator: 'notIn',
-        values: ['NEW', 'SCORING'],
+        values: ['NEW', 'SCORING', 'ADDITIONAL_INFO_REQUESTED'],
       })
 
       if (statusFilter !== 'all') {

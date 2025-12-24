@@ -1,6 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { DealsRepository } from "@/shared/repositories/deals.repository"
+import { MessageThreadsRepository } from "@/shared/repositories/message-threads.repository"
+import { UsersRepository } from "@/shared/repositories/users.repository"
 import {
     LoanApplication,
     LoanApplicationDataIn,
@@ -8,6 +10,7 @@ import {
 import { BadRequestError, loanDecisionCorsHeaders } from "../decision-handler"
 import type { Env } from '@/shared/types'
 import { withAdminGuard } from '@/shared/api-guard'
+import { buildRequestEnv } from '@/shared/env'
 
 type RequestContext = {
     request: Request
@@ -17,6 +20,7 @@ type RequestContext = {
 type AdditionalInfoRequestPayload = {
     uuid: string
     comment: string
+    managerUuid: string
 }
 
 const jsonHeaders = {
@@ -38,10 +42,12 @@ const parseAdditionalInfoRequestPayload = async (
     const body = rawBody as Partial<AdditionalInfoRequestPayload>
     const uuid = typeof body.uuid === "string" ? body.uuid.trim() : ""
     const comment = typeof body.comment === "string" ? body.comment.trim() : ""
+    const managerUuid = typeof body.managerUuid === "string" ? body.managerUuid.trim() : ""
 
     const missingFields = []
     if (!uuid) missingFields.push("uuid")
     if (!comment) missingFields.push("comment")
+    if (!managerUuid) missingFields.push("managerUuid")
 
     if (missingFields.length) {
         throw new BadRequestError(`Отсутствуют обязательные поля: ${missingFields.join(", ")}`)
@@ -50,6 +56,7 @@ const parseAdditionalInfoRequestPayload = async (
     return {
         uuid,
         comment,
+        managerUuid,
     }
 }
 
@@ -90,6 +97,50 @@ export const onRequestPut = async (context: RequestContext): Promise<Response> =
             throw new BadRequestError("Заявка на кредит не найдена", 404)
         }
 
+        // Get client's humanHaid from deal
+        if (!existingDeal.clientAid) {
+            throw new BadRequestError("Клиент не найден в заявке", 404)
+        }
+
+        const clientHaid = existingDeal.clientAid
+
+        // Get admin's humanHaid from managerUuid
+        const usersRepository = UsersRepository.getInstance()
+        const managerUser = await usersRepository.findByUuid(payload.managerUuid)
+        
+        if (!managerUser) {
+            throw new BadRequestError("Менеджер не найден", 404)
+        }
+
+        if (!managerUser.humanAid) {
+            throw new BadRequestError("У менеджера не указан humanAid", 400)
+        }
+
+        const adminHaid = managerUser.humanAid
+
+        // Create support chat from client's perspective
+        const messageThreadsRepository = MessageThreadsRepository.getInstance()
+        const requestEnv = env ?? buildRequestEnv()
+        
+        const subject = `Запрос дополнительной информации по заявке #${existingDeal.id}`
+        const chat = await messageThreadsRepository.startNewSupportChat(
+            clientHaid,
+            subject,
+            requestEnv
+        )
+
+        // Assign manager to chat
+        await messageThreadsRepository.assignManager(chat.maid, adminHaid)
+
+        // Add message from admin
+        await messageThreadsRepository.addMessageToSupportChat(
+            chat.maid,
+            payload.comment,
+            'text',
+            adminHaid,
+            'admin'
+        )
+
         const currentDataIn = normalizeLoanApplicationDataIn(existingDeal.dataIn)
 
         const result = await dealsRepository.updateLoanApplicationDeal(payload.uuid, {
@@ -108,6 +159,10 @@ export const onRequestPut = async (context: RequestContext): Promise<Response> =
                 message: "Запрошена дополнительная информация",
                 deal: result.updatedDeal,
                 journal: result.journal,
+                chat: {
+                    uuid: chat.uuid,
+                    maid: chat.maid,
+                },
             }),
             {
                 status: 200,

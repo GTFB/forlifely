@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { EsnadSupportChat } from '@/shared/types/esnad-support'
 import { useAdminSocketEvent } from '@/components/admin/AdminSocketProvider'
 import { cn } from '@/lib/utils'
@@ -310,7 +311,12 @@ export default function AdminSupportPage() {
                         className={cn('cursor-pointer', hasUnread && 'bg-[var(--primary-light)]')}
                         onClick={() => router.push(`/admin/support/${ticket.maid}`)}>
                         <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
-                          {ticket.maid}
+                          <Link 
+                            href={`/admin/support/${ticket.maid}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary hover:underline">
+                            {ticket.maid}
+                          </Link>
                         </TableCell>
                         <TableCell className={hasUnread ? 'font-bold' : ''}>
                           {ticket.title || 'Без темы'}

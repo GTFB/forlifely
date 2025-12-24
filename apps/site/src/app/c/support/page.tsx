@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import type { EsnadSupportChat } from '@/shared/types/esnad-support'
 import { useUserSocket } from '@/hooks/use-user-socket'
 import { useMe } from '@/providers/MeProvider'
@@ -291,7 +292,12 @@ export default function SupportPage() {
                         className={cn('cursor-pointer', hasUnread && 'bg-[var(--primary-light)]')}
                         onClick={() => router.push(`/c/support/${ticket.maid}`)}>
                         <TableCell className={hasUnread ? 'font-bold' : 'font-medium'}>
-                          {ticket.maid}
+                          <Link 
+                            href={`/c/support/${ticket.maid}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-primary hover:underline">
+                            {ticket.maid}
+                          </Link>
                         </TableCell>
                         <TableCell className={hasUnread ? 'font-bold' : ''}>
                           {ticket.title || '—'}

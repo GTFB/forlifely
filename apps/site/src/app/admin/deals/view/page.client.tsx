@@ -22,14 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -67,7 +59,6 @@ export default function DealDetailPageClient() {
   const [submitting, setSubmitting] = React.useState(false)
   const [humanClient, setHumanClient] = React.useState<EsnadHuman | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
-  const [requestDialogOpen, setRequestDialogOpen] = React.useState(false)
   const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
   const [loadingManagers, setLoadingManagers] = React.useState(false)
   const [finances, setFinances] = React.useState<Array<{
@@ -83,7 +74,6 @@ export default function DealDetailPageClient() {
   const [formData, setFormData] = React.useState({
     comment: '',
     manager: '',
-    requestMessage: '',
   })
 
   const [priorityData, setPriorityData] = React.useState({
@@ -143,6 +133,11 @@ export default function DealDetailPageClient() {
             priority: dataIn.priority || 'low',
             priorityReason: dataIn.priorityReason || '',
           })
+          
+          // Initialize manager from deal if exists
+          if (dataIn.managerUuid) {
+            setFormData((prev) => ({ ...prev, manager: dataIn.managerUuid || '' }))
+          }
           
           setLoading(false)
         }, 500)
@@ -436,8 +431,13 @@ export default function DealDetailPageClient() {
       return
     }
 
-    if (!formData.requestMessage.trim()) {
-      setActionError('Необходимо указать текст запроса')
+    if (!formData.comment.trim()) {
+      setActionError('Необходимо указать комментарий')
+      return
+    }
+
+    if (!formData.manager.trim()) {
+      setActionError('Необходимо выбрать ответственного сотрудника')
       return
     }
 
@@ -453,7 +453,8 @@ export default function DealDetailPageClient() {
         },
         body: JSON.stringify({
           uuid: deal.uuid,
-          comment: formData.requestMessage.trim(),
+          comment: formData.comment.trim(),
+          managerUuid: formData.manager,
         }),
       })
 
@@ -469,9 +470,8 @@ export default function DealDetailPageClient() {
         throw new Error(message)
       }
 
-      setRequestDialogOpen(false)
-      setFormData((prev) => ({ ...prev, requestMessage: '' }))
-      router.push('/admin/deals')
+      setFormData((prev) => ({ ...prev, comment: '' }))
+      router.push('/admin/loans')
     } catch (err) {
       console.error('Request info error:', err)
       setActionError(
@@ -1112,53 +1112,22 @@ export default function DealDetailPageClient() {
                       )}
                     </Button>
 
-                    <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" disabled={submitting}>
+                    <Button
+                      variant="outline"
+                      onClick={handleRequestInfo}
+                      disabled={submitting}>
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Обработка...
+                        </>
+                      ) : (
+                        <>
                           <MessageSquare className="mr-2 h-4 w-4" />
                           Запросить доп. информацию
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Запрос дополнительной информации</DialogTitle>
-                          <DialogDescription>
-                            Укажите, какая информация требуется от клиента
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="requestMessage">Сообщение</Label>
-                            <Textarea
-                              id="requestMessage"
-                              value={formData.requestMessage}
-                              onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, requestMessage: e.target.value }))
-                              }
-                              placeholder="Опишите, какая информация требуется..."
-                              rows={6}
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setRequestDialogOpen(false)}>
-                              Отмена
-                            </Button>
-                            <Button onClick={handleRequestInfo} disabled={submitting}>
-                              {submitting ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Отправка...
-                                </>
-                              ) : (
-                                'Отправить запрос'
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
