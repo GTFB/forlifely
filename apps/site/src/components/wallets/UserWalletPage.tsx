@@ -54,7 +54,17 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
   const [wallet, setWallet] = React.useState<EsnadWallet | null>(initialWallet)
   const [transactions, setTransactions] = React.useState<EsnadWalletTransaction[]>([])
   const [error, setError] = React.useState<string | null>(null)
-  
+  const [backUrl, setBackUrl] = React.useState<string>('/admin/users')
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer
+      if (referrer && new URL(referrer).origin === window.location.origin) {
+        setBackUrl(referrer)
+      } else {
+        setBackUrl(`/admin/users/${haid}`)
+      }
+    }
+  }, [haid])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [transactionForm, setTransactionForm] = React.useState({
@@ -252,7 +262,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
               <AlertDescription>{error}</AlertDescription>
             </Alert>
             <div className="mt-4">
-              <Link href="/admin/users">
+              <Link href={backUrl}>
                 <Button variant="outline">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Вернуться к списку пользователей
@@ -271,7 +281,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-4">
-            <Link href={`/admin/users/${haid}`}>
+            <Link href={backUrl}>
               <Button variant="outline" size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Назад к профилю

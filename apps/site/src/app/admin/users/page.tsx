@@ -863,6 +863,11 @@ export default function AdminUsersPage() {
                                 <Link href={`/admin/users/${user.uuid}`}>Редактировать</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
+                                <Link href={`/admin/loans?search=${user.email}`}>
+                                  Посмотреть Заявки
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
                                 <Link href={`/admin/deals?search=${user.email}`}>
                                   Посмотреть сделки
                                 </Link>

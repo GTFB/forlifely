@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { useConsumerHeader } from '@/components/cabinet/ConsumerHeaderContext'
 import { useRoomSocket } from '@/hooks/use-user-socket'
 import { SupportMessage } from '@/components/support/SupportMessage'
+import Link from 'next/link'
 
 interface ChatDetail {
   chat: EsnadSupportChat
@@ -38,6 +39,17 @@ export default function SupportChatPage() {
   const [closing, setClosing] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const messagesContainerRef = React.useRef<HTMLDivElement>(null)
+  const [backUrl, setBackUrl] = React.useState<string>('/c/support')
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer
+      if (referrer && new URL(referrer).origin === window.location.origin) {
+        setBackUrl(referrer)
+      } else {
+        setBackUrl('/c/support')
+      }
+    }
+  }, [])
 
   // Fetch chat info
   React.useEffect(() => {
@@ -495,10 +507,10 @@ export default function SupportChatPage() {
   if (error && !chat) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.push('/c/support')}>
+        <Link  href={backUrl}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Назад
-        </Button>
+        </Link>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{error}</p>
         </div>
