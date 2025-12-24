@@ -30,7 +30,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Loader2, Plus, GripVertical } from 'lucide-react'
+import { Loader2, Plus, GripVertical, Pencil } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import {
@@ -87,7 +87,7 @@ function DroppableColumn({ id, title, children }: { id: string; title: string; c
   )
 }
 
-function DraggableTask({ task }: { task: Task }) {
+function DraggableTask({ task, onEdit }: { task: Task; onEdit?: (task: Task) => void }) {
   const {
     attributes,
     listeners,
@@ -137,8 +137,25 @@ function DraggableTask({ task }: { task: Task }) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-sm">{task.title}</CardTitle>
-          <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-1">
+            {onEdit ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onEdit(task)
+                }}
+                aria-label="Редактировать задачу">
+                <Pencil className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
           </div>
         </div>
         <CardDescription className="text-xs">
@@ -182,14 +199,25 @@ function DraggableTask({ task }: { task: Task }) {
 export default function AdminTasksPage() {
   const [tasks, setTasks] = React.useState<Task[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
+  const [pageError, setPageError] = React.useState<string | null>(null)
+  const [actionError, setActionError] = React.useState<string | null>(null)
   const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null)
   const [assignees, setAssignees] = React.useState<TaskAssignee[]>([])
   const [managerFilter, setManagerFilter] = React.useState<string>('all')
   const [activeId, setActiveId] = React.useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false)
+  const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
+  const [editSubmitting, setEditSubmitting] = React.useState(false)
   const [formData, setFormData] = React.useState({
+    title: '',
+    clientLink: '',
+    priority: 'medium' as TaskPriority,
+    assigneeUuid: '',
+    status: 'todo' as TaskStatus,
+  })
+  const [editFormData, setEditFormData] = React.useState({
     title: '',
     clientLink: '',
     priority: 'medium' as TaskPriority,
@@ -215,7 +243,8 @@ export default function AdminTasksPage() {
     const fetchTasks = async () => {
       try {
         setLoading(true)
-        setError(null)
+        setPageError(null)
+        setActionError(null)
 
         const meResponse = await fetch('/api/auth/me', { credentials: 'include' })
         if (!meResponse.ok) {
@@ -273,7 +302,7 @@ export default function AdminTasksPage() {
         setTasks((payload.tasks || []).map(mapApiTask))
       } catch (err) {
         console.error('Tasks fetch error:', err)
-        setError(err instanceof Error ? err.message : 'Не удалось загрузить задачи')
+        setPageError(err instanceof Error ? err.message : 'Не удалось загрузить задачи')
       } finally {
         setLoading(false)
       }
@@ -312,6 +341,7 @@ export default function AdminTasksPage() {
       )
 
       try {
+        setActionError(null)
         const response = await fetch(`/api/esnad/v1/admin/tasks/${taskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -335,7 +365,7 @@ export default function AdminTasksPage() {
         }
       } catch (err) {
         console.error('Task update error:', err)
-        setError(err instanceof Error ? err.message : 'Не удалось обновить статус задачи')
+        setActionError(err instanceof Error ? err.message : 'Не удалось обновить статус задачи')
         setTasks(previousTasks)
       }
     }
@@ -373,15 +403,28 @@ export default function AdminTasksPage() {
 
   const activeTask = tasks.find((task) => task.id === activeId)
 
+  const handleOpenEdit = (task: Task) => {
+    setActionError(null)
+    setEditingTaskId(task.id)
+    setEditFormData({
+      title: task.title || '',
+      clientLink: task.clientLink || '',
+      priority: task.priority || 'medium',
+      assigneeUuid: assigneeKey(task.assignee),
+      status: task.status || 'todo',
+    })
+    setEditDialogOpen(true)
+  }
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUser) {
-      setError('Не удалось определить пользователя')
+      setActionError('Не удалось определить пользователя')
       return
     }
     try {
       setSubmitting(true)
-      setError(null)
+      setActionError(null)
 
       const selectedAssignee = assigneeOptions.find(
         (option) => assigneeKey(option) === (formData.assigneeUuid || currentUser.uuid)
@@ -425,9 +468,71 @@ export default function AdminTasksPage() {
       setDialogOpen(false)
     } catch (err) {
       console.error('Create task error:', err)
-      setError(err instanceof Error ? err.message : 'Не удалось создать задачу')
+      setActionError(err instanceof Error ? err.message : 'Не удалось создать задачу')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUser) {
+      setActionError('Не удалось определить пользователя')
+      return
+    }
+    if (!editingTaskId) {
+      setActionError('Не удалось определить задачу для редактирования')
+      return
+    }
+
+    try {
+      setEditSubmitting(true)
+      setActionError(null)
+
+      const selectedAssignee = assigneeOptions.find(
+        (option) => assigneeKey(option) === (editFormData.assigneeUuid || currentUser.uuid)
+      )
+      const assigneeUuid = currentUser.isAdmin
+        ? selectedAssignee?.uuid || currentUser.uuid
+        : currentUser.uuid
+
+      const response = await fetch(`/api/esnad/v1/admin/tasks/${editingTaskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: editFormData.title,
+          clientLink: editFormData.clientLink || '',
+          priority: editFormData.priority,
+          status: editFormData.status,
+          assigneeUuid,
+        }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message =
+          (payload as { message?: string; error?: string })?.message ||
+          (payload as { message?: string; error?: string })?.error ||
+          'Не удалось обновить задачу'
+        throw new Error(message)
+      }
+
+      if ((payload as { task?: TaskApi }).task) {
+        setTasks((prev) =>
+          prev.map((task) =>
+            task.id === editingTaskId ? mapApiTask((payload as { task: TaskApi }).task) : task
+          )
+        )
+      }
+
+      setEditDialogOpen(false)
+      setEditingTaskId(null)
+    } catch (err) {
+      console.error('Update task error:', err)
+      setActionError(err instanceof Error ? err.message : 'Не удалось обновить задачу')
+    } finally {
+      setEditSubmitting(false)
     }
   }
 
@@ -444,13 +549,13 @@ export default function AdminTasksPage() {
     )
   }
 
-  if (error) {
+  if (pageError) {
     return (
       <>
         <AdminHeader title="Менеджер задач" />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive">{pageError}</p>
           </div>
         </main>
       </>
@@ -462,6 +567,11 @@ export default function AdminTasksPage() {
       <AdminHeader title="Менеджер задач" />
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
+        {actionError ? (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+            <p className="text-sm text-destructive">{actionError}</p>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Менеджер задач</h1>
           <div className="flex gap-2">
@@ -478,7 +588,12 @@ export default function AdminTasksPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+              open={dialogOpen}
+              onOpenChange={(open) => {
+                setDialogOpen(open)
+                if (open) setActionError(null)
+              }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -575,9 +690,9 @@ export default function AdminTasksPage() {
                     </Select>
                   </div>
 
-                  {error && (
+                  {actionError && (
                     <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-                      <p className="text-sm text-destructive">{error}</p>
+                      <p className="text-sm text-destructive">{actionError}</p>
                     </div>
                   )}
 
@@ -603,6 +718,132 @@ export default function AdminTasksPage() {
                 </form>
               </DialogContent>
             </Dialog>
+
+            <Dialog open={editDialogOpen} onOpenChange={(open) => {
+              setEditDialogOpen(open)
+              if (!open) {
+                setEditingTaskId(null)
+              }
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Редактировать задачу</DialogTitle>
+                  <DialogDescription>
+                    Измените поля и сохраните изменения
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleUpdateTask} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-title">Название задачи *</Label>
+                    <Input
+                      id="edit-title"
+                      value={editFormData.title}
+                      onChange={(e) =>
+                        setEditFormData((prev) => ({ ...prev, title: e.target.value }))
+                      }
+                      placeholder="Введите название задачи"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-clientLink">Ссылка на заявку</Label>
+                    <Input
+                      id="edit-clientLink"
+                      value={editFormData.clientLink}
+                      onChange={(e) =>
+                        setEditFormData((prev) => ({ ...prev, clientLink: e.target.value }))
+                      }
+                      placeholder="/admin/deals/deal-001"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-priority">Приоритет *</Label>
+                    <Select
+                      value={editFormData.priority}
+                      onValueChange={(value: 'low' | 'medium' | 'high') =>
+                        setEditFormData((prev) => ({ ...prev, priority: value }))
+                      }>
+                      <SelectTrigger id="edit-priority">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Низкий</SelectItem>
+                        <SelectItem value="medium">Средний</SelectItem>
+                        <SelectItem value="high">Высокий</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-assignee">Ответственный *</Label>
+                    <Select
+                      value={editFormData.assigneeUuid}
+                      onValueChange={(value) =>
+                        setEditFormData((prev) => ({ ...prev, assigneeUuid: value }))
+                      }
+                      disabled={currentUser ? !currentUser.isAdmin : false}>
+                      <SelectTrigger id="edit-assignee">
+                        <SelectValue placeholder="Выберите ответственного" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assigneeOptions.map((manager) => (
+                          <SelectItem key={assigneeKey(manager)} value={assigneeKey(manager)}>
+                            {manager.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-status">Статус *</Label>
+                    <Select
+                      value={editFormData.status}
+                      onValueChange={(value: 'todo' | 'in-progress' | 'done') =>
+                        setEditFormData((prev) => ({ ...prev, status: value }))
+                      }>
+                      <SelectTrigger id="edit-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todo">К выполнению</SelectItem>
+                        <SelectItem value="in-progress">В работе</SelectItem>
+                        <SelectItem value="done">Выполнено</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {actionError && (
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                      <p className="text-sm text-destructive">{actionError}</p>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditDialogOpen(false)}
+                      disabled={editSubmitting}>
+                      Отмена
+                    </Button>
+                    <Button type="submit" disabled={editSubmitting}>
+                      {editSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Сохранение...
+                        </>
+                      ) : (
+                        'Сохранить'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -615,7 +856,7 @@ export default function AdminTasksPage() {
             {statusColumns.map((column) => (
               <DroppableColumn key={column.id} id={column.id} title={column.title}>
                 {tasksByStatus[column.id as keyof typeof tasksByStatus].map((task) => (
-                  <DraggableTask key={task.id} task={task} />
+                  <DraggableTask key={task.id} task={task} onEdit={handleOpenEdit} />
                 ))}
               </DroppableColumn>
             ))}

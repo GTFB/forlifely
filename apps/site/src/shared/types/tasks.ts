@@ -46,6 +46,11 @@ export interface CreateTaskPayload {
 
 export interface UpdateTaskPayload {
   status?: TaskStatus
+  title?: string
+  clientLink?: string
+  priority?: TaskPriority
+  assigneeUuid?: string
+  deadline?: string
 }
 
 export interface CurrentUser {

@@ -46,6 +46,13 @@ const normalizePriority = (priority?: string | null): TaskPriority => {
   return 'medium'
 }
 
+const buildAssigneeName = (user: UserWithRoles): string => {
+  const humanName = user.human?.fullName
+  if (humanName) return humanName
+  if (user.user?.email) return user.user.email
+  return 'Не назначен'
+}
+
 const mapGoalToTask = (goal: Goal): TaskResponse => {
   const dataIn = parseJson<AdminTaskDataIn>(goal.dataIn, {})
   return {
@@ -131,9 +138,17 @@ export async function PATCH(
     )
   }
 
-  if (!body.status) {
+  const hasAnyChange =
+    Object.prototype.hasOwnProperty.call(body, 'status') ||
+    Object.prototype.hasOwnProperty.call(body, 'title') ||
+    Object.prototype.hasOwnProperty.call(body, 'clientLink') ||
+    Object.prototype.hasOwnProperty.call(body, 'priority') ||
+    Object.prototype.hasOwnProperty.call(body, 'assigneeUuid') ||
+    Object.prototype.hasOwnProperty.call(body, 'deadline')
+
+  if (!hasAnyChange) {
     return NextResponse.json(
-      { success: false, error: 'VALIDATION_ERROR', message: 'Status is required' },
+      { success: false, error: 'VALIDATION_ERROR', message: 'Nothing to update' },
       { status: 400, headers: jsonHeaders }
     )
   }
@@ -157,9 +172,80 @@ export async function PATCH(
       )
     }
 
-    const updated = await goalsRepository.update(uuid, {
-      statusName: uiStatusToDb(body.status),
-    })
+    if (Object.prototype.hasOwnProperty.call(body, 'title')) {
+      const title = (body.title || '').trim()
+      if (!title) {
+        return NextResponse.json(
+          { success: false, error: 'VALIDATION_ERROR', message: 'Title is required' },
+          { status: 400, headers: jsonHeaders }
+        )
+      }
+    }
+
+    const existingDataIn = parseJson<AdminTaskDataIn>(existing.dataIn, {})
+    const nextDataIn: AdminTaskDataIn = { ...existingDataIn }
+
+    let nextAssigneeUuid = existing.xaid || existingDataIn.assigneeUuid
+    let nextAssigneeName = existingDataIn.assigneeName
+    let nextAssigneeAvatar = existingDataIn.assigneeAvatar ?? null
+
+    if (isAdmin && Object.prototype.hasOwnProperty.call(body, 'assigneeUuid')) {
+      const requestedAssigneeUuid = (body.assigneeUuid || '').trim()
+      if (!requestedAssigneeUuid) {
+        nextAssigneeUuid = undefined
+        nextAssigneeName = undefined
+        nextAssigneeAvatar = null
+      } else {
+        const meRepo = MeRepository.getInstance()
+        const assigneeUser = await meRepo.findByUuidWithRoles(requestedAssigneeUuid, { includeHuman: true })
+
+        if (!assigneeUser) {
+          return NextResponse.json(
+            { success: false, error: 'NOT_FOUND', message: 'Assignee not found' },
+            { status: 404, headers: jsonHeaders }
+          )
+        }
+
+        nextAssigneeUuid = requestedAssigneeUuid
+        nextAssigneeName = buildAssigneeName(assigneeUser)
+        // Keep avatar unchanged unless we have a reliable source for it
+        nextAssigneeAvatar = existingDataIn.assigneeAvatar ?? null
+      }
+
+      nextDataIn.assigneeUuid = nextAssigneeUuid
+      nextDataIn.assigneeName = nextAssigneeName
+      nextDataIn.assigneeAvatar = nextAssigneeAvatar
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'clientLink')) {
+      nextDataIn.clientLink = body.clientLink ? String(body.clientLink) : ''
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'priority')) {
+      nextDataIn.priority = normalizePriority(body.priority)
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'deadline')) {
+      nextDataIn.deadline = body.deadline ? String(body.deadline) : undefined
+    }
+
+    const updatePayload: Partial<Goal> = {
+      dataIn: nextDataIn,
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'title')) {
+      updatePayload.title = (body.title || '').trim()
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, 'status') && body.status) {
+      updatePayload.statusName = uiStatusToDb(body.status)
+    }
+
+    if (isAdmin && Object.prototype.hasOwnProperty.call(body, 'assigneeUuid')) {
+      updatePayload.xaid = nextAssigneeUuid
+    }
+
+    const updated = await goalsRepository.update(uuid, updatePayload)
 
     return NextResponse.json(
       {
