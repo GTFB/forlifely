@@ -127,7 +127,10 @@ export function SupportMessage({
     const isReadByAdmin = isFromMe && viewStatus.admin_viewed_at
 
     return (
-      <div className="flex flex-col gap-2 p-4 rounded-lg bg-muted/50">
+      <div
+        className={`flex flex-col gap-2 p-4 rounded-lg ${
+          !isFromMe ? 'bg-primary/10' : 'bg-muted/50'
+        }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">

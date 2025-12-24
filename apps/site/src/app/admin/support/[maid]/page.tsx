@@ -302,9 +302,7 @@ React.useEffect(() => {
     setFilePreview(null)
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const sendMessage = React.useCallback(async () => {
     if (!messageContent.trim() && !selectedFile) {
       setError('Введите сообщение или выберите фото')
       return
@@ -350,6 +348,20 @@ React.useEffect(() => {
     } finally {
       setSending(false)
     }
+  }, [maid, messageContent, selectedFile, fetchMessages])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
+      e.preventDefault()
+      if (!sending && (messageContent.trim() || selectedFile)) {
+        void sendMessage()
+      }
+    }
+  }
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await sendMessage()
   }
 
   const formatDate = (dateString: string | Date | null | undefined) => {
@@ -621,6 +633,7 @@ React.useEffect(() => {
                     <Textarea
                       value={messageContent}
                       onChange={(e) => setMessageContent(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       placeholder="Введите сообщение..."
                       rows={3}
                       disabled={sending}

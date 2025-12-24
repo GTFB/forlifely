@@ -359,9 +359,7 @@ export default function SupportChatPage() {
     }
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const sendMessage = React.useCallback(async () => {
     if (!messageContent.trim() && !selectedFile) {
       setError('Введите сообщение или выберите фото')
       return
@@ -407,6 +405,20 @@ export default function SupportChatPage() {
     } finally {
       setSending(false)
     }
+  }, [maid, messageContent, selectedFile, fetchMessages])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
+      e.preventDefault()
+      if (!sending && (messageContent.trim() || selectedFile)) {
+        void sendMessage()
+      }
+    }
+  }
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await sendMessage()
   }
 
   const formatDate = (dateString: string | Date | null | undefined) => {
@@ -596,6 +608,7 @@ export default function SupportChatPage() {
                   value={messageContent}
                   onChange={(e) => setMessageContent(e.target.value)}
                   onPaste={handlePaste}
+                  onKeyDown={handleKeyDown}
                   placeholder="Введите сообщение... (или вставьте изображение из буфера обмена)"
                   rows={3}
                   disabled={sending}
