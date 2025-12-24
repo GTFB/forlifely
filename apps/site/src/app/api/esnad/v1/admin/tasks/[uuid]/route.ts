@@ -61,6 +61,7 @@ const mapGoalToTask = (goal: Goal): TaskResponse => {
     status: dbStatusToUi(goal.statusName),
     priority: normalizePriority(dataIn?.priority),
     clientLink: dataIn?.clientLink || '',
+    taskThreadMaid: dataIn?.taskThreadMaid,
     assignee: {
       uuid: dataIn?.assigneeUuid,
       name: dataIn?.assigneeName || 'Не назначен',
@@ -273,9 +274,55 @@ export async function OPTIONS() {
     headers: {
       ...jsonHeaders,
       'access-control-allow-origin': '*',
-      'access-control-allow-methods': 'PATCH, OPTIONS',
+      'access-control-allow-methods': 'PATCH, DELETE, OPTIONS',
       'access-control-allow-headers': 'content-type',
     },
   })
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ uuid: string }> }
+) {
+  const auth = await authenticate(request)
+  if ('response' in auth) {
+    return auth.response
+  }
+
+  const { uuid } = await context.params
+
+  try {
+    const goalsRepository = GoalsRepository.getInstance()
+    const existing = await goalsRepository.findAdminTaskByUuid(uuid)
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: 'NOT_FOUND', message: 'Task not found' },
+        { status: 404, headers: jsonHeaders }
+      )
+    }
+
+    const isAdmin = isAdminUser(auth.user)
+    if (!isAdmin && existing.xaid && existing.xaid !== auth.user.user.uuid) {
+      return NextResponse.json(
+        { success: false, error: 'FORBIDDEN', message: 'You cannot delete this task' },
+        { status: 403, headers: jsonHeaders }
+      )
+    }
+
+    await goalsRepository.deleteByUuid(uuid)
+
+    return NextResponse.json({ success: true }, { status: 200, headers: jsonHeaders })
+  } catch (error) {
+    console.error('Failed to delete task', error)
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: error instanceof Error ? error.message : 'Unexpected error',
+      },
+      { status: 500, headers: jsonHeaders }
+    )
+  }
 }
 

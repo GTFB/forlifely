@@ -76,7 +76,7 @@ describe("GoalsRepository", () => {
                 assigneeName,
                 assigneeAvatar,
                 clientLink,
-                createdByUuid,
+                createdByHumanHaid: createdByUuid,
                 deadline,
             });
 
@@ -92,7 +92,7 @@ describe("GoalsRepository", () => {
             expect(dataIn.assigneeName).toBe(assigneeName);
             expect(dataIn.assigneeAvatar).toBe(assigneeAvatar);
             expect(dataIn.clientLink).toBe(clientLink);
-            expect(dataIn.createdByUuid).toBe(createdByUuid);
+            expect(dataIn.createdByHumanHaid).toBe(createdByUuid);
             expect(dataIn.deadline).toBe(deadline);
         });
 

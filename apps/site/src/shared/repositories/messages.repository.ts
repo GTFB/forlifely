@@ -268,6 +268,59 @@ export class MessagesRepository extends BaseRepository<Message> {
 
         return unreadMessages.length > 0
     }
+
+    /**
+     * Mark task messages as viewed by a human (skip own messages).
+     * Returns number of updated messages.
+     */
+    public async markTaskMessagesViewed(
+      chatMaid: string,
+      viewerHumanHaid: string,
+      viewedAt?: string
+    ): Promise<number> {
+      const now = viewedAt ?? new Date().toISOString()
+      const messages = await this.db
+        .select()
+        .from(this.schema)
+        .where(
+          and(eq(this.schema.maid, chatMaid), isNull(this.schema.deletedAt))
+        )
+        .orderBy(desc(this.schema.createdAt))
+        .execute()
+
+      let updated = 0
+      for (const message of messages) {
+        const dataIn = parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+          (message as any).dataIn,
+          {} as EsnadSupportMessageDataIn
+        )
+        const senderHaid = (dataIn as any).humanHaid
+        if (senderHaid === viewerHumanHaid) {
+          continue
+        }
+        const viewedBy = new Set<string>(
+          Array.isArray((dataIn as any).viewedBy) ? ((dataIn as any).viewedBy as string[]) : []
+        )
+        if (viewedBy.has(viewerHumanHaid)) {
+          continue
+        }
+        viewedBy.add(viewerHumanHaid)
+        const updatedDataIn = {
+          ...dataIn,
+          viewedBy: Array.from(viewedBy),
+          last_viewed_at: now,
+        } as Record<string, unknown>
+        await this.update((message as any).uuid, { dataIn: updatedDataIn as any })
+        try {
+          await sendToRoom(`message:${message.uuid}`, 'viewed-message', {})
+          await sendToRoom(`task:${chatMaid}`, 'viewed-message', {})
+        } catch (socketError) {
+          console.error('Failed to send task viewed socket event:', socketError)
+        }
+        updated++
+      }
+      return updated
+    }
 }
 
 

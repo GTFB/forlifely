@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import dynamic from "next/dynamic"
+import type { Value as E164Number } from "react-phone-number-input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +12,11 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
+
+const PhoneInput = dynamic(
+  () => import("@/components/ui/phone-input").then((mod) => mod.PhoneInput),
+  { ssr: false }
+)
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -114,6 +121,11 @@ export default function RegisterPage() {
 
     if (!formData.firstName?.trim()) {
       setError("Имя обязательно для заполнения.")
+      return
+    }
+
+    if (!formData.phone?.trim()) {
+      setError("Телефон обязателен для заполнения.")
       return
     }
 
@@ -311,15 +323,16 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Телефон</Label>
-              <Input
-                id="phone"
-                type="tel"
+              <Label htmlFor="phone">
+                Телефон <span className="text-destructive">*</span>
+              </Label>
+              <PhoneInput
+                defaultCountry="RU"
                 placeholder="+7 (999) 999-99-99"
-                value={formData.phone}
-                onChange={handleChange}
+                value={(formData.phone || "") as E164Number}
+                onChange={(value) => setFormData((prev) => ({ ...prev, phone: value ?? "" }))}
                 disabled={loading || completed}
-                autoComplete="tel"
+                hideCountrySelector
               />
             </div>
 

@@ -30,7 +30,16 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Loader2, Plus, GripVertical, Pencil } from 'lucide-react'
+import {
+  Loader2,
+  Plus,
+  GripVertical,
+  Pencil,
+  Image as ImageIcon,
+  X,
+  Send,
+  Trash2,
+} from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import {
@@ -43,6 +52,9 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { useRoomSocket } from '@/hooks/use-user-socket'
+import type { EsnadSupportMessage } from '@/shared/types/esnad-support'
 import { CurrentUser, TaskApi, TaskAssignee, TaskPriority, TaskStatus } from '@/shared/types/tasks'
 
 type Task = TaskApi & { id: string; date: string }
@@ -59,6 +71,7 @@ const mapApiTask = (task: TaskApi): Task => ({
   title: task.title,
   clientLink: task.clientLink || '',
   priority: task.priority || 'medium',
+  taskThreadMaid: (task as any).taskThreadMaid,
   assignee: {
     uuid: task.assignee?.uuid,
     name: task.assignee?.name || 'Не назначен',
@@ -87,7 +100,15 @@ function DroppableColumn({ id, title, children }: { id: string; title: string; c
   )
 }
 
-function DraggableTask({ task, onEdit }: { task: Task; onEdit?: (task: Task) => void }) {
+function DraggableTask({
+  task,
+  onEdit,
+  onDelete,
+}: {
+  task: Task
+  onEdit?: (task: Task) => void
+  onDelete?: (task: Task) => void
+}) {
   const {
     attributes,
     listeners,
@@ -139,19 +160,36 @@ function DraggableTask({ task, onEdit }: { task: Task; onEdit?: (task: Task) => 
           <CardTitle className="text-sm">{task.title}</CardTitle>
           <div className="flex items-center gap-1">
             {onEdit ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onEdit(task)
-                }}
-                aria-label="Редактировать задачу">
-                <Pencil className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onEdit(task)
+                  }}
+                  aria-label="Редактировать задачу">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                {onDelete ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onDelete(task)
+                    }}
+                    aria-label="Удалить задачу">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -210,6 +248,19 @@ export default function AdminTasksPage() {
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
   const [editSubmitting, setEditSubmitting] = React.useState(false)
+  const [taskMessages, setTaskMessages] = React.useState<EsnadSupportMessage[]>([])
+  const [taskMessagesPage, setTaskMessagesPage] = React.useState(1)
+  const [taskMessagesHasMore, setTaskMessagesHasMore] = React.useState(true)
+  const [loadingTaskMessages, setLoadingTaskMessages] = React.useState(false)
+  const [sendingTaskMessage, setSendingTaskMessage] = React.useState(false)
+  const [taskMessageContent, setTaskMessageContent] = React.useState('')
+  const [taskMessageFile, setTaskMessageFile] = React.useState<File | null>(null)
+  const [taskMessageFilePreview, setTaskMessageFilePreview] = React.useState<string | null>(null)
+  const [currentThreadMaid, setCurrentThreadMaid] = React.useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [deletingTaskId, setDeletingTaskId] = React.useState<string | null>(null)
+  const [deleting, setDeleting] = React.useState(false)
+  const [createFirstMessage, setCreateFirstMessage] = React.useState('')
   const [formData, setFormData] = React.useState({
     title: '',
     clientLink: '',
@@ -224,6 +275,7 @@ export default function AdminTasksPage() {
     assigneeUuid: '',
     status: 'todo' as TaskStatus,
   })
+  const latestMessageTimestampRef = React.useRef<string | null>(null)
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -260,6 +312,7 @@ export default function AdminTasksPage() {
           name: meData.user.name || meData.user.email || 'Пользователь',
           roles,
           isAdmin,
+          humanAid: (meData.user as any).humanAid || null,
         }
         setCurrentUser(me)
         if (!isAdmin) {
@@ -403,9 +456,106 @@ export default function AdminTasksPage() {
 
   const activeTask = tasks.find((task) => task.id === activeId)
 
+  const markTaskMessagesViewed = React.useCallback(
+    async (taskId: string) => {
+      try {
+        await fetch(`/api/esnad/v1/admin/tasks/${taskId}/messages/view`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+      } catch (err) {
+        console.error('Mark task messages viewed error:', err)
+      }
+    },
+    []
+  )
+
+  const loadTaskMessages = React.useCallback(
+    async (taskId: string, threadMaid: string, page = 1, append = false) => {
+      try {
+        setLoadingTaskMessages(true)
+        const response = await fetch(
+          `/api/esnad/v1/admin/tasks/${taskId}/messages?page=${page}&limit=20`,
+          { credentials: 'include' }
+        )
+        const payload = await response.json().catch(() => null)
+        if (!response.ok) {
+          const message =
+            (payload as { message?: string; error?: string })?.message ||
+            (payload as { message?: string; error?: string })?.error ||
+            'Не удалось загрузить сообщения'
+          throw new Error(message)
+        }
+        const data = (payload as any)?.data
+        const messages = (data?.messages as EsnadSupportMessage[]) || []
+        const ordered = [...messages].reverse()
+
+        setTaskMessages((prev) => (append ? [...ordered, ...prev] : ordered))
+        setTaskMessagesHasMore(Boolean(data?.pagination?.hasMore))
+        setTaskMessagesPage(page)
+        const latest = ordered[ordered.length - 1]
+        if (latest?.createdAt) {
+          latestMessageTimestampRef.current =
+            latest.createdAt instanceof Date
+              ? latest.createdAt.toISOString()
+              : String(latest.createdAt)
+        }
+        await markTaskMessagesViewed(taskId)
+      } catch (err) {
+        console.error('Task messages fetch error:', err)
+        setActionError(err instanceof Error ? err.message : 'Не удалось загрузить сообщения')
+      } finally {
+        setLoadingTaskMessages(false)
+      }
+    },
+    [markTaskMessagesViewed]
+  )
+
+  const loadNewTaskMessages = React.useCallback(async () => {
+    if (!editingTaskId || !currentThreadMaid || !latestMessageTimestampRef.current) return
+    try {
+      const response = await fetch(
+        `/api/esnad/v1/admin/tasks/${editingTaskId}/messages/new?after=${encodeURIComponent(
+          latestMessageTimestampRef.current
+        )}`,
+        { credentials: 'include' }
+      )
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) return
+      const newMessages = ((payload as any)?.data?.messages || []) as EsnadSupportMessage[]
+      if (newMessages.length === 0) return
+      const ordered = [...newMessages].reverse()
+      setTaskMessages((prev) => {
+        const existing = new Set(prev.map((m) => m.uuid))
+        const merged = [...prev, ...ordered.filter((m) => !existing.has(m.uuid))]
+        const latest = merged[merged.length - 1]
+        if (latest?.createdAt) {
+          latestMessageTimestampRef.current =
+            latest.createdAt instanceof Date
+              ? latest.createdAt.toISOString()
+              : String(latest.createdAt)
+        }
+        return merged
+      })
+      await markTaskMessagesViewed(editingTaskId)
+    } catch (err) {
+      console.error('Task messages new fetch error:', err)
+    }
+  }, [currentThreadMaid, editingTaskId, markTaskMessagesViewed])
+
+  useRoomSocket(
+    currentThreadMaid ? `task:${currentThreadMaid}` : '',
+    {
+      'new-message': () => {
+        void loadNewTaskMessages()
+      },
+    }
+  )
+
   const handleOpenEdit = (task: Task) => {
     setActionError(null)
     setEditingTaskId(task.id)
+    setCurrentThreadMaid(task.taskThreadMaid || null)
     setEditFormData({
       title: task.title || '',
       clientLink: task.clientLink || '',
@@ -414,6 +564,45 @@ export default function AdminTasksPage() {
       status: task.status || 'todo',
     })
     setEditDialogOpen(true)
+    setTaskMessages([])
+    setTaskMessagesPage(1)
+    setTaskMessagesHasMore(true)
+    if (task.taskThreadMaid) {
+      void loadTaskMessages(task.id, task.taskThreadMaid, 1, false)
+    }
+  }
+
+  const handleOpenDelete = (task: Task) => {
+    setDeletingTaskId(task.id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTaskId) return
+    try {
+      setDeleting(true)
+      setActionError(null)
+      const response = await fetch(`/api/esnad/v1/admin/tasks/${deletingTaskId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message =
+          (payload as { message?: string; error?: string })?.message ||
+          (payload as { message?: string; error?: string })?.error ||
+          'Не удалось удалить задачу'
+        throw new Error(message)
+      }
+      setTasks((prev) => prev.filter((t) => t.id !== deletingTaskId))
+      setDeleteDialogOpen(false)
+      setDeletingTaskId(null)
+    } catch (err) {
+      console.error('Delete task error:', err)
+      setActionError(err instanceof Error ? err.message : 'Не удалось удалить задачу')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -456,7 +645,38 @@ export default function AdminTasksPage() {
       }
 
       if ((payload as { task?: TaskApi }).task) {
-        setTasks((prev) => [...prev, mapApiTask((payload as { task: TaskApi }).task)])
+        const created = mapApiTask((payload as { task: TaskApi }).task)
+        setTasks((prev) => [...prev, created])
+
+        // отправим первое сообщение, если есть текст
+        if (createFirstMessage.trim() && created.taskThreadMaid) {
+          try {
+            const fd = new FormData()
+            fd.append('messageType', 'text')
+            fd.append('content', createFirstMessage.trim())
+            const msgResponse = await fetch(
+              `/api/esnad/v1/admin/tasks/${created.id}/messages`,
+              {
+                method: 'POST',
+                credentials: 'include',
+                body: fd,
+              }
+            )
+            const msgPayload = await msgResponse.json().catch(() => null)
+            if (!msgResponse.ok) {
+              const message =
+                (msgPayload as { message?: string; error?: string })?.message ||
+                (msgPayload as { message?: string; error?: string })?.error ||
+                'Не удалось отправить первое сообщение'
+              throw new Error(message)
+            }
+          } catch (msgErr) {
+            console.error('Create first message error:', msgErr)
+            setActionError(
+              msgErr instanceof Error ? msgErr.message : 'Не удалось отправить первое сообщение'
+            )
+          }
+        }
       }
       setFormData({
         title: '',
@@ -465,6 +685,7 @@ export default function AdminTasksPage() {
         assigneeUuid: currentUser.uuid,
         status: 'todo',
       })
+      setCreateFirstMessage('')
       setDialogOpen(false)
     } catch (err) {
       console.error('Create task error:', err)
@@ -536,6 +757,112 @@ export default function AdminTasksPage() {
     }
   }
 
+  const handleTaskFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) {
+      return
+    }
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedMimeTypes.includes(file.type)) {
+      setActionError('Разрешены только изображения (JPG, PNG, WebP)')
+      return
+    }
+    setTaskMessageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setTaskMessageFilePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveTaskFile = () => {
+    setTaskMessageFile(null)
+    setTaskMessageFilePreview(null)
+  }
+
+  const handleSendTaskMessage = async (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault()
+    if (!editingTaskId || !currentThreadMaid) {
+      setActionError('Не выбрана задача для отправки сообщения')
+      return
+    }
+    if (!taskMessageContent.trim() && !taskMessageFile) {
+      setActionError('Введите сообщение или выберите файл')
+      return
+    }
+    try {
+      setSendingTaskMessage(true)
+      setActionError(null)
+
+      const formData = new FormData()
+      formData.append('messageType', taskMessageFile ? 'photo' : 'text')
+      if (taskMessageContent.trim()) {
+        formData.append('content', taskMessageContent.trim())
+      }
+      if (taskMessageFile) {
+        formData.append('file', taskMessageFile)
+      }
+
+      const response = await fetch(`/api/esnad/v1/admin/tasks/${editingTaskId}/messages`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message =
+          (payload as { message?: string; error?: string })?.message ||
+          (payload as { message?: string; error?: string })?.error ||
+          'Не удалось отправить сообщение'
+        throw new Error(message)
+      }
+
+      await loadTaskMessages(editingTaskId, currentThreadMaid, 1, false)
+      setTaskMessageContent('')
+      setTaskMessageFile(null)
+      setTaskMessageFilePreview(null)
+    } catch (err) {
+      console.error('Send task message error:', err)
+      setActionError(err instanceof Error ? err.message : 'Не удалось отправить сообщение')
+    } finally {
+      setSendingTaskMessage(false)
+    }
+  }
+
+  const handleTaskMessagePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const clipboardItems = e.clipboardData?.items
+    if (!clipboardItems || clipboardItems.length === 0) return
+
+    const fileItem = Array.from(clipboardItems).find(
+      (item) => item.kind === 'file' && item.type.startsWith('image/')
+    )
+    if (!fileItem) return
+
+    const file = fileItem.getAsFile()
+    if (!file) return
+
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedMimeTypes.includes(file.type)) {
+      setActionError('Разрешены только изображения (JPG, PNG, WebP)')
+      return
+    }
+
+    e.preventDefault()
+    setTaskMessageFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setTaskMessageFilePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleTaskMessageKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.shiftKey)) {
+      void handleSendTaskMessage(e)
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -600,7 +927,7 @@ export default function AdminTasksPage() {
                   Создать задачу
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Создать новую задачу</DialogTitle>
                   <DialogDescription>
@@ -690,6 +1017,17 @@ export default function AdminTasksPage() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="first-message">Первое сообщение (опционально)</Label>
+                    <Textarea
+                      id="first-message"
+                      value={createFirstMessage}
+                      onChange={(e) => setCreateFirstMessage(e.target.value)}
+                      placeholder="Текст будет отправлен как первое сообщение в чате задачи"
+                      rows={3}
+                    />
+                  </div>
+
                   {actionError && (
                     <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
                       <p className="text-sm text-destructive">{actionError}</p>
@@ -725,7 +1063,7 @@ export default function AdminTasksPage() {
                 setEditingTaskId(null)
               }
             }}>
-              <DialogContent>
+              <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Редактировать задачу</DialogTitle>
                   <DialogDescription>
@@ -816,6 +1154,151 @@ export default function AdminTasksPage() {
                     </Select>
                   </div>
 
+                  <div className="space-y-3 rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold">Сообщения по задаче</h4>
+                      {loadingTaskMessages && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-3 pr-2">
+                      {taskMessages.length === 0 && !loadingTaskMessages ? (
+                        <p className="text-sm text-muted-foreground">Сообщений пока нет</p>
+                      ) : (
+                        taskMessages.map((msg) => {
+                          const dataIn = msg.dataIn as any
+                          const isMine =
+                            currentUser?.humanAid && dataIn?.humanHaid
+                              ? currentUser.humanAid === dataIn.humanHaid
+                              : false
+                          const mediaUrl = dataIn?.mediaUrl
+                          const messageType = dataIn?.messageType
+                          return (
+                            <div
+                              key={msg.uuid}
+                              className={`rounded-lg border p-3 ${
+                                isMine ? 'bg-muted/60' : 'bg-background'
+                              }`}>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{dataIn?.humanHaid || 'Участник'}</span>
+                                <span>
+                                  {msg.createdAt
+                                    ? new Date(msg.createdAt).toLocaleString('ru-RU', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
+                                    : ''}
+                                </span>
+                              </div>
+                              <div className="mt-2 text-sm whitespace-pre-wrap">
+                                {dataIn?.content}
+                              </div>
+                          {messageType === 'photo' && (mediaUrl || dataIn?.mediaUuid) ? (
+                            <div className="mt-2">
+                              <a
+                                href={mediaUrl || `/api/esnad/v1/media/${dataIn?.mediaUuid}`}
+                                target="_blank"
+                                rel="noreferrer">
+                                <img
+                                  src={mediaUrl || `/api/esnad/v1/media/${dataIn?.mediaUuid}`}
+                                  alt="Вложение"
+                                  className="max-h-48 rounded border object-contain"
+                                />
+                              </a>
+                            </div>
+                          ) : null}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+
+                    {currentThreadMaid && taskMessagesHasMore ? (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            loadTaskMessages(
+                              editingTaskId!,
+                              currentThreadMaid,
+                              taskMessagesPage + 1,
+                              true
+                            )
+                          }
+                          disabled={loadingTaskMessages}>
+                          Загрузить ещё
+                        </Button>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      {taskMessageFilePreview && (
+                        <div className="relative inline-block">
+                          <img
+                            src={taskMessageFilePreview}
+                            alt="Preview"
+                            className="max-h-32 rounded-md"
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="destructive"
+                            className="absolute -right-2 -top-2 h-6 w-6"
+                            onClick={handleRemoveTaskFile}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <Textarea
+                        value={taskMessageContent}
+                        onChange={(e) => setTaskMessageContent(e.target.value)}
+                        placeholder="Введите сообщение..."
+                        rows={3}
+                        onPaste={handleTaskMessagePaste}
+                        onKeyDown={handleTaskMessageKeyDown}
+                        disabled={sendingTaskMessage}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="task-message-file"
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handleTaskFileSelect}
+                          disabled={sendingTaskMessage}
+                        />
+                        <Label
+                          htmlFor="task-message-file"
+                          className="cursor-pointer inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted">
+                          <ImageIcon className="h-4 w-4" />
+                          Вложить
+                        </Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleSendTaskMessage}
+                          disabled={sendingTaskMessage || (!taskMessageContent.trim() && !taskMessageFile)}>
+                          {sendingTaskMessage ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Отправка...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="mr-2 h-4 w-4" />
+                              Отправить
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                   {actionError && (
                     <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
                       <p className="text-sm text-destructive">{actionError}</p>
@@ -844,6 +1327,44 @@ export default function AdminTasksPage() {
                 </form>
               </DialogContent>
             </Dialog>
+
+            <Dialog
+              open={deleteDialogOpen}
+              onOpenChange={(open) => {
+                setDeleteDialogOpen(open)
+                if (!open) {
+                  setDeletingTaskId(null)
+                }
+              }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Удалить задачу?</DialogTitle>
+                  <DialogDescription>
+                    Действие нельзя отменить. Задача будет скрыта из списка.
+                  </DialogDescription>
+                </DialogHeader>
+                {actionError && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    {actionError}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                    Отмена
+                  </Button>
+                  <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
+                    {deleting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Удаление...
+                      </>
+                    ) : (
+                      'Удалить'
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -856,7 +1377,7 @@ export default function AdminTasksPage() {
             {statusColumns.map((column) => (
               <DroppableColumn key={column.id} id={column.id} title={column.title}>
                 {tasksByStatus[column.id as keyof typeof tasksByStatus].map((task) => (
-                  <DraggableTask key={task.id} task={task} onEdit={handleOpenEdit} />
+                  <DraggableTask key={task.id} task={task} onEdit={handleOpenEdit} onDelete={handleOpenDelete} />
                 ))}
               </DroppableColumn>
             ))}

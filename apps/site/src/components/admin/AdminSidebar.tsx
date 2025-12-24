@@ -88,11 +88,16 @@ const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
-    title: 'Пользователи',
+    title: 'Люди',
     items: [
       {
         title: 'Пользователи',
         url: '/admin/users',
+        icon: Users,
+      },
+      {
+        title: 'Поручители',
+        url: '/admin/guardians',
         icon: Users,
       },
     ],

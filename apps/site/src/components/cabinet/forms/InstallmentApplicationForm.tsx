@@ -35,6 +35,23 @@ const PhoneInput = dynamic(
   { ssr: false }
 )
 
+const normalizePhoneToE164 = (raw?: string | null): string | undefined => {
+  if (!raw) return undefined
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return undefined
+  let normalized = digits
+  if (normalized.length === 11 && normalized.startsWith('8')) {
+    normalized = `7${normalized.slice(1)}`
+  }
+  if (normalized.length === 10 && normalized.startsWith('9')) {
+    normalized = `7${normalized}`
+  }
+  if (!normalized.startsWith('+')) {
+    normalized = `+${normalized}`
+  }
+  return normalized
+}
+
 interface FormData {
   // Client Primary Info
   firstName: string
@@ -136,6 +153,12 @@ interface FormData {
 
   // Consent
   consentToProcessData: boolean
+
+  // Guarantor (client form)
+  guarantorFullName?: string
+  guarantorPhone?: string
+  guarantorRelationship?: string
+  guarantorIncome?: string
 }
 
 // Steps for client form (6 steps)
@@ -150,6 +173,11 @@ const CLIENT_STEPS = [
     id: 'productInfo',
     title: 'Покупка',
     description: 'Информация о товаре и условиях рассрочки',
+  },
+  {
+    id: 'guarantor',
+    title: 'Поручитель',
+    description: 'Укажите данные поручителя (необязательно)',
   },
   {
     id: 'consent',
@@ -239,6 +267,7 @@ export function InstallmentApplicationForm({
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [stepErrors, setStepErrors] = React.useState<Record<number, string[]>>({})
+  const [submitAttempted, setSubmitAttempted] = React.useState(false)
   const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({
     clientPrimaryInfo: true, // Первая секция открыта по умолчанию
     productAndTerms: true, // Секция товара и условий всегда открыта
@@ -247,6 +276,10 @@ export function InstallmentApplicationForm({
 
   const [formData, setFormData] = React.useState<Partial<FormData>>({
     consentToProcessData: false,
+    guarantorFullName: '',
+    guarantorPhone: '',
+    guarantorRelationship: '',
+    guarantorIncome: '',
     // Default installment term to 6 months so backend always получает значение
     installmentTerm: '6',
   })
@@ -259,6 +292,7 @@ export function InstallmentApplicationForm({
     setFormData((prev) => ({
       ...prev,
       ...initialValues,
+      phoneNumber: normalizePhoneToE164(initialValues.phoneNumber) || initialValues.phoneNumber,
     }))
 
     didApplyInitialValuesRef.current = true
@@ -352,6 +386,10 @@ export function InstallmentApplicationForm({
           // documentPhotos is now optional - can be requested later
           break
         }
+        case 'guarantor': {
+          // Optional step — no required fields
+          break
+        }
         case 'consent': {
           if (!formData.consentToProcessData) {
             errors.push('Необходимо дать согласие на обработку персональных данных')
@@ -422,16 +460,24 @@ export function InstallmentApplicationForm({
     const totalSteps = sections.length
     if (!totalSteps) return 0
     
-    let completedSteps = 0
-    for (let i = 0; i < totalSteps; i++) {
+    // Count completed previous steps (without errors)
+    let completedPreviousSteps = 0
+    for (let i = 0; i < currentStep; i++) {
       const errors = validateStep(i)
       if (errors.length === 0) {
-        completedSteps++
+        completedPreviousSteps++
       }
     }
     
-    return Math.round((completedSteps / totalSteps) * 100)
-  }, [sections, validateStep])
+    // Check if current step is completed
+    const currentStepErrors = validateStep(currentStep)
+    const isCurrentStepCompleted = currentStepErrors.length === 0
+    
+    // Progress = (completed previous steps + (current step completed ? 1 : 0.5)) / total steps * 100
+    const progressValue = (completedPreviousSteps + (isCurrentStepCompleted ? 1 : 0.5)) / totalSteps * 100
+    
+    return Math.round(progressValue)
+  }, [sections, currentStep, validateStep])
 
   const progress = React.useMemo(() => calculateProgress(), [calculateProgress])
 
@@ -511,6 +557,15 @@ export function InstallmentApplicationForm({
     }
   }
 
+  // Format income: format number with spaces every 3 digits (e.g., 11 000 000)
+  const formatIncome = (value: string): string => {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '')
+    if (!digits) return ''
+    // Format with spaces every 3 digits from right to left
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  }
+
   const handleInputChange = (field: keyof FormData, value: any) => {
     // Apply mask for division code
     if (field === 'passportDivisionCode' && typeof value === 'string') {
@@ -520,6 +575,11 @@ export function InstallmentApplicationForm({
     if (field === 'snils' && typeof value === 'string') {
       value = formatSnils(value)
     }
+    // Apply mask for guarantor income
+    if (field === 'guarantorIncome' && typeof value === 'string') {
+      value = formatIncome(value)
+    }
+    // Don't normalize guarantorPhone - PhoneInput returns E164 format directly
     setFormData((prev) => ({ ...prev, [field]: value }))
     // Clear step errors when user starts typing
     if (stepErrors[currentStep] && stepErrors[currentStep].length > 0) {
@@ -563,7 +623,7 @@ export function InstallmentApplicationForm({
 
       // Fill phone from profile if available
       if (meUser.phone && !prev.phoneNumber) {
-        updated.phoneNumber = meUser.phone
+        updated.phoneNumber = normalizePhoneToE164(meUser.phone) || ''
       }
 
 
@@ -618,7 +678,7 @@ export function InstallmentApplicationForm({
 
       // Fill phone from dataIn
       if (dataIn.phone && !prev.phoneNumber) {
-        updated.phoneNumber = dataIn.phone
+        updated.phoneNumber = normalizePhoneToE164(dataIn.phone) || ''
       }
       if (dataIn.dateOfBirth && !prev.dateOfBirth) {
         updated.dateOfBirth = dataIn.dateOfBirth
@@ -709,7 +769,7 @@ export function InstallmentApplicationForm({
         if (!prev.firstName) updated.firstName = 'Иван'
         if (!prev.lastName) updated.lastName = 'Иванов'
         if (!prev.middleName) updated.middleName = 'Иванович'
-        if (!prev.phoneNumber) updated.phoneNumber = '+7 (999) 123-45-67'
+        if (!prev.phoneNumber) updated.phoneNumber = '+79991234567'
         if (!prev.email) updated.email = 'ivanov@example.com'
         if (!prev.dateOfBirth) updated.dateOfBirth = '1990-01-15'
         if (!prev.placeOfBirth) updated.placeOfBirth = 'г. Москва'
@@ -751,7 +811,7 @@ export function InstallmentApplicationForm({
           if (!prev.creditHistory_sb) updated.creditHistory_sb = 'Действующих кредитов нет. Ранее был кредит в Сбербанке, закрыт досрочно'
           if (!prev.collateralInfo_sb) updated.collateralInfo_sb = 'Не указано'
           if (!prev.housingInfo_sb) updated.housingInfo_sb = 'Собственное жилье, ипотека'
-          if (!prev.additionalContact_sb) updated.additionalContact_sb = '+7 (999) 765-43-21'
+          if (!prev.additionalContact_sb) updated.additionalContact_sb = '+79997654321'
           if (!prev.relativesContactPermission_sb) updated.relativesContactPermission_sb = 'Готов предоставить контакт родителей'
           if (!prev.localFeedback_sb) updated.localFeedback_sb = 'Отзыв от соседей: положительный, ответственный человек'
           if (!prev.psychologicalAssessment_sb) updated.psychologicalAssessment_sb = 'Клиент спокоен, адекватен, коммуникабелен. Рисков не выявлено.'
@@ -764,7 +824,7 @@ export function InstallmentApplicationForm({
           if (!prev.getcontactInfo_p1) updated.getcontactInfo_p1 = 'GetContact: информация проверена'
           if (!prev.relationship_p1) updated.relationship_p1 = 'Супруг(а)'
           if (!prev.fullName_p1) updated.fullName_p1 = 'Иванова Мария Ивановна'
-          if (!prev.phoneNumber_p1) updated.phoneNumber_p1 = '+7 (999) 111-22-33'
+          if (!prev.phoneNumber_p1) updated.phoneNumber_p1 = '+79991112233'
           if (!prev.address_p1) updated.address_p1 = 'г. Москва, ул. Ленина, д. 1, кв. 10'
           if (!prev.employmentIncome_p1) updated.employmentIncome_p1 = 'ООО "Компания", бухгалтер, 40000 руб/мес'
           if (!prev.maritalStatus_p1) updated.maritalStatus_p1 = 'married'
@@ -817,6 +877,7 @@ export function InstallmentApplicationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitAttempted(true)
 
     // Validate all steps before submission
     const allErrors: Record<number, string[]> = {}
@@ -942,7 +1003,7 @@ export function InstallmentApplicationForm({
             }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''}
+            className={`${formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''} bg-background`}
           />
         </div>
         <div className="space-y-2">
@@ -959,7 +1020,7 @@ export function InstallmentApplicationForm({
             }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''}
+            className={`${formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''} bg-background`}
           />
         </div>
         <div className="space-y-2">
@@ -975,7 +1036,7 @@ export function InstallmentApplicationForm({
               handleInputChange('middleName', filtered)
             }}
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''}
+            className={`${formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''} bg-background`} 
           />
         </div>
       </div>
@@ -988,6 +1049,7 @@ export function InstallmentApplicationForm({
           value={(formData.phoneNumber || '') as E164Number}
           onChange={(value) => handleInputChange('phoneNumber', value ?? '')}
           hideCountrySelector
+          className="bg-background"
         />
       </div>
 
@@ -1020,6 +1082,7 @@ export function InstallmentApplicationForm({
                   value={formData.placeOfBirth || ''}
                   onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
                   placeholder="Город, область"
+                  className="bg-background"
                 />
               </div>
             </div>
@@ -1032,6 +1095,7 @@ export function InstallmentApplicationForm({
                   value={formData.citizenship || ''}
                   onChange={(e) => handleInputChange('citizenship', e.target.value)}
                   placeholder="РФ"
+                  className="bg-background"
                 />
               </div>
               <div className="space-y-2">
@@ -1061,6 +1125,7 @@ export function InstallmentApplicationForm({
                 value={formData.numberOfChildren || ''}
                 onChange={(e) => handleInputChange('numberOfChildren', e.target.value)}
                 placeholder="0"
+                className="bg-background"
               />
             </div>
 
@@ -1076,6 +1141,7 @@ export function InstallmentApplicationForm({
                     onChange={(e) => handleInputChange('passportSeries', e.target.value)}
                     placeholder="1234"
                     maxLength={4}
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1086,6 +1152,7 @@ export function InstallmentApplicationForm({
                     onChange={(e) => handleInputChange('passportNumber', e.target.value)}
                     placeholder="567890"
                     maxLength={6}
+                    className="bg-background"
                   />
                 </div>
               </div>
@@ -1113,6 +1180,7 @@ export function InstallmentApplicationForm({
                   onChange={(e) => handleInputChange('passportIssuedBy', e.target.value)}
                   placeholder="Наименование органа, выдавшего паспорт"
                   rows={2}
+                  className="bg-background"
                 />
               </div>
 
@@ -1124,6 +1192,7 @@ export function InstallmentApplicationForm({
                   onChange={(e) => handleInputChange('passportDivisionCode', e.target.value)}
                   placeholder="123-456"
                   pattern="[0-9]{3}-[0-9]{3}"
+                  className="bg-background"
                 />
               </div>
 
@@ -1136,6 +1205,7 @@ export function InstallmentApplicationForm({
                     onChange={(e) => handleInputChange('inn', e.target.value)}
                     placeholder="123456789012"
                     maxLength={12}
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1146,6 +1216,7 @@ export function InstallmentApplicationForm({
                     onChange={(e) => handleInputChange('snils', e.target.value)}
                     placeholder="123-456-789 12"
                     maxLength={14}
+                    className="bg-background"
                   />
                 </div>
               </div>
@@ -1162,6 +1233,7 @@ export function InstallmentApplicationForm({
                   onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
                   placeholder="Полный адрес регистрации"
                   rows={3}
+                  className="bg-background"
                 />
               </div>
 
@@ -1173,6 +1245,7 @@ export function InstallmentApplicationForm({
                   onChange={(e) => handleInputChange('registrationAddress', e.target.value)}
                   placeholder="Полный адрес фактического проживания (если отличается от прописки)"
                   rows={3}
+                  className="bg-background"
                 />
               </div>
             </div>
@@ -1189,6 +1262,7 @@ export function InstallmentApplicationForm({
                     value={formData.monthlyIncome || ''}
                     onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
                     placeholder="Например: 50000"
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1199,6 +1273,7 @@ export function InstallmentApplicationForm({
                     value={formData.monthlyExpenses || ''}
                     onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
                     placeholder="Например: 30000"
+                    className="bg-background"
                   />
                 </div>
               </div>
@@ -1211,6 +1286,7 @@ export function InstallmentApplicationForm({
                     value={formData.workPlace || ''}
                     onChange={(e) => handleInputChange('workPlace', e.target.value)}
                     placeholder="Например: ООО 'Компания', менеджер"
+                    className="bg-background"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1220,7 +1296,8 @@ export function InstallmentApplicationForm({
                     value={formData.workExperience || ''}
                     onChange={(e) => handleInputChange('workExperience', e.target.value)}
                     placeholder="Например: 3 года"
-                  />
+                    className="bg-background"
+                    />
                 </div>
               </div>
             </div>
@@ -1248,7 +1325,7 @@ export function InstallmentApplicationForm({
             }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''}
+            className={`${formData.lastName && !/^[А-Яа-яЁё\s-]+$/.test(formData.lastName) ? 'border-red-500' : ''} bg-background`}
           />
         </div>
         <div className="space-y-2">
@@ -1265,7 +1342,7 @@ export function InstallmentApplicationForm({
             }}
             required
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''}
+            className={`${formData.firstName && !/^[А-Яа-яЁё\s-]+$/.test(formData.firstName) ? 'border-red-500' : ''} bg-background`}
           />
         </div>
         <div className="space-y-2">
@@ -1281,7 +1358,7 @@ export function InstallmentApplicationForm({
               handleInputChange('middleName', filtered)
             }}
             pattern="^[А-Яа-яЁё\s-]+$"
-            className={formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''}
+            className={`${formData.middleName && !/^[А-Яа-яЁё\s-]+$/.test(formData.middleName) ? 'border-red-500' : ''} bg-background`}
           />
         </div>
       </div>
@@ -1309,6 +1386,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('placeOfBirth', e.target.value)}
             placeholder="Город, область"
             required
+            className="bg-background"
           />
         </div>
       </div>
@@ -1322,7 +1400,8 @@ export function InstallmentApplicationForm({
             value={(formData.phoneNumber || '') as E164Number}
             onChange={(value) => handleInputChange('phoneNumber', value ?? '')}
             hideCountrySelector
-          />
+            className="bg-background"
+            />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
@@ -1332,7 +1411,7 @@ export function InstallmentApplicationForm({
             value={formData.email || ''}
             onChange={(e) => handleInputChange('email', e.target.value)}
             disabled={isClient}
-            className={isClient ? "bg-muted cursor-not-allowed" : ""}
+            className={`${isClient ? "bg-background  cursor-not-allowed" : ""} bg-background`}
             placeholder="example@mail.ru"
           />
         </div>
@@ -1347,6 +1426,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('citizenship', e.target.value)}
             placeholder="РФ"
             required
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1376,6 +1456,7 @@ export function InstallmentApplicationForm({
           value={formData.numberOfChildren || ''}
           onChange={(e) => handleInputChange('numberOfChildren', e.target.value)}
           placeholder="0"
+          className="bg-background"
         />
       </div>
     </div>
@@ -1394,6 +1475,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('monthlyIncome', e.target.value)}
             placeholder="Например: 50000"
             required
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1404,6 +1486,7 @@ export function InstallmentApplicationForm({
             value={formData.monthlyExpenses || ''}
             onChange={(e) => handleInputChange('monthlyExpenses', e.target.value)}
             placeholder="Например: 30000"
+            className="bg-background"
           />
         </div>
       </div>
@@ -1417,6 +1500,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('workPlace', e.target.value)}
             placeholder="Например: ООО 'Компания', менеджер"
             required
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1426,6 +1510,7 @@ export function InstallmentApplicationForm({
             value={formData.workExperience || ''}
             onChange={(e) => handleInputChange('workExperience', e.target.value)}
             placeholder="Например: 3 года"
+            className="bg-background"
           />
         </div>
       </div>
@@ -1438,6 +1523,7 @@ export function InstallmentApplicationForm({
           onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
           placeholder="Дополнительная информация о месте работы, должности и стаже"
           rows={3}
+          className="bg-background"
         />
       </div>
 
@@ -1449,6 +1535,7 @@ export function InstallmentApplicationForm({
           onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
           placeholder="Дополнительная информация об официальном трудоустройстве и доходах"
           rows={3}
+          className="bg-background"
         />
       </div>
 
@@ -1460,6 +1547,7 @@ export function InstallmentApplicationForm({
           onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
           placeholder="Дополнительные источники дохода (если есть)"
           rows={3}
+          className="bg-background"
         />
       </div>
 
@@ -1471,6 +1559,7 @@ export function InstallmentApplicationForm({
           onChange={(e) => handleInputChange('creditHistory_sb', e.target.value)}
           placeholder="Информация о кредитной истории"
           rows={3}
+          className="bg-background"
         />
       </div>
     </div>
@@ -1489,7 +1578,8 @@ export function InstallmentApplicationForm({
             placeholder="1234"
             maxLength={4}
             required
-          />
+            className="bg-background"
+            />
         </div>
         <div className="space-y-2">
           <Label htmlFor="passportNumber">Номер паспорта *</Label>
@@ -1500,7 +1590,8 @@ export function InstallmentApplicationForm({
             placeholder="567890"
             maxLength={6}
             required
-          />
+            className="bg-background"
+            />
         </div>
       </div>
 
@@ -1515,7 +1606,7 @@ export function InstallmentApplicationForm({
           }}
           placeholder="Выберите дату выдачи"
           dateFormat="dd.MM.yyyy"
-          className="w-full"
+          className="w-full bg-background"
         />
       </div>
 
@@ -1528,7 +1619,8 @@ export function InstallmentApplicationForm({
           placeholder="Наименование органа, выдавшего паспорт"
           rows={2}
           required
-        />
+          className="bg-background"
+          />
       </div>
 
       <div className="space-y-2">
@@ -1540,7 +1632,8 @@ export function InstallmentApplicationForm({
           placeholder="123-456"
           pattern="[0-9]{3}-[0-9]{3}"
           required
-        />
+          className="bg-background"
+          />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -1552,6 +1645,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('inn', e.target.value)}
             placeholder="123456789012"
             maxLength={12}
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1562,6 +1656,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('snils', e.target.value)}
             placeholder="123-456-789 12"
             maxLength={14}
+            className="bg-background"
           />
         </div>
       </div>
@@ -1580,7 +1675,8 @@ export function InstallmentApplicationForm({
           placeholder="Полный адрес регистрации"
           rows={3}
           required
-        />
+          className="bg-background"
+          />
       </div>
 
       <div className="space-y-2">
@@ -1591,7 +1687,8 @@ export function InstallmentApplicationForm({
           onChange={(e) => handleInputChange('registrationAddress', e.target.value)}
           placeholder="Полный адрес фактического проживания (если отличается от прописки)"
           rows={3}
-        />
+          className="bg-background"
+          />
       </div>
     </div>
   )
@@ -1619,6 +1716,7 @@ export function InstallmentApplicationForm({
             onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
             placeholder="Например: 50000"
             required
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1629,6 +1727,7 @@ export function InstallmentApplicationForm({
             value={formData.downPayment || ''}
             onChange={(e) => handleInputChange('downPayment', e.target.value)}
             placeholder="0"
+            className="bg-background"
           />
         </div>
       </div>
@@ -1665,6 +1764,7 @@ export function InstallmentApplicationForm({
           value={formData.productName || ''}
           onChange={(e) => handleInputChange('productName', e.target.value)}
           placeholder="Например: Смартфон iPhone 15"
+          className="bg-background"
         />
       </div>
 
@@ -1681,7 +1781,8 @@ export function InstallmentApplicationForm({
             const files = Array.from(e.target.files || [])
             handleInputChange('documentPhotos', files as File[])
           }}
-        />
+          className="bg-background"
+          />
         <p className="text-xs text-muted-foreground">
           Если не загрузите сейчас, мы можем запросить фото позже
         </p>
@@ -1701,6 +1802,7 @@ export function InstallmentApplicationForm({
                 value={formData.purchaseLocation || ''}
                 onChange={(e) => handleInputChange('purchaseLocation', e.target.value)}
                 placeholder="Например: Магазин электроники"
+                className="bg-background"
               />
             </div>
 
@@ -1710,6 +1812,7 @@ export function InstallmentApplicationForm({
                 id="partnerLocation"
                 value={formData.partnerLocation || ''}
                 onChange={(e) => handleInputChange('partnerLocation', e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -1720,6 +1823,7 @@ export function InstallmentApplicationForm({
                 type="number"
                 value={formData.comfortableMonthlyPayment || ''}
                 onChange={(e) => handleInputChange('comfortableMonthlyPayment', e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -1732,6 +1836,7 @@ export function InstallmentApplicationForm({
                 max="31"
                 value={formData.convenientPaymentDate || ''}
                 onChange={(e) => handleInputChange('convenientPaymentDate', e.target.value)}
+                className="bg-background"
               />
             </div>
           </AccordionContent>
@@ -1758,6 +1863,7 @@ export function InstallmentApplicationForm({
               handleInputChange('documentPhotos', files as File[])
             }}
             required
+            className="bg-background"
           />
         </div>
 
@@ -1768,6 +1874,7 @@ export function InstallmentApplicationForm({
           type="number"
           value={formData.comfortableMonthlyPayment || ''}
           onChange={(e) => handleInputChange('comfortableMonthlyPayment', e.target.value)}
+          className="bg-background"
         />
       </div>
 
@@ -1780,7 +1887,8 @@ export function InstallmentApplicationForm({
             value={formData.purchasePrice || ''}
             onChange={(e) => handleInputChange('purchasePrice', e.target.value)}
             required
-          />
+            className="bg-background"
+            />
         </div>
         <div className="space-y-2">
           <Label htmlFor="downPayment">Первый взнос *</Label>
@@ -1790,7 +1898,8 @@ export function InstallmentApplicationForm({
             value={formData.downPayment || ''}
             onChange={(e) => handleInputChange('downPayment', e.target.value)}
             required
-          />
+            className="bg-background"
+            />
         </div>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -1809,7 +1918,7 @@ export function InstallmentApplicationForm({
             step={1}
             value={[Math.max(3, Math.min(24, parseInt(formData.installmentTerm || '6')))]}
             onValueChange={(value) => handleInputChange('installmentTerm', String(value[0]))}
-            className="w-full"
+            className="w-full bg-background"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>3</span>
@@ -1826,7 +1935,7 @@ export function InstallmentApplicationForm({
             type="number"
             value={formData.monthlyPayment || ''}
             readOnly
-            className="bg-muted"
+            className="bg-background"
           />
         </div>
         <div className="space-y-2">
@@ -1836,7 +1945,7 @@ export function InstallmentApplicationForm({
             type="number"
             value={formData.markupAmount || ''}
             readOnly
-            className="bg-muted"
+            className="bg-background "
           />
         </div>
       </div>
@@ -1847,6 +1956,7 @@ export function InstallmentApplicationForm({
           id="partnerLocation"
           value={formData.partnerLocation || ''}
           onChange={(e) => handleInputChange('partnerLocation', e.target.value)}
+          className="bg-background"
         />
       </div>
 
@@ -1859,7 +1969,8 @@ export function InstallmentApplicationForm({
           max="31"
           value={formData.convenientPaymentDate || ''}
           onChange={(e) => handleInputChange('convenientPaymentDate', e.target.value)}
-        />
+          className="bg-background"
+          />
       </div>
     </div>
     )
@@ -1885,6 +1996,7 @@ export function InstallmentApplicationForm({
                 onChange={(e) => handleInputChange('fsspInfo_sb', e.target.value)}
                 rows={3}
                 required
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1895,6 +2007,7 @@ export function InstallmentApplicationForm({
                 onChange={(e) => handleInputChange('getcontactInfo_sb', e.target.value)}
                 rows={3}
                 required
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1904,6 +2017,7 @@ export function InstallmentApplicationForm({
                 value={formData.purchasePurpose_sb || ''}
                 onChange={(e) => handleInputChange('purchasePurpose_sb', e.target.value)}
                 rows={3}
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1913,6 +2027,7 @@ export function InstallmentApplicationForm({
                 value={formData.referralSource_sb || ''}
                 onChange={(e) => handleInputChange('referralSource_sb', e.target.value)}
                 rows={3}
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1923,6 +2038,7 @@ export function InstallmentApplicationForm({
                 onChange={(e) => handleInputChange('employmentInfo_sb', e.target.value)}
                 rows={3}
                 required
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1932,6 +2048,7 @@ export function InstallmentApplicationForm({
                 value={formData.additionalIncome_sb || ''}
                 onChange={(e) => handleInputChange('additionalIncome_sb', e.target.value)}
                 rows={3}
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -1942,7 +2059,8 @@ export function InstallmentApplicationForm({
                 onChange={(e) => handleInputChange('officialIncome_sb', e.target.value)}
                 rows={3}
                 required
-              />
+                className="bg-background"
+                />
             </div>
             <div className="space-y-2">
               <Label htmlFor="maritalStatus_sb">Семейное положение клиента (СБ) *</Label>
@@ -2378,6 +2496,7 @@ export function InstallmentApplicationForm({
                 id="contractDocuments"
                 type="file"
                 multiple
+                className="bg-background"
                 accept=".pdf,.doc,.docx,image/*"
                 onChange={(e) => {
                   const files = Array.from(e.target.files || [])
@@ -2387,12 +2506,69 @@ export function InstallmentApplicationForm({
             </div>
           </div>
         )
+      case 'guarantor':
+        return renderGuarantor()
       case 'consent':
         return renderConsent()
       default:
         return null
     }
   }
+
+  const renderGuarantor = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="guarantorFullName">ФИО поручителя</Label>
+        <Input
+          id="guarantorFullName"
+          value={formData.guarantorFullName || ''}
+          onChange={(e) => handleInputChange('guarantorFullName', e.target.value)}
+          placeholder="Иванов Иван Иванович"
+          className="bg-background"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="guarantorPhone">Телефон поручителя</Label>
+        <PhoneInput
+          defaultCountry="RU"
+          placeholder="+7 (999) 999-99-99"
+          value={(formData.guarantorPhone?.trim() || undefined) as E164Number}
+          onChange={(value) => {
+            // PhoneInput returns E164 format directly, save it as is
+            handleInputChange('guarantorPhone', value ?? '')
+          }}
+          hideCountrySelector
+          className="!bg-muted"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="guarantorRelationship">Отношение к заемщику</Label>
+          <Input
+            id="guarantorRelationship"
+            value={formData.guarantorRelationship || ''}
+            onChange={(e) => handleInputChange('guarantorRelationship', e.target.value)}
+            placeholder="Например: супруг, родственник, коллега"
+            className="bg-background "
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="guarantorIncome">Доход поручителя</Label>
+          <Input
+            id="guarantorIncome"
+            type="text"
+            inputMode="numeric"
+            value={formData.guarantorIncome || ''}
+            onChange={(e) => handleInputChange('guarantorIncome', e.target.value)}
+            placeholder="Например: 50 000"
+            className="bg-background "
+          />
+        </div>
+      </div>
+    </div>
+  )
 
   // Step 6: Consent
   const renderConsent = () => (
@@ -2425,6 +2601,8 @@ export function InstallmentApplicationForm({
           return renderContacts()
         case 'productInfo':
           return renderProductInfo()
+        case 'guarantor':
+          return renderGuarantor()
         case 'consent':
           return renderConsent()
         // Keep old step IDs for backward compatibility if needed
@@ -2447,7 +2625,9 @@ export function InstallmentApplicationForm({
   const isLastStep = currentStep === sections.length - 1
   const isFirstStep = currentStep === 0
   const currentStepErrors = stepErrors[currentStep] || []
-  const canProceed = currentStepErrors.length === 0
+  // Check validation in real-time, not just stored errors
+  const realTimeErrors = validateStep(currentStep)
+  const canProceed = realTimeErrors.length === 0
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -2474,6 +2654,8 @@ export function InstallmentApplicationForm({
             const section = sections[currentStep]
             const stepErrorsForThisStep = stepErrors[currentStep] || []
             const sectionContent = renderStepContent(section.id)
+            const isConsentStep = section.id === 'consent'
+            const shouldShowErrors = isConsentStep ? submitAttempted && stepErrorsForThisStep.length > 0 : stepErrorsForThisStep.length > 0
             
             return (
               <Card
@@ -2494,7 +2676,7 @@ export function InstallmentApplicationForm({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {stepErrorsForThisStep.length > 0 && (
+                  {shouldShowErrors && (
                     <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
                       <p className="text-sm font-medium text-destructive mb-1">Ошибки заполнения:</p>
                       <ul className="list-disc list-inside text-sm text-destructive space-y-1">
@@ -2517,6 +2699,8 @@ export function InstallmentApplicationForm({
             
             const stepErrorsForThisStep = stepErrors[currentStep] || []
             const sectionContent = renderSection(section.id)
+            const isConsentStep = section.id === 'consent'
+            const shouldShowErrors = isConsentStep ? submitAttempted && stepErrorsForThisStep.length > 0 : stepErrorsForThisStep.length > 0
             
             return (
               <Card
@@ -2537,7 +2721,7 @@ export function InstallmentApplicationForm({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {stepErrorsForThisStep.length > 0 && (
+                  {shouldShowErrors && (
                     <div className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
                       <p className="text-sm font-medium text-destructive mb-1">Ошибки заполнения:</p>
                       <ul className="list-disc list-inside text-sm text-destructive space-y-1">

@@ -88,7 +88,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
     assigneeName?: string
     assigneeAvatar?: string
     clientLink?: string
-    createdByUuid?: string
+    createdByHumanHaid?: string
     deadline?: string
   }): Promise<Goal> {
     const taskDataIn: AdminTaskDataIn = {
@@ -97,7 +97,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
       assigneeName: data.assigneeName,
       assigneeAvatar: data.assigneeAvatar,
       clientLink: data.clientLink,
-      createdByUuid: data.createdByUuid,
+      createdByHumanHaid: data.createdByHumanHaid,
       deadline: data.deadline,
     }
 

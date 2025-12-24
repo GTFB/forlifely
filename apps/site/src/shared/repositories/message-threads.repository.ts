@@ -8,9 +8,9 @@ import {
   EsnadSupportChat, 
   EsnadSupportMessage, 
   EsnadSupportMessageDataIn,
-   EsnadSupportMessageType,
-   NewEsnadSupportMessage,
-   EsnadSupportChatDataIn,
+  EsnadSupportMessageType,
+  NewEsnadSupportMessage,
+  EsnadSupportChatDataIn,
   } from '../types/esnad-support'
 import { MessagesRepository } from './messages.repository'
 import { UsersRepository } from './users.repository'
@@ -271,6 +271,42 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       // Don't fail update if socket notification fails
     }
     return await messageRepository.create(messageData) as EsnadSupportMessage
+  }
+
+  public async addMessageToTaskThread(
+    taskMaid: MessageThread['maid'],
+    content: string,
+    messageType: Exclude<EsnadSupportMessageType, 'voice' | 'document'>,
+    humanHaid: EsnadHuman['haid'],
+    mediaUuid?: string,
+    mediaUrl?: string
+  ): Promise<EsnadSupportMessage> {
+    if (!humanHaid) {
+      throw new Error('Human haid is required to add message to task')
+    }
+    if (!content) {
+      throw new Error('Content is required to add message to task')
+    }
+    const messageRepository = MessagesRepository.getInstance()
+    const messageData: Partial<NewEsnadSupportMessage> = {
+      maid: taskMaid,
+      dataIn: {
+        content,
+        messageType,
+        humanHaid,
+        sender_role: 'admin',
+        ...(mediaUuid && { mediaUuid }),
+        ...(mediaUrl && { mediaUrl }),
+      },
+    }
+
+    try {
+      await sendToRoom(`task:${taskMaid}`, 'new-message', {})
+    } catch (socketError) {
+      console.error('Failed to send task socket events:', socketError)
+    }
+
+    return (await messageRepository.create(messageData)) as EsnadSupportMessage
   }
 
   public async updateChatStatus(maid: MessageThread['maid'], status: 'OPEN' | 'CLOSED'): Promise<EsnadSupportChat> {

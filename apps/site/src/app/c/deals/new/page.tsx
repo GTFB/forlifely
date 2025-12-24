@@ -1,10 +1,12 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { InstallmentApplicationForm } from '@/components/cabinet/forms/InstallmentApplicationForm'
 import { EsnadHuman } from '@/shared/types/esnad'
 
 export default function NewDealPage() {
+  const router = useRouter()
   const [human, setHuman] = React.useState<EsnadHuman | undefined>(undefined)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -30,6 +32,16 @@ export default function NewDealPage() {
         }
 
         if (data.success && data.human) {
+          // Check KYC status
+          const dataIn = (data.human.dataIn || {}) as { kycStatus?: string }
+          const kycStatus = dataIn.kycStatus || 'not_started'
+          
+          // If KYC is not verified, redirect to profile page with KYC tab active
+          if (kycStatus !== 'verified') {
+            router.push('/c/profile?tab=kyc')
+            return
+          }
+          
           setHuman(data.human)
         } else {
           throw new Error('Профиль не найден')
@@ -43,7 +55,7 @@ export default function NewDealPage() {
     }
 
     fetchHuman()
-  }, [])
+  }, [router])
 
   if (loading) {
     return (

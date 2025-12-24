@@ -124,6 +124,12 @@ export class DealsRepository extends BaseRepository<Deal>{
             ...(formData.monthlyExpenses && { monthlyExpenses: formData.monthlyExpenses.trim() }),
             ...(formData.workPlace && { workPlace: formData.workPlace.trim() }),
             ...(formData.workExperience && { workExperience: formData.workExperience.trim() }),
+            // Guarantor (optional)
+            ...(formData.guarantorFullName && { guarantorFullName: formData.guarantorFullName.trim() }),
+            ...(formData.guarantorPhone && { guarantorPhone: formData.guarantorPhone.trim() }),
+            ...(formData.guarantorRelationship && { guarantorRelationship: formData.guarantorRelationship.trim() }),
+            ...(formData.guarantorIncome && { guarantorIncome: formData.guarantorIncome.trim() }),
+            ...(formData.guarantorAid && { guarantorAid: formData.guarantorAid.trim() }),
         }
 
         const missingFields: string[] = []
@@ -664,6 +670,11 @@ export class DealsRepository extends BaseRepository<Deal>{
             ...(dataIn.monthlyExpenses && { monthlyExpenses: dataIn.monthlyExpenses.trim() }),
             ...(dataIn.workPlace && { workPlace: dataIn.workPlace.trim() }),
             ...(dataIn.workExperience && { workExperience: dataIn.workExperience.trim() }),
+            ...(dataIn.guarantorFullName && { guarantorFullName: dataIn.guarantorFullName.trim() }),
+            ...(dataIn.guarantorPhone && { guarantorPhone: dataIn.guarantorPhone.trim() }),
+            ...(dataIn.guarantorRelationship && { guarantorRelationship: dataIn.guarantorRelationship.trim() }),
+            ...(dataIn.guarantorIncome && { guarantorIncome: dataIn.guarantorIncome.trim() }),
+            ...(dataIn.guarantorAid && { guarantorAid: dataIn.guarantorAid.trim() }),
         }
 
         // Remove viewed_at field from dataIn when user updates the deal

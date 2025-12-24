@@ -165,6 +165,12 @@ export interface LoanApplicationDataIn {
     officialIncome_sb?: string
     additionalIncome_sb?: string
     employmentInfo_sb?: string
+    // Guarantor (optional, provided by client form)
+    guarantorFullName?: string
+    guarantorPhone?: string
+    guarantorRelationship?: string
+    guarantorIncome?: string
+    guarantorAid?: string
     [key: string]: any // Allow additional fields for flexibility
 }
 

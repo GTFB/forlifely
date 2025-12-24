@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoalsRepository } from '@/shared/repositories/goals.repository'
+import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { buildRequestEnv } from '@/shared/env'
 import { getSession } from '@/shared/session'
 import { MeRepository, type UserWithRoles } from '@/shared/repositories/me.repository'
@@ -61,6 +62,7 @@ const mapGoalToTask = (goal: Goal): TaskResponse => {
     status: dbStatusToUi(goal.statusName),
     priority: normalizePriority(dataIn?.priority),
     clientLink: dataIn?.clientLink || '',
+    taskThreadMaid: dataIn?.taskThreadMaid,
     assignee: {
       uuid: dataIn?.assigneeUuid,
       name: dataIn?.assigneeName || 'Не назначен',
@@ -184,6 +186,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (!auth.user.humanAid) {
+      return NextResponse.json(
+        { success: false, error: 'VALIDATION_ERROR', message: 'User humanHaid is required' },
+        { status: 400, headers: jsonHeaders }
+      )
+    }
     const assigneeUuid = isAdminUser(auth.user)
       ? body.assigneeUuid || auth.user.user.uuid
       : auth.user.user.uuid
@@ -209,13 +217,44 @@ export async function POST(request: NextRequest) {
       assigneeUuid,
       assigneeName,
       clientLink: body.clientLink,
-      createdByUuid: auth.user.user.uuid,
+      createdByHumanHaid: auth.user.humanAid,
     })
 
+    // Create message thread for task communication
+    const messageThreadsRepository = MessageThreadsRepository.getInstance()
+    const taskThread = await messageThreadsRepository.create({
+      title: body.title.trim(),
+      type: 'TASK',
+      dataIn: {
+        humanHaid: auth.user.humanAid,
+        goalUuid: created.uuid,
+      },
+    })
+
+    // Attach thread maid to goal dataIn
+    await goalsRepository.update(created.uuid, {
+      dataIn: {
+        ...(created.dataIn as any),
+        taskThreadMaid: taskThread.maid,
+        createdByHumanHaid: auth.user.humanAid,
+      },
+    })
+
+    const createdDataIn = (created.dataIn && typeof created.dataIn === 'object' && !Array.isArray(created.dataIn))
+      ? created.dataIn as Record<string, any>
+      : {}
+    
     return NextResponse.json(
       {
         success: true,
-        task: mapGoalToTask(created as Goal),
+        task: mapGoalToTask({
+          ...created,
+          dataIn: {
+            ...createdDataIn,
+            taskThreadMaid: taskThread.maid,
+            createdByHumanHaid: auth.user.humanAid,
+          },
+        } as Goal),
       },
       { status: 201, headers: jsonHeaders }
     )

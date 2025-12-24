@@ -851,26 +851,41 @@ export default function DealDetailPageClient() {
                     <AccordionItem value="guarantor1">
                       <AccordionTrigger>Поручитель 1</AccordionTrigger>
                       <AccordionContent>
-                        <Table>
-                          <TableBody>
-                            <TableRow>
-                              <TableCell className="font-medium">ФИО</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Телефон</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Отношение</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
-                            </TableRow>
-                            <TableRow>
-                              <TableCell className="font-medium">Доход</TableCell>
-                              <TableCell>{`не указано`}</TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table>
+                        {(() => {
+                          const guarantorName = deal.dataIn.guarantorFullName
+                          const guarantorPhone = deal.dataIn.guarantorPhone
+                          const guarantorRelationship = deal.dataIn.guarantorRelationship
+                          const guarantorIncome = deal.dataIn.guarantorIncome
+                          const hasGuarantor =
+                            !!(guarantorName || guarantorPhone || guarantorRelationship || guarantorIncome)
+
+                          if (!hasGuarantor) {
+                            return <p className="text-sm text-muted-foreground">Не заполнено</p>
+                          }
+
+                          return (
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">ФИО</TableCell>
+                                  <TableCell>{guarantorName || 'не указано'}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Телефон</TableCell>
+                                  <TableCell>{guarantorPhone || 'не указано'}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Отношение</TableCell>
+                                  <TableCell>{guarantorRelationship || 'не указано'}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Доход</TableCell>
+                                  <TableCell>{guarantorIncome || 'не указано'}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          )
+                        })()}
                       </AccordionContent>
                     </AccordionItem>
 

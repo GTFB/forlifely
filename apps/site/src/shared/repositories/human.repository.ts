@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { schema } from "../schema";
 import  BaseRepository  from "./BaseRepositroy";
 import { Human } from "../schema/types";
@@ -16,6 +16,15 @@ export class HumanRepository extends BaseRepository<Human>{
     async findByHaid(haid: string): Promise<any | null> {
         const human = await this.db.select().from(schema.humans).where(eq(schema.humans.haid, haid)).execute()
         return human[0]
+    }
+    async findByPhoneInDataIn(phone: string): Promise<any | null> {
+        const [human] = await this.db
+            .select()
+            .from(schema.humans)
+            .where(sql`LOWER((data_in::jsonb)->>'phone') = LOWER(${phone})`)
+            .limit(1)
+            .execute()
+        return human || null
     }
     protected async beforeCreate(data: Partial<EsnadHuman>): Promise<void> {
         if (!data.statusName) {

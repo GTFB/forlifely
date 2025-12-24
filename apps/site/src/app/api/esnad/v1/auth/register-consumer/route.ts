@@ -77,6 +77,7 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
     const normalizedFirstName = firstName?.trim() || ''
     const normalizedMiddleName = middleName?.trim() || ''
     const normalizedFullName = fullName?.trim() || ''
+    const normalizedPhone = (phone ?? '').toString().trim()
 
     // Validate new fields if any are provided
     const hasNewFields = normalizedLastName || normalizedFirstName || normalizedMiddleName
@@ -90,6 +91,12 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
       if (!normalizedFirstName) {
         return new Response(
           JSON.stringify({ error: 'Имя обязательно для заполнения' }),
+          { status: 400, headers: jsonHeaders },
+        )
+      }
+      if (!normalizedPhone) {
+        return new Response(
+          JSON.stringify({ error: 'Телефон обязателен для заполнения' }),
           { status: 400, headers: jsonHeaders },
         )
       }
@@ -138,7 +145,7 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
     
     // Prepare dataIn with name fields
     const dataIn: Record<string, unknown> = {
-      phone,
+      phone: normalizedPhone || undefined,
     }
     
     // Add name fields to dataIn if provided

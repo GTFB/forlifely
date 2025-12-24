@@ -18,8 +18,9 @@ export interface AdminTaskDataIn {
   assigneeUuid?: string
   assigneeName?: string
   assigneeAvatar?: string | null
-  createdByUuid?: string
+  createdByHumanHaid?: string
   deadline?: string
+  taskThreadMaid?: string
 }
 
 export interface TaskApi {
@@ -29,6 +30,7 @@ export interface TaskApi {
   priority: TaskPriority
   status: TaskStatus
   assignee: TaskAssignee
+  taskThreadMaid?: string
   createdAt?: string | null
   updatedAt?: string | null
 }
@@ -42,6 +44,7 @@ export interface CreateTaskPayload {
   status?: TaskStatus
   assigneeUuid?: string
   assigneeName?: string
+  createdByHumanHaid?: string
 }
 
 export interface UpdateTaskPayload {
@@ -58,5 +61,6 @@ export interface CurrentUser {
   name: string
   roles: { name?: string }[]
   isAdmin: boolean
+  humanAid?: string | null
 }
 

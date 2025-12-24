@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +38,21 @@ interface Profile {
 }
 
 export default function ProfilePage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const tabFromUrl = searchParams.get('tab') || 'personal'
+  const [activeTab, setActiveTab] = React.useState(tabFromUrl)
+  
+  // Update active tab when URL changes
+  React.useEffect(() => {
+    setActiveTab(tabFromUrl)
+  }, [tabFromUrl])
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    const newUrl = `/c/profile?tab=${value}`
+    window.history.pushState({}, '', newUrl)
+  }
   
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -460,7 +476,7 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Мой профиль</h1>
 
-      <Tabs defaultValue="personal" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="personal">Личные данные</TabsTrigger>
             <TabsTrigger value="kyc">Документы KYC</TabsTrigger>

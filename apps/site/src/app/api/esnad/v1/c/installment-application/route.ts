@@ -182,6 +182,54 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       ...(body.workExperience && { workExperience: body.workExperience.trim() }),
     }
 
+    // Prepare guarantor data (optional)
+    const guarantorFullName = typeof body.guarantorFullName === 'string' ? body.guarantorFullName.trim() : ''
+    const guarantorPhone = typeof body.guarantorPhone === 'string' ? body.guarantorPhone.trim() : ''
+    const guarantorRelationship = typeof body.guarantorRelationship === 'string' ? body.guarantorRelationship.trim() : ''
+    const guarantorIncome = typeof body.guarantorIncome === 'string' ? body.guarantorIncome.trim() : ''
+
+    let guarantorAid: string | undefined
+
+    if (guarantorFullName || guarantorPhone || guarantorRelationship || guarantorIncome) {
+      if (guarantorPhone) {
+        const existingGuarantor = await humanRepository.findByPhoneInDataIn(guarantorPhone)
+        if (existingGuarantor) {
+          const existingDataIn =
+            typeof existingGuarantor.dataIn === 'string'
+              ? (JSON.parse(existingGuarantor.dataIn) as Record<string, unknown>)
+              : (existingGuarantor.dataIn as Record<string, unknown>) || {}
+
+          const mergedDataIn: Record<string, unknown> = {
+            ...existingDataIn,
+            phone: guarantorPhone,
+            ...(guarantorRelationship && { relationship: guarantorRelationship }),
+            ...(guarantorIncome && { income: guarantorIncome }),
+            guarantor: true,
+          }
+
+          const updatedGuarantor = await humanRepository.update(existingGuarantor.uuid, {
+            fullName: guarantorFullName || existingGuarantor.fullName,
+            dataIn: mergedDataIn,
+            type: existingGuarantor.type || 'GUARANTOR',
+          }) as any
+
+          guarantorAid = updatedGuarantor.haid
+        } else {
+          const createdGuarantor = await humanRepository.create({
+            fullName: guarantorFullName || guarantorPhone,
+            type: 'GUARANTOR',
+            dataIn: {
+              phone: guarantorPhone,
+              ...(guarantorRelationship && { relationship: guarantorRelationship }),
+              ...(guarantorIncome && { income: guarantorIncome }),
+              guarantor: true,
+            },
+          }) as any
+          guarantorAid = createdGuarantor.haid
+        }
+      }
+    }
+
     // Update Human with personal data
     const humanUpdateData: Partial<any> = {
       fullName: fullName || currentHuman.fullName,
@@ -230,6 +278,11 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
       ...(body.monthlyExpenses && { monthlyExpenses: body.monthlyExpenses.trim() }),
       ...(body.workPlace && { workPlace: body.workPlace.trim() }),
       ...(body.workExperience && { workExperience: body.workExperience.trim() }),
+      ...(guarantorFullName && { guarantorFullName }),
+      ...(guarantorPhone && { guarantorPhone }),
+      ...(guarantorRelationship && { guarantorRelationship }),
+      ...(guarantorIncome && { guarantorIncome }),
+      ...(guarantorAid && { guarantorAid }),
     }
 
     // Create deal using existing repository method
