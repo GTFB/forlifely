@@ -1,9 +1,8 @@
 import { NextRequest } from 'next/server'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { HumanRepository } from '@/shared/repositories/human.repository'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, isNull, sql } from 'drizzle-orm'
 
 const jsonHeaders = {
   'Content-Type': 'application/json',
@@ -22,11 +21,11 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
   const { request } = context
   try {
     const url = new URL(request.url)
-    const limit = Math.max(1, Number(url.searchParams.get('limit') || 500))
-    const offset = Math.max(0, Number(url.searchParams.get('offset') || 0))
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit') || 20), 100))
+    const page = Math.max(1, Number(url.searchParams.get('page') || 1))
+    const offset = (page - 1) * limit
 
     const db = createDb()
-    const humanRepository = HumanRepository.getInstance()
 
     // Get all humans that are guarantors
     // Filter by: type = 'GUARANTOR' OR data_in->>'guarantor' = 'true' OR data_in->>'guarantorAid' IS NOT NULL
@@ -65,6 +64,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
       .execute()
 
     const total = Number(countResult?.count) || 0
+    const totalPages = Math.max(1, Math.ceil(total / limit))
 
     // Process dataIn fields
     const processedGuardians = guardians.map((guardian) => {
@@ -84,11 +84,13 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
         docs: processedGuardians,
-        total,
-        limit,
-        offset,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages,
+        },
       }),
       {
         status: 200,
