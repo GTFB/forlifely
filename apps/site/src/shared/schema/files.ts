@@ -12,7 +12,6 @@ export const files = pgTable('files', {
   mediaUuid: text('media_uuid').notNull(),
   deletedAt: text('deleted_at'),
   data: bytea('data').notNull(),
-  isPublic: integer('is_public').default(0),
 })
 
 
