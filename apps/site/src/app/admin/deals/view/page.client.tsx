@@ -1157,39 +1157,6 @@ export default function DealDetailPageClient() {
                   <CardTitle>График платежей</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full mb-6">
-                      <AreaChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="month" 
-                          tick={{ fontSize: 12 }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis 
-                          tickFormatter={(value) => `${Math.round(value / 1000)}k`}
-                        />
-                        <ChartTooltip 
-                          content={<ChartTooltipContent 
-                            formatter={(value) => formatCurrency(Number(value))}
-                            labelFormatter={(label, payload) => {
-                              const data = payload?.[0]?.payload
-                              return data?.date ? `${label} (${formatDate(data.date)})` : label
-                            }}
-                          />} 
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="amount"
-                          stroke="hsl(var(--chart-2))"
-                          fill="hsl(var(--chart-2))"
-                          fillOpacity={0.2}
-                        />
-                      </AreaChart>
-                    </ChartContainer>
-                  ) : null}
                   
                   <Table>
                     <TableHeader>

@@ -338,97 +338,54 @@ export default function DealDetailPageClient() {
 
         <Card>
           <CardHeader>
-            <CardTitle>График платежей</CardTitle>
+            <CardTitle>Платежи</CardTitle>
           </CardHeader>
           <CardContent>
-            {chartData.length > 0 ? (
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="month" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `${Math.round(value / 1000)}k`}
-                  />
-                  <ChartTooltip 
-                    content={<ChartTooltipContent 
-                      formatter={(value) => formatCurrency(Number(value))}
-                      labelFormatter={(label, payload) => {
-                        const data = payload?.[0]?.payload
-                        return data?.date ? `${label} (${formatDate(data.date)})` : label
-                      }}
-                    />} 
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="hsl(var(--chart-2))"
-                    fill="hsl(var(--chart-2))"
-                    fillOpacity={0.2}
-                  />
-                </AreaChart>
-              </ChartContainer>
+            {loadingFinances ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : financesError ? (
+              <p className="text-sm text-destructive">{financesError}</p>
+            ) : finances && finances.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>№</TableHead>
+                    <TableHead>Дата платежа</TableHead>
+                    <TableHead>Сумма</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead>Дата оплаты</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {finances.map((finance, index) => (
+                    <TableRow key={finance.uuid}>
+                      <TableCell className="font-medium">
+                        {finance.paymentNumber || finance.order || index + 1}
+                      </TableCell>
+                      <TableCell>
+                        {finance.paymentDate ? formatDate(finance.paymentDate) : '—'}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(finance.sum || 0)}
+                      </TableCell>
+                      <TableCell>
+                        {getFinanceStatusBadge(finance.statusName)}
+                      </TableCell>
+                      <TableCell>
+                        {finance.paidAt ? formatDateTime(finance.paidAt) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
-              <p className="text-sm text-muted-foreground">Недостаточно данных для построения графика</p>
+              <p className="text-sm text-muted-foreground">Платежи не найдены</p>
             )}
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Платежи</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loadingFinances ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : financesError ? (
-            <p className="text-sm text-destructive">{financesError}</p>
-          ) : finances && finances.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>№</TableHead>
-                  <TableHead>Дата платежа</TableHead>
-                  <TableHead>Сумма</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Дата оплаты</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {finances.map((finance, index) => (
-                  <TableRow key={finance.uuid}>
-                    <TableCell className="font-medium">
-                      {finance.paymentNumber || finance.order || index + 1}
-                    </TableCell>
-                    <TableCell>
-                      {finance.paymentDate ? formatDate(finance.paymentDate) : '—'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(finance.sum || 0)}
-                    </TableCell>
-                    <TableCell>
-                      {getFinanceStatusBadge(finance.statusName)}
-                    </TableCell>
-                    <TableCell>
-                      {finance.paidAt ? formatDateTime(finance.paidAt) : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">Платежи не найдены</p>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }
