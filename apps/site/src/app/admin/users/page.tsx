@@ -869,7 +869,7 @@ export default function AdminUsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
                                 <Link href={`/admin/deals?search=${user.email}`}>
-                                  Посмотреть сделки
+                                  Посмотреть Сделки
                                 </Link>
                               </DropdownMenuItem>
                               {user.humanAid && user.emailVerifiedAt && (

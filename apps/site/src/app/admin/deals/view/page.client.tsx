@@ -732,13 +732,13 @@ export default function DealDetailPageClient() {
                   <div className="flex flex-col gap-2">
                     <Link href={`/admin/users/${humanClient?.user?.uuid}`}>
                       <Button variant="outline" className="w-full">
-                        Посмотреть профиль
+                        Посмотреть Профиль
                       </Button>
                     </Link>
                     {deal.clientAid && (
                       <Link href={`/admin/users/${deal.clientAid}/wallet`}>
                         <Button variant="outline" className="w-full">
-                          Посмотреть кошелёк
+                          Посмотреть Кошелёк
                         </Button>
                       </Link>
                     )}

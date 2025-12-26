@@ -39,17 +39,14 @@ export default function SupportChatPageClient() {
   const [closing, setClosing] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const messagesContainerRef = React.useRef<HTMLDivElement>(null)
-  const [backUrl, setBackUrl] = React.useState<string>('/c/support')
+  const messageInputRef = React.useRef<HTMLTextAreaElement>(null)
+
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const referrer = document.referrer
-      if (referrer && new URL(referrer).origin === window.location.origin) {
-        setBackUrl(referrer)
-      } else {
-        setBackUrl('/c/support')
-      }
+    if (!loading) {
+      messageInputRef.current?.focus()
     }
-  }, [])
+  }, [loading])
+  
 
   // Fetch chat info
   React.useEffect(() => {
@@ -368,6 +365,10 @@ export default function SupportChatPageClient() {
       // Keep the file and preview so user can retry
     } finally {
       setSending(false)
+      // Focus after sending is finished and input is enabled
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 0)
     }
   }
 
@@ -416,6 +417,10 @@ export default function SupportChatPageClient() {
       setError(err instanceof Error ? err.message : 'Failed to send message')
     } finally {
       setSending(false)
+      // Focus after sending is finished and input is enabled
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 0)
     }
   }, [maid, messageContent, selectedFile, fetchMessages])
 
@@ -507,10 +512,16 @@ export default function SupportChatPageClient() {
   if (error && !chat) {
     return (
       <div className="space-y-4">
-        <Link  href={backUrl}>
+        <Button variant="outline" onClick={() => {
+          if(window.history.length > 1) {
+            router.back()
+          } else {
+            router.push('/c/support')
+          }
+        }}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Назад
-        </Link>
+        </Button>
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{error}</p>
         </div>
@@ -526,7 +537,14 @@ export default function SupportChatPageClient() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/c/support')}>
+          <Button variant="ghost" size="icon" onClick={
+            () => {
+              if(window.history.length > 1) {
+                router.back()
+              } else {
+                router.push('/c/support')
+              }
+            }}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -624,6 +642,7 @@ export default function SupportChatPageClient() {
                   placeholder="Введите сообщение... (или вставьте изображение из буфера обмена)"
                   rows={3}
                   disabled={sending}
+                  ref={messageInputRef}
                 />
                 <div className="flex items-center gap-2">
                   <Input

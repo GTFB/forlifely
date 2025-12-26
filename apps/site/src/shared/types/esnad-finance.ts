@@ -317,7 +317,10 @@ export interface NewEsnadWallet extends NewWallet {
 
 }
 
+export type WalletType = 'CLIENT' | 'INVESTOR'
+
 export interface EsnadWalletDataIn  {
+  type?: WalletType
   currency?: string
   createdReason?: string
   balance?: number // В рублях, для обратной совместимости

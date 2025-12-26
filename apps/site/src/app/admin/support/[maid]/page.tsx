@@ -47,6 +47,13 @@ export default function AdminSupportChatPage() {
   const [assigningManager, setAssigningManager] = React.useState(false)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const messagesContainerRef = React.useRef<HTMLDivElement>(null)
+  const messageInputRef = React.useRef<HTMLTextAreaElement>(null)
+
+  React.useEffect(() => {
+    if (!loading) {
+      messageInputRef.current?.focus()
+    }
+  }, [loading])
 
   // Fetch operators
   React.useEffect(() => {
@@ -347,6 +354,10 @@ React.useEffect(() => {
       setError(err instanceof Error ? err.message : 'Failed to send message')
     } finally {
       setSending(false)
+      // Focus after sending is finished and input is enabled
+      setTimeout(() => {
+        messageInputRef.current?.focus()
+      }, 0)
     }
   }, [maid, messageContent, selectedFile, fetchMessages])
 
@@ -571,6 +582,7 @@ React.useEffect(() => {
                 ) : (
                   messages.map((message) => {
                     const humanDisplayName = (message as any).humanDisplayName as string | null | undefined
+                    const userUuid = (message as any).userUuid as string | null | undefined
                     const humanHaid = (message as any).humanHaid as string | null | undefined
 
                     return (
@@ -582,6 +594,7 @@ React.useEffect(() => {
                         isClientView={false}
                         humanDisplayName={humanDisplayName}
                         humanHaid={humanHaid}
+                        userUuid={userUuid}
                         onViewStatusUpdate={(messageUuid, viewStatus) => {
                           setMessages((prev) =>
                             prev.map((msg) => {
@@ -637,6 +650,7 @@ React.useEffect(() => {
                       placeholder="Введите сообщение..."
                       rows={3}
                       disabled={sending}
+                    ref={messageInputRef}
                     />
                     <div className="flex items-center gap-2">
                       <Input

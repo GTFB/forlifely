@@ -4,6 +4,7 @@ import { schema } from '@/shared/schema'
 import { createDb } from '@/shared/repositories/utils'
 import { eq, and, desc } from 'drizzle-orm'
 import { withNotDeleted } from '@/shared/repositories/utils'
+import { WalletType } from '@/shared/types/esnad-finance'
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +12,7 @@ export async function GET(
 ) {
   try {
     const haid = params.haid
+    const type = request.nextUrl.searchParams.get('type') as WalletType
 
     if (!haid) {
       return NextResponse.json(
@@ -27,7 +29,7 @@ export async function GET(
     let wallet
     
     try {
-      wallet = await walletRepo.getWalletByHumanHaid(haid)
+      wallet = await walletRepo.getWalletByHumanHaid(haid, type)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
       

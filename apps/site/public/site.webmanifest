@@ -1,21 +1,25 @@
 {
-  "name": "ALTRP",
-  "short_name": "ALTRP",
-  "description": "Digital Product Generation Platform for creating web and mobile applications",
+  "name": "Esnad Finance",
+  "short_name": "Esnad",
+  "description": "Financial Solutions and Investment Platform",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#82181A",
   "icons": [
     {
-      "src": "/images/favicon.jpg",
+      "src": "/images/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/images/favicon.jpg",
+      "src": "/images/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -204,6 +204,52 @@ export async function getSession(request: Request, secret: string): Promise<Sess
 }
 
 /**
+ * Retrieves and validates session from cookie for server components
+ * Uses cookies() from next/headers instead of Request headers
+ * 
+ * @param secret - AUTH_SECRET for decryption
+ * @returns SessionUser if valid session exists, null otherwise
+ */
+export async function getSessionFromCookies(secret?: string): Promise<SessionUser | null> {
+  try {
+    if (!secret) {
+      secret = process.env.AUTH_SECRET
+      if (!secret) {
+        throw new Error('AUTH_SECRET is not set')
+      }
+    }
+    // Dynamic import to avoid issues if this function is called outside Next.js context
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    
+    const sessionCookie = cookieStore.get(COOKIE_NAME)
+    if (!sessionCookie?.value) return null
+    
+    // Decrypt session
+    const decrypted = await decrypt(sessionCookie.value, secret)
+    if (!decrypted) return null
+    
+    try {
+      const sessionData: SessionData = JSON.parse(decrypted)
+      
+      // Check if expired
+      if (sessionData.expiresAt < Date.now()) {
+        return null
+      }
+      
+      return sessionData.user
+    } catch (error) {
+      console.error('Failed to parse session:', error)
+      return null
+    }
+  } catch (error) {
+    // If cookies() is not available (e.g., called outside Next.js context)
+    console.error('Failed to get cookies:', error)
+    return null
+  }
+}
+
+/**
  * Clears the session cookie
  */
 export function clearSession(options?: SessionCookieOptions): string {

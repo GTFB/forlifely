@@ -33,6 +33,11 @@ export const systemSeed = {
                 description: "Finance statuses added",
                 created_at: "2025-01-27 12:00",
             },
+            {
+                version: "1.0.6",
+                description: "Wallet types added",
+                created_at: "2025-12-26 12:00",
+            },
         ],
     },
     roles: [
@@ -72,7 +77,7 @@ export const systemSeed = {
         {
             uuid: "4a053faa-6c17-4e3a-85fc-23840cb11f0e",
             name: "admin",
-            title: "Админ",
+            title: "Куратор",
             dataIn: {
                 auth_redirect_url: '/admin',
             },
@@ -239,6 +244,19 @@ export const systemSeed = {
             entity: "messageThread.statusName",
             name: "CLOSED",
             title: "Закрыт",
+            sort_order: 200,
+        },
+        // Wallet types
+        {
+            entity: "wallet.dataIn.type",
+            name: "INVESTOR",
+            title: "Инвестор",
+            sort_order: 100,
+        },
+        {
+            entity: "wallet.dataIn.type",
+            name: "CLIENT",
+            title: "Клиент (Потребитель)",
             sort_order: 200,
         },
     ],

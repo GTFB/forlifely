@@ -76,10 +76,12 @@ export default function InvestorProfilePage() {
     updateTabFromUrl()
 
     // Listen for popstate events (back/forward browser buttons)
-    window.addEventListener('popstate', updateTabFromUrl)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', updateTabFromUrl)
 
-    return () => {
-      window.removeEventListener('popstate', updateTabFromUrl)
+      return () => {
+        window.removeEventListener('popstate', updateTabFromUrl)
+      }
     }
   }, [])
 

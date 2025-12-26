@@ -39,14 +39,21 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EsnadWallet, EsnadWalletTransaction } from '@/shared/types/esnad-finance'
 import { EsnadUser } from '@/shared/types/esnad'
 import { useMe } from '@/providers/MeProvider'
-
-
-
-export default function UserWalletPage({ wallet: initialWallet }: { wallet: EsnadWallet }) {
+import { WalletType } from '@/shared/types/esnad-finance'
+import {
+  Taxonomy,
+} from '@/shared/schema/types'
+export default function UserWalletPage({ 
+  wallet: initialWallet,
+   walletType,
+    walletTypeOptions,
+    userUuid,
+  }:
+  { wallet: EsnadWallet, walletType: WalletType, walletTypeOptions: Taxonomy[], userUuid: string }) {
   const router = useRouter()
-
+  const params = useParams()
+  const haid = params.haid as string
   const human = initialWallet?.human
-  const haid = human?.haid
 
   const [loading, setLoading] = React.useState(true)
   const { user: meUser } = useMe()
@@ -54,17 +61,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
   const [wallet, setWallet] = React.useState<EsnadWallet | null>(initialWallet)
   const [transactions, setTransactions] = React.useState<EsnadWalletTransaction[]>([])
   const [error, setError] = React.useState<string | null>(null)
-  const [backUrl, setBackUrl] = React.useState<string>('/admin/users')
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const referrer = document.referrer
-      if (referrer && new URL(referrer).origin === window.location.origin) {
-        setBackUrl(referrer)
-      } else {
-        setBackUrl(`/admin/users/${haid}`)
-      }
-    }
-  }, [haid])
+
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [transactionForm, setTransactionForm] = React.useState({
@@ -115,7 +112,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!wallet) {
       setError('Wallet not found')
       return
@@ -137,6 +134,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
           amount: parseFloat(transactionForm.amount),
           type: transactionForm.type,
           description: transactionForm.comment,
+          waid: wallet.waid,
         }),
       })
 
@@ -150,7 +148,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
         wallet?: { balance: number }
         message?: string
       }
-      
+
       if (result.success) {
         // Обновляем баланс кошелька в локальном состоянии
         if (wallet && wallet.dataIn && typeof wallet.dataIn === 'object' && result.wallet) {
@@ -161,7 +159,7 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
           }
           setWallet({ ...wallet })
         }
-        
+
         // Перезагружаем транзакции
         if (wallet?.uuid) {
           const transactionsResponse = await fetch(`/api/esnad/v1/admin/wallets/${wallet.uuid}/transactions`, {
@@ -177,10 +175,10 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
             }
           }
         }
-        
+
         // Обновляем страницу для получения актуальных данных
         router.refresh()
-        
+
         // Закрываем диалог и сбрасываем форму
         setDialogOpen(false)
         setTransactionForm({
@@ -262,12 +260,16 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
               <AlertDescription>{error}</AlertDescription>
             </Alert>
             <div className="mt-4">
-              <Link href={backUrl}>
-                <Button variant="outline">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Вернуться к списку пользователей
-                </Button>
-              </Link>
+              <Button variant="outline" onClick={() => {
+                if(window.history.length > 1) {
+                  router.back()
+                } else {
+                  router.push('/admin/users')
+                }
+              }}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Вернуться к списку пользователей
+              </Button>
             </div>
           </div>
         </main>
@@ -281,12 +283,16 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-4">
-            <Link href={backUrl}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => {
+                if(window.history.length > 1) {
+                  router.back()
+                } else {
+                  router.push(`/admin/users/${userUuid}`)
+                }
+              }}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Назад к профилю
               </Button>
-            </Link>
           </div>
 
           {error && (
@@ -325,10 +331,31 @@ export default function UserWalletPage({ wallet: initialWallet }: { wallet: Esna
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Кошелек</CardTitle>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-2">
+                      <CardTitle>Кошелек ({walletTypeOptions.find(tax => tax.name === walletType)?.title})</CardTitle>
+                      {walletTypeOptions.length && (
+                        <Select
+                          value={walletType}
+                          onValueChange={(value) => {
+                            window.location.href = `/admin/users/${haid}/wallet?type=${value}`
+                          }}>
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {walletTypeOptions.map((option) => (
+                              <SelectItem key={option.name} value={option.name}>
+                                {option.title || option.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                     <CardDescription>ID: {wallet.waid}</CardDescription>
                   </div>
+
                   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>

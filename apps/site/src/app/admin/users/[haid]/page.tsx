@@ -90,21 +90,7 @@ export default function EditUserPage() {
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState(false)
-  const [backUrl, setBackUrl] = React.useState<string>('/admin/users')
 
-  // Save referrer on mount to use for back button
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const referrer = document.referrer
-      // Check if referrer exists and is from the same origin
-      if (referrer && new URL(referrer).origin === window.location.origin) {
-        // Extract path from full URL
-        const url = new URL(referrer)
-        setBackUrl(url.pathname + url.search)
-      }
-      // If no valid referrer, backUrl stays as '/admin/users' (default)
-    }
-  }, [])
 
   const [user, setUser] = React.useState<User | null>(null)
   const [roles, setRoles] = React.useState<Role[]>([])
@@ -558,12 +544,16 @@ export default function EditUserPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="p-6 space-y-6">
           <div className="flex items-center gap-4">
-            <Link href={backUrl}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => {
+                if(window.history.length > 1) {
+                  router.back()
+                } else {
+                  router.push('/admin/users')
+                }
+              }}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Назад
               </Button>
-            </Link>
             {user?.human?.haid && user?.emailVerifiedAt && (
               <Link href={`/admin/users/${user.human.haid}/wallet`}>
                 <Button variant="outline" size="sm">

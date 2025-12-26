@@ -574,7 +574,6 @@ export class DealsRepository extends BaseRepository<Deal>{
                     sql`${schema.users.deletedAt} IS NULL`,
                     sql`${schema.humans.deletedAt} IS NULL`,
                     or(
-                        eq(schema.roles.name, 'admin'),
                         eq(schema.roles.name, 'Administrator'),
                     ),
                 )

@@ -14,6 +14,7 @@ interface SupportMessageProps {
   isClientView?: boolean
   humanDisplayName?: string | null
   humanHaid?: string | null
+  userUuid?: string | null
   onViewStatusUpdate?: (messageUuid: string, viewStatus: { client_viewed_at?: string | null; admin_viewed_at?: string | null }) => void
 }
 
@@ -23,6 +24,7 @@ export function SupportMessage({
   formatDate,
   isClientView = false,
   humanDisplayName,
+  userUuid,
   humanHaid,
   onViewStatusUpdate,
 }: SupportMessageProps) {
@@ -182,9 +184,9 @@ export function SupportMessage({
             ) : (
               <>
                 Клиент
-                {humanDisplayName && humanHaid ? (
+                {humanDisplayName && userUuid ? (
                   <Link
-                    href={`/admin/users/${humanHaid}`}
+                    href={`/admin/users/${userUuid}`}
                     className="text-primary hover:underline ml-1">
                     {humanDisplayName}
                   </Link>

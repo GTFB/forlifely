@@ -33,7 +33,11 @@ export class GoalsRepository extends BaseRepository<Goal> {
     if (!data.fullGaid) {
       data.fullGaid = data.gaid
     }
-    if (typeof data.isPublic === 'undefined') {
+    if (typeof data.isPublic === 'undefined' || data.isPublic === null) {
+      data.isPublic = 1
+    }
+    // Ensure admin tasks are always public
+    if (data.type === ADMIN_TASK_TYPE) {
       data.isPublic = 1
     }
     if (!data.statusName) {
@@ -117,7 +121,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
 
   public async createCollectionGoalFromFinance(
     finance: EsnadFinance,
-    data: CollectionGoalDataIn
+    data: Partial<CollectionGoalDataIn> & Pick<CollectionGoalDataIn, 'dealAid' | 'financeFaid' | 'overdueDays' | 'deadline'>
   ): Promise<EsnadGoal> {
     const financeDataIn = parseJson<CollectionGoalDataIn | null>(finance.dataIn, null)
 
@@ -146,9 +150,9 @@ export class GoalsRepository extends BaseRepository<Goal> {
     }
 
     const goalDataIn: CollectionGoalDataIn = {
-      type: data.type || goalType,
-      stage: data.stage || stage,
-      priority: data.priority || priority,
+      type: data.type ?? goalType,
+      stage: data.stage ?? stage,
+      priority: data.priority ?? priority,
       dealAid: data.dealAid,
       financeFaid: finance.faid,
       clientAid: data.clientAid ?? financeDataIn?.clientAid ?? null,

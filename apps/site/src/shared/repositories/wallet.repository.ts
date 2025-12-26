@@ -1,8 +1,8 @@
-import { eq, and, asc } from 'drizzle-orm'
+import { eq, and, asc, sql } from 'drizzle-orm'
 import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
 import { Wallet } from '../schema/types'
-import { EsnadWallet, NewEsnadWallet, EsnadFinance } from '../types/esnad-finance'
+import { EsnadWallet, NewEsnadWallet, EsnadFinance, WalletType } from '../types/esnad-finance'
 import { generateAid } from '../generate-aid'
 import { withNotDeleted, createDb } from './utils'
 import { HumanRepository } from './human.repository'
@@ -10,6 +10,7 @@ import { EsnadHuman } from '../types/esnad'
 import { FinancesRepository } from './finances.repository'
 import { logUserJournalEvent } from '../services/user-journal.service'
 import type { Env } from '../types'
+import { UsersRepository } from './users.repository'
 
 export class WalletRepository extends BaseRepository<Wallet> {
   constructor() {
@@ -57,10 +58,30 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @returns Объект кошелька
    * @throws Error если пользователь не найден или email не подтвержден
    */
-  public async getWalletByHumanHaid(haid: string): Promise<EsnadWallet> {
+  public async getWalletByHumanHaid(haid: string, type: WalletType = 'CLIENT'): Promise<EsnadWallet> {
     // Загружаем human из базы данных
     const humanRepo = HumanRepository.getInstance()
     const human = (await humanRepo.findByHaid(haid)) as EsnadHuman | null
+
+    const usersRepo = UsersRepository.getInstance()
+    let role
+    let typeCondition = sql`(${schema.wallets.dataIn}::jsonb)->>'type' is null`
+    switch (type) {
+      case 'CLIENT':
+        role = 'client'
+        break
+      case 'INVESTOR':
+        role = 'investor'
+        typeCondition = sql`(${schema.wallets.dataIn}::jsonb)->>'type' = 'INVESTOR'`
+        break
+      default:
+        throw new Error(`Invalid wallet type: ${type}`)
+    }
+    const hasRole = await usersRepo.hasRole(haid, role)
+    if (!hasRole) {
+      throw new Error(`User with humanAid ${haid} does not have role ${role}`)
+    }
+    
 
     // Ищем существующий кошелек
     const [existingWallet] = await this.db
@@ -69,7 +90,10 @@ export class WalletRepository extends BaseRepository<Wallet> {
       .where(
         withNotDeleted(
           schema.wallets.deletedAt,
-          and(eq(schema.wallets.targetAid, haid))
+          and(
+            eq(schema.wallets.targetAid, haid),
+            typeCondition
+          )
         )
       )
       .execute()
@@ -107,9 +131,10 @@ export class WalletRepository extends BaseRepository<Wallet> {
       uuid: crypto.randomUUID(),
       waid: generateAid('w'),
       targetAid: haid,
-      title: `Wallet for ${haid}`,
+      title: `Кошелек для ${haid}`,
       statusName: 'ACTIVE',
       dataIn: {
+        type: type === 'CLIENT' ? undefined : 'INVESTOR',
         balanceKopecks: 0, // Храним в копейках
         balance: 0, // Для обратной совместимости
         currency: 'RUB',
@@ -250,6 +275,11 @@ export class WalletRepository extends BaseRepository<Wallet> {
       throw new Error(`Wallet with uuid ${walletUuid} not found`)
     }
 
+    const walletDataIn = wallet.dataIn && typeof wallet.dataIn === 'object'
+      ? (wallet.dataIn as any)
+      : {}
+    const walletType = walletDataIn.type || null
+
     // Обновляем баланс напрямую в копейках (избегаем ошибок округления)
     await this.updateBalance(walletUuid, amountKopecks)
 
@@ -275,8 +305,10 @@ export class WalletRepository extends BaseRepository<Wallet> {
       .returning()
       .execute()
 
-    // Проверяем и автоматически гасим finance
-    await this.checkAndPayPendingFinances(walletUuid, env)
+    // Проверяем и автоматически гасим finance (кроме инвесторских кошельков)
+    if (walletType !== 'INVESTOR') {
+      await this.checkAndPayPendingFinances(walletUuid, env)
+    }
 
     // Log deposit event to journal
     if (env && wallet.targetAid) {

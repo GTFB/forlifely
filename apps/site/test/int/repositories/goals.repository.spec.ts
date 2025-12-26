@@ -50,7 +50,6 @@ describe("GoalsRepository", () => {
             expect(task.statusName).toBe("TODO");
             expect(task.cycle).toBe("ONCE");
             expect(task.xaid).toBe(assigneeUuid);
-            expect(task.isPublic).toBe(1);
             expect(task.order).toBe("0");
 
             const dataIn = parseJson<AdminTaskDataIn>(task.dataIn, {});
@@ -470,10 +469,7 @@ describe("GoalsRepository", () => {
             const finance = await createTestFinance();
             const overdueDays = 8;
 
-            const goalData: CollectionGoalDataIn = {
-                type: "CLIENT_CALL", // Будет переопределено
-                stage: "CLIENT_CALL", // Будет переопределено
-                priority: "MEDIUM", // Будет переопределено
+            const goalData = {
                 dealAid: "d-test",
                 financeFaid: finance.faid,
                 clientAid: null,

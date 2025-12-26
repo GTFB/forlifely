@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
+import { UsersRepository } from '@/shared/repositories/users.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
 const handleGet = async (
@@ -19,6 +20,7 @@ const handleGet = async (
     const messageThreadsRepository = MessageThreadsRepository.getInstance()
     const messagesRepository = MessagesRepository.getInstance()
     const humanRepository = HumanRepository.getInstance()
+    const usersRepository = UsersRepository.getInstance()
 
     // Verify chat exists
     const chat = await messageThreadsRepository.findByMaid(maid)
@@ -68,6 +70,7 @@ const handleGet = async (
         // Load human data if humanHaid exists
         let humanDisplayName: string | null = null
         let humanHaid: string | null = null
+        let userUuid: string | null = null
         if (parsedDataIn?.humanHaid) {
           try {
             humanHaid = parsedDataIn.humanHaid
@@ -94,6 +97,16 @@ const handleGet = async (
                 humanDisplayName = human.fullName
               }
             }
+            
+            // Get userUuid by humanHaid
+            try {
+              const user = await usersRepository.findByHumanAid(parsedDataIn.humanHaid)
+              if (user) {
+                userUuid = user.uuid
+              }
+            } catch (error) {
+              console.error('Failed to load user data', error)
+            }
           } catch (error) {
             console.error('Failed to load human data', error)
           }
@@ -104,6 +117,7 @@ const handleGet = async (
           dataIn: parsedDataIn,
           humanDisplayName,
           humanHaid,
+          userUuid,
         }
       })
     )
