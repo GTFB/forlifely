@@ -481,7 +481,9 @@ export class FinancesRepository extends BaseRepository<Finance> {
       // Просроченный платеж
       notificationType = 'overdue'
       const clientName = client.fullName || 'Уважаемый клиент'
-      const amount = parseFloat(finance.sum || '0')
+      // finance.sum хранится в копейках, конвертируем в рубли
+      const amountKopecks = parseFloat(finance.sum || '0')
+      const amount = amountKopecks / 100
       const dealAid = dataIn.dealAid || finance.fullDaid || 'N/A'
 
       emailSubject = `Просроченный платеж - ${finance.faid}`
@@ -518,7 +520,9 @@ export class FinancesRepository extends BaseRepository<Finance> {
       }
 
       const clientName = client.fullName || 'Уважаемый клиент'
-      const amount = parseFloat(finance.sum || '0')
+      // finance.sum хранится в копейках, конвертируем в рубли
+      const amountKopecks = parseFloat(finance.sum || '0')
+      const amount = amountKopecks / 100
       const dealAid = dataIn.dealAid || finance.fullDaid || 'N/A'
       const daysText = daysUntilPayment === 0
         ? 'сегодня'

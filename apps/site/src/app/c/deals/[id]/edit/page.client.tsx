@@ -16,6 +16,7 @@ type DealDetailResponse = {
     statusName?: string
     createdAt: string
     dataIn?: any
+    guarantors?: Array<{ haid: string; fullName?: string; dataIn?: { phone?: string } }>
   }
 }
 
@@ -38,6 +39,11 @@ function mapDealToFormInitialValues(deal: DealDetailResponse['deal']) {
           ? String(dataIn.installmentTerm)
           : ''
 
+  // Extract guarantor haids from deal.guarantors if available
+  const selectedGuarantors = deal.guarantors
+    ?.map((g) => g.haid)
+    .filter((haid): haid is string => Boolean(haid)) || []
+
   return {
     // Core fields
     firstName: dataIn.firstName ? String(dataIn.firstName) : '',
@@ -56,6 +62,9 @@ function mapDealToFormInitialValues(deal: DealDetailResponse['deal']) {
     purchaseLocation: dataIn.purchaseLocation ? String(dataIn.purchaseLocation) : '',
     partnerLocation: dataIn.partnerLocation ? String(dataIn.partnerLocation) : '',
     convenientPaymentDate: dataIn.convenientPaymentDate ? String(dataIn.convenientPaymentDate) : '',
+
+    // Pre-select guarantors from current deal
+    selectedGuarantors,
 
     // Keep consent unchecked by default (user confirms again on edit)
     consentToProcessData: false,

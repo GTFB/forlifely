@@ -22,7 +22,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { useMe } from '@/providers/MeProvider'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 import { EsnadHuman } from '@/shared/types/esnad'
@@ -159,6 +159,16 @@ interface FormData {
   guarantorPhone?: string
   guarantorRelationship?: string
   guarantorIncome?: string
+  selectedGuarantors?: string[] // Array of guarantor haids
+}
+
+interface NewGuarantor {
+  id: string // Temporary ID for list management
+  haid?: string
+  fullName: string
+  phone: string
+  relationship?: string
+  income?: string
 }
 
 // Steps for client form (6 steps)
@@ -280,9 +290,15 @@ export function InstallmentApplicationForm({
     guarantorPhone: '',
     guarantorRelationship: '',
     guarantorIncome: '',
+    selectedGuarantors: [],
     // Default installment term to 6 months so backend always получает значение
     installmentTerm: '6',
   })
+
+  const [existingGuarantors, setExistingGuarantors] = React.useState<Array<{ haid: string; fullName: string; phone?: string }>>([])
+  const [loadingGuarantors, setLoadingGuarantors] = React.useState(false)
+  const [newGuarantors, setNewGuarantors] = React.useState<NewGuarantor[]>([])
+  const [addingGuarantor, setAddingGuarantor] = React.useState(false)
 
   const didApplyInitialValuesRef = React.useRef(false)
   React.useEffect(() => {
@@ -297,6 +313,33 @@ export function InstallmentApplicationForm({
 
     didApplyInitialValuesRef.current = true
   }, [initialValues])
+
+  // Load existing guarantors when form is mounted (only for edit mode)
+  React.useEffect(() => {
+    if (submitMethod === 'PUT' || submitMethod === 'PATCH') {
+      setLoadingGuarantors(true)
+      fetch('/api/esnad/v1/c/guarantors', { credentials: 'include' })
+        .then((res) => res.json())
+        .then((data: unknown) => {
+          const response = data as { success?: boolean; guarantors?: Array<{ haid: string; fullName?: string; dataIn?: { phone?: string } }> }
+          if (response.success && response.guarantors) {
+            setExistingGuarantors(
+              response.guarantors.map((g) => ({
+                haid: g.haid,
+                fullName: g.fullName || '',
+                phone: g.dataIn?.phone || '',
+              }))
+            )
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load guarantors:', err)
+        })
+        .finally(() => {
+          setLoadingGuarantors(false)
+        })
+    }
+  }, [submitMethod])
 
   const toggleSection = (sectionId: string) => {
     // Don't allow closing consent and productAndTerms sections
@@ -944,6 +987,13 @@ export function InstallmentApplicationForm({
           // Skip files, they will be added separately
           return
         }
+        if (key === 'selectedGuarantors') {
+          // Handle selectedGuarantors array
+          if (Array.isArray(value) && value.length > 0) {
+            formDataToSend.append(key, JSON.stringify(value))
+          }
+          return
+        }
         if (value !== null && value !== undefined) {
           if (typeof value === 'boolean') {
             formDataToSend.append(key, value ? 'true' : 'false')
@@ -955,6 +1005,11 @@ export function InstallmentApplicationForm({
           }
         }
       })
+
+      // Add new guarantors array
+      if (newGuarantors.length > 0) {
+        formDataToSend.append('newGuarantors', JSON.stringify(newGuarantors))
+      }
 
       // Add files
       if (formData.documentPhotos && formData.documentPhotos.length > 0) {
@@ -2515,60 +2570,276 @@ export function InstallmentApplicationForm({
     }
   }
 
-  const renderGuarantor = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="guarantorFullName">ФИО поручителя</Label>
-        <Input
-          id="guarantorFullName"
-          value={formData.guarantorFullName || ''}
-          onChange={(e) => handleInputChange('guarantorFullName', e.target.value)}
-          placeholder="Иванов Иван Иванович"
-          className="bg-background"
-        />
-      </div>
+  const handleAddGuarantor = async () => {
+    const fullName = (formData.guarantorFullName || '').trim()
+    const phone = (formData.guarantorPhone || '').trim()
+    const relationship = formData.guarantorRelationship?.trim() || undefined
+    const income = formData.guarantorIncome?.trim() || undefined
 
-      <div className="space-y-2">
-        <Label htmlFor="guarantorPhone">Телефон поручителя</Label>
-        <PhoneInput
-          defaultCountry="RU"
-          placeholder="+7 (999) 999-99-99"
-          value={(formData.guarantorPhone?.trim() || undefined) as E164Number}
-          onChange={(value) => {
-            // PhoneInput returns E164 format directly, save it as is
-            handleInputChange('guarantorPhone', value ?? '')
-          }}
-          hideCountrySelector
-          className="!bg-muted"
-        />
-      </div>
+    if (!fullName || !phone) {
+      setError('Необходимо заполнить ФИО и телефон поручителя')
+      return
+    }
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="guarantorRelationship">Отношение к заемщику</Label>
-          <Input
-            id="guarantorRelationship"
-            value={formData.guarantorRelationship || ''}
-            onChange={(e) => handleInputChange('guarantorRelationship', e.target.value)}
-            placeholder="Например: супруг, родственник, коллега"
-            className="bg-background "
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="guarantorIncome">Доход поручителя</Label>
-          <Input
-            id="guarantorIncome"
-            type="text"
-            inputMode="numeric"
-            value={formData.guarantorIncome || ''}
-            onChange={(e) => handleInputChange('guarantorIncome', e.target.value)}
-            placeholder="Например: 50 000"
-            className="bg-background "
-          />
+    // For edit mode, immediately persist via API
+    if (submitMethod === 'PUT' || submitMethod === 'PATCH') {
+      try {
+        setAddingGuarantor(true)
+        const response = await fetch('/api/esnad/v1/c/guarantors', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName,
+            phone,
+            relationship: formData.guarantorRelationship?.trim() || undefined,
+            income: formData.guarantorIncome?.trim() || undefined,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = (await response.json().catch(() => null)) as { error?: string }
+          throw new Error(data?.error || 'Не удалось добавить поручителя')
+        }
+
+        const data = (await response.json()) as {
+          success?: boolean
+          guarantor?: { haid: string; fullName?: string; dataIn?: { phone?: string } }
+        }
+
+        if (!data.success || !data.guarantor?.haid) {
+          throw new Error('Не удалось добавить поручителя')
+        }
+
+        const newGuarantor = {
+          haid: data.guarantor.haid,
+          fullName: data.guarantor.fullName || fullName,
+          phone: data.guarantor.dataIn?.phone || phone,
+          relationship,
+          income,
+        }
+
+        setExistingGuarantors((prev) => {
+          const withoutDup = prev.filter((g) => g.haid !== newGuarantor.haid)
+          return [...withoutDup, newGuarantor]
+        })
+
+        // Keep relation data to send on submit
+        setNewGuarantors((prev) => {
+          const withoutDup = prev.filter((g) => g.haid !== newGuarantor.haid && g.id !== newGuarantor.haid)
+          return [
+            ...withoutDup,
+            {
+              id: newGuarantor.haid ?? `temp-${Date.now()}`,
+              haid: newGuarantor.haid,
+              fullName: newGuarantor.fullName,
+              phone: newGuarantor.phone,
+              relationship,
+              income,
+            },
+          ]
+        })
+
+        const selected = formData.selectedGuarantors || []
+        if (!selected.includes(newGuarantor.haid)) {
+          handleInputChange('selectedGuarantors', [...selected, newGuarantor.haid])
+        }
+
+        // Clear form fields
+        handleInputChange('guarantorFullName', '')
+        handleInputChange('guarantorPhone', '')
+        handleInputChange('guarantorRelationship', '')
+        handleInputChange('guarantorIncome', '')
+        setError(null)
+      } catch (err) {
+        console.error('Add guarantor error:', err)
+        setError(err instanceof Error ? err.message : 'Не удалось добавить поручителя')
+      } finally {
+        setAddingGuarantor(false)
+      }
+      return
+    }
+
+    const newGuarantor: NewGuarantor = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      fullName,
+      phone,
+      relationship,
+      income,
+    }
+
+    setNewGuarantors((prev) => [...prev, newGuarantor])
+
+    // Clear form fields
+    handleInputChange('guarantorFullName', '')
+    handleInputChange('guarantorPhone', '')
+    handleInputChange('guarantorRelationship', '')
+    handleInputChange('guarantorIncome', '')
+    setError(null)
+  }
+
+  const handleRemoveGuarantor = (id: string) => {
+    setNewGuarantors((prev) => prev.filter((g) => g.id !== id))
+  }
+
+  const renderGuarantor = () => {
+    const selectedGuarantors = formData.selectedGuarantors || []
+    
+    const handleGuarantorToggle = (haid: string) => {
+      const current = selectedGuarantors
+      if (current.includes(haid)) {
+        handleInputChange('selectedGuarantors', current.filter((id) => id !== haid))
+      } else {
+        handleInputChange('selectedGuarantors', [...current, haid])
+      }
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Multiple selection of existing guarantors */}
+        {submitMethod === 'PUT' || submitMethod === 'PATCH' ? (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Выберите существующих поручителей</Label>
+              <p className="text-sm text-muted-foreground">
+                Вы можете выбрать одного или нескольких поручителей из ваших предыдущих заявок
+              </p>
+              {loadingGuarantors ? (
+                <div className="flex items-center justify-center p-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="ml-2 text-sm text-muted-foreground">Загрузка поручителей...</span>
+                </div>
+              ) : existingGuarantors.length > 0 ? (
+                <div className="space-y-2 border rounded-lg p-4">
+                  {existingGuarantors.map((guarantor) => (
+                    <div key={guarantor.haid} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`guarantor-${guarantor.haid}`}
+                        checked={selectedGuarantors.includes(guarantor.haid)}
+                        onCheckedChange={() => handleGuarantorToggle(guarantor.haid)}
+                      />
+                      <Label
+                        htmlFor={`guarantor-${guarantor.haid}`}
+                        className="flex-1 cursor-pointer font-normal"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{guarantor.fullName}</span>
+                          {guarantor.phone && (
+                            <span className="text-sm text-muted-foreground">{guarantor.phone}</span>
+                          )}
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Нет доступных поручителей из предыдущих заявок</p>
+              )}
+            </div>
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-4">Или добавьте нового поручителя</p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* List of added new guarantors */}
+        {newGuarantors.length > 0 && (
+          <div className="space-y-2">
+            <Label>Добавленные поручители</Label>
+            <div className="space-y-2 border rounded-lg p-4">
+              {newGuarantors.map((guarantor) => (
+                <div
+                  key={guarantor.id}
+                  className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium">{guarantor.fullName}</div>
+                    <div className="text-sm text-muted-foreground space-y-1 mt-1">
+                      <div>Телефон: {guarantor.phone}</div>
+                      {guarantor.relationship && <div>Отношение: {guarantor.relationship}</div>}
+                      {guarantor.income && <div>Доход: {guarantor.income}</div>}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveGuarantor(guarantor.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* New guarantor form */}
+        <div className="space-y-4 border rounded-lg p-4">
+          <div className="space-y-2">
+            <Label htmlFor="guarantorFullName">ФИО поручителя</Label>
+            <Input
+              id="guarantorFullName"
+              value={formData.guarantorFullName || ''}
+              onChange={(e) => handleInputChange('guarantorFullName', e.target.value)}
+              placeholder="Иванов Иван Иванович"
+              className="bg-background"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="guarantorPhone">Телефон поручителя</Label>
+            <PhoneInput
+              defaultCountry="RU"
+              placeholder="+7 (999) 999-99-99"
+              value={(formData.guarantorPhone?.trim() || undefined) as E164Number}
+              onChange={(value) => {
+                // PhoneInput returns E164 format directly, save it as is
+                handleInputChange('guarantorPhone', value ?? '')
+              }}
+              hideCountrySelector
+              className="!bg-muted"
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="guarantorRelationship">Отношение к заемщику</Label>
+              <Input
+                id="guarantorRelationship"
+                value={formData.guarantorRelationship || ''}
+                onChange={(e) => handleInputChange('guarantorRelationship', e.target.value)}
+                placeholder="Например: супруг, родственник, коллега"
+                className="bg-background "
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="guarantorIncome">Доход поручителя</Label>
+              <Input
+                id="guarantorIncome"
+                type="text"
+                inputMode="numeric"
+                value={formData.guarantorIncome || ''}
+                onChange={(e) => handleInputChange('guarantorIncome', e.target.value)}
+                placeholder="Например: 50 000"
+                className="bg-background "
+              />
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            onClick={handleAddGuarantor}
+            disabled={addingGuarantor}
+            className="w-full"
+          >
+            {addingGuarantor ? 'Сохранение...' : 'Добавить поручителя'}
+          </Button>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // Step 6: Consent
   const renderConsent = () => (

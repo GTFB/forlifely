@@ -10,6 +10,8 @@ import {
     NewUser,
     NewText,
     Text,
+    Relation,
+    NewRelation,
 } from '../schema/types'
 import { EsnadMedia } from './esnad-finance'
 
@@ -119,6 +121,38 @@ export interface InvestorsFormData {
 }
 
 /**
+ * guarantor
+ */
+export interface GuarantorRelationDataIn {
+    guarantorFullName?: string
+    guarantorPhone?: string
+    guarantorRelationship?: string
+    guarantorIncome?: string
+}
+
+export interface GuarantorRelation extends Omit<Relation, 'dataIn'> {
+    type: 'GUARANTOR'
+    sourceEntity: LoanApplication['daid']
+    targetEntity: EsnadHuman['haid']
+    dataIn?: GuarantorRelationDataIn | null
+}
+export interface NewGuarantorRelation extends Omit<NewRelation, 'dataIn'> {
+    type: 'GUARANTOR'
+    sourceEntity: LoanApplication['daid']
+    targetEntity: EsnadHuman['haid']
+    dataIn?: GuarantorRelationDataIn | null
+}
+
+export interface GuarantorHuman extends EsnadHuman {
+    dataIn: GuarantorHumanDataIn
+}
+export interface NewGuarantorHuman extends NewEsnadHuman {
+    dataIn: GuarantorHumanDataIn
+}
+export interface GuarantorHumanDataIn extends EsnadHumanData {
+    phone: string
+}
+/**
  * заявки обработка и формирование платежей через финансы
  */
 
@@ -127,7 +161,9 @@ export interface InvestorsFormData {
 export interface LoanApplication extends Deal {
     dataIn: LoanApplicationDataIn
     statusName: LoanApplicationStatus
+    guarantors?: GuarantorHuman[]
     documents?: any[]
+
 }
 
 export interface NewLoanApplication extends NewDeal {
@@ -135,6 +171,7 @@ export interface NewLoanApplication extends NewDeal {
     statusName: LoanApplicationStatus
     documents?: any[]
 }
+
 
 export interface LoanApplicationDataIn {
     type: 'LOAN_APPLICATION'

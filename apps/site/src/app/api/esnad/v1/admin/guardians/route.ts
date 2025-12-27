@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
-import { and, desc, isNull, sql } from 'drizzle-orm'
+import { and, desc, isNull, sql, eq, inArray } from 'drizzle-orm'
 
 const jsonHeaders = {
   'Content-Type': 'application/json',
@@ -15,6 +15,8 @@ interface Guardian {
   type?: string | null
   createdAt?: string
   dataIn?: any
+  dealDaid?: string
+  dealStatusName?: string
 }
 
 const handleGet = async (context: AuthenticatedRequestContext) => {
@@ -28,7 +30,8 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     const db = createDb()
 
     // Get all humans that are guarantors
-    // Filter by: type = 'GUARANTOR' OR data_in->>'guarantor' = 'true' OR data_in->>'guarantorAid' IS NOT NULL
+    // Filter by: type = 'GUARANTOR' OR has GUARANTOR relation
+    // First, get all humans with type = 'GUARANTOR' OR with guarantor in dataIn
     const guardians = await db
       .select()
       .from(schema.humans)
@@ -37,15 +40,19 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           isNull(schema.humans.deletedAt),
           sql`(
             ${schema.humans.type} = 'GUARANTOR' OR
-            (${schema.humans.dataIn}::jsonb->>'guarantor') = 'true' OR
-            (${schema.humans.dataIn}::jsonb->>'guarantorAid') IS NOT NULL
+            EXISTS (
+              SELECT 1 FROM ${schema.relations}
+              WHERE ${schema.relations.targetEntity} = ${schema.humans.haid}
+              AND ${schema.relations.type} = 'GUARANTOR'
+              AND ${schema.relations.deletedAt} IS NULL
+            )
           )`
         )
       )
       .orderBy(desc(schema.humans.createdAt))
       .limit(limit)
       .offset(offset)
-      .execute() as Guardian[]
+      .execute()
 
     // Get total count
     const [countResult] = await db
@@ -56,8 +63,12 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           isNull(schema.humans.deletedAt),
           sql`(
             ${schema.humans.type} = 'GUARANTOR' OR
-            (${schema.humans.dataIn}::jsonb->>'guarantor') = 'true' OR
-            (${schema.humans.dataIn}::jsonb->>'guarantorAid') IS NOT NULL
+            EXISTS (
+              SELECT 1 FROM ${schema.relations}
+              WHERE ${schema.relations.targetEntity} = ${schema.humans.haid}
+              AND ${schema.relations.type} = 'GUARANTOR'
+              AND ${schema.relations.deletedAt} IS NULL
+            )
           )`
         )
       )
@@ -66,7 +77,58 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     const total = Number(countResult?.count) || 0
     const totalPages = Math.max(1, Math.ceil(total / limit))
 
-    // Process dataIn fields
+    // Get guarantor haids for this page
+    const guardianHaids = guardians.map((g) => g.haid).filter(Boolean) as string[]
+
+    // Get GUARANTOR relations for these guardians
+    let guarantorRelations: Array<{ targetEntity: string; sourceEntity: string }> = []
+    if (guardianHaids.length > 0) {
+      guarantorRelations = await db
+        .select({
+          targetEntity: schema.relations.targetEntity,
+          sourceEntity: schema.relations.sourceEntity,
+        })
+        .from(schema.relations)
+        .where(
+          and(
+            eq(schema.relations.type, 'GUARANTOR'),
+            isNull(schema.relations.deletedAt),
+            inArray(schema.relations.targetEntity, guardianHaids)
+          )
+        )
+        .execute()
+    }
+
+    // Get deal information
+    const dealAids = Array.from(new Set(
+      guarantorRelations.map((r) => r.sourceEntity).filter(Boolean) as string[]
+    ))
+
+    let deals: Array<{ daid: string; statusName: string | null }> = []
+    if (dealAids.length > 0) {
+      deals = await db
+        .select({
+          daid: schema.deals.daid,
+          statusName: schema.deals.statusName,
+        })
+        .from(schema.deals)
+        .where(inArray(schema.deals.daid, dealAids))
+        .execute()
+    }
+
+    const dealMap = new Map(deals.map((d) => [d.daid, d.statusName]))
+
+    // Create a map of guarantor haid to deal daid (use first relation for each guarantor)
+    const guarantorToDealMap = new Map<string, string>()
+    for (const relation of guarantorRelations) {
+      if (relation.targetEntity && relation.sourceEntity) {
+        if (!guarantorToDealMap.has(relation.targetEntity)) {
+          guarantorToDealMap.set(relation.targetEntity, relation.sourceEntity)
+        }
+      }
+    }
+
+    // Process dataIn fields and add deal information
     const processedGuardians = guardians.map((guardian) => {
       const processed: any = { ...guardian }
       
@@ -77,6 +139,13 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
         } catch {
           processed.dataIn = {}
         }
+      }
+
+      // Add deal information
+      const dealDaid = guarantorToDealMap.get(guardian.haid)
+      if (dealDaid) {
+        processed.dealDaid = dealDaid
+        processed.dealStatusName = dealMap.get(dealDaid) || null
       }
       
       return processed

@@ -112,7 +112,9 @@ export const onRequestGet = async (context: { request: Request; env: Env }) => {
 
             hasOutstandingFinances = true
 
-            const amount = parseFloat(finance.sum || '0') || 0
+            // finance.sum хранится в копейках, конвертируем в рубли
+            const amountKopecks = parseFloat(finance.sum || '0') || 0
+            const amount = amountKopecks / 100
             const paymentDate = new Date(paymentDateStr)
             paymentDate.setHours(0, 0, 0, 0)
 

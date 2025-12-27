@@ -22,9 +22,6 @@ import {
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { DbPaginatedResult } from '@/shared/types/shared'
 import debounce from 'lodash/debounce'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { Edit } from 'lucide-react'
 
 type RawHuman = {
   uuid: string
@@ -42,8 +39,6 @@ type GuardianRow = {
   haid: string
   fullName: string
   phone?: string
-  relationship?: string
-  income?: string
   createdAt?: string
   dealDaid?: string
   dealStatusName?: string
@@ -127,8 +122,6 @@ export default function AdminGuardiansPageClient() {
       haid: h.haid,
       fullName: h.fullName,
       phone: dataIn?.phone,
-      relationship: dataIn?.relationship || dataIn?.guarantorRelationship,
-      income: dataIn?.income || dataIn?.guarantorIncome,
       createdAt: h.createdAt,
       dealDaid: (h as any).dealDaid,
       dealStatusName: (h as any).dealStatusName,
@@ -173,35 +166,19 @@ export default function AdminGuardiansPageClient() {
                       <TableRow>
                         <TableHead>ФИО</TableHead>
                         <TableHead>Телефон</TableHead>
-                        <TableHead>Доход</TableHead>
                         <TableHead>Создан</TableHead>
-                        <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mappedGuardians.map((g) => {
-                        const canEdit = g.dealDaid && g.dealStatusName && 
-                          ['NEW', 'SCORING', 'ADDITIONAL_INFO_REQUESTED'].includes(g.dealStatusName)
-                        return (
-                          <TableRow key={g.uuid}>
-                            <TableCell className="font-medium">{g.fullName || 'Не указано'}</TableCell>
-                            <TableCell>{g.phone || '—'}</TableCell>
-                            <TableCell>{g.income || '—'}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(g.createdAt)}
-                            </TableCell>
-                            <TableCell>
-                              {canEdit && (
-                                <Button variant="ghost" size="icon" asChild>
-                                  <Link href={`/c/deals/${g.dealDaid}/edit`}>
-                                    <Edit className="h-4 w-4" />
-                                  </Link>
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
+                      {mappedGuardians.map((g) => (
+                        <TableRow key={g.uuid}>
+                          <TableCell className="font-medium">{g.fullName || 'Не указано'}</TableCell>
+                          <TableCell>{g.phone || '—'}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatDate(g.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                   {data && data.pagination.totalPages > 1 && (

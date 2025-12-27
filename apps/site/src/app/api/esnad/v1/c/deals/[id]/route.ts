@@ -1,11 +1,14 @@
-
 import { DealsRepository } from '@/shared/repositories/deals.repository'
 import type { DbFilters } from '@/shared/types/shared'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { processDataClientDeal } from '../route'
-import { LoanApplication } from '@/shared/types/esnad'
+import { LoanApplication, GuarantorRelationDataIn } from '@/shared/types/esnad'
 import { HumanRepository } from '@/shared/repositories/human.repository'
+import { RelationsRepository } from '@/shared/repositories/relations.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
+import { createDb } from '@/shared/repositories/utils'
+import { schema } from '@/shared/schema/schema'
+import { inArray, isNull, and } from 'drizzle-orm'
 
 /**
  * GET /api/c/deals/[id]
@@ -70,10 +73,47 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       })
     }
 
+    // Load guarantors from relations
+    const relationsRepository = RelationsRepository.getInstance()
+    const guarantorRelations = await relationsRepository.findBySourceEntity(deal.daid || '', 'GUARANTOR')
+    
+    let guarantors: any[] = []
+    if (guarantorRelations.length > 0) {
+      const guarantorHaids = guarantorRelations.map((r) => r.targetEntity).filter(Boolean) as string[]
+      
+      if (guarantorHaids.length > 0) {
+        const db = createDb()
+        
+        const guarantorHumans = await db
+          .select()
+          .from(schema.humans)
+          .where(
+            and(
+              inArray(schema.humans.haid, guarantorHaids),
+              isNull(schema.humans.deletedAt)
+            )
+          )
+          .execute()
+        
+        guarantors = guarantorHumans.map((human) => {
+          const dataIn = typeof human.dataIn === 'string' ? JSON.parse(human.dataIn) : human.dataIn || {}
+          return {
+            ...human,
+            dataIn: {
+              ...dataIn,
+              phone: dataIn.phone || '',
+            },
+          }
+        })
+      }
+    }
+
     return new Response(
       JSON.stringify({
-        deal: await processDataClientDeal(deal as LoanApplication),
-        
+        deal: {
+          ...(await processDataClientDeal(deal as LoanApplication)),
+          guarantors,
+        },
       }),
       {
         status: 200,
@@ -295,6 +335,79 @@ export const onRequestPut = async (context: AuthenticatedRequestContext) => {
       }
     }
 
+    // Handle guarantors
+    const relationsRepository = RelationsRepository.getInstance()
+    const dealAid = updated.updatedDeal.daid
+
+    if (dealAid) {
+      // Get selected guarantors from form
+      const selectedGuarantors = body.selectedGuarantors
+        ? (typeof body.selectedGuarantors === 'string'
+            ? JSON.parse(body.selectedGuarantors)
+            : Array.isArray(body.selectedGuarantors)
+              ? body.selectedGuarantors
+              : [])
+        : []
+      // Ensure string haids
+      const normalizedSelected = selectedGuarantors
+        .filter(Boolean)
+        .map((id: any) => String(id))
+
+      // Collect all guarantor haids (only selected)
+      const guarantorHaids: string[] = [...normalizedSelected]
+      const relationUpdates: Array<{ haid: string; dataIn: GuarantorRelationDataIn }> = []
+
+      // Parse newGuarantors for relation data updates (only for existing haids)
+      if (body.newGuarantors) {
+        try {
+          const parsed = typeof body.newGuarantors === 'string' ? JSON.parse(body.newGuarantors) : body.newGuarantors
+          if (Array.isArray(parsed)) {
+            for (const g of parsed) {
+              const haid = g.haid ? String(g.haid).trim() : ''
+              if (!haid) continue
+              if (!guarantorHaids.includes(haid)) {
+                guarantorHaids.push(haid)
+              }
+              const fullName = g.fullName ? String(g.fullName).trim() : ''
+              const phone = g.phone ? String(g.phone).trim() : ''
+              const relationship = g.relationship ? String(g.relationship).trim() : undefined
+              const income = g.income ? String(g.income).trim() : undefined
+              relationUpdates.push({
+                haid,
+                dataIn: {
+                  guarantorFullName: fullName || undefined,
+                  guarantorPhone: phone || undefined,
+                  guarantorRelationship: relationship,
+                  guarantorIncome: income,
+                },
+              })
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse newGuarantors for relation updates:', e)
+        }
+      }
+
+      // Replace all guarantor relations for this deal
+      if (guarantorHaids.length > 0) {
+        await relationsRepository.replaceRelations(dealAid, guarantorHaids, 'GUARANTOR', 0)
+
+        // Update dataIn for guarantor relations when provided
+        for (const { haid, dataIn: relationDataIn } of relationUpdates) {
+          const relation = await relationsRepository.findBySourceAndTarget(dealAid, haid, 'GUARANTOR')
+          
+          if (relation && relation.uuid) {
+            await relationsRepository.update(relation.uuid, {
+              dataIn: relationDataIn,
+            })
+          }
+        }
+      } else {
+        // Remove all guarantor relations if no guarantors selected
+        await relationsRepository.deleteBySourceEntity(dealAid, 'GUARANTOR')
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -308,6 +421,9 @@ export const onRequestPut = async (context: AuthenticatedRequestContext) => {
     )
   } catch (error) {
     console.error('Update deal error:', error)
+    if (error instanceof Error && error.stack) {
+      console.error(error.stack)
+    }
     return new Response(JSON.stringify({ error: 'Failed to update deal', details: String(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
