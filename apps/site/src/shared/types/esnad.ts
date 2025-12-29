@@ -208,6 +208,28 @@ export interface LoanApplicationDataIn {
     guarantorRelationship?: string
     guarantorIncome?: string
     guarantorAid?: string
+    // New fields for deal details
+    purchasePrice?: string // За сколько купил (закупочная цена)
+    salePrice?: string // За сколько продал (явно выделено из productPrice)
+    curatorUuid?: string // Куратор (отдельно от managerUuid)
+    createdByUuid?: string // Кто оформил
+    approvedByUuid?: string // Кто одобрил
+    rejectionReason?: string // Причина отказа
+    isNewClient?: boolean // Клиент новый?
+    productCategory?: string // Категория товара
+    partner?: string // Партнер
+    hasPurchaseAgreement?: boolean // Письменный договор купли-продажи?
+    clientSource?: string // Откуда пришел клиент
+    guarantorAgreementPhotos?: string[] // Фото договора поручительства
+    purchaseAgreementPhotos?: string[] // Фото договора купли-продажи
+    isBlacklisted?: boolean // Черный список
+    isProcessed?: boolean // Обработано
+    markupAmount?: string // Накидка (руб)
+    markupPercent?: string // Накидка (%)
+    downPaymentPercent?: string // Взнос (%)
+    remainingMarkupPercent?: string // Накидка на ост. (%)
+    monthlyMarkup?: string // Наценка в мес
+    remainingMonthlyMarkup?: string // Ост. Нац. в мес.
     [key: string]: any // Allow additional fields for flexibility
 }
 
@@ -369,6 +391,8 @@ export interface KycDocumentRef {
 export interface ClientDataIn extends EsnadHumanData {
     kycStatus?: KycStatus
     kycDocuments?: KycDocumentRef[]
+    guarantor1Haid?: string // HAID первого поручителя
+    guarantor2Haid?: string // HAID второго поручителя
 }
 
 /**

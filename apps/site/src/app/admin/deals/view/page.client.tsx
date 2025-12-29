@@ -58,6 +58,10 @@ export default function DealDetailPageClient() {
   const [humanKycDocuments, setHumanKycDocuments] = React.useState<Array<{ mediaUuid: string; type: string; uploadedAt?: string }>>([])
   const [submitting, setSubmitting] = React.useState(false)
   const [humanClient, setHumanClient] = React.useState<EsnadHuman | null>(null)
+  const [guarantor1, setGuarantor1] = React.useState<EsnadHuman | null>(null)
+  const [guarantor2, setGuarantor2] = React.useState<EsnadHuman | null>(null)
+  const [loadingGuarantors, setLoadingGuarantors] = React.useState(false)
+  const [userInfo, setUserInfo] = React.useState<Record<string, { fullName: string | null; email: string }>>({})
   const [actionError, setActionError] = React.useState<string | null>(null)
   const [managers, setManagers] = React.useState<Array<{ uuid: string; fullName: string | null; email: string }>>([])
   const [loadingManagers, setLoadingManagers] = React.useState(false)
@@ -196,6 +200,57 @@ export default function DealDetailPageClient() {
                   setHumanKycDocuments(kycDocuments)
                   setHumanClient(humanData.human as EsnadHuman)
 
+                  // Load guarantors if haids are available
+                  const guarantor1Haid = dataIn?.guarantor1Haid
+                  const guarantor2Haid = dataIn?.guarantor2Haid
+
+                  if (guarantor1Haid || guarantor2Haid) {
+                    setLoadingGuarantors(true)
+                    try {
+                      const guarantorPromises: Promise<void>[] = []
+                      
+                      if (guarantor1Haid) {
+                        guarantorPromises.push(
+                          fetch(`/api/esnad/v1/admin/human/by-haid/${guarantor1Haid}`, {
+                            credentials: 'include',
+                          })
+                            .then(async (res) => {
+                              if (res.ok) {
+                                const guarantorData = await res.json() as { success: boolean; human?: EsnadHuman }
+                                if (guarantorData.success && guarantorData.human) {
+                                  setGuarantor1(guarantorData.human)
+                                }
+                              }
+                            })
+                            .catch((err) => console.error('Failed to load guarantor 1:', err))
+                        )
+                      }
+
+                      if (guarantor2Haid) {
+                        guarantorPromises.push(
+                          fetch(`/api/esnad/v1/admin/human/by-haid/${guarantor2Haid}`, {
+                            credentials: 'include',
+                          })
+                            .then(async (res) => {
+                              if (res.ok) {
+                                const guarantorData = await res.json() as { success: boolean; human?: EsnadHuman }
+                                if (guarantorData.success && guarantorData.human) {
+                                  setGuarantor2(guarantorData.human)
+                                }
+                              }
+                            })
+                            .catch((err) => console.error('Failed to load guarantor 2:', err))
+                        )
+                      }
+
+                      await Promise.all(guarantorPromises)
+                    } catch (err) {
+                      console.error('Failed to load guarantors:', err)
+                    } finally {
+                      setLoadingGuarantors(false)
+                    }
+                  }
+
                   // Load metadata for KYC documents
                   if (kycDocuments.length > 0) {
                     const kycUuids = kycDocuments.map((doc: any) => doc.mediaUuid).filter(Boolean)
@@ -258,6 +313,12 @@ export default function DealDetailPageClient() {
         const data = await response.json() as { docs?: Array<{ uuid: string; fullName: string | null; email: string }> }
         if (data.docs) {
           setManagers(data.docs)
+          // Build userInfo map for quick lookup
+          const userInfoMap: Record<string, { fullName: string | null; email: string }> = {}
+          data.docs.forEach((user) => {
+            userInfoMap[user.uuid] = { fullName: user.fullName, email: user.email }
+          })
+          setUserInfo(userInfoMap)
         }
       } catch (err) {
         console.error('Ошибка при загрузке менеджеров:', err)
@@ -269,6 +330,37 @@ export default function DealDetailPageClient() {
 
     fetchManagers()
   }, [])
+
+  // Load user info for deal-related users (createdByUuid, approvedByUuid, curatorUuid)
+  React.useEffect(() => {
+    const fetchUserInfo = async () => {
+      if (!deal) return
+
+      const dataIn = deal.dataIn as LoanApplicationDataIn
+      const userIds = [
+        dataIn.createdByUuid,
+        dataIn.approvedByUuid,
+        dataIn.curatorUuid,
+        dataIn.managerUuid,
+      ].filter(Boolean) as string[]
+
+      if (userIds.length === 0) return
+
+      // Use managers list if already loaded
+      if (managers.length > 0) {
+        const userInfoMap: Record<string, { fullName: string | null; email: string }> = {}
+        userIds.forEach((uuid) => {
+          const user = managers.find((m) => m.uuid === uuid)
+          if (user) {
+            userInfoMap[uuid] = { fullName: user.fullName, email: user.email }
+          }
+        })
+        setUserInfo((prev) => ({ ...prev, ...userInfoMap }))
+      }
+    }
+
+    fetchUserInfo()
+  }, [deal, managers])
 
   // Fetch finances for this deal (after deal is loaded, by external deal ID daid)
   React.useEffect(() => {
@@ -501,6 +593,44 @@ export default function DealDetailPageClient() {
     }).format(date)
   }
 
+  const formatPercent = (value: number) => {
+    if (Number.isNaN(value) || !Number.isFinite(value)) return 'не указано'
+    return `${value.toFixed(2)}%`
+  }
+
+  // Calculate financial indicators
+  const calculateFinancialIndicators = React.useMemo(() => {
+    if (!deal?.dataIn) return null
+
+    const dataIn = deal.dataIn as LoanApplicationDataIn
+    const purchasePrice = parseFloat(String(dataIn.purchasePrice || '0'))
+    const salePrice = parseFloat(String(dataIn.salePrice || dataIn.productPrice || '0'))
+    const downPayment = parseFloat(String(dataIn.downPayment || '0'))
+    const term = dataIn.term?.[0] || parseFloat(String(dataIn.installmentTerm || '0')) || 0
+
+    // If we don't have purchase price, we can't calculate markup
+    if (purchasePrice <= 0 || salePrice <= 0) {
+      return null
+    }
+
+    const markupAmount = salePrice - purchasePrice
+    const markupPercent = purchasePrice > 0 ? (markupAmount / purchasePrice) * 100 : 0
+    const downPaymentPercent = salePrice > 0 ? (downPayment / salePrice) * 100 : 0
+    const remainingAmount = salePrice - downPayment
+    const remainingMarkupPercent = remainingAmount > 0 ? (markupAmount / remainingAmount) * 100 : 0
+    const monthlyMarkup = term > 0 ? markupAmount / term : 0
+    const remainingMonthlyMarkup = term > 0 ? (markupAmount - (downPayment * markupPercent / 100)) / term : 0
+
+    return {
+      markupAmount,
+      markupPercent,
+      downPaymentPercent,
+      remainingMarkupPercent,
+      monthlyMarkup,
+      remainingMonthlyMarkup,
+    }
+  }, [deal])
+
   const getPaymentStatusIcon = (status: string) => {
     switch (status) {
       case 'Оплачен':
@@ -729,6 +859,31 @@ export default function DealDetailPageClient() {
                       <p className="text-sm text-muted-foreground">{deal.dataIn.email}</p>
                     </div>
                   </div>
+                  {(() => {
+                    const rawHumanDataIn = humanClient?.dataIn
+                    const humanDataIn = rawHumanDataIn && typeof rawHumanDataIn === 'string'
+                      ? (() => { try { return JSON.parse(rawHumanDataIn) } catch { return {} } })()
+                      : (rawHumanDataIn as any) || {}
+                    const address = humanDataIn.permanentAddress || humanDataIn.registrationAddress
+                    const isNewClient = deal.dataIn.isNewClient !== undefined ? deal.dataIn.isNewClient : undefined
+
+                    return (
+                      <div className="space-y-2">
+                        {address && (
+                          <div>
+                            <p className="text-sm font-medium">Адрес:</p>
+                            <p className="text-sm text-muted-foreground">{address}</p>
+                          </div>
+                        )}
+                        {isNewClient !== undefined && (
+                          <div>
+                            <p className="text-sm font-medium">Клиент новый:</p>
+                            <p className="text-sm text-muted-foreground">{isNewClient ? 'Да' : 'Нет'}</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                   <div className="flex flex-col gap-2">
                     <Link href={`/admin/users/${humanClient?.user?.uuid}`}>
                       <Button variant="outline" className="w-full">
@@ -750,26 +905,61 @@ export default function DealDetailPageClient() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
-                    Детали рассрочки
+                    Основная информация о сделке
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="font-medium">Товар</TableCell>
-                        <TableCell>{deal.dataIn.productName || 'не указано'}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Цена</TableCell>
-                        <TableCell>{formatCurrency(Number(deal.dataIn.productPrice))}</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Срок</TableCell>
-                        <TableCell>{deal.dataIn.term.join(' - ')} месяцев</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                  <Accordion type="multiple" className="w-full">
+                    <AccordionItem value="deal-details">
+                      <AccordionTrigger>Детали сделки</AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="font-medium">Дата сделки</TableCell>
+                              <TableCell>{formatDate(deal.createdAt)}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Товар/Услуга</TableCell>
+                              <TableCell>{deal.dataIn.productName || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">За сколько купил</TableCell>
+                              <TableCell>{deal.dataIn.purchasePrice ? formatCurrency(Number(deal.dataIn.purchasePrice)) : 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">За сколько продал</TableCell>
+                              <TableCell>{formatCurrency(Number(deal.dataIn.salePrice || deal.dataIn.productPrice))}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">На сколько месяцев</TableCell>
+                              <TableCell>{deal.dataIn.term?.length ? `${deal.dataIn.term.join(' - ')} месяцев` : 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Взнос</TableCell>
+                              <TableCell>{deal.dataIn.downPayment ? formatCurrency(Number(deal.dataIn.downPayment)) : 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Категория товара</TableCell>
+                              <TableCell>{deal.dataIn.productCategory || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Партнер</TableCell>
+                              <TableCell>{deal.dataIn.partner || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Где купил</TableCell>
+                              <TableCell>{deal.dataIn.purchaseLocation || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Письменный договор купли-продажи</TableCell>
+                              <TableCell>{deal.dataIn.hasPurchaseAgreement !== undefined ? (deal.dataIn.hasPurchaseAgreement ? 'Да' : 'Нет') : 'не указано'}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </CardContent>
               </Card>
             </div>
@@ -852,35 +1042,144 @@ export default function DealDetailPageClient() {
                       <AccordionTrigger>Поручитель 1</AccordionTrigger>
                       <AccordionContent>
                         {(() => {
-                          const guarantorName = deal.dataIn.guarantorFullName
-                          const guarantorPhone = deal.dataIn.guarantorPhone
-                          const guarantorRelationship = deal.dataIn.guarantorRelationship
-                          const guarantorIncome = deal.dataIn.guarantorIncome
-                          const hasGuarantor =
-                            !!(guarantorName || guarantorPhone || guarantorRelationship || guarantorIncome)
+                          if (!guarantor1) {
+                            // Fallback to deal data if Human not loaded
+                            const guarantorName = deal.dataIn.guarantorFullName
+                            const guarantorPhone = deal.dataIn.guarantorPhone
+                            const guarantorRelationship = deal.dataIn.guarantorRelationship
+                            const guarantorIncome = deal.dataIn.guarantorIncome
+                            const hasGuarantor = !!(guarantorName || guarantorPhone || guarantorRelationship || guarantorIncome)
 
-                          if (!hasGuarantor) {
-                            return <p className="text-sm text-muted-foreground">Не заполнено</p>
+                            if (!hasGuarantor) {
+                              return <p className="text-sm text-muted-foreground">Не заполнено</p>
+                            }
+
+                            return (
+                              <Table>
+                                <TableBody>
+                                  <TableRow>
+                                    <TableCell className="font-medium">ФИО</TableCell>
+                                    <TableCell>{guarantorName || 'не указано'}</TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell className="font-medium">Телефон</TableCell>
+                                    <TableCell>{guarantorPhone || 'не указано'}</TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell className="font-medium">Отношение</TableCell>
+                                    <TableCell>{guarantorRelationship || 'не указано'}</TableCell>
+                                  </TableRow>
+                                  <TableRow>
+                                    <TableCell className="font-medium">Доход</TableCell>
+                                    <TableCell>{guarantorIncome || 'не указано'}</TableCell>
+                                  </TableRow>
+                                </TableBody>
+                              </Table>
+                            )
                           }
+
+                          const rawGuarantorDataIn = guarantor1.dataIn
+                          const guarantorDataIn = rawGuarantorDataIn && typeof rawGuarantorDataIn === 'string'
+                            ? (() => { try { return JSON.parse(rawGuarantorDataIn) } catch { return {} } })()
+                            : (rawGuarantorDataIn as any) || {}
+
+                          const fullName = guarantor1.fullName || `${guarantorDataIn.firstName || ''} ${guarantorDataIn.lastName || ''}`.trim()
+                          const phone = guarantorDataIn.phone || deal.dataIn.guarantorPhone || 'не указано'
+                          const address = guarantorDataIn.permanentAddress || guarantorDataIn.registrationAddress || 'не указано'
+                          const relationship = deal.dataIn.guarantorRelationship || guarantorDataIn.relationship || 'не указано'
+                          const workPlace = guarantorDataIn.workPlace || 'не указано'
+                          const maritalStatus = guarantorDataIn.maritalStatus || 'не указано'
+                          const numberOfChildren = guarantorDataIn.numberOfChildren !== undefined ? guarantorDataIn.numberOfChildren : 'не указано'
 
                           return (
                             <Table>
                               <TableBody>
                                 <TableRow>
                                   <TableCell className="font-medium">ФИО</TableCell>
-                                  <TableCell>{guarantorName || 'не указано'}</TableCell>
+                                  <TableCell>{fullName || 'не указано'}</TableCell>
                                 </TableRow>
                                 <TableRow>
                                   <TableCell className="font-medium">Телефон</TableCell>
-                                  <TableCell>{guarantorPhone || 'не указано'}</TableCell>
+                                  <TableCell>{phone}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Адрес</TableCell>
+                                  <TableCell>{address}</TableCell>
                                 </TableRow>
                                 <TableRow>
                                   <TableCell className="font-medium">Отношение</TableCell>
-                                  <TableCell>{guarantorRelationship || 'не указано'}</TableCell>
+                                  <TableCell>{relationship}</TableCell>
                                 </TableRow>
                                 <TableRow>
-                                  <TableCell className="font-medium">Доход</TableCell>
-                                  <TableCell>{guarantorIncome || 'не указано'}</TableCell>
+                                  <TableCell className="font-medium">Место работы</TableCell>
+                                  <TableCell>{workPlace}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Семейное положение</TableCell>
+                                  <TableCell>{maritalStatus}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Количество детей</TableCell>
+                                  <TableCell>{numberOfChildren}</TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          )
+                        })()}
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="guarantor2">
+                      <AccordionTrigger>Поручитель 2</AccordionTrigger>
+                      <AccordionContent>
+                        {(() => {
+                          if (!guarantor2) {
+                            return <p className="text-sm text-muted-foreground">Не заполнено</p>
+                          }
+
+                          const rawGuarantorDataIn = guarantor2.dataIn
+                          const guarantorDataIn = rawGuarantorDataIn && typeof rawGuarantorDataIn === 'string'
+                            ? (() => { try { return JSON.parse(rawGuarantorDataIn) } catch { return {} } })()
+                            : (rawGuarantorDataIn as any) || {}
+
+                          const fullName = guarantor2.fullName || `${guarantorDataIn.firstName || ''} ${guarantorDataIn.lastName || ''}`.trim()
+                          const phone = guarantorDataIn.phone || 'не указано'
+                          const address = guarantorDataIn.permanentAddress || guarantorDataIn.registrationAddress || 'не указано'
+                          const relationship = guarantorDataIn.relationship || 'не указано'
+                          const workPlace = guarantorDataIn.workPlace || 'не указано'
+                          const maritalStatus = guarantorDataIn.maritalStatus || 'не указано'
+                          const numberOfChildren = guarantorDataIn.numberOfChildren !== undefined ? guarantorDataIn.numberOfChildren : 'не указано'
+
+                          return (
+                            <Table>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell className="font-medium">ФИО</TableCell>
+                                  <TableCell>{fullName || 'не указано'}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Телефон</TableCell>
+                                  <TableCell>{phone}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Адрес</TableCell>
+                                  <TableCell>{address}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Отношение</TableCell>
+                                  <TableCell>{relationship}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Место работы</TableCell>
+                                  <TableCell>{workPlace}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Семейное положение</TableCell>
+                                  <TableCell>{maritalStatus}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                  <TableCell className="font-medium">Количество детей</TableCell>
+                                  <TableCell>{numberOfChildren}</TableCell>
                                 </TableRow>
                               </TableBody>
                             </Table>
@@ -916,6 +1215,18 @@ export default function DealDetailPageClient() {
                                 label = 'Справка о доходах'
                               }
                               allDocuments.push({ uuid: doc.mediaUuid, label, source: 'kyc' })
+                            })
+
+                            // Add guarantor agreement photos
+                            const guarantorAgreementPhotos = dataInExtended.guarantorAgreementPhotos || []
+                            guarantorAgreementPhotos.forEach((uuid) => {
+                              allDocuments.push({ uuid, label: 'Фото договора поручительства', source: 'deal' })
+                            })
+
+                            // Add purchase agreement photos
+                            const purchaseAgreementPhotos = dataInExtended.purchaseAgreementPhotos || []
+                            purchaseAgreementPhotos.forEach((uuid) => {
+                              allDocuments.push({ uuid, label: 'Фото договора купли-продажи', source: 'deal' })
                             })
                             
                             if (allDocuments.length === 0) {
@@ -968,6 +1279,155 @@ export default function DealDetailPageClient() {
                             })
                           })()}
                         </div>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="processing">
+                      <AccordionTrigger>Оформление</AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="font-medium">Кто оформил</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const createdBy = deal.dataIn.createdByUuid ? userInfo[deal.dataIn.createdByUuid] : null
+                                  return createdBy ? (createdBy.fullName || createdBy.email) : (deal.dataIn.createdByUuid || 'не указано')
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Куратор</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const curator = deal.dataIn.curatorUuid ? userInfo[deal.dataIn.curatorUuid] : null
+                                  return curator ? (curator.fullName || curator.email) : (deal.dataIn.curatorUuid || 'не указано')
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Кто одобрил</TableCell>
+                              <TableCell>
+                                {(() => {
+                                  const approvedBy = deal.dataIn.approvedByUuid ? userInfo[deal.dataIn.approvedByUuid] : null
+                                  return approvedBy ? (approvedBy.fullName || approvedBy.email) : (deal.dataIn.approvedByUuid || 'не указано')
+                                })()}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Решение</TableCell>
+                              <TableCell>
+                                <Badge variant={deal.statusName === 'APPROVED' ? 'default' : deal.statusName === 'REJECTED' ? 'destructive' : 'secondary'}>
+                                  {deal.statusName === 'APPROVED' ? 'Одобрено' : deal.statusName === 'REJECTED' ? 'Отклонено' : deal.statusName || 'не указано'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Причина отказа</TableCell>
+                              <TableCell>{deal.dataIn.rejectionReason || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Откуда пришел клиент</TableCell>
+                              <TableCell>{deal.dataIn.clientSource || 'не указано'}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="financials">
+                      <AccordionTrigger>Финансовые показатели</AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="font-medium">Накидка (руб)</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators 
+                                  ? formatCurrency(calculateFinancialIndicators.markupAmount)
+                                  : (deal.dataIn.markupAmount ? formatCurrency(Number(deal.dataIn.markupAmount)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Накидка (%)</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators
+                                  ? formatPercent(calculateFinancialIndicators.markupPercent)
+                                  : (deal.dataIn.markupPercent ? formatPercent(Number(deal.dataIn.markupPercent)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Срок</TableCell>
+                              <TableCell>{deal.dataIn.term?.length ? `${deal.dataIn.term.join(' - ')} месяцев` : 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Взнос (%)</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators
+                                  ? formatPercent(calculateFinancialIndicators.downPaymentPercent)
+                                  : (deal.dataIn.downPaymentPercent ? formatPercent(Number(deal.dataIn.downPaymentPercent)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Накидка на ост. (%)</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators
+                                  ? formatPercent(calculateFinancialIndicators.remainingMarkupPercent)
+                                  : (deal.dataIn.remainingMarkupPercent ? formatPercent(Number(deal.dataIn.remainingMarkupPercent)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Наценка в мес</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators
+                                  ? formatCurrency(calculateFinancialIndicators.monthlyMarkup)
+                                  : (deal.dataIn.monthlyMarkup ? formatCurrency(Number(deal.dataIn.monthlyMarkup)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Ост. Нац. в мес.</TableCell>
+                              <TableCell>
+                                {calculateFinancialIndicators
+                                  ? formatCurrency(calculateFinancialIndicators.remainingMonthlyMarkup)
+                                  : (deal.dataIn.remainingMonthlyMarkup ? formatCurrency(Number(deal.dataIn.remainingMonthlyMarkup)) : 'не указано')}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Ежем. платеж</TableCell>
+                              <TableCell>{deal.dataIn.monthlyPayment ? formatCurrency(Number(deal.dataIn.monthlyPayment)) : 'не указано'}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="status">
+                      <AccordionTrigger>Статус</AccordionTrigger>
+                      <AccordionContent>
+                        <Table>
+                          <TableBody>
+                            <TableRow>
+                              <TableCell className="font-medium">ЧЧС</TableCell>
+                              <TableCell>{deal.xaid || 'не указано'}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Черный список</TableCell>
+                              <TableCell>
+                                {deal.dataIn.isBlacklisted !== undefined 
+                                  ? (deal.dataIn.isBlacklisted ? 'Да' : 'Нет') 
+                                  : 'не указано'}
+                              </TableCell>
+                            </TableRow>
+                            <TableRow>
+                              <TableCell className="font-medium">Обработано</TableCell>
+                              <TableCell>
+                                {deal.dataIn.isProcessed !== undefined 
+                                  ? (deal.dataIn.isProcessed ? 'Да' : 'Нет') 
+                                  : 'не указано'}
+                              </TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
