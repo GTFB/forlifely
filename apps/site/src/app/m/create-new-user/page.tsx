@@ -55,16 +55,14 @@ export default function CreateNewUserPage() {
         body: JSON.stringify(formData),
       })
 
-      const body = await response.json() as { error?: string }
+      const data: { error?: string; success?: boolean } = await response.json()
 
       if (!response.ok) {
-        throw new Error((body?.error || response.status || 'Неизвестная ошибка') as string)
+        throw new Error(data.error || 'Failed to create user')
       }
 
-      const data: { error?: string; success?: boolean } = body
-
       // Redirect to admin page on success
-      router.push('/admin')
+      router.push('/m')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {

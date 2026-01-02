@@ -44,7 +44,7 @@ export default function EventDetailPageComponent({ journal }: EventDetailPageCom
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/events">
+        <Link href="/m/events">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -96,7 +96,7 @@ export default function EventDetailPageComponent({ journal }: EventDetailPageCom
       )}
 
       <div className="flex justify-end">
-        <Link href="/admin/events">
+        <Link href="/m/events">
           <Button variant="outline">Вернуться к списку событий</Button>
         </Link>
       </div>

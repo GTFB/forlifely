@@ -2,22 +2,14 @@
 
 import { withAdminGuard } from '@/shared/api-guard'
 import { AuthenticatedContext, CollectionStats } from '@/shared/types'
-import { buildRequestEnv } from '@/shared/env'
-import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
+import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 
 /**
  * GET /api/admin/collection-stats?name=users
  * Returns statistics for a specific collection
  */
 async function handleGet(context: AuthenticatedContext): Promise<Response> {
-  const { request, env } = context
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+  const { request } = context
 
   try {
     const url = new URL(request.url)
@@ -33,7 +25,8 @@ async function handleGet(context: AuthenticatedContext): Promise<Response> {
       )
     }
 
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Validate table exists
     const tableExistsResult = await executeRawQuery<{ table_name: string }>(

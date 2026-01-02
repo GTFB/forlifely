@@ -5,7 +5,7 @@ import { COLLECTION_GROUPS } from '@/shared/collections'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
+import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -108,7 +108,7 @@ async function hashPasswordFields(collection: string, data: Record<string, any>,
 }
 
 async function handleDelete(context: AuthenticatedRequestContext): Promise<Response> {
-  const { env, params } = context
+  const { params } = context
   const collection = params?.collection as string
   const idParam = params?.id as string
 
@@ -126,15 +126,9 @@ async function handleDelete(context: AuthenticatedRequestContext): Promise<Respo
     })
   }
 
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Detect primary key column and soft-delete capability
     const pragmaResult = await executeRawQuery<{
@@ -198,7 +192,7 @@ async function handleDelete(context: AuthenticatedRequestContext): Promise<Respo
 }
 
 async function handlePut(context: AuthenticatedRequestContext): Promise<Response> {
-  const { env, params, request } = context
+  const { params, request } = context
   const collection = params?.collection as string
   const idParam = params?.id as string
 
@@ -212,13 +206,6 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
   if (!isAllowedCollection(collection)) {
     return new Response(JSON.stringify({ error: 'Collection not allowed' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-      status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
   }
@@ -308,7 +295,8 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
       }
     }
 
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     const pragmaResult = await executeRawQuery<{
       column_name: string;

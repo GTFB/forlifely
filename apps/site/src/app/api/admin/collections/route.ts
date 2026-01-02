@@ -3,8 +3,7 @@
 import { withAdminGuard } from '@/shared/api-guard'
 import { AuthenticatedContext } from '@/shared/types'
 import { COLLECTION_GROUPS } from '@/shared/collections'
-import { buildRequestEnv } from '@/shared/env'
-import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
+import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 
 interface TableInfo {
   table_name: string
@@ -21,17 +20,9 @@ interface CollectionGroup {
  * Returns list of all collections grouped by category
  */
 async function handleGet(context: AuthenticatedContext): Promise<Response> {
-  const { env } = context
-
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Get all tables from database
     const tablesResult = await executeRawQuery<TableInfo>(

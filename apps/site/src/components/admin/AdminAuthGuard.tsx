@@ -64,7 +64,8 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         const currentPath = window.location.pathname
         
         // If on create-new-user page, skip auth checks
-        if (currentPath === '/admin/create-new-user' || currentPath === '/admin/create-new-user/') {
+        if (currentPath === '/admin/create-new-user' || currentPath === '/admin/create-new-user/' ||
+            currentPath === '/m/create-new-user' || currentPath === '/m/create-new-user/') {
           setChecking(false)
           hasCheckedRef.current = true
           isCheckingRef.current = false
@@ -91,7 +92,9 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
         
         if (!hasUsers) {
           // No users exist, redirect to create first user
-          location.href = '/admin/create-new-user'
+          // Use current path prefix (/admin or /m)
+          const prefix = currentPath.startsWith('/m') ? '/m' : '/admin'
+          location.href = `${prefix}/create-new-user`
           isCheckingRef.current = false
           return
         }
@@ -130,7 +133,8 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
   // Periodic auth check (every minute) - skip for create-new-user page
   useEffect(() => {
-    if (pathname === '/admin/create-new-user' || pathname === '/admin/create-new-user/') {
+    if (pathname === '/admin/create-new-user' || pathname === '/admin/create-new-user/' ||
+        pathname === '/m/create-new-user' || pathname === '/m/create-new-user/') {
       return
     }
 

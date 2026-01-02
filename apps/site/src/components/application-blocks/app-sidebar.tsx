@@ -292,52 +292,106 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     }
 
     const controller = new AbortController()
+    let isMounted = true
+    
     const load = async () => {
       // Only show loading if we don't have cached data
       if (!cachedGroups || !cachedUser) {
-        setLoading(true)
+        if (!controller.signal.aborted && isMounted) {
+          setLoading(true)
+        }
       }
-      setError(null)
+      if (!controller.signal.aborted && isMounted) {
+        setError(null)
+      }
+      
       try {
         const [collectionsRes, meRes] = await Promise.all([
           fetch("/api/admin/collections", {
             credentials: "include",
             signal: controller.signal,
+          }).catch((err) => {
+            // Suppress AbortError from being logged
+            if (err.name === 'AbortError') {
+              return null as any
+            }
+            throw err
           }),
-          fetch("/api/auth/me", { credentials: "include", signal: controller.signal }),
+          fetch("/api/auth/me", { credentials: "include", signal: controller.signal }).catch((err) => {
+            // Suppress AbortError from being logged
+            if (err.name === 'AbortError') {
+              return null as any
+            }
+            throw err
+          }),
         ])
+        
+        // Check if request was aborted before processing
+        if (controller.signal.aborted || !isMounted || !collectionsRes || !meRes) {
+          return
+        }
+        
         if (!collectionsRes.ok) throw new Error(`Collections failed: ${collectionsRes.status}`)
         const collectionsJson: CollectionsResponse = await collectionsRes.json()
-        setGroups(collectionsJson.groups)
+        
+        if (!controller.signal.aborted && isMounted) {
+          setGroups(collectionsJson.groups)
+        }
 
         if (meRes.ok) {
           const meJson: MeResponse = await meRes.json()
-          if (meJson.user) setUser(meJson.user)
-          
-          // Cache the data
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('sidebar-groups', JSON.stringify(collectionsJson.groups))
-            sessionStorage.setItem('sidebar-user', JSON.stringify(meJson.user))
+          if (meJson.user && !controller.signal.aborted && isMounted) {
+            setUser(meJson.user)
+            
+            // Cache the data
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('sidebar-groups', JSON.stringify(collectionsJson.groups))
+              sessionStorage.setItem('sidebar-user', JSON.stringify(meJson.user))
+            }
           }
         }
       } catch (e) {
-        if ((e as any).name !== "AbortError") setError((e as Error).message)
+        // Ignore AbortError - it's expected when component unmounts
+        if (e instanceof Error && e.name === "AbortError") {
+          // Request was cancelled, this is normal - don't update state
+          return
+        }
+        // Only set error if component is still mounted and not aborted
+        if (!controller.signal.aborted && isMounted) {
+          setError((e as Error).message)
+        }
       } finally {
-        setLoading(false)
+        // Only update loading state if component is still mounted
+        if (!controller.signal.aborted && isMounted) {
+          setLoading(false)
+        }
       }
     }
-    load()
-    return () => controller.abort()
+    
+    // Wrap load() to catch any unhandled promise rejections
+    load().catch((err) => {
+      // Silently ignore AbortError
+      if (err?.name !== 'AbortError' && !controller.signal.aborted && isMounted) {
+        console.error('Failed to load sidebar data:', err)
+      }
+    })
+    
+    return () => {
+      isMounted = false
+      // Suppress abort error by catching it
+      try {
+        controller.abort()
+      } catch (err) {
+        // Ignore abort errors
+      }
+    }
   }, [])
 
-  // Collections that have tables and should be shown
-  const allowedCollections = ['deals']
-  
   // Memoize items structure separately from active state to prevent full re-renders
   const itemsStructure = React.useMemo(() => {
     return groups.map((group) => ({
       category: group.category,
-      collections: group.collections.filter((collection) => allowedCollections.includes(collection)),
+      collections: group.collections, // Show all collections
       icon: categoryIcon[group.category] || SquareTerminal,
     })).filter((group) => group.collections.length > 0) // Remove groups with no collections
   }, [groups])

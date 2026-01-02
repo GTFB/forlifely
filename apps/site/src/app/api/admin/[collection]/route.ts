@@ -6,8 +6,7 @@ import { generateAid } from '@/shared/generate-aid'
 import { getCollection } from '@/shared/collections/getCollection'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
-import { buildRequestEnv } from '@/shared/env'
+import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 
 function isAllowedCollection(name: string): boolean {
   const all = Object.values(COLLECTION_GROUPS).flat()
@@ -99,7 +98,6 @@ async function hashPasswordFields(collection: string, data: Record<string, any>)
 async function handleGet(context: AuthenticatedRequestContext): Promise<Response> {
   const { request, params } = context
   const collection = params?.collection as string
-  const env = buildRequestEnv()
   if (!collection || !isAllowedCollection(collection)) {
     return new Response(JSON.stringify({ error: 'Invalid collection' }), {
       status: 400,
@@ -111,15 +109,9 @@ async function handleGet(context: AuthenticatedRequestContext): Promise<Response
   const page = Math.max(1, Number(url.searchParams.get('p') || 1))
   const pageSize = Math.max(1, Number(url.searchParams.get('ps') || 20))
 
-  if (!env.DB) {
-    return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Detect if collection has deleted_at
     const pragmaResult = await executeRawQuery<{ column_name: string; data_type: string }>(
@@ -298,14 +290,8 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
       }
     }
 
-    if (!env.DB) {
-      return new Response(JSON.stringify({ error: 'Database connection not available' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Get table schema to detect auto-generated fields
     const pragmaResult = await executeRawQuery<{

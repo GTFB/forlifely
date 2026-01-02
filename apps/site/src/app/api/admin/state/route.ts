@@ -6,7 +6,7 @@ import { getCollection } from "@/shared/collections/getCollection"
 import qs from "qs"
 import { sql } from "drizzle-orm"
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { getPostgresClient, executeRawQuery } from '@/shared/repositories/utils'
+import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 
 interface AdminFilter {
   field: string
@@ -84,17 +84,8 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
   }
 
   try {
-    if (!env.DB) {
-      return new Response(
-        JSON.stringify({ error: "Database connection not available" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      )
-    }
-
-    const client = getPostgresClient(env.DB)
+    const db = createDb()
+    const client = getPostgresClient(db)
     
     // Get table schema
     const schemaResult = await executeRawQuery<ColumnInfo>(

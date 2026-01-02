@@ -60,8 +60,8 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
     if (pathname.startsWith('/p/')) {
       return teams.find(t => t.href?.startsWith('/p/')) || teams[0]
     }
-    if (pathname.startsWith('/admin/')) {
-      return teams.find(t => t.href?.startsWith('/admin/')) || teams[0]
+    if (pathname.startsWith('/m/')) {
+      return teams.find(t => t.href?.startsWith('/m/')) || teams[0]
     }
     
     return teams[0]

@@ -159,6 +159,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const { theme, setTheme } = useTheme()
   const { user: meUser } = useMe()
 
+  // Determine base path prefix (/m or /admin)
+  const basePath = pathname?.startsWith('/m/') ? '/m' : '/admin'
+
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light')
   }
@@ -176,7 +179,13 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
   // Build navigation groups dynamically based on user role
   const getNavigationGroups = (): NavigationGroup[] => {
-    const groups: NavigationGroup[] = [...navigationGroups]
+    const groups: NavigationGroup[] = navigationGroups.map(group => ({
+      ...group,
+      items: group.items.map(item => ({
+        ...item,
+        url: item.url.replace('/admin', basePath)
+      }))
+    }))
 
     // Add system links for super admin only
     if (isSuperAdmin) {
@@ -185,12 +194,12 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         items: [
           {
             title: 'Настройки',
-            url: '/admin/settings',
+            url: `${basePath}/settings`,
             icon: Settings,
           },
           {
             title: 'Seed',
-            url: '/admin/seed',
+            url: `${basePath}/seed`,
             icon: Database,
           },
         ],

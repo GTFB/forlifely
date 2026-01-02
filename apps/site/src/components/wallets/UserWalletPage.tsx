@@ -264,7 +264,7 @@ export default function UserWalletPage({
                 if(window.history.length > 1) {
                   router.back()
                 } else {
-                  router.push('/admin/users')
+                  router.push('/m/users')
                 }
               }}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -287,7 +287,7 @@ export default function UserWalletPage({
                 if(window.history.length > 1) {
                   router.back()
                 } else {
-                  router.push(`/admin/users/${userUuid}`)
+                  router.push(`/m/users/${userUuid}`)
                 }
               }}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -338,7 +338,7 @@ export default function UserWalletPage({
                         <Select
                           value={walletType}
                           onValueChange={(value) => {
-                            window.location.href = `/admin/users/${haid}/wallet?type=${value}`
+                            window.location.href = `/m/users/${haid}/wallet?type=${value}`
                           }}>
                           <SelectTrigger className="w-[200px]">
                             <SelectValue />
