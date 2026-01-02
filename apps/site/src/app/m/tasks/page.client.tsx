@@ -39,9 +39,25 @@ import {
   X,
   Send,
   Trash2,
+  Table2,
+  LayoutGrid,
 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -83,6 +99,32 @@ const mapApiTask = (task: TaskApi): Task => ({
 
 const assigneeKey = (assignee: TaskAssignee): string => assignee.uuid || assignee.name
 
+const getPriorityVariant = (priority: string) => {
+  switch (priority) {
+    case 'high':
+      return 'destructive'
+    case 'medium':
+      return 'secondary'
+    case 'low':
+      return 'outline'
+    default:
+      return 'outline'
+  }
+}
+
+const getPriorityLabel = (priority: string) => {
+  switch (priority) {
+    case 'high':
+      return 'Высокий'
+    case 'medium':
+      return 'Средний'
+    case 'low':
+      return 'Низкий'
+    default:
+      return priority
+  }
+}
+
 function DroppableColumn({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
@@ -122,32 +164,6 @@ function DraggableTask({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  }
-
-  const getPriorityVariant = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'destructive'
-      case 'medium':
-        return 'secondary'
-      case 'low':
-        return 'outline'
-      default:
-        return 'outline'
-    }
-  }
-
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'Высокий'
-      case 'medium':
-        return 'Средний'
-      case 'low':
-        return 'Низкий'
-      default:
-        return priority
-    }
   }
 
   return (
@@ -243,6 +259,7 @@ export default function AdminTasksPageClient() {
   const [assignees, setAssignees] = React.useState<TaskAssignee[]>([])
   const [managerFilter, setManagerFilter] = React.useState<string>('all')
   const [activeId, setActiveId] = React.useState<string | null>(null)
+  const [viewMode, setViewMode] = React.useState<'kanban' | 'table'>('kanban')
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
@@ -1368,24 +1385,135 @@ export default function AdminTasksPageClient() {
           </div>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 overflow-x-auto">
-            {statusColumns.map((column) => (
-              <DroppableColumn key={column.id} id={column.id} title={column.title}>
-                {tasksByStatus[column.id as keyof typeof tasksByStatus].map((task) => (
-                  <DraggableTask key={task.id} task={task} onEdit={handleOpenEdit} onDelete={handleOpenDelete} />
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'table')}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="kanban">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Канбан
+            </TabsTrigger>
+            <TabsTrigger value="table">
+              <Table2 className="h-4 w-4 mr-2" />
+              Таблица
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="kanban" className="mt-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}>
+              <div className="flex gap-4 overflow-x-auto">
+                {statusColumns.map((column) => (
+                  <DroppableColumn key={column.id} id={column.id} title={column.title}>
+                    {tasksByStatus[column.id as keyof typeof tasksByStatus].map((task) => (
+                      <DraggableTask key={task.id} task={task} onEdit={handleOpenEdit} onDelete={handleOpenDelete} />
+                    ))}
+                  </DroppableColumn>
                 ))}
-              </DroppableColumn>
-            ))}
-          </div>
-          <DragOverlay>
-            {activeTask ? <DraggableTask task={activeTask} /> : null}
-          </DragOverlay>
-        </DndContext>
+              </div>
+              <DragOverlay>
+                {activeTask ? <DraggableTask task={activeTask} /> : null}
+              </DragOverlay>
+            </DndContext>
+          </TabsContent>
+
+          <TabsContent value="table" className="mt-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Название</TableHead>
+                    <TableHead>Приоритет</TableHead>
+                    <TableHead>Ответственный</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead>Дата</TableHead>
+                    <TableHead>Ссылка</TableHead>
+                    <TableHead className="text-right">Действия</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTasks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        Задач не найдено
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell>
+                          <Badge variant={getPriorityVariant(task.priority)} className="text-xs">
+                            {getPriorityLabel(task.priority)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={task.assignee.avatar || undefined} alt={task.assignee.name} />
+                              <AvatarFallback className="text-xs">
+                                {task.assignee.name
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .toUpperCase()
+                                  .slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{task.assignee.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {statusColumns.find((col) => col.id === task.status)?.title || task.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(task.date).toLocaleDateString('ru-RU', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          {task.clientLink ? (
+                            <Link href={task.clientLink} className="text-primary hover:underline text-sm">
+                              {task.clientLink}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleOpenEdit(task)}
+                              aria-label="Редактировать задачу">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => handleOpenDelete(task)}
+                              aria-label="Удалить задачу">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
         </div>
       </main>
     </>
