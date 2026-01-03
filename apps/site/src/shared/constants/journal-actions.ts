@@ -21,6 +21,7 @@ export const JOURNAL_ACTION_NAMES: Record<string, string> = {
   'DEAL_CANCELLED': 'Отмена заявки',
   'INVESTOR_REGISTERED': 'Новый инвестор',
   'PAYMENT_RECEIVED': 'Получен платеж',
+  'USER_PAGE_VIEW': 'Посещение страницы',
 } as const
 
 /**

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,9 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [needsVerification, setNeedsVerification] = useState(false)
@@ -25,20 +27,38 @@ export default function LoginPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState<string | null>(null)
-  const [locale, setLocale] = useState<'en' | 'ru'>(() => {
+  const supportedLanguageCodes = LANGUAGES.map((l) => l.code)
+  type LanguageCode = (typeof LANGUAGES)[number]["code"]
+
+  const [locale, setLocale] = useState<LanguageCode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar-locale')
-      if (saved === 'en' || saved === 'ru') {
-        return saved
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
       }
     }
-    return 'ru'
+    return (PROJECT_SETTINGS.defaultLanguage || 'en') as LanguageCode
   })
   const [translations, setTranslations] = useState<any>(null)
+  const [forgotMode, setForgotMode] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
+
+  useEffect(() => {
+    const forgot = searchParams.get("forgot")
+    const email = searchParams.get("email")
+    if (forgot === "1") {
+      setForgotMode(true)
+      if (email) {
+        setFormData((prev) => ({ ...prev, email }))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const loadTranslations = async () => {
@@ -53,9 +73,12 @@ export default function LoginPage() {
         console.error('Failed to load translations:', e)
         // Fallback: try dynamic import as backup
         try {
-          const translationsModule = locale === 'ru'
-            ? await import("@/packages/content/locales/ru.json")
-            : await import("@/packages/content/locales/en.json")
+          let translationsModule
+          try {
+            translationsModule = await import(`@/packages/content/locales/${locale}.json`)
+          } catch {
+            translationsModule = await import("@/packages/content/locales/en.json")
+          }
           setTranslations(translationsModule.default || translationsModule)
         } catch (fallbackError) {
           console.error('Fallback import also failed:', fallbackError)
@@ -76,18 +99,13 @@ export default function LoginPage() {
   }, [resendCooldown])
 
 
-  const handleLocaleChange = (newLocale: 'en' | 'ru') => {
+  const handleLocaleChange = (newLocale: LanguageCode) => {
     setLocale(newLocale)
     if (typeof window !== 'undefined') {
       localStorage.setItem('sidebar-locale', newLocale)
       // Dispatch event for sidebar to sync
       window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
     }
-  }
-
-  const navUserTranslations = translations?.navUser || {
-    english: "English",
-    russian: "Russian"
   }
 
   const t = translations?.login || {
@@ -99,10 +117,18 @@ export default function LoginPage() {
     passwordPlaceholder: "••••••••",
     loginButton: "Login",
     loggingIn: "Logging in...",
+    forgotPassword: "Forgot password?",
+    resetTitle: "Password reset",
+    resetDescription: "Enter your email and we will send you a reset link",
+    sendResetLink: "Send reset link",
+    sendingResetLink: "Sending...",
+    backToLogin: "Back to login",
+    resetEmailSent: "If an account exists for this email, a reset link has been sent.",
     errors: {
       apiNotFound: "API endpoint not found. Please ensure you are running the development server correctly.\n\nFor local development with Cloudflare Functions, use:\n  npm run dev:all\n\nThis will start both Next.js and Wrangler servers.",
       serverError: "Server error. Please try again later.",
       unexpectedResponse: "Server returned an unexpected response",
+      invalidCredentials: "Invalid credentials",
       loginFailed: "Login failed",
       unknownError: "Unknown error"
     }
@@ -113,6 +139,31 @@ export default function LoginPage() {
     setError(null)
     setNeedsVerification(false)
     setResendSuccess(null)
+    setResetSuccess(null)
+
+    if (forgotMode) {
+      const email = formData.email.trim()
+      if (!email) {
+        setError((t.errors as any).emailRequired || t.errors.loginFailed)
+        return
+      }
+
+      setResetLoading(true)
+      try {
+        await fetch("/api/auth/password-reset/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        })
+        setResetSuccess(t.resetEmailSent)
+      } catch {
+        setResetSuccess(t.resetEmailSent)
+      } finally {
+        setResetLoading(false)
+      }
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -281,12 +332,15 @@ export default function LoginPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleLocaleChange('en')}>
-              {navUserTranslations.english} (EN)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleLocaleChange('ru')}>
-              {navUserTranslations.russian} (RU)
-            </DropdownMenuItem>
+            {LANGUAGES.map((lang) => (
+              <DropdownMenuItem
+                key={lang.code}
+                onClick={() => handleLocaleChange(lang.code)}
+                disabled={locale === lang.code}
+              >
+                {lang.name} ({lang.shortName})
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -297,9 +351,9 @@ export default function LoginPage() {
               <Logo className="h-12" />
             </Link>
           </div>
-          <CardTitle className="text-2xl text-center">{t.title}</CardTitle>
+          <CardTitle className="text-2xl text-center">{forgotMode ? t.resetTitle : t.title}</CardTitle>
           <CardDescription className="text-center">
-            {t.description}
+            {forgotMode ? t.resetDescription : t.description}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -309,6 +363,11 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            {resetSuccess ? (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-primary whitespace-pre-wrap">
+                {resetSuccess}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="email">{t.email}</Label>
@@ -325,31 +384,47 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">{t.password}</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder={t.passwordPlaceholder}
-                value={formData.password}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                autoComplete="current-password"
-              />
-            </div>
+            {!forgotMode ? (
+              <div className="space-y-2">
+                <Label htmlFor="password">{t.password}</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder={t.passwordPlaceholder}
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+              </div>
+            ) : null}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={loading || resetLoading}>
+              {loading || resetLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t.loggingIn}
+                  {forgotMode ? t.sendingResetLink : t.loggingIn}
                 </>
               ) : (
-                t.loginButton
+                forgotMode ? t.sendResetLink : t.loginButton
               )}
             </Button>
+
+            <div className="flex justify-between text-sm">
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => {
+                  setForgotMode((v) => !v)
+                  setError(null)
+                  setResetSuccess(null)
+                }}
+              >
+                {forgotMode ? t.backToLogin : t.forgotPassword}
+              </button>
+            </div>
 
             {needsVerification && (
               <div className="space-y-2 rounded-lg border border-muted bg-muted/50 p-3 text-sm">

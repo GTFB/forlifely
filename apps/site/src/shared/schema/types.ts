@@ -16,6 +16,7 @@ import { userRoles } from './user-roles'
 import { humans } from './humans'
 import { taxonomy } from './taxonomy'
 import { journals } from './journals'
+import { userSessions } from './user-sessions'
 import { employees } from './employees'
 import { finances } from './finances'
 import { goals } from './goals'
@@ -45,6 +46,7 @@ export type UserRole = InferSelectModel<typeof userRoles>
 export type Human = InferSelectModel<typeof humans>
 export type Taxonomy = InferSelectModel<typeof taxonomy>
 export type Journal = InferSelectModel<typeof journals>
+export type UserSession = InferSelectModel<typeof userSessions>
 export type Employee = InferSelectModel<typeof employees>
 export type Finance = InferSelectModel<typeof finances>
 export type Goal = InferSelectModel<typeof goals>
@@ -74,6 +76,7 @@ export type NewUserRole = InferInsertModel<typeof userRoles>
 export type NewHuman = InferInsertModel<typeof humans>
 export type NewTaxonomy = InferInsertModel<typeof taxonomy>
 export type NewJournal = InferInsertModel<typeof journals>
+export type NewUserSession = InferInsertModel<typeof userSessions>
 export type NewEmployee = InferInsertModel<typeof employees>
 export type NewFinance = InferInsertModel<typeof finances>
 export type NewGoal = InferInsertModel<typeof goals>

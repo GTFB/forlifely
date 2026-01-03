@@ -1,10 +1,11 @@
-import { createSession, isSecureRequest, jsonWithSession } from '@/shared/session'
+import { createSession, isSecureRequest, jsonWithSession, SESSION_COOKIE_MAX_AGE_SECONDS } from '@/shared/session'
 import { verifyPassword } from '@/shared/password'
 import { Env } from '@/shared/types'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { getNextResendAvailableAt } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
+import { UserSessionsRepository, getClientIp } from '@/shared/repositories/user-sessions.repository'
 interface LoginRequest {
   email: string
   password: string
@@ -86,18 +87,35 @@ export async function POST(request: Request) {
       lastLoginAt: new Date().toISOString(),
     })
 
-    // Create session
+    const sessionUuid = crypto.randomUUID()
+    try {
+      const userSessionsRepository = UserSessionsRepository.getInstance()
+      const expiresAt = new Date(Date.now() + SESSION_COOKIE_MAX_AGE_SECONDS * 1000).toISOString()
+      await userSessionsRepository.createSession({
+        sessionUuid,
+        userId: typeof persistedUser.id === "number" ? persistedUser.id : Number(persistedUser.id),
+        userAgent: request.headers.get("user-agent"),
+        ip: getClientIp(request),
+        expiresAt,
+      })
+    } catch (e) {
+      console.error("Failed to persist user session:", e)
+    }
+
+    // Create session cookie (include sessionUuid)
     const sessionCookie = await createSession(
       {
         id: String(persistedUser.id),
         email: persistedUser.email,
         name: human?.fullName || persistedUser.email,
         role: isAdmin ? 'admin' : 'user',
+        sessionUuid,
       },
       env.AUTH_SECRET,
       {
         secure: isSecureRequest(request),
         sameSite: 'Lax',
+        sessionUuid,
       }
     )
 

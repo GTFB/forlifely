@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { getSession } from '@/shared/session'
 import { MeRepository } from '@/shared/repositories/me.repository'
+import { UserSessionsRepository } from '@/shared/repositories/user-sessions.repository'
+import { clearSession, isSecureRequest } from '@/shared/session'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
 const CORS_HEADERS = {
@@ -28,6 +30,31 @@ export async function GET(request: NextRequest) {
       { error: 'Not authenticated' },
       { status: 401, headers: JSON_HEADERS }
     )
+  }
+
+  if (sessionUser.sessionUuid) {
+    try {
+      const repo = UserSessionsRepository.getInstance()
+      const active = await repo.isActiveSessionForUser(sessionUser.sessionUuid, Number(sessionUser.id))
+      if (!active) {
+        return NextResponse.json(
+          { error: 'Not authenticated' },
+          {
+            status: 401,
+            headers: {
+              ...JSON_HEADERS,
+              'Set-Cookie': clearSession({
+                secure: isSecureRequest(request),
+                sameSite: 'Lax',
+              }),
+            },
+          }
+        )
+      }
+      await repo.touch(sessionUser.sessionUuid)
+    } catch (e) {
+      console.error('Failed to validate sessionUuid:', e)
+    }
   }
 
   try {
