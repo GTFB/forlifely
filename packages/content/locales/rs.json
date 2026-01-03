@@ -344,6 +344,7 @@
       "sessions": {
         "title": "Aktivne sesije",
         "loading": "Učitavanje...",
+        "loadError": "Neuspešno učitavanje sesija",
         "empty": "Nema aktivnih sesija",
         "unknownDevice": "Nepoznati uređaj",
         "current": "Trenutna",
@@ -353,10 +354,16 @@
       "journal": {
         "title": "Dnevnik aktivnosti",
         "loading": "Učitavanje...",
+        "loadError": "Neuspešno učitavanje aktivnosti",
         "empty": "Još nema aktivnosti",
         "prev": "Nazad",
         "next": "Napred",
-        "page": "Stranica"
+        "page": "Stranica",
+        "actionNames": {
+          "USER_PAGE_VIEW": "Poseta stranici",
+          "USER_JOURNAL_LOGIN": "Prijava",
+          "USER_JOURNAL_LOGOUT": "Odjava"
+        }
       }
     }
   }

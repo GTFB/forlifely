@@ -45,6 +45,15 @@ type JournalRow = {
   createdAt?: string | null
 }
 
+function formatTimestamp(value?: string | null): string {
+  if (!value) return ""
+  // Keep existing YYYY-MM-DD HH:mm:ss and remove milliseconds/timezone if present.
+  return String(value)
+    .replace("T", " ")
+    .replace(/\.\d+(Z)?$/, "")
+    .replace(/Z$/, "")
+}
+
 type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
 function parseFullNameToParts(fullName: string): { firstName: string; lastName: string; middleName: string } {
@@ -441,15 +450,23 @@ export default function AdminProfilePageClient() {
       const res = await fetch("/api/esnad/v1/admin/profile/sessions", { credentials: "include" })
       const json = (await res.json().catch(() => null)) as { success?: boolean; sessions?: UserSessionItem[]; message?: string } | null
       if (!res.ok || !json?.success) {
-        throw new Error(json?.message || "Failed to load sessions")
+        throw new Error(
+          json?.message ||
+            (translations?.profile?.activity?.sessions?.loadError as string) ||
+            "Failed to load sessions"
+        )
       }
       setSessions(Array.isArray(json.sessions) ? json.sessions : [])
     } catch (e) {
-      setSessionsError(e instanceof Error ? e.message : "Failed to load sessions")
+      setSessionsError(
+        e instanceof Error
+          ? e.message
+          : (translations?.profile?.activity?.sessions?.loadError as string) || "Failed to load sessions"
+      )
     } finally {
       setSessionsLoading(false)
     }
-  }, [])
+  }, [translations?.profile?.activity?.sessions?.loadError])
 
   const revokeSession = React.useCallback(async (sessionUuid: string, isCurrent: boolean) => {
     try {
@@ -477,16 +494,24 @@ export default function AdminProfilePageClient() {
       })
       const json = (await res.json().catch(() => null)) as any
       if (!res.ok || !json?.success) {
-        throw new Error(json?.message || "Failed to load activity")
+        throw new Error(
+          json?.message ||
+            (translations?.profile?.activity?.journal?.loadError as string) ||
+            "Failed to load activity"
+        )
       }
       setJournalRows((json.docs || []) as JournalRow[])
       setJournalTotalPages(Number(json.pagination?.totalPages || 1))
     } catch (e) {
-      setJournalError(e instanceof Error ? e.message : "Failed to load activity")
+      setJournalError(
+        e instanceof Error
+          ? e.message
+          : (translations?.profile?.activity?.journal?.loadError as string) || "Failed to load activity"
+      )
     } finally {
       setJournalLoading(false)
     }
-  }, [journalPageSize])
+  }, [journalPageSize, translations?.profile?.activity?.journal?.loadError])
 
   React.useEffect(() => {
     void fetchProfile()
@@ -1053,14 +1078,16 @@ export default function AdminProfilePageClient() {
                             {journalRows.map((row) => {
                               const payload = row?.details?.payload
                               const url = payload?.url || payload?.pathname || null
+                              const actionNames = (translations?.profile?.activity?.journal?.actionNames || {}) as Record<string, string>
+                              const title = actionNames[row.action] || row.action
                               return (
                                 <div key={row.uuid} className="rounded-lg border p-3">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="text-sm font-medium">
-                                      {row.action}
+                                      {title}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                      {row.createdAt || ""}
+                                      {formatTimestamp(row.createdAt)}
                                     </div>
                                   </div>
                                   {url ? (

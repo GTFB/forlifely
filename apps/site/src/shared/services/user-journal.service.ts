@@ -12,19 +12,6 @@ export const logUserJournalEvent = async (
 ): Promise<void> => {
   const journalsRepository = JournalsRepository.getInstance()
 
-  const entry: NewEsnadUserJournal = {
-    uuid: crypto.randomUUID(),
-    action,
-    details: {
-      user: {
-        uuid: user.uuid,
-        email: user.email,
-        humanAid: user.humanAid ?? null,
-      },
-      ...extraDetails,
-    },
-  }
-
   const userId =
     typeof user.id === 'string'
       ? Number(user.id)
@@ -32,11 +19,22 @@ export const logUserJournalEvent = async (
       ? user.id
       : undefined
 
-  if (typeof userId === 'number' && !Number.isNaN(userId)) {
-    (entry as NewEsnadUserJournal & { userId: number }).userId = userId
-  }
-
-  await journalsRepository.create(entry)
+  // Use raw log() to ensure created_at/updated_at are always set (some tables have no defaults)
+  await journalsRepository.log({
+    context: 'user-journal',
+    step: action,
+    status: 'info',
+    message: action,
+    payload: {
+      user: {
+        uuid: user.uuid,
+        email: user.email,
+        humanAid: user.humanAid ?? null,
+      },
+      ...(extraDetails || {}),
+    },
+    userId: typeof userId === 'number' && !Number.isNaN(userId) ? userId : null,
+  })
 }
 
 

@@ -49,7 +49,12 @@ export function withRoleGuard<T extends RequestContext>(handler: RouteHandler<T>
     if (session?.sessionUuid) {
       try {
         const repo = UserSessionsRepository.getInstance()
-        const active = await repo.isActiveSessionForUser(session.sessionUuid, Number(session.id))
+        const active = await repo.ensureActiveSession({
+          sessionUuid: session.sessionUuid,
+          userId: Number(session.id),
+          userAgent: request.headers.get('user-agent'),
+          ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        })
         if (!active) {
           return new Response(
             JSON.stringify({
@@ -63,7 +68,6 @@ export function withRoleGuard<T extends RequestContext>(handler: RouteHandler<T>
             },
           )
         }
-        await repo.touch(session.sessionUuid)
       } catch (e) {
         console.error('Failed to validate sessionUuid:', e)
       }
