@@ -344,6 +344,7 @@
       "sessions": {
         "title": "Active sessions",
         "loading": "Loading...",
+        "loadError": "Failed to load sessions",
         "empty": "No active sessions",
         "unknownDevice": "Unknown device",
         "current": "Current",
@@ -353,10 +354,16 @@
       "journal": {
         "title": "Activity",
         "loading": "Loading...",
+        "loadError": "Failed to load activity",
         "empty": "No activity yet",
         "prev": "Prev",
         "next": "Next",
-        "page": "Page"
+        "page": "Page",
+        "actionNames": {
+          "USER_PAGE_VIEW": "Page view",
+          "USER_JOURNAL_LOGIN": "Login",
+          "USER_JOURNAL_LOGOUT": "Logout"
+        }
       }
     }
   }

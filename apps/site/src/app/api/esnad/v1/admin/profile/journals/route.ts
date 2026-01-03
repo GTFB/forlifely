@@ -18,7 +18,7 @@ export const GET = withAdminGuard(async (context: AuthenticatedRequestContext): 
     .select()
     .from(schema.journals)
     .where(sql`${schema.journals.user_id} = ${userId}`)
-    .orderBy(sql`${schema.journals.createdAt} desc nulls last`)
+    .orderBy(sql`${schema.journals.id} desc`)
     .limit(pageSize)
     .offset(offset)
     .execute()

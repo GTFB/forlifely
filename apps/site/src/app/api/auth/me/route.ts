@@ -35,7 +35,12 @@ export async function GET(request: NextRequest) {
   if (sessionUser.sessionUuid) {
     try {
       const repo = UserSessionsRepository.getInstance()
-      const active = await repo.isActiveSessionForUser(sessionUser.sessionUuid, Number(sessionUser.id))
+      const active = await repo.ensureActiveSession({
+        sessionUuid: sessionUser.sessionUuid,
+        userId: Number(sessionUser.id),
+        userAgent: request.headers.get('user-agent'),
+        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+      })
       if (!active) {
         return NextResponse.json(
           { error: 'Not authenticated' },
@@ -51,7 +56,6 @@ export async function GET(request: NextRequest) {
           }
         )
       }
-      await repo.touch(sessionUser.sessionUuid)
     } catch (e) {
       console.error('Failed to validate sessionUuid:', e)
     }
