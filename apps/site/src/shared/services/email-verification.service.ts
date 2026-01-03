@@ -88,8 +88,11 @@ const ensureCooldown = (metadata?: VerificationMetadata) => {
   }
 }
 
-const buildVerificationEmailHtml = (verificationLink: string): string => {
-  return `
+const buildVerificationEmailHtml = (verificationLink: string, locale: string): string => {
+  const localeKey = locale === 'ru' || locale === 'rs' ? locale : 'en'
+  
+  if (localeKey === 'ru') {
+    return `
 <!DOCTYPE html>
 <html lang="ru" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -195,12 +198,230 @@ const buildVerificationEmailHtml = (verificationLink: string): string => {
 </body>
 </html>
   `.trim()
+  }
+  
+  if (localeKey === 'rs') {
+    return `
+<!DOCTYPE html>
+<html lang="sr" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <style type="text/css">
+    table {border-collapse: collapse; border-spacing: 0; margin: 0;}
+    div, td {padding: 0;}
+    div {margin: 0 !important;}
+  </style>
+  <![endif]-->
+  <!--[if !mso]><!-->
+  <style type="text/css">
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; }
+      .email-content { padding: 20px !important; }
+    }
+  </style>
+  <!--<![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Platforma finansijskih rešenja</div>
+            </td>
+          </tr>
+          
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px;">
+              <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.4;">Zdravo!</h1>
+              
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                Registrovali ste se na platformi <strong>Esnad</strong>. Da biste nastavili rad, molimo potvrdite adresu elektronske pošte.
+              </p>
+              
+              <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                Kliknite na dugme ispod da biste potvrdili vašu email adresu:
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding: 0 0 32px 0;">
+                    <a href="${verificationLink}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);">Potvrdi email</a>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Alternative Link Section -->
+              <div style="padding: 24px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #e5e7eb;">
+                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">Ako dugme ne radi</p>
+                <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.5; color: #6b7280;">
+                  Kopirajte link ispod i nalepite ga u adresnu traku pregledača:
+                </p>
+                <p style="margin: 0; word-break: break-all;">
+                  <a href="${verificationLink}" style="font-size: 13px; color: #2563eb; text-decoration: underline; line-height: 1.6;">${verificationLink}</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px 40px 40px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                Ova poruka je automatski poslata, molimo ne odgovarajte na nju.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
+                Ako se niste registrovali na Esnad Finance, jednostavno ignorišite ovu poruku.
+              </p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Spacer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+          <tr>
+            <td style="padding: 20px 20px 0 20px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                © ${new Date().getFullYear()} Esnad Finance. Sva prava zadržana.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim()
+  }
+  
+  // English version (default)
+  return `
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <style type="text/css">
+    table {border-collapse: collapse; border-spacing: 0; margin: 0;}
+    div, td {padding: 0;}
+    div {margin: 0 !important;}
+  </style>
+  <![endif]-->
+  <!--[if !mso]><!-->
+  <style type="text/css">
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; }
+      .email-content { padding: 20px !important; }
+    }
+  </style>
+  <!--<![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Financial Solutions Platform</div>
+            </td>
+          </tr>
+          
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px;">
+              <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.4;">Hello!</h1>
+              
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                You have registered on the <strong>Esnad</strong> platform. To continue, please confirm your email address.
+              </p>
+              
+              <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #374151;">
+                Click the button below to confirm your email address:
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td align="center" style="padding: 0 0 32px 0;">
+                    <a href="${verificationLink}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);">Confirm email</a>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Alternative Link Section -->
+              <div style="padding: 24px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #e5e7eb;">
+                <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #374151;">If the button doesn't work</p>
+                <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.5; color: #6b7280;">
+                  Copy the link below and paste it into your browser's address bar:
+                </p>
+                <p style="margin: 0; word-break: break-all;">
+                  <a href="${verificationLink}" style="font-size: 13px; color: #2563eb; text-decoration: underline; line-height: 1.6;">${verificationLink}</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px 40px 40px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280; line-height: 1.5;">
+                This email was sent automatically, please do not reply to it.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
+                If you did not register on Esnad Finance, please ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Spacer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+          <tr>
+            <td style="padding: 20px 20px 0 20px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                © ${new Date().getFullYear()} Esnad Finance. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim()
 }
 
 export const sendVerificationEmail = async (
   env: Env,
   user: EsnadUser,
-  options: { request?: Request; force?: boolean } = {},
+  options: { request?: Request; force?: boolean; locale?: string } = {},
 ): Promise<void> => {
   if (user.emailVerifiedAt) {
     throw new EmailVerificationError('ALREADY_VERIFIED', 'Email already verified')
@@ -229,12 +450,24 @@ export const sendVerificationEmail = async (
 
   const baseUrl = buildBaseUrl(env, options.request)
   const verificationLink = buildVerificationLink(baseUrl, user.email, token)
+  const locale = options.locale === 'ru' || options.locale === 'rs' ? options.locale : 'en'
+  
+  const subject = locale === 'ru' 
+    ? 'Подтверждение адреса электронной почты'
+    : locale === 'rs'
+    ? 'Potvrda adrese elektronske pošte'
+    : 'Email address confirmation'
+  const text = locale === 'ru'
+    ? `Здравствуйте! Вы зарегистрировались в платформе Altrp. Для продолжения, пожалуйста, подтвердите адрес электронной почты, перейдя по ссылке: ${verificationLink}`
+    : locale === 'rs'
+    ? `Zdravo! Registrovali ste se na platformi Altrp. Da biste nastavili, molimo potvrdite adresu elektronske pošte, prelazeći na link: ${verificationLink}`
+    : `Hello! You have registered on the Altrp platform. To continue, please confirm your email address by following the link: ${verificationLink}`
 
   await sendEmail(env, {
     to: user.email,
-    subject: 'Подтверждение адреса электронной почты',
-    html: buildVerificationEmailHtml(verificationLink),
-    text: `Здравствуйте! Вы зарегистрировались в платформе Esnad. Для продолжения, пожалуйста, подтвердите адрес электронной почты, перейдя по ссылке: ${verificationLink}`,
+    subject,
+    html: buildVerificationEmailHtml(verificationLink, locale),
+    text,
   })
 }
 

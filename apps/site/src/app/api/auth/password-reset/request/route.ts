@@ -5,6 +5,7 @@ import { UsersRepository } from '@/shared/repositories/users.repository'
 import { sendPasswordResetEmail } from '@/shared/services/password-reset.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { buildRequestEnv } from '@/shared/env'
+import { getUserLanguage, parseAcceptLanguage } from '@/shared/utils/user-language'
 
 type RequestPasswordResetBody = {
   email?: string
@@ -29,7 +30,18 @@ export const onRequestPost = async ({ request, env }: { request: Request; env: E
 
     if (user) {
       try {
-        const result = await sendPasswordResetEmail(env, user, { request })
+        // Get user language preference from database, fallback to Accept-Language header
+        let locale: string | undefined
+        try {
+          locale = await getUserLanguage(user)
+        } catch (error) {
+          console.error('Failed to get user language, using Accept-Language header:', error)
+        }
+        if (!locale) {
+          locale = parseAcceptLanguage(request.headers.get('accept-language'))
+        }
+        
+        const result = await sendPasswordResetEmail(env, user, { request, locale })
         try {
           await logUserJournalEvent(env, 'USER_JOURNAL_PASSWORD_RESET_REQUEST', user)
         } catch (journalError) {

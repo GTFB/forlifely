@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { getSession } from '@/shared/session'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { UserSessionsRepository } from '@/shared/repositories/user-sessions.repository'
+import { UserSessionsRepository, getClientIp } from '@/shared/repositories/user-sessions.repository'
 import { clearSession, isSecureRequest } from '@/shared/session'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         sessionUuid: sessionUser.sessionUuid,
         userId: Number(sessionUser.id),
         userAgent: request.headers.get('user-agent'),
-        ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        ip: getClientIp(request),
       })
       if (!active) {
         return NextResponse.json(

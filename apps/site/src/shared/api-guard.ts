@@ -2,7 +2,7 @@
 import { buildRequestEnv } from '@/shared/env'
 import { getSession } from '@/shared/session'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { UserSessionsRepository } from '@/shared/repositories/user-sessions.repository'
+import { UserSessionsRepository, getClientIp } from '@/shared/repositories/user-sessions.repository'
 import type { RequestContext, Env } from '@/shared/types'
 
 export type AuthenticatedRequestContext = RequestContext & {
@@ -53,7 +53,7 @@ export function withRoleGuard<T extends RequestContext>(handler: RouteHandler<T>
           sessionUuid: session.sessionUuid,
           userId: Number(session.id),
           userAgent: request.headers.get('user-agent'),
-          ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+          ip: getClientIp(request),
         })
         if (!active) {
           return new Response(

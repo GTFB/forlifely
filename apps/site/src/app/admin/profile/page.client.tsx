@@ -11,9 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Eye, EyeOff, Dice6, KeyRound, Loader2, Mail, Monitor, Smartphone, X } from "lucide-react"
+import { Eye, EyeOff, Dice6, KeyRound, Loader2, Mail, Monitor, Smartphone, X, RotateCcw } from "lucide-react"
 import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 import { validatePassword } from "@/shared/password"
+import { formatLocalDateTime } from "@/shared/utils/date-format"
+import { JOURNAL_ACTION_NAMES } from "@/shared/constants/journal-actions"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/packages/components/ui/select"
 import Link from "next/link"
 
 type AdminProfile = {
@@ -31,10 +34,22 @@ type UserSessionItem = {
   uuid: string
   userAgent: string | null
   ip: string | null
+  region: string | null
   lastSeenAt: string | null
   expiresAt: string | null
   device: "mobile" | "desktop"
   isCurrent: boolean
+}
+
+type ArchivedSessionItem = {
+  uuid: string
+  userAgent: string | null
+  ip: string | null
+  region: string | null
+  lastSeenAt: string | null
+  revokedAt: string | null
+  expiresAt: string | null
+  device: "mobile" | "desktop"
 }
 
 type JournalRow = {
@@ -52,6 +67,80 @@ function formatTimestamp(value?: string | null): string {
     .replace("T", " ")
     .replace(/\.\d+(Z)?$/, "")
     .replace(/Z$/, "")
+}
+
+function parseUserAgent(userAgent: string | null | undefined): string {
+  if (!userAgent) return "Unknown device"
+  
+  const ua = userAgent.toLowerCase()
+  
+  // Mobile devices
+  if (ua.includes("iphone")) {
+    const versionMatch = userAgent.match(/OS (\d+)_(\d+)/i)
+    const iosVersion = versionMatch ? `iOS ${versionMatch[1]}.${versionMatch[2]}` : "iOS"
+    if (ua.includes("safari")) return `iPhone Safari (${iosVersion})`
+    if (ua.includes("chrome")) return `iPhone Chrome (${iosVersion})`
+    return `iPhone (${iosVersion})`
+  }
+  
+  if (ua.includes("ipad")) {
+    const versionMatch = userAgent.match(/OS (\d+)_(\d+)/i)
+    const iosVersion = versionMatch ? `iOS ${versionMatch[1]}.${versionMatch[2]}` : "iOS"
+    if (ua.includes("safari")) return `iPad Safari (${iosVersion})`
+    if (ua.includes("chrome")) return `iPad Chrome (${iosVersion})`
+    return `iPad (${iosVersion})`
+  }
+  
+  if (ua.includes("android")) {
+    const versionMatch = userAgent.match(/Android (\d+(?:\.\d+)?)/i)
+    const androidVersion = versionMatch ? versionMatch[1] : ""
+    if (ua.includes("chrome")) return `Android Chrome${androidVersion ? ` (${androidVersion})` : ""}`
+    if (ua.includes("samsungbrowser")) return `Samsung Internet${androidVersion ? ` (${androidVersion})` : ""}`
+    if (ua.includes("firefox")) return `Android Firefox${androidVersion ? ` (${androidVersion})` : ""}`
+    return `Android${androidVersion ? ` (${androidVersion})` : ""}`
+  }
+  
+  // Desktop browsers
+  if (ua.includes("chrome") && !ua.includes("edg")) {
+    const versionMatch = userAgent.match(/Chrome\/(\d+)/i)
+    const chromeVersion = versionMatch ? versionMatch[1] : ""
+    if (ua.includes("windows")) return `Chrome${chromeVersion ? ` ${chromeVersion}` : ""} on Windows`
+    if (ua.includes("mac")) return `Chrome${chromeVersion ? ` ${chromeVersion}` : ""} on macOS`
+    if (ua.includes("linux")) return `Chrome${chromeVersion ? ` ${chromeVersion}` : ""} on Linux`
+    return `Chrome${chromeVersion ? ` ${chromeVersion}` : ""}`
+  }
+  
+  if (ua.includes("safari") && !ua.includes("chrome") && !ua.includes("iphone") && !ua.includes("ipad")) {
+    const versionMatch = userAgent.match(/Version\/(\d+(?:\.\d+)?)/i)
+    const safariVersion = versionMatch ? versionMatch[1] : ""
+    if (ua.includes("mac")) return `Safari${safariVersion ? ` ${safariVersion}` : ""} on macOS`
+    return `Safari${safariVersion ? ` ${safariVersion}` : ""}`
+  }
+  
+  if (ua.includes("firefox")) {
+    const versionMatch = userAgent.match(/Firefox\/(\d+(?:\.\d+)?)/i)
+    const firefoxVersion = versionMatch ? versionMatch[1] : ""
+    if (ua.includes("windows")) return `Firefox${firefoxVersion ? ` ${firefoxVersion}` : ""} on Windows`
+    if (ua.includes("mac")) return `Firefox${firefoxVersion ? ` ${firefoxVersion}` : ""} on macOS`
+    if (ua.includes("linux")) return `Firefox${firefoxVersion ? ` ${firefoxVersion}` : ""} on Linux`
+    return `Firefox${firefoxVersion ? ` ${firefoxVersion}` : ""}`
+  }
+  
+  if (ua.includes("edg")) {
+    const versionMatch = userAgent.match(/Edg\/(\d+)/i)
+    const edgeVersion = versionMatch ? versionMatch[1] : ""
+    if (ua.includes("windows")) return `Edge${edgeVersion ? ` ${edgeVersion}` : ""} on Windows`
+    if (ua.includes("mac")) return `Edge${edgeVersion ? ` ${edgeVersion}` : ""} on macOS`
+    return `Edge${edgeVersion ? ` ${edgeVersion}` : ""}`
+  }
+  
+  // Fallback: try to extract browser name
+  if (ua.includes("opera") || ua.includes("opr")) return "Opera"
+  if (ua.includes("yandex")) return "Yandex Browser"
+  if (ua.includes("brave")) return "Brave"
+  
+  // If we can't parse it, return shortened version
+  return userAgent.length > 50 ? `${userAgent.substring(0, 50)}...` : userAgent
 }
 
 type LanguageCode = (typeof LANGUAGES)[number]["code"]
@@ -240,12 +329,22 @@ export default function AdminProfilePageClient() {
   const [sessionsLoading, setSessionsLoading] = React.useState(false)
   const [sessionsError, setSessionsError] = React.useState<string | null>(null)
 
+  const [archivedSessions, setArchivedSessions] = React.useState<ArchivedSessionItem[]>([])
+  const [archivedSessionsLoading, setArchivedSessionsLoading] = React.useState(false)
+  const [archivedSessionsError, setArchivedSessionsError] = React.useState<string | null>(null)
+
   const [journalRows, setJournalRows] = React.useState<JournalRow[]>([])
   const [journalLoading, setJournalLoading] = React.useState(false)
   const [journalError, setJournalError] = React.useState<string | null>(null)
   const [journalPage, setJournalPage] = React.useState(1)
   const [journalPageSize] = React.useState(10)
   const [journalTotalPages, setJournalTotalPages] = React.useState(1)
+  
+  // Journal filters
+  const [journalActionFilter, setJournalActionFilter] = React.useState<string>("all")
+  const [journalDateFrom, setJournalDateFrom] = React.useState<string | null>(null)
+  const [journalDateTo, setJournalDateTo] = React.useState<string | null>(null)
+  const [journalPageFilter, setJournalPageFilter] = React.useState<string>("")
 
   const supportedLanguageCodes = React.useMemo(() => LANGUAGES.map((l) => l.code), [])
   const [locale, setLocale] = React.useState<LanguageCode>(() => {
@@ -468,6 +567,31 @@ export default function AdminProfilePageClient() {
     }
   }, [translations?.profile?.activity?.sessions?.loadError])
 
+  const fetchArchivedSessions = React.useCallback(async () => {
+    setArchivedSessionsLoading(true)
+    setArchivedSessionsError(null)
+    try {
+      const res = await fetch("/api/altrp/v1/admin/profile/sessions/archived", { credentials: "include" })
+      const json = (await res.json().catch(() => null)) as { success?: boolean; sessions?: ArchivedSessionItem[]; message?: string } | null
+      if (!res.ok || !json?.success) {
+        throw new Error(
+          json?.message ||
+            (translations?.profile?.activity?.sessions?.archivedLoadError as string) ||
+            "Failed to load archived sessions"
+        )
+      }
+      setArchivedSessions(Array.isArray(json.sessions) ? json.sessions : [])
+    } catch (e) {
+      setArchivedSessionsError(
+        e instanceof Error
+          ? e.message
+          : (translations?.profile?.activity?.sessions?.archivedLoadError as string) || "Failed to load archived sessions"
+      )
+    } finally {
+      setArchivedSessionsLoading(false)
+    }
+  }, [translations?.profile?.activity?.sessions?.archivedLoadError])
+
   const revokeSession = React.useCallback(async (sessionUuid: string, isCurrent: boolean) => {
     try {
       await fetch("/api/altrp/v1/admin/profile/sessions/revoke", {
@@ -482,14 +606,34 @@ export default function AdminProfilePageClient() {
         return
       }
       void fetchSessions()
+      void fetchArchivedSessions()
     }
-  }, [fetchSessions])
+  }, [fetchSessions, fetchArchivedSessions])
 
-  const fetchJournals = React.useCallback(async (page: number) => {
+  const journalQueryParams = React.useMemo(() => {
+    const params = new URLSearchParams()
+    params.set("p", String(journalPage))
+    params.set("ps", String(journalPageSize))
+    if (journalActionFilter && journalActionFilter !== "all") {
+      params.set("action", journalActionFilter)
+    }
+    if (journalDateFrom) {
+      params.set("dateFrom", journalDateFrom)
+    }
+    if (journalDateTo) {
+      params.set("dateTo", journalDateTo)
+    }
+    if (journalPageFilter.trim()) {
+      params.set("page", journalPageFilter.trim())
+    }
+    return params.toString()
+  }, [journalPage, journalPageSize, journalActionFilter, journalDateFrom, journalDateTo, journalPageFilter])
+
+  const fetchJournals = React.useCallback(async () => {
     setJournalLoading(true)
     setJournalError(null)
     try {
-      const res = await fetch(`/api/altrp/v1/admin/profile/journals?p=${page}&ps=${journalPageSize}`, {
+      const res = await fetch(`/api/altrp/v1/admin/profile/journals?${journalQueryParams}`, {
         credentials: "include",
       })
       const json = (await res.json().catch(() => null)) as any
@@ -511,7 +655,7 @@ export default function AdminProfilePageClient() {
     } finally {
       setJournalLoading(false)
     }
-  }, [journalPageSize, translations?.profile?.activity?.journal?.loadError])
+  }, [journalQueryParams, translations?.profile?.activity?.journal?.loadError])
 
   React.useEffect(() => {
     void fetchProfile()
@@ -522,8 +666,17 @@ export default function AdminProfilePageClient() {
   }, [fetchSessions])
 
   React.useEffect(() => {
-    void fetchJournals(journalPage)
-  }, [fetchJournals, journalPage])
+    void fetchArchivedSessions()
+  }, [fetchArchivedSessions])
+
+  React.useEffect(() => {
+    void fetchJournals()
+  }, [fetchJournals])
+  
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setJournalPage(1)
+  }, [journalActionFilter, journalDateFrom, journalDateTo, journalPageFilter])
 
   const handleSave = async () => {
     setSaving(true)
@@ -977,68 +1130,130 @@ export default function AdminProfilePageClient() {
                   <TabsContent value="activity" className="space-y-4">
                     <Card>
                       <CardHeader>
-                        <CardTitle>{(translations?.profile?.activity?.sessions?.title as string) || "Active sessions"}</CardTitle>
+                        <CardTitle>{(translations?.profile?.activity?.sessions?.title as string) || "Sessions"}</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-3">
-                        {sessionsError ? (
-                          <Alert variant="destructive">
-                            <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
-                            <AlertDescription>{sessionsError}</AlertDescription>
-                          </Alert>
-                        ) : sessionsLoading ? (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            {(translations?.profile?.activity?.sessions?.loading as string) || "Loading..."}
-                          </div>
-                        ) : sessions.length === 0 ? (
-                          <div className="text-sm text-muted-foreground">
-                            {(translations?.profile?.activity?.sessions?.empty as string) || "No active sessions"}
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {sessions.map((s) => (
-                              <div
-                                key={s.uuid}
-                                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-0.5 text-muted-foreground">
-                                    {s.device === "mobile" ? (
-                                      <Smartphone className="h-4 w-4" />
-                                    ) : (
-                                      <Monitor className="h-4 w-4" />
-                                    )}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                                      <span className="truncate">
-                                        {s.userAgent || (translations?.profile?.activity?.sessions?.unknownDevice as string) || "Unknown device"}
-                                      </span>
-                                      {s.isCurrent ? (
-                                        <span className="rounded bg-muted px-2 py-0.5 text-xs">
-                                          {(translations?.profile?.activity?.sessions?.current as string) || "Current"}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    <div className="mt-1 text-xs text-muted-foreground">
-                                      {s.ip ? `IP: ${s.ip}` : null}
-                                      {s.lastSeenAt ? ` • ${(translations?.profile?.activity?.sessions?.lastSeen as string) || "Last seen"}: ${s.lastSeenAt}` : null}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  onClick={() => revokeSession(s.uuid, s.isCurrent)}
-                                >
-                                  {(translations?.profile?.activity?.sessions?.revoke as string) || "Close"}
-                                </Button>
+                      <CardContent>
+                        <Tabs defaultValue="active" className="w-full">
+                          <TabsList className="bg-primary-foreground">
+                            <TabsTrigger value="active">
+                              {(translations?.profile?.activity?.sessions?.activeTab as string) || "Active"}
+                            </TabsTrigger>
+                            <TabsTrigger value="archived">
+                              {(translations?.profile?.activity?.sessions?.archivedTab as string) || "Archived"}
+                            </TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="active" className="space-y-3 mt-4">
+                            {sessionsError ? (
+                              <Alert variant="destructive">
+                                <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
+                                <AlertDescription>{sessionsError}</AlertDescription>
+                              </Alert>
+                            ) : sessionsLoading ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {(translations?.profile?.activity?.sessions?.loading as string) || "Loading..."}
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            ) : sessions.length === 0 ? (
+                              <div className="text-sm text-muted-foreground">
+                                {(translations?.profile?.activity?.sessions?.empty as string) || "No active sessions"}
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {sessions.map((s) => (
+                                  <div
+                                    key={s.uuid}
+                                    className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between"
+                                  >
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <div className="mt-0.5 text-muted-foreground flex-shrink-0">
+                                        {s.device === "mobile" ? (
+                                          <Smartphone className="h-4 w-4" />
+                                        ) : (
+                                          <Monitor className="h-4 w-4" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                                          <span className="break-words break-all">
+                                            {parseUserAgent(s.userAgent)}
+                                          </span>
+                                          {s.isCurrent ? (
+                                            <span className="rounded bg-muted px-2 py-0.5 text-xs flex-shrink-0">
+                                              {(translations?.profile?.activity?.sessions?.current as string) || "Current"}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground break-words">
+                                          {s.ip ? `IP: ${s.ip}` : null}
+                                          {s.region ? ` • ${(translations?.profile?.activity?.sessions?.region as string) || "Region"}: ${s.region}` : null}
+                                          {s.lastSeenAt ? ` • ${(translations?.profile?.activity?.sessions?.lastSeen as string) || "Last seen"}: ${formatLocalDateTime(s.lastSeenAt, locale)}` : null}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="w-full sm:w-auto flex-shrink-0 sm:ml-4"
+                                      onClick={() => revokeSession(s.uuid, s.isCurrent)}
+                                    >
+                                      {(translations?.profile?.activity?.sessions?.revoke as string) || "Close"}
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </TabsContent>
+                          <TabsContent value="archived" className="space-y-3 mt-4">
+                            {archivedSessionsError ? (
+                              <Alert variant="destructive">
+                                <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
+                                <AlertDescription>{archivedSessionsError}</AlertDescription>
+                              </Alert>
+                            ) : archivedSessionsLoading ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {(translations?.profile?.activity?.sessions?.archivedLoading as string) || "Loading..."}
+                              </div>
+                            ) : archivedSessions.length === 0 ? (
+                              <div className="text-sm text-muted-foreground">
+                                {(translations?.profile?.activity?.sessions?.archivedEmpty as string) || "No archived sessions"}
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {archivedSessions.map((s) => (
+                                  <div
+                                    key={s.uuid}
+                                    className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-start"
+                                  >
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <div className="mt-0.5 text-muted-foreground flex-shrink-0">
+                                        {s.device === "mobile" ? (
+                                          <Smartphone className="h-4 w-4" />
+                                        ) : (
+                                          <Monitor className="h-4 w-4" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                                          <span className="break-words break-all">
+                                            {parseUserAgent(s.userAgent)}
+                                          </span>
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground break-words">
+                                          {s.ip ? `IP: ${s.ip}` : null}
+                                          {s.region ? ` • ${(translations?.profile?.activity?.sessions?.region as string) || "Region"}: ${s.region}` : null}
+                                          {s.lastSeenAt ? ` • ${(translations?.profile?.activity?.sessions?.lastSeen as string) || "Last seen"}: ${formatLocalDateTime(s.lastSeenAt, locale)}` : null}
+                                          {s.revokedAt ? ` • ${(translations?.profile?.activity?.sessions?.revokedAt as string) || "Revoked"}: ${formatLocalDateTime(s.revokedAt, locale)}` : null}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </TabsContent>
+                        </Tabs>
                       </CardContent>
                     </Card>
 
@@ -1053,6 +1268,89 @@ export default function AdminProfilePageClient() {
                             <AlertDescription>{journalError}</AlertDescription>
                           </Alert>
                         ) : null}
+
+                        {/* Filters */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                          <div className="sm:col-span-1">
+                            <Label className="text-xs">
+                              {(translations?.profile?.activity?.journal?.filters?.actionType as string) || "Action Type"}
+                            </Label>
+                            <Select value={journalActionFilter} onValueChange={setJournalActionFilter}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">
+                                  {(translations?.profile?.activity?.journal?.filters?.allTypes as string) || "All Types"}
+                                </SelectItem>
+                                {Object.entries(JOURNAL_ACTION_NAMES).map(([value, label]) => {
+                                  const actionNames = (translations?.profile?.activity?.journal?.actionNames || {}) as Record<string, string>
+                                  const translatedLabel = actionNames[value] || label
+                                  return (
+                                    <SelectItem key={value} value={value}>
+                                      {translatedLabel}
+                                    </SelectItem>
+                                  )
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="sm:col-span-1">
+                            <Label className="text-xs">
+                              {(translations?.profile?.activity?.journal?.filters?.dateFrom as string) || "Date From"}
+                            </Label>
+                            <Input
+                              type="date"
+                              value={journalDateFrom || ""}
+                              onChange={(e) => setJournalDateFrom(e.target.value || null)}
+                              className="h-9"
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-1">
+                            <Label className="text-xs">
+                              {(translations?.profile?.activity?.journal?.filters?.dateTo as string) || "Date To"}
+                            </Label>
+                            <Input
+                              type="date"
+                              value={journalDateTo || ""}
+                              onChange={(e) => setJournalDateTo(e.target.value || null)}
+                              className="h-9"
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-1">
+                            <Label className="text-xs">
+                              {(translations?.profile?.activity?.journal?.filters?.page as string) || "Page"}
+                            </Label>
+                            <Input
+                              type="text"
+                              placeholder={(translations?.profile?.activity?.journal?.filters?.pagePlaceholder as string) || "Search by URL..."}
+                              value={journalPageFilter}
+                              onChange={(e) => setJournalPageFilter(e.target.value)}
+                              className="h-9"
+                            />
+                          </div>
+                          
+                          <div className="sm:col-span-1 flex items-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setJournalActionFilter("all")
+                                setJournalDateFrom(null)
+                                setJournalDateTo(null)
+                                setJournalPageFilter("")
+                              }}
+                              className="h-9 w-full"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              {(translations?.profile?.activity?.journal?.filters?.reset as string) || "Reset"}
+                            </Button>
+                          </div>
+                        </div>
 
                         {journalLoading ? (
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1076,17 +1374,19 @@ export default function AdminProfilePageClient() {
                               const title = actionNames[row.action] || row.action
                               return (
                                 <div key={row.uuid} className="rounded-lg border p-3">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-sm font-medium">
-                                      {title}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {formatTimestamp(row.createdAt)}
-                                    </div>
+                                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                                    <span className="font-medium">{title}</span>
+                                    <span className="text-muted-foreground">/</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatLocalDateTime(row.createdAt, locale)}
+                                    </span>
+                                    {url ? (
+                                      <>
+                                        <span className="text-muted-foreground">/</span>
+                                        <span className="text-xs text-muted-foreground break-all">{String(url)}</span>
+                                      </>
+                                    ) : null}
                                   </div>
-                                  {url ? (
-                                    <div className="mt-1 text-xs text-muted-foreground break-all">{String(url)}</div>
-                                  ) : null}
                                 </div>
                               )
                             })}

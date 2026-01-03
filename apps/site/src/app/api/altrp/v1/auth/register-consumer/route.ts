@@ -193,7 +193,12 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
     }
 
     try {
-      await sendVerificationEmail(env, createdUser, { request, force: true })
+      // Parse Accept-Language header to determine user's preferred language
+      const acceptLanguage = request.headers.get('accept-language')
+      const { parseAcceptLanguage } = await import('@/shared/utils/user-language')
+      const locale = parseAcceptLanguage(acceptLanguage)
+      
+      await sendVerificationEmail(env, createdUser, { request, force: true, locale })
     } catch (verificationError) {
       console.error('Failed to send verification email', verificationError)
     }

@@ -100,6 +100,12 @@ export async function POST(request: Request) {
       })
     } catch (e) {
       console.error("Failed to persist user session:", e)
+      // Log full error details for debugging
+      if (e instanceof Error) {
+        console.error("Error message:", e.message)
+        console.error("Error stack:", e.stack)
+      }
+      // Don't fail login if session creation fails, but log it
     }
 
     // Create session cookie (include sessionUuid)

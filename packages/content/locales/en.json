@@ -349,7 +349,15 @@
         "unknownDevice": "Unknown device",
         "current": "Current",
         "lastSeen": "Last seen",
-        "revoke": "Close"
+        "revoke": "Close",
+        "archivedTitle": "Archived sessions",
+        "archivedLoading": "Loading archived sessions...",
+        "archivedLoadError": "Failed to load archived sessions",
+        "archivedEmpty": "No archived sessions",
+        "revokedAt": "Revoked",
+        "activeTab": "Active",
+        "archivedTab": "Archived",
+        "region": "Region"
       },
       "journal": {
         "title": "Activity",
@@ -363,6 +371,15 @@
           "USER_PAGE_VIEW": "Page view",
           "USER_JOURNAL_LOGIN": "Login",
           "USER_JOURNAL_LOGOUT": "Logout"
+        },
+        "filters": {
+          "actionType": "Action Type",
+          "dateFrom": "Date From",
+          "dateTo": "Date To",
+          "page": "Page",
+          "pagePlaceholder": "Search by URL...",
+          "reset": "Reset",
+          "allTypes": "All Types"
         }
       }
     }

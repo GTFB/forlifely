@@ -349,7 +349,15 @@
         "unknownDevice": "Nepoznati uređaj",
         "current": "Trenutna",
         "lastSeen": "Poslednja aktivnost",
-        "revoke": "Zatvori"
+        "revoke": "Zatvori",
+        "archivedTitle": "Arhiva sesija",
+        "archivedLoading": "Učitavanje arhive sesija...",
+        "archivedLoadError": "Neuspešno učitavanje arhive sesija",
+        "archivedEmpty": "Nema arhiviranih sesija",
+        "revokedAt": "Zatvorena",
+        "activeTab": "Aktivne",
+        "archivedTab": "Arhiva",
+        "region": "Region"
       },
       "journal": {
         "title": "Dnevnik aktivnosti",
@@ -363,6 +371,15 @@
           "USER_PAGE_VIEW": "Poseta stranici",
           "USER_JOURNAL_LOGIN": "Prijava",
           "USER_JOURNAL_LOGOUT": "Odjava"
+        },
+        "filters": {
+          "actionType": "Tip akcije",
+          "dateFrom": "Datum od",
+          "dateTo": "Datum do",
+          "page": "Stranica",
+          "pagePlaceholder": "Pretraga po URL...",
+          "reset": "Resetuj",
+          "allTypes": "Svi tipovi"
         }
       }
     }

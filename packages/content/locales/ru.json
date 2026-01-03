@@ -349,7 +349,15 @@
         "unknownDevice": "Неизвестное устройство",
         "current": "Текущая",
         "lastSeen": "Последняя активность",
-        "revoke": "Закрыть"
+        "revoke": "Закрыть",
+        "archivedTitle": "Архив сессий",
+        "archivedLoading": "Загрузка архива сессий...",
+        "archivedLoadError": "Не удалось загрузить архив сессий",
+        "archivedEmpty": "Нет архивных сессий",
+        "revokedAt": "Закрыта",
+        "activeTab": "Активные",
+        "archivedTab": "Архив",
+        "region": "Регион"
       },
       "journal": {
         "title": "Журнал активности",
@@ -363,6 +371,15 @@
           "USER_PAGE_VIEW": "Посещение страницы",
           "USER_JOURNAL_LOGIN": "Вход в систему",
           "USER_JOURNAL_LOGOUT": "Выход из системы"
+        },
+        "filters": {
+          "actionType": "Тип действия",
+          "dateFrom": "Дата от",
+          "dateTo": "Дата до",
+          "page": "Страница",
+          "pagePlaceholder": "Поиск по URL...",
+          "reset": "Сбросить",
+          "allTypes": "Все типы"
         }
       }
     }

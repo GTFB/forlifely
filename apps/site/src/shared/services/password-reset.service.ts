@@ -65,7 +65,120 @@ const ensureCooldown = (metadata?: PasswordResetMetadata) => {
   }
 }
 
-const buildResetEmailHtml = (resetLink: string): string => {
+const buildResetEmailHtml = (resetLink: string, locale: string): string => {
+  const localeKey = locale === 'ru' || locale === 'rs' ? locale : 'en'
+  
+  if (localeKey === 'ru') {
+    return `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background-color:#ffffff;border-radius:12px;">
+          <tr>
+            <td style="padding:32px 32px 16px 32px;border-bottom:1px solid #e5e7eb;text-align:center;">
+              <div style="font-size:22px;font-weight:700;color:#111827;">Altrp</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:6px;">Сброс пароля</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">
+                Мы получили запрос на сброс вашего пароля.
+              </p>
+              <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#374151;">
+                Нажмите кнопку ниже, чтобы установить новый пароль:
+              </p>
+              <div style="text-align:center;margin:24px 0;">
+                <a href="${resetLink}" style="display:inline-block;padding:12px 20px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
+                  Сбросить пароль
+                </a>
+              </div>
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;word-break:break-all;">
+                Если кнопка не работает, откройте ссылку:
+                <br/>
+                <a href="${resetLink}" style="color:#2563eb;text-decoration:underline;">${resetLink}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;border-top:1px solid #e5e7eb;text-align:center;background-color:#f9fafb;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.5;">
+                Если вы не запрашивали сброс пароля, вы можете проигнорировать это письмо.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim()
+  }
+  
+  if (localeKey === 'rs') {
+    return `
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background-color:#f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;background-color:#ffffff;border-radius:12px;">
+          <tr>
+            <td style="padding:32px 32px 16px 32px;border-bottom:1px solid #e5e7eb;text-align:center;">
+              <div style="font-size:22px;font-weight:700;color:#111827;">Altrp</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:6px;">Resetovanje lozinke</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">
+                Primili smo zahtev za resetovanje vaše lozinke.
+              </p>
+              <p style="margin:0 0 20px 0;font-size:15px;line-height:1.6;color:#374151;">
+                Kliknite dugme ispod da postavite novu lozinku:
+              </p>
+              <div style="text-align:center;margin:24px 0;">
+                <a href="${resetLink}" style="display:inline-block;padding:12px 20px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">
+                  Resetuj lozinku
+                </a>
+              </div>
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#6b7280;word-break:break-all;">
+                Ako dugme ne radi, otvorite link:
+                <br/>
+                <a href="${resetLink}" style="color:#2563eb;text-decoration:underline;">${resetLink}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px 28px 32px;border-top:1px solid #e5e7eb;text-align:center;background-color:#f9fafb;border-bottom-left-radius:12px;border-bottom-right-radius:12px;">
+              <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.5;">
+                Ako niste tražili resetovanje lozinke, možete ignorisati ovu poruku.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim()
+  }
+  
+  // Default to English
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -123,7 +236,7 @@ const buildResetEmailHtml = (resetLink: string): string => {
 export const sendPasswordResetEmail = async (
   env: Env,
   user: EsnadUser,
-  options: { request?: Request; force?: boolean } = {},
+  options: { request?: Request; force?: boolean; locale?: string } = {},
 ): Promise<{ resendAvailableAt?: string }> => {
   const usersRepository = UsersRepository.getInstance()
   const dataIn = parseUserData(user)
@@ -149,12 +262,20 @@ export const sendPasswordResetEmail = async (
 
   const baseUrl = buildBaseUrl(env, options.request)
   const resetLink = buildResetLink(baseUrl, user.email, token)
+  const locale = options.locale === 'ru' || options.locale === 'rs' ? options.locale : 'en'
+  
+  const subject = locale === 'ru' ? 'Сброс пароля' : locale === 'rs' ? 'Resetovanje lozinke' : 'Password reset'
+  const text = locale === 'ru' 
+    ? `Откройте ссылку, чтобы сбросить пароль: ${resetLink}`
+    : locale === 'rs'
+    ? `Otvorite link da resetujete lozinku: ${resetLink}`
+    : `Open this link to reset your password: ${resetLink}`
 
   await sendEmail(env, {
     to: user.email,
-    subject: 'Password reset',
-    html: buildResetEmailHtml(resetLink),
-    text: `Open this link to reset your password: ${resetLink}`,
+    subject,
+    html: buildResetEmailHtml(resetLink, locale),
+    text,
   })
 
   return { resendAvailableAt: getNextAttemptAt((nextDataIn as any).passwordReset) || undefined }

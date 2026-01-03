@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { withAdminGuard, type AuthenticatedRequestContext } from "@/shared/api-guard"
 import { UserSessionsRepository } from "@/shared/repositories/user-sessions.repository"
-import { getSession } from "@/shared/session"
 
 function getDeviceType(userAgent: string | null | undefined): "mobile" | "desktop" {
   const ua = (userAgent || "").toLowerCase()
@@ -13,10 +12,7 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
   try {
     const repo = UserSessionsRepository.getInstance()
     const userId = Number(context.user.id)
-    const sessions = await repo.listActiveByUserId(userId)
-
-    const currentSession = context.env.AUTH_SECRET ? await getSession(context.request, context.env.AUTH_SECRET) : null
-    const currentSessionUuid = currentSession?.sessionUuid
+    const sessions = await repo.listRevokedByUserId(userId)
 
     return NextResponse.json(
       {
@@ -27,19 +23,19 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
           ip: s.ip || null,
           region: s.region || null,
           lastSeenAt: s.lastSeenAt || null,
+          revokedAt: s.revokedAt || null,
           expiresAt: s.expiresAt || null,
           device: getDeviceType(s.userAgent),
-          isCurrent: currentSessionUuid ? s.uuid === currentSessionUuid : false,
         })),
       },
       { status: 200 },
     )
   } catch (error) {
-    console.error("Failed to load sessions:", error)
+    console.error("Failed to load archived sessions:", error)
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to load sessions",
+        message: error instanceof Error ? error.message : "Failed to load archived sessions",
       },
       { status: 500 },
     )
@@ -47,5 +43,4 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
 }
 
 export const GET = withAdminGuard(handleGet)
-
 
