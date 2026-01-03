@@ -50,7 +50,7 @@ export default function PartnerSupportPage() {
     const fetchTickets = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/esnad/v1/p/support', {
+        const response = await fetch('/api/altrp/v1/p/support', {
           credentials: 'include',
         })
 
@@ -87,7 +87,7 @@ export default function PartnerSupportPage() {
       setSubmitting(true)
       setError(null)
 
-      const response = await fetch('/api/esnad/v1/p/support', {
+      const response = await fetch('/api/altrp/v1/p/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -104,7 +104,7 @@ export default function PartnerSupportPage() {
       setFormData({ subject: '', message: '' })
       setDialogOpen(false)
       
-      const ticketsRes = await fetch('/api/esnad/v1/p/support', {
+      const ticketsRes = await fetch('/api/altrp/v1/p/support', {
         credentials: 'include',
       })
       if (ticketsRes.ok) {

@@ -338,8 +338,8 @@ export default function AdminTasksPageClient() {
         }
 
         const [tasksResponse, assigneesResponse] = await Promise.all([
-          fetch('/api/esnad/v1/admin/tasks', { credentials: 'include' }),
-          fetch('/api/esnad/v1/admin/tasks/assignees', { credentials: 'include' }),
+          fetch('/api/altrp/v1/admin/tasks', { credentials: 'include' }),
+          fetch('/api/altrp/v1/admin/tasks/assignees', { credentials: 'include' }),
         ])
 
         const tasksPayload = await tasksResponse.json().catch(() => null)
@@ -412,7 +412,7 @@ export default function AdminTasksPageClient() {
 
       try {
         setActionError(null)
-        const response = await fetch(`/api/esnad/v1/admin/tasks/${taskId}`, {
+        const response = await fetch(`/api/altrp/v1/admin/tasks/${taskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -476,7 +476,7 @@ export default function AdminTasksPageClient() {
   const markTaskMessagesViewed = React.useCallback(
     async (taskId: string) => {
       try {
-        await fetch(`/api/esnad/v1/admin/tasks/${taskId}/messages/view`, {
+        await fetch(`/api/altrp/v1/admin/tasks/${taskId}/messages/view`, {
           method: 'POST',
           credentials: 'include',
         })
@@ -492,7 +492,7 @@ export default function AdminTasksPageClient() {
       try {
         setLoadingTaskMessages(true)
         const response = await fetch(
-          `/api/esnad/v1/admin/tasks/${taskId}/messages?page=${page}&limit=20`,
+          `/api/altrp/v1/admin/tasks/${taskId}/messages?page=${page}&limit=20`,
           { credentials: 'include' }
         )
         const payload = await response.json().catch(() => null)
@@ -532,7 +532,7 @@ export default function AdminTasksPageClient() {
     if (!editingTaskId || !currentThreadMaid || !latestMessageTimestampRef.current) return
     try {
       const response = await fetch(
-        `/api/esnad/v1/admin/tasks/${editingTaskId}/messages/new?after=${encodeURIComponent(
+        `/api/altrp/v1/admin/tasks/${editingTaskId}/messages/new?after=${encodeURIComponent(
           latestMessageTimestampRef.current
         )}`,
         { credentials: 'include' }
@@ -599,7 +599,7 @@ export default function AdminTasksPageClient() {
     try {
       setDeleting(true)
       setActionError(null)
-      const response = await fetch(`/api/esnad/v1/admin/tasks/${deletingTaskId}`, {
+      const response = await fetch(`/api/altrp/v1/admin/tasks/${deletingTaskId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -639,7 +639,7 @@ export default function AdminTasksPageClient() {
         ? selectedAssignee?.uuid || currentUser.uuid
         : currentUser.uuid
 
-      const response = await fetch('/api/esnad/v1/admin/tasks', {
+      const response = await fetch('/api/altrp/v1/admin/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -672,7 +672,7 @@ export default function AdminTasksPageClient() {
             fd.append('messageType', 'text')
             fd.append('content', createFirstMessage.trim())
             const msgResponse = await fetch(
-              `/api/esnad/v1/admin/tasks/${created.id}/messages`,
+              `/api/altrp/v1/admin/tasks/${created.id}/messages`,
               {
                 method: 'POST',
                 credentials: 'include',
@@ -734,7 +734,7 @@ export default function AdminTasksPageClient() {
         ? selectedAssignee?.uuid || currentUser.uuid
         : currentUser.uuid
 
-      const response = await fetch(`/api/esnad/v1/admin/tasks/${editingTaskId}`, {
+      const response = await fetch(`/api/altrp/v1/admin/tasks/${editingTaskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -820,7 +820,7 @@ export default function AdminTasksPageClient() {
         formData.append('file', taskMessageFile)
       }
 
-      const response = await fetch(`/api/esnad/v1/admin/tasks/${editingTaskId}/messages`, {
+      const response = await fetch(`/api/altrp/v1/admin/tasks/${editingTaskId}/messages`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -1216,11 +1216,11 @@ export default function AdminTasksPageClient() {
                           {messageType === 'photo' && (mediaUrl || dataIn?.mediaUuid) ? (
                             <div className="mt-2">
                               <a
-                                href={mediaUrl || `/api/esnad/v1/media/${dataIn?.mediaUuid}`}
+                                href={mediaUrl || `/api/altrp/v1/media/${dataIn?.mediaUuid}`}
                                 target="_blank"
                                 rel="noreferrer">
                                 <img
-                                  src={mediaUrl || `/api/esnad/v1/media/${dataIn?.mediaUuid}`}
+                                  src={mediaUrl || `/api/altrp/v1/media/${dataIn?.mediaUuid}`}
                                   alt="Вложение"
                                   className="max-h-48 rounded border object-contain"
                                 />

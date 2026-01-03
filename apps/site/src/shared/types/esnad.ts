@@ -402,7 +402,7 @@ export interface UploadAssetResponse {
     success: boolean
     asset: {
         uuid: string
-        url: string // /api/esnad/v1/c/assets/uuid-filename.ext
+        url: string // /api/altrp/v1/c/assets/uuid-filename.ext
         mimeType: string
         fileName: string
     }

@@ -50,7 +50,7 @@ export default function InvestorWalletPage() {
         setLoading(true)
         setError(null)
         
-        const response = await fetch('/api/esnad/v1/i/wallet/transactions', {
+        const response = await fetch('/api/altrp/v1/i/wallet/transactions', {
           credentials: 'include',
         })
 

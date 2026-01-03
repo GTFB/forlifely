@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       name: human?.fullName || dbUser.email,
       phone,
       avatarMediaUuid: avatarMediaUuid || null,
-      avatarUrl: avatarMediaUuid ? `/api/esnad/v1/media/${avatarMediaUuid}` : null,
+      avatarUrl: avatarMediaUuid ? `/api/altrp/v1/media/${avatarMediaUuid}` : null,
       humanAid: dbUser.humanAid || null,
       roles: roles.map((role) => ({
         uuid: role.uuid,

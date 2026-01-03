@@ -126,7 +126,7 @@ export default function AdminTransactionsPageClient() {
       if (walletIdFilter) params.append('walletId', walletIdFilter)
       if (walletTypeFilter) params.append('walletType', walletTypeFilter)
 
-      const response = await fetch(`/api/esnad/v1/admin/transactions?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/admin/transactions?${params.toString()}`, {
         credentials: 'include',
       })
 

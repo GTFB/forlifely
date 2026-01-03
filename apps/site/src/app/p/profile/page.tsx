@@ -33,7 +33,7 @@ export default function PartnerProfilePage() {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch('/api/esnad/v1/p/profile', {
+        const response = await fetch('/api/altrp/v1/p/profile', {
           credentials: 'include',
         })
 
@@ -72,7 +72,7 @@ export default function PartnerProfilePage() {
       setError(null)
       setSuccess(null)
 
-      const response = await fetch('/api/esnad/v1/p/profile', {
+      const response = await fetch('/api/altrp/v1/p/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

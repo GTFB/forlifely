@@ -66,7 +66,7 @@ export function MediaSelectorPopover({
       }
       params.append("limit", "100"); // Load more items for better UX
       
-      const response = await fetch(`/api/esnad/v1/admin/files/list?${params.toString()}`);
+      const response = await fetch(`/api/altrp/v1/admin/files/list?${params.toString()}`);
       const data = await response.json() as { success?: boolean; data?: Media[] };
       if (data.success && data.data) {
         setMediaList(data.data);
@@ -117,7 +117,7 @@ export function MediaSelectorPopover({
           formData.append("file", file);
           formData.append("filename", file.name);
 
-          const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
+          const response = await fetch("/api/altrp/v1/admin/files/upload-for-public", {
             method: "POST",
             body: formData,
           });

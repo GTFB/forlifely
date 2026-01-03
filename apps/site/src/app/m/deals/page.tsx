@@ -232,7 +232,7 @@ export default function AdminDealsPage() {
         params.append('search', debouncedSearchQuery)
       }
 
-      const response = await fetch(`/api/esnad/v1/admin/loan-application?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/admin/loan-application?${params.toString()}`, {
         credentials: 'include',
       })
 
@@ -317,7 +317,7 @@ export default function AdminDealsPage() {
     const fetchManagers = async () => {
       try {
         setLoadingManagers(true)
-        const response = await fetch('/api/esnad/v1/admin/users/managers', {
+        const response = await fetch('/api/altrp/v1/admin/users/managers', {
           credentials: 'include',
         })
 

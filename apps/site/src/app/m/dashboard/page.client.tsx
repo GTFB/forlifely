@@ -55,7 +55,7 @@ export default function AdminDashboardPageClient() {
         // Build API URL with date range
         const startDateStr = dateRange.start?.toISOString().split('T')[0] || ''
         const endDateStr = dateRange.end?.toISOString().split('T')[0] || ''
-        const dashboardUrl = `/api/esnad/v1/admin/dashboard?startDate=${startDateStr}&endDate=${endDateStr}`
+        const dashboardUrl = `/api/altrp/v1/admin/dashboard?startDate=${startDateStr}&endDate=${endDateStr}`
         
         // Fetch dashboard metrics
         const dashboardResponse = await fetch(dashboardUrl, {
@@ -76,7 +76,7 @@ export default function AdminDashboardPageClient() {
         }
         
         // Fetch recent journal events
-        const journalsResponse = await fetch('/api/esnad/v1/admin/journals?limit=5&orderBy=createdAt&orderDirection=desc', {
+        const journalsResponse = await fetch('/api/altrp/v1/admin/journals?limit=5&orderBy=createdAt&orderDirection=desc', {
           credentials: 'include',
         })
         

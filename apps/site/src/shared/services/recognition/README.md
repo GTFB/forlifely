@@ -207,7 +207,7 @@ interface PassportSelfieVerificationResult {
 ## Пример использования в API Route
 
 ```typescript
-// apps/site/src/app/api/esnad/v1/c/verify-selfie/route.ts
+// apps/site/src/app/api/altrp/v1/c/verify-selfie/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { 
   PassportSelfieVerificationService,

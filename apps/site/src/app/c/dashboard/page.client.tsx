@@ -38,7 +38,7 @@ export default function ConsumerDashboardPageClient() {
         setLoading(true)
         
         // Fetch all deals to calculate stats
-        const dealsResponse = await fetch('/api/esnad/v1/c/deals?limit=100&page=1', {
+        const dealsResponse = await fetch('/api/altrp/v1/c/deals?limit=100&page=1', {
           credentials: 'include',
         })
 
@@ -83,7 +83,7 @@ export default function ConsumerDashboardPageClient() {
         let nextPayment: { amount: number; date: string } | null = null
         
         try {
-          const dashboardResponse = await fetch('/api/esnad/v1/c/dashboard', {
+          const dashboardResponse = await fetch('/api/altrp/v1/c/dashboard', {
             credentials: 'include',
           })
           

@@ -260,7 +260,7 @@ function getMonthWord(months: number): string {
 export function InstallmentApplicationForm({
   human,
   initialValues,
-  submitUrl = '/api/esnad/v1/c/installment-application',
+  submitUrl = '/api/altrp/v1/c/installment-application',
   submitMethod = 'POST',
   successRedirectUrl = '/c/deals',
 }: {
@@ -318,7 +318,7 @@ export function InstallmentApplicationForm({
   React.useEffect(() => {
     if (submitMethod === 'PUT' || submitMethod === 'PATCH') {
       setLoadingGuarantors(true)
-      fetch('/api/esnad/v1/c/guarantors', { credentials: 'include' })
+      fetch('/api/altrp/v1/c/guarantors', { credentials: 'include' })
         .then((res) => res.json())
         .then((data: unknown) => {
           const response = data as { success?: boolean; guarantors?: Array<{ haid: string; fullName?: string; dataIn?: { phone?: string } }> }
@@ -2585,7 +2585,7 @@ export function InstallmentApplicationForm({
     if (submitMethod === 'PUT' || submitMethod === 'PATCH') {
       try {
         setAddingGuarantor(true)
-        const response = await fetch('/api/esnad/v1/c/guarantors', {
+        const response = await fetch('/api/altrp/v1/c/guarantors', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

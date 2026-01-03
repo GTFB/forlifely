@@ -35,7 +35,7 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
     abortRef.current = controller
     setLoading(true)
     try {
-      const response = await fetch("/api/esnad/v1/admin/notices", {
+      const response = await fetch("/api/altrp/v1/admin/notices", {
         credentials: "include",
         cache: "no-store",
         signal: controller.signal,

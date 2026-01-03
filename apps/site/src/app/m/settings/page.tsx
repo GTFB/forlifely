@@ -135,10 +135,10 @@ export default function AdminSettingsPage() {
       setError(null)
 
       const [weightsRes, thresholdsRes] = await Promise.all([
-        fetch(`/api/esnad/v1/admin/settings?uuid=${weightsUuid}`, {
+        fetch(`/api/altrp/v1/admin/settings?uuid=${weightsUuid}`, {
           credentials: 'include',
         }),
-        fetch(`/api/esnad/v1/admin/settings?uuid=${thresholdsUuid}`, {
+        fetch(`/api/altrp/v1/admin/settings?uuid=${thresholdsUuid}`, {
           credentials: 'include',
         }),
       ])
@@ -189,7 +189,7 @@ export default function AdminSettingsPage() {
       setError(null)
       setSuccess(false)
 
-      const response = await fetch('/api/esnad/v1/admin/settings', {
+      const response = await fetch('/api/altrp/v1/admin/settings', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -224,7 +224,7 @@ export default function AdminSettingsPage() {
       setError(null)
       setSuccess(false)
 
-      const response = await fetch('/api/esnad/v1/admin/settings', {
+      const response = await fetch('/api/altrp/v1/admin/settings', {
         method: 'PUT',
         credentials: 'include',
         headers: {

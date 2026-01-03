@@ -53,7 +53,7 @@ export default function SupportChatPageClient() {
     const fetchChat = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`/api/esnad/v1/c/support/${maid}`, {
+        const response = await fetch(`/api/altrp/v1/c/support/${maid}`, {
           credentials: 'include',
         })
 
@@ -92,7 +92,7 @@ export default function SupportChatPageClient() {
   const fetchMessages = React.useCallback(async (page: number, append: boolean = false) => {
     try {
       setLoadingMessages(true)
-      const response = await fetch(`/api/esnad/v1/c/support/${maid}/messages?page=${page}&limit=20`, {
+      const response = await fetch(`/api/altrp/v1/c/support/${maid}/messages?page=${page}&limit=20`, {
         credentials: 'include',
       })
 
@@ -196,7 +196,7 @@ export default function SupportChatPageClient() {
 
     markRequestInFlightRef.current = true
     try {
-      await fetch(`/api/esnad/v1/c/support/${maid}/messages/view`, {
+      await fetch(`/api/altrp/v1/c/support/${maid}/messages/view`, {
         method: 'POST',
         credentials: 'include',
       })
@@ -220,7 +220,7 @@ export default function SupportChatPageClient() {
 
     try {
       const response = await fetch(
-        `/api/esnad/v1/c/support/${maid}/messages/new?after=${encodeURIComponent(afterTimestamp)}`,
+        `/api/altrp/v1/c/support/${maid}/messages/new?after=${encodeURIComponent(afterTimestamp)}`,
         { credentials: 'include' }
       )
 
@@ -341,7 +341,7 @@ export default function SupportChatPageClient() {
       formData.append('file', file)
       formData.append('messageType', 'photo')
 
-      const response = await fetch('/api/esnad/v1/c/support/messages', {
+      const response = await fetch('/api/altrp/v1/c/support/messages', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -394,7 +394,7 @@ export default function SupportChatPageClient() {
         formData.append('messageType', 'text')
       }
 
-      const response = await fetch('/api/esnad/v1/c/support/messages', {
+      const response = await fetch('/api/altrp/v1/c/support/messages', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -479,7 +479,7 @@ export default function SupportChatPageClient() {
       setClosing(true)
       setError(null)
 
-      const response = await fetch(`/api/esnad/v1/c/support/${maid}/status`, {
+      const response = await fetch(`/api/altrp/v1/c/support/${maid}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

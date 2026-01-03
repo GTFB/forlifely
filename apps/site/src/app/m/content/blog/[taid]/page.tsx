@@ -129,7 +129,7 @@ export default function AdminBlogEditPage() {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/esnad/v1/admin/content/blog/${taid}`, {
+      const response = await fetch(`/api/altrp/v1/admin/content/blog/${taid}`, {
         credentials: 'include',
       })
 
@@ -212,8 +212,8 @@ export default function AdminBlogEditPage() {
       }
 
       const url = isNew
-        ? '/api/esnad/v1/admin/content/blog'
-        : `/api/esnad/v1/admin/content/blog/${taid}`
+        ? '/api/altrp/v1/admin/content/blog'
+        : `/api/altrp/v1/admin/content/blog/${taid}`
 
       const response = await fetch(url, {
         method: isNew ? 'POST' : 'PUT',

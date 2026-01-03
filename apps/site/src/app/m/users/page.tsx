@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
     const fetchRoles = async () => {
       try {
         setLoadingRoles(true)
-        const response = await fetch('/api/esnad/v1/admin/roles', {
+        const response = await fetch('/api/altrp/v1/admin/roles', {
           credentials: 'include',
         })
 
@@ -218,7 +218,7 @@ export default function AdminUsersPage() {
         params.append('kycStatus', selectedKycStatus)
       }
 
-      const response = await fetch(`/api/esnad/v1/admin/users?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/admin/users?${params.toString()}`, {
         credentials: 'include',
       })
 
@@ -367,7 +367,7 @@ export default function AdminUsersPage() {
       const fetchRoles = async () => {
         try {
           setLoadingRoles(true)
-          const response = await fetch('/api/esnad/v1/admin/roles', {
+          const response = await fetch('/api/altrp/v1/admin/roles', {
             credentials: 'include',
           })
 
@@ -396,7 +396,7 @@ export default function AdminUsersPage() {
     try {
       setSubmitting(true)
 
-      const response = await fetch('/api/esnad/v1/admin/users', {
+      const response = await fetch('/api/altrp/v1/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

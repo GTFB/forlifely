@@ -53,7 +53,7 @@ export function MediaUpload({
   // Load media list on component mount to ensure we have the data
   const loadMediaList = useCallback(async () => {
     try {
-      const response = await fetch("/api/esnad/v1/admin/files/list?limit=100");
+      const response = await fetch("/api/altrp/v1/admin/files/list?limit=100");
       const data = await response.json();
       if (data.data) {
         setMediaList(
@@ -94,7 +94,7 @@ export function MediaUpload({
         const formData = new FormData();
         formData.append("file", file);
         // Upload file (public)
-        const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
+        const response = await fetch("/api/altrp/v1/admin/files/upload-for-public", {
           method: "POST",
           body: formData,
         });

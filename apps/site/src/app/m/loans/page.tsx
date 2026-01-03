@@ -183,7 +183,7 @@ export default function AdminLoansPage() {
         params.append('search', debouncedSearchQuery)
       }
 
-      const response = await fetch(`/api/esnad/v1/admin/loan-application?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/admin/loan-application?${params.toString()}`, {
         credentials: 'include',
       })
 

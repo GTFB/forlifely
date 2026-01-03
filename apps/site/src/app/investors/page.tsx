@@ -109,7 +109,7 @@ export default function InvestorsPage() {
     setErrorMessage(null);
 
     try {
-      const response = await fetch("/api/esnad/v1/investor-form", {
+      const response = await fetch("/api/altrp/v1/investor-form", {
         method: "POST",
         headers: {
           "content-type": "application/json",

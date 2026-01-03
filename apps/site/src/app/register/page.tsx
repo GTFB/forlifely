@@ -152,7 +152,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const response = await fetch("/api/esnad/v1/auth/register-consumer", {
+      const response = await fetch("/api/altrp/v1/auth/register-consumer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

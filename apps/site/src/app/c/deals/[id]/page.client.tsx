@@ -58,7 +58,7 @@ export default function DealDetailPageClient() {
         setLoading(true)
         setError(null)
         
-        const response = await fetch(`/api/esnad/v1/c/deals/${dealId}`, {
+        const response = await fetch(`/api/altrp/v1/c/deals/${dealId}`, {
           credentials: 'include',
         })
 
@@ -91,7 +91,7 @@ export default function DealDetailPageClient() {
         setLoadingFinances(true)
         setFinancesError(null)
 
-        const response = await fetch(`/api/esnad/v1/c/deals/${dealId}/finances`, {
+        const response = await fetch(`/api/altrp/v1/c/deals/${dealId}/finances`, {
           credentials: 'include',
         })
 

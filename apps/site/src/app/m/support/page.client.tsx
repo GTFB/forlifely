@@ -51,10 +51,10 @@ export default function AdminSupportPageClient() {
       
       // Fetch operators (admins) and tickets in parallel
       const [operatorsResponse, ticketsResponse] = await Promise.all([
-        fetch('/api/esnad/v1/admin/users/managers', {
+        fetch('/api/altrp/v1/admin/users/managers', {
           credentials: 'include',
         }),
-        fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
+        fetch('/api/altrp/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
           credentials: 'include',
         }),
       ])
@@ -95,10 +95,10 @@ export default function AdminSupportPageClient() {
       
       // Fetch operators (admins) and tickets in parallel
       const [operatorsResponse, ticketsResponse] = await Promise.all([
-        fetch('/api/esnad/v1/admin/users/managers', {
+        fetch('/api/altrp/v1/admin/users/managers', {
           credentials: 'include',
         }),
-        fetch('/api/esnad/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
+        fetch('/api/altrp/v1/admin/support?orderBy=updatedAt&orderDirection=desc', {
           credentials: 'include',
         }),
       ])

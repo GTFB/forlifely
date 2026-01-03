@@ -91,7 +91,7 @@ export default function InvestorProductsPage() {
   React.useEffect(() => {
     const checkKycStatus = async () => {
       try {
-        const response = await fetch('/api/esnad/v1/me/kyc-status', {
+        const response = await fetch('/api/altrp/v1/me/kyc-status', {
           credentials: 'include',
         })
 
@@ -118,7 +118,7 @@ export default function InvestorProductsPage() {
     if (!kycChecked) {
       // Wait for KYC check to complete
       try {
-        const response = await fetch('/api/esnad/v1/me/kyc-status', {
+        const response = await fetch('/api/altrp/v1/me/kyc-status', {
           credentials: 'include',
         })
         if (response.ok) {

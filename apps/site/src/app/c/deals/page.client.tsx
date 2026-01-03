@@ -55,7 +55,7 @@ export default function DealsPageClient() {
       if (search) params.append('search', search)
       if (statusFilter) params.append('status', statusFilter)
       
-      const response = await fetch(`/api/esnad/v1/c/deals?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/c/deals?${params.toString()}`, {
         credentials: 'include',
       })
 

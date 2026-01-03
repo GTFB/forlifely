@@ -81,7 +81,7 @@ GOOGLE_CLOUD_CREDENTIALS='{"type":"service_account",...}'
 
 ## API Endpoints
 
-### POST `/api/esnad/v1/c/profile/verify-selfie-with-passport`
+### POST `/api/altrp/v1/c/profile/verify-selfie-with-passport`
 
 Загружает селфи с паспортом и выполняет верификацию.
 

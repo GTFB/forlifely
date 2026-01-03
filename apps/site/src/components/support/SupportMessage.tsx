@@ -67,8 +67,8 @@ export function SupportMessage({
     const fetchViewStatus = async () => {
       try {
         const apiPath = isClientView
-          ? `/api/esnad/v1/c/messages/${message.uuid}/view-status`
-          : `/api/esnad/v1/admin/messages/${message.uuid}/view-status`
+          ? `/api/altrp/v1/c/messages/${message.uuid}/view-status`
+          : `/api/altrp/v1/admin/messages/${message.uuid}/view-status`
 
         const response = await fetch(apiPath, {
           credentials: 'include',
@@ -101,8 +101,8 @@ export function SupportMessage({
         // Fetch updated view status
         try {
           const apiPath = isClientView
-            ? `/api/esnad/v1/c/messages/${message.uuid}/view-status`
-            : `/api/esnad/v1/admin/messages/${message.uuid}/view-status`
+            ? `/api/altrp/v1/c/messages/${message.uuid}/view-status`
+            : `/api/altrp/v1/admin/messages/${message.uuid}/view-status`
 
           const response = await fetch(apiPath, {
             credentials: 'include',
@@ -146,7 +146,7 @@ export function SupportMessage({
         {isPhoto && mediaUuid ? (
           <div className="space-y-2">
             <img
-              src={`/api/esnad/v1/c/files/${mediaUuid}`}
+              src={`/api/altrp/v1/c/files/${mediaUuid}`}
               alt="Photo"
               className="max-w-md rounded-lg"
               onError={(e) => {
@@ -204,7 +204,7 @@ export function SupportMessage({
       {isPhoto && mediaUuid ? (
         <div className="space-y-2">
           <img
-            src={`/api/esnad/v1/admin/files/${mediaUuid}`}
+            src={`/api/altrp/v1/admin/files/${mediaUuid}`}
             alt="Photo"
             className="max-w-md rounded-lg"
             onError={(e) => {

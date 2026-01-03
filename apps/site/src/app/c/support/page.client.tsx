@@ -49,7 +49,7 @@ export default function SupportPageClient() {
       if (showLoading) {
         setLoading(true)
       }
-      const response = await fetch('/api/esnad/v1/c/support?orderBy=updatedAt&orderDirection=desc', {
+      const response = await fetch('/api/altrp/v1/c/support?orderBy=updatedAt&orderDirection=desc', {
         credentials: 'include',
       })
 
@@ -101,7 +101,7 @@ export default function SupportPageClient() {
       setSubmitting(true)
       setError(null)
 
-      const response = await fetch('/api/esnad/v1/c/support', {
+      const response = await fetch('/api/altrp/v1/c/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -123,7 +123,7 @@ export default function SupportPageClient() {
       setDialogOpen(false)
       
       // Reload tickets
-      const ticketsRes = await fetch('/api/esnad/v1/c/support', {
+      const ticketsRes = await fetch('/api/altrp/v1/c/support', {
         credentials: 'include',
       })
       if (ticketsRes.ok) {

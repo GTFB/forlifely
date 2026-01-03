@@ -271,7 +271,7 @@ export default function ConsumersPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch("/api/esnad/v1/consumers-form", {
+      const response = await fetch("/api/altrp/v1/consumers-form", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

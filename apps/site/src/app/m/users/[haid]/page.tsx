@@ -148,7 +148,7 @@ export default function EditUserPage() {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/esnad/v1/admin/users/${uuid}`, {
+      const response = await fetch(`/api/altrp/v1/admin/users/${uuid}`, {
         credentials: 'include',
       })
 
@@ -235,7 +235,7 @@ export default function EditUserPage() {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch('/api/esnad/v1/admin/roles', {
+      const response = await fetch('/api/altrp/v1/admin/roles', {
         credentials: 'include',
       })
 
@@ -341,7 +341,7 @@ export default function EditUserPage() {
         updateData.workExperience = formData.workExperience.trim()
       }
 
-      const response = await fetch(`/api/esnad/v1/admin/users/${uuid}`, {
+      const response = await fetch(`/api/altrp/v1/admin/users/${uuid}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -409,7 +409,7 @@ export default function EditUserPage() {
       if (ocrFormData.passportDivisionCode !== undefined) updateData.passportDivisionCode = ocrFormData.passportDivisionCode.trim() || null
       if (ocrFormData.citizenship !== undefined) updateData.citizenship = ocrFormData.citizenship.trim() || null
 
-      const response = await fetch(`/api/esnad/v1/admin/users/${user.uuid}`, {
+      const response = await fetch(`/api/altrp/v1/admin/users/${user.uuid}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -476,7 +476,7 @@ export default function EditUserPage() {
     if (!user) return
     try {
       setKycUpdating(true)
-      const response = await fetch(`/api/esnad/v1/admin/users/${user.uuid}`, {
+      const response = await fetch(`/api/altrp/v1/admin/users/${user.uuid}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -591,7 +591,7 @@ export default function EditUserPage() {
                 <div className="flex items-start gap-6">
                   <Avatar className="h-32 w-32 border-2 shadow-md">
                     <AvatarImage 
-                      src={`/api/esnad/v1/media/${user.human.dataIn.avatarMedia.uuid}`}
+                      src={`/api/altrp/v1/media/${user.human.dataIn.avatarMedia.uuid}`}
                       alt={user.human.fullName || user.email}
                     />
                     <AvatarFallback className="text-4xl">
@@ -1184,7 +1184,7 @@ export default function EditUserPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       {kycDocuments.map((doc: any, index: number) => {
-                        const fileUrl = `/api/esnad/v1/admin/files/${doc.mediaUuid}`
+                        const fileUrl = `/api/altrp/v1/admin/files/${doc.mediaUuid}`
                         return (
                           <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3 flex-1">

@@ -37,7 +37,7 @@ export function ClientNoticesProvider({ children }: { children: React.ReactNode 
     abortRef.current = controller
     setLoading(true)
     try {
-      const response = await fetch("/api/esnad/v1/c/notices", {
+      const response = await fetch("/api/altrp/v1/c/notices", {
         credentials: "include",
         cache: "no-store",
         signal: controller.signal,

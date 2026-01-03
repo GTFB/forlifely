@@ -213,7 +213,7 @@ export function TipTapEditor({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const response = await fetch("/api/esnad/v1/admin/files/upload-for-public", {
+      const response = await fetch("/api/altrp/v1/admin/files/upload-for-public", {
         method: "POST",
         body: formData,
       });

@@ -87,8 +87,8 @@ export default function DealEditPageClient() {
         setError(null)
 
         const [dealRes, humanRes] = await Promise.all([
-          fetch(`/api/esnad/v1/c/deals/${dealId}`, { credentials: 'include' }),
-          fetch('/api/esnad/v1/c/human', { credentials: 'include' }),
+          fetch(`/api/altrp/v1/c/deals/${dealId}`, { credentials: 'include' }),
+          fetch('/api/altrp/v1/c/human', { credentials: 'include' }),
         ])
 
         if (!dealRes.ok) {
@@ -175,7 +175,7 @@ export default function DealEditPageClient() {
       <InstallmentApplicationForm
         human={human}
         initialValues={initialValues}
-        submitUrl={`/api/esnad/v1/c/deals/${dealId}`}
+        submitUrl={`/api/altrp/v1/c/deals/${dealId}`}
         submitMethod="PUT"
         successRedirectUrl={`/c/deals/${dealId}`}
       />

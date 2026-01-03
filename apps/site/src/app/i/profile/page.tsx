@@ -104,7 +104,7 @@ export default function InvestorProfilePage() {
     const fetchProfile = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/esnad/v1/i/profile', {
+        const response = await fetch('/api/altrp/v1/i/profile', {
           credentials: 'include',
         })
 
@@ -135,7 +135,7 @@ export default function InvestorProfilePage() {
       setSaving(true)
       setError(null)
 
-      const response = await fetch('/api/esnad/v1/i/profile', {
+      const response = await fetch('/api/altrp/v1/i/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -148,7 +148,7 @@ export default function InvestorProfilePage() {
       }
 
       // Reload profile
-      const reloadResponse = await fetch('/api/esnad/v1/i/profile', {
+      const reloadResponse = await fetch('/api/altrp/v1/i/profile', {
         credentials: 'include',
       })
       if (reloadResponse.ok) {
@@ -203,7 +203,7 @@ export default function InvestorProfilePage() {
         return
       }
 
-      const response = await fetch('/api/esnad/v1/i/profile/change-password', {
+      const response = await fetch('/api/altrp/v1/i/profile/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -270,8 +270,8 @@ export default function InvestorProfilePage() {
 
       // Special handling for selfie with passport - use verification endpoint
       const endpoint = documentType === 'selfie_with_passport' 
-        ? '/api/esnad/v1/i/profile/verify-selfie-with-passport'
-        : '/api/esnad/v1/i/profile/kyc-documents'
+        ? '/api/altrp/v1/i/profile/verify-selfie-with-passport'
+        : '/api/altrp/v1/i/profile/kyc-documents'
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -312,7 +312,7 @@ export default function InvestorProfilePage() {
       setTimeout(() => setUploadSuccess(null), 5000)
 
       // Reload profile to show updated documents
-      const reloadResponse = await fetch('/api/esnad/v1/i/profile', {
+      const reloadResponse = await fetch('/api/altrp/v1/i/profile', {
         credentials: 'include',
       })
       if (reloadResponse.ok) {
@@ -545,7 +545,7 @@ export default function InvestorProfilePage() {
                                       {uploadedDoc.mediaUuid && (
                                         <div className="mt-2">
                                           <img 
-                                            src={`/api/esnad/v1/media/${uploadedDoc.mediaUuid}`}
+                                            src={`/api/altrp/v1/media/${uploadedDoc.mediaUuid}`}
                                             alt="Selfie preview" 
                                             className="h-24 w-24 object-cover rounded-md border shadow-sm"
                                             onError={(e) => {

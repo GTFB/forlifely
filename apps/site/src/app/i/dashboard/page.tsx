@@ -66,7 +66,7 @@ export default function InvestorDashboardPage() {
         })
 
         // Add date filters if needed (journals API will filter by investor automatically)
-        const journalsResponse = await fetch(`/api/esnad/v1/i/journals?${journalsParams.toString()}`, {
+        const journalsResponse = await fetch(`/api/altrp/v1/i/journals?${journalsParams.toString()}`, {
           credentials: 'include',
         })
 

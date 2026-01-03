@@ -379,7 +379,7 @@ export default function AdminProfilePageClient() {
         return
       }
 
-      const res = await fetch("/api/esnad/v1/admin/profile/change-email/request", {
+      const res = await fetch("/api/altrp/v1/admin/profile/change-email/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -426,7 +426,7 @@ export default function AdminProfilePageClient() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/esnad/v1/admin/profile", { credentials: "include" })
+      const res = await fetch("/api/altrp/v1/admin/profile", { credentials: "include" })
       if (!res.ok) throw new Error(tProfile.errors.loadProfile)
       const json = (await res.json()) as { profile: AdminProfile }
       setProfile(json.profile)
@@ -447,7 +447,7 @@ export default function AdminProfilePageClient() {
     setSessionsLoading(true)
     setSessionsError(null)
     try {
-      const res = await fetch("/api/esnad/v1/admin/profile/sessions", { credentials: "include" })
+      const res = await fetch("/api/altrp/v1/admin/profile/sessions", { credentials: "include" })
       const json = (await res.json().catch(() => null)) as { success?: boolean; sessions?: UserSessionItem[]; message?: string } | null
       if (!res.ok || !json?.success) {
         throw new Error(
@@ -470,7 +470,7 @@ export default function AdminProfilePageClient() {
 
   const revokeSession = React.useCallback(async (sessionUuid: string, isCurrent: boolean) => {
     try {
-      await fetch("/api/esnad/v1/admin/profile/sessions/revoke", {
+      await fetch("/api/altrp/v1/admin/profile/sessions/revoke", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -489,7 +489,7 @@ export default function AdminProfilePageClient() {
     setJournalLoading(true)
     setJournalError(null)
     try {
-      const res = await fetch(`/api/esnad/v1/admin/profile/journals?p=${page}&ps=${journalPageSize}`, {
+      const res = await fetch(`/api/altrp/v1/admin/profile/journals?p=${page}&ps=${journalPageSize}`, {
         credentials: "include",
       })
       const json = (await res.json().catch(() => null)) as any
@@ -530,7 +530,7 @@ export default function AdminProfilePageClient() {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch("/api/esnad/v1/admin/profile", {
+      const res = await fetch("/api/altrp/v1/admin/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -561,7 +561,7 @@ export default function AdminProfilePageClient() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/esnad/v1/admin/profile/avatar", {
+      const res = await fetch("/api/altrp/v1/admin/profile/avatar", {
         method: "POST",
         credentials: "include",
         body: fd,
@@ -584,14 +584,14 @@ export default function AdminProfilePageClient() {
             const parsed = JSON.parse(cachedUser)
             const next = {
               ...parsed,
-              avatarUrl: `/api/esnad/v1/media/${avatarMediaUuid}`,
+              avatarUrl: `/api/altrp/v1/media/${avatarMediaUuid}`,
             }
             sessionStorage.setItem("sidebar-user", JSON.stringify(next))
             window.dispatchEvent(new CustomEvent("sidebar-user-updated", { detail: next }))
           } else {
             window.dispatchEvent(
               new CustomEvent("sidebar-user-updated", {
-                detail: { avatarUrl: `/api/esnad/v1/media/${avatarMediaUuid}` },
+                detail: { avatarUrl: `/api/altrp/v1/media/${avatarMediaUuid}` },
               }),
             )
           }
@@ -611,7 +611,7 @@ export default function AdminProfilePageClient() {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch("/api/esnad/v1/admin/profile/avatar", {
+      const res = await fetch("/api/altrp/v1/admin/profile/avatar", {
         method: "DELETE",
         credentials: "include",
       })
@@ -663,7 +663,7 @@ export default function AdminProfilePageClient() {
         setPasswordError(tProfile.errors.mismatch)
         return
       }
-      const res = await fetch("/api/esnad/v1/admin/profile/change-password", {
+      const res = await fetch("/api/altrp/v1/admin/profile/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -694,7 +694,7 @@ export default function AdminProfilePageClient() {
     return validatePassword(passwordData.newPassword).valid
   }, [passwordData.currentPassword, passwordData.newPassword, passwordData.confirmPassword])
 
-  const avatarSrc = profile?.avatarMediaUuid ? `/api/esnad/v1/media/${profile.avatarMediaUuid}` : null
+  const avatarSrc = profile?.avatarMediaUuid ? `/api/altrp/v1/media/${profile.avatarMediaUuid}` : null
   const initials = React.useMemo(() => {
     return getInitials(formData.firstName, formData.lastName, profile?.name, profile?.email)
   }, [formData.firstName, formData.lastName, profile?.name, profile?.email])
@@ -985,22 +985,16 @@ export default function AdminProfilePageClient() {
                             <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
                             <AlertDescription>{sessionsError}</AlertDescription>
                           </Alert>
-                        ) : null}
-
-                        {sessionsLoading ? (
+                        ) : sessionsLoading ? (
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             {(translations?.profile?.activity?.sessions?.loading as string) || "Loading..."}
                           </div>
-                        ) : null}
-
-                        {!sessionsLoading && sessions.length === 0 ? (
+                        ) : sessions.length === 0 ? (
                           <div className="text-sm text-muted-foreground">
                             {(translations?.profile?.activity?.sessions?.empty as string) || "No active sessions"}
                           </div>
-                        ) : null}
-
-                        {!sessionsLoading && sessions.length ? (
+                        ) : (
                           <div className="space-y-2">
                             {sessions.map((s) => (
                               <div
@@ -1044,7 +1038,7 @@ export default function AdminProfilePageClient() {
                               </div>
                             ))}
                           </div>
-                        ) : null}
+                        )}
                       </CardContent>
                     </Card>
 

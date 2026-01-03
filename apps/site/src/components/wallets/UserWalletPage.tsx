@@ -83,7 +83,7 @@ export default function UserWalletPage({
       if (!wallet?.uuid) return
 
       try {
-        const response = await fetch(`/api/esnad/v1/admin/wallets/${wallet.uuid}/transactions`, {
+        const response = await fetch(`/api/altrp/v1/admin/wallets/${wallet.uuid}/transactions`, {
           credentials: 'include',
         })
 
@@ -124,7 +124,7 @@ export default function UserWalletPage({
     try {
       // Используем новый endpoint для начисления средств
       // Он автоматически проверит и погасит finance при необходимости
-      const response = await fetch(`/api/esnad/v1/admin/wallets/${wallet.uuid}/deposit`, {
+      const response = await fetch(`/api/altrp/v1/admin/wallets/${wallet.uuid}/deposit`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -162,7 +162,7 @@ export default function UserWalletPage({
 
         // Перезагружаем транзакции
         if (wallet?.uuid) {
-          const transactionsResponse = await fetch(`/api/esnad/v1/admin/wallets/${wallet.uuid}/transactions`, {
+          const transactionsResponse = await fetch(`/api/altrp/v1/admin/wallets/${wallet.uuid}/transactions`, {
             credentials: 'include',
           })
           if (transactionsResponse.ok) {

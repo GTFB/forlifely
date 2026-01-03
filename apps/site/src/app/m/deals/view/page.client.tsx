@@ -121,7 +121,7 @@ export default function DealDetailPageClient() {
           filters
         })
 
-        const response = await fetch(`/api/esnad/v1/admin/loan-application?${query}`, {
+        const response = await fetch(`/api/altrp/v1/admin/loan-application?${query}`, {
           credentials: 'include',
           method: 'GET',
         })
@@ -153,7 +153,7 @@ export default function DealDetailPageClient() {
           
           if (documentUuids.length > 0) {
             try {
-              const metadataResponse = await fetch('/api/esnad/v1/admin/files/metadata', {
+              const metadataResponse = await fetch('/api/altrp/v1/admin/files/metadata', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -179,7 +179,7 @@ export default function DealDetailPageClient() {
           // Load human KYC documents if clientAid exists
           if (fetchedDeal.clientAid) {
             try {
-              const humanResponse = await fetch(`/api/esnad/v1/admin/human/by-haid/${fetchedDeal.clientAid}`, {
+              const humanResponse = await fetch(`/api/altrp/v1/admin/human/by-haid/${fetchedDeal.clientAid}`, {
                 credentials: 'include',
               })
               
@@ -211,7 +211,7 @@ export default function DealDetailPageClient() {
                       
                       if (guarantor1Haid) {
                         guarantorPromises.push(
-                          fetch(`/api/esnad/v1/admin/human/by-haid/${guarantor1Haid}`, {
+                          fetch(`/api/altrp/v1/admin/human/by-haid/${guarantor1Haid}`, {
                             credentials: 'include',
                           })
                             .then(async (res) => {
@@ -228,7 +228,7 @@ export default function DealDetailPageClient() {
 
                       if (guarantor2Haid) {
                         guarantorPromises.push(
-                          fetch(`/api/esnad/v1/admin/human/by-haid/${guarantor2Haid}`, {
+                          fetch(`/api/altrp/v1/admin/human/by-haid/${guarantor2Haid}`, {
                             credentials: 'include',
                           })
                             .then(async (res) => {
@@ -256,7 +256,7 @@ export default function DealDetailPageClient() {
                     const kycUuids = kycDocuments.map((doc: any) => doc.mediaUuid).filter(Boolean)
                     if (kycUuids.length > 0) {
                       try {
-                        const kycMetadataResponse = await fetch('/api/esnad/v1/admin/files/metadata', {
+                        const kycMetadataResponse = await fetch('/api/altrp/v1/admin/files/metadata', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           credentials: 'include',
@@ -302,7 +302,7 @@ export default function DealDetailPageClient() {
     const fetchManagers = async () => {
       try {
         setLoadingManagers(true)
-        const response = await fetch('/api/esnad/v1/admin/users/managers', {
+        const response = await fetch('/api/altrp/v1/admin/users/managers', {
           credentials: 'include',
         })
 
@@ -371,7 +371,7 @@ export default function DealDetailPageClient() {
       try {
         setLoadingFinances(true)
 
-        const response = await fetch(`/api/esnad/v1/admin/deals/${dealId}/finances`, {
+        const response = await fetch(`/api/altrp/v1/admin/deals/${dealId}/finances`, {
           credentials: 'include',
         })
 
@@ -460,11 +460,11 @@ export default function DealDetailPageClient() {
   }
 
   const handleApprove = async () => {
-    await submitLoanDecision('/api/esnad/v1/admin/loans/approve')
+    await submitLoanDecision('/api/altrp/v1/admin/loans/approve')
   }
 
   const handleReject = async () => {
-    await submitLoanDecision('/api/esnad/v1/admin/loans/cancel')
+    await submitLoanDecision('/api/altrp/v1/admin/loans/cancel')
   }
 
   const handlePriorityUpdate = async () => {
@@ -475,7 +475,7 @@ export default function DealDetailPageClient() {
       setPriorityError(null)
       setPrioritySuccess(false)
 
-      const response = await fetch('/api/esnad/v1/admin/loan-application/priority', {
+      const response = await fetch('/api/altrp/v1/admin/loan-application/priority', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -537,7 +537,7 @@ export default function DealDetailPageClient() {
       setSubmitting(true)
       setActionError(null)
 
-      const response = await fetch('/api/esnad/v1/admin/loans/request-additional-info', {
+      const response = await fetch('/api/altrp/v1/admin/loans/request-additional-info', {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -843,7 +843,7 @@ export default function DealDetailPageClient() {
                       <AvatarImage
                         src={
                           humanClient?.dataIn?.avatarMedia?.uuid
-                            ? `/api/esnad/v1/media/${humanClient.dataIn.avatarMedia.uuid}`
+                            ? `/api/altrp/v1/media/${humanClient.dataIn.avatarMedia.uuid}`
                             : undefined
                         }
                         alt={deal.dataIn.firstName}
@@ -1261,7 +1261,7 @@ export default function DealDetailPageClient() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
-                                      const url = `/api/esnad/v1/admin/files/${doc.uuid}`
+                                      const url = `/api/altrp/v1/admin/files/${doc.uuid}`
                                       const width = 1200
                                       const height = 800
                                       const left = (window.screen.width - width) / 2

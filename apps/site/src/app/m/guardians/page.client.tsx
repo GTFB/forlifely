@@ -64,7 +64,7 @@ export default function AdminGuardiansPageClient() {
         limit: pagination.limit.toString(),
       })
 
-      const response = await fetch(`/api/esnad/v1/admin/guardians?${params.toString()}`, {
+      const response = await fetch(`/api/altrp/v1/admin/guardians?${params.toString()}`, {
         credentials: 'include',
       })
 
