@@ -114,7 +114,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                         {isCollapsed ? (
                           <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-none">
                             <Image
-                              src="/images/favicon.jpg"
+                              src="/images/favicon.png"
                               alt="Favicon"
                               width={32}
                               height={32}

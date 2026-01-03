@@ -21,10 +21,10 @@ import {
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
-import { useLocale } from "@/packages/hooks/use-locale"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
 import qs from "qs"
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -548,14 +548,24 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
 
 export function DataTable() {
   const { state, setState } = useAdminState()
-  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar-locale')
-      if (saved === 'en' || saved === 'ru') {
-        return saved
+  type LanguageCode = (typeof LANGUAGES)[number]["code"]
+  const supportedLanguageCodes = React.useMemo(
+    () => LANGUAGES.map((l) => l.code),
+    []
+  )
+
+  const [locale, setLocale] = React.useState<LanguageCode>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebar-locale")
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
       }
     }
-    return 'ru'
+    const defaultLang = PROJECT_SETTINGS.defaultLanguage
+    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
+      return defaultLang as LanguageCode
+    }
+    return LANGUAGES[0]?.code || ("en" as LanguageCode)
   })
 
   const [data, setData] = React.useState<CollectionData[]>([])
@@ -591,8 +601,8 @@ export function DataTable() {
   React.useEffect(() => {
     const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
       const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
-      if (newLocale === 'en' || newLocale === 'ru') {
-        setLocale(newLocale)
+      if (newLocale && supportedLanguageCodes.includes(newLocale as LanguageCode)) {
+        setLocale(newLocale as LanguageCode)
       }
     }
 
@@ -605,7 +615,7 @@ export function DataTable() {
       window.removeEventListener('storage', handleLocaleChanged as EventListener)
       window.removeEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
     }
-  }, [])
+  }, [supportedLanguageCodes])
 
   // Load translations
   React.useEffect(() => {
@@ -643,10 +653,13 @@ export function DataTable() {
         console.error('[DataTable] Failed to load translations:', e)
         // Fallback to direct import
         try {
-          const translationsModule = locale === 'ru'
-            ? await import("@/packages/content/locales/ru.json")
-            : await import("@/packages/content/locales/en.json")
-          setTranslations(translationsModule.default || translationsModule)
+          try {
+            const translationsModule = await import(`@/packages/content/locales/${locale}.json`)
+            setTranslations(translationsModule.default || translationsModule)
+          } catch {
+            const translationsModule = await import("@/packages/content/locales/en.json")
+            setTranslations(translationsModule.default || translationsModule)
+          }
         } catch (fallbackError) {
           console.error('Fallback import also failed:', fallbackError)
         }
@@ -713,6 +726,41 @@ export function DataTable() {
     }
     return dataTableTranslations || defaultT
   }, [translations?.dataTable])
+
+  const collectionToEntityKey = React.useCallback((collection: string): string => {
+    const normalized = (collection || "").toLowerCase()
+    const specialCases: Record<string, string> = {
+      echelon_employees: "employee_echelon",
+      product_variants: "product_variant",
+      asset_variants: "asset_variant",
+      text_variants: "text_variant",
+      wallet_transactions: "wallet_transaction",
+      base_moves: "base_move",
+      base_move_routes: "base_move_route",
+      message_threads: "message_thread",
+      outreach_referrals: "outreach_referral",
+      echelons: "employee_echelon",
+      employee_timesheets: "employee_timesheet",
+      employee_leaves: "employee_leave",
+      journal_generations: "journal_generation",
+      journal_connections: "journal_connection",
+      user_sessions: "user_session",
+      user_bans: "user_ban",
+      user_verifications: "user_verification",
+      role_permissions: "role_permission",
+    }
+    const mapped = specialCases[normalized] || normalized
+    if (mapped.endsWith("ies")) return mapped.slice(0, -3) + "y"
+    if (mapped.endsWith("es") && !mapped.endsWith("ses")) return mapped.slice(0, -2)
+    if (mapped.endsWith("s")) return mapped.slice(0, -1)
+    return mapped
+  }, [])
+
+  const collectionLabel = React.useMemo(() => {
+    const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+    const key = collectionToEntityKey(state.collection)
+    return entityOptions[key] || state.collection
+  }, [state.collection, translations, collectionToEntityKey])
   
   React.useEffect(() => {
     console.log('[DataTable] Current translations:', { locale, hasTranslations: !!translations, dataTable: translations?.dataTable, t })
@@ -1372,7 +1420,7 @@ export function DataTable() {
             placeholder={t.search}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-primary-foreground"
           />
         </div>
         
@@ -1394,7 +1442,7 @@ export function DataTable() {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="bg-primary-foreground">
                 <IconLayoutColumns />
                 <span className="hidden lg:inline">{t.customizeColumns}</span>
                 <span className="lg:hidden">{t.columns}</span>
@@ -1425,7 +1473,7 @@ export function DataTable() {
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button variant="outline" size="sm" className="bg-primary-foreground" onClick={() => setCreateOpen(true)}>
             <IconPlus />
             <span className="hidden lg:inline">{t.add}</span>
           </Button>
@@ -1438,7 +1486,9 @@ export function DataTable() {
         {loading && (
           <div className="flex items-center justify-center py-8">
             <IconLoader className="size-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">Loading {state.collection}...</span>
+            <span className="ml-2 text-sm text-muted-foreground">
+              {(t.loading || "Loading {collection}...").replace("{collection}", collectionLabel)}
+            </span>
           </div>
         )}
         {error && (
@@ -1448,7 +1498,7 @@ export function DataTable() {
         )}
         {!loading && !error && (
           <>
-        <div className="overflow-hidden rounded-lg border">
+        <div className="overflow-hidden rounded-lg border bg-primary-foreground">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -1475,7 +1525,7 @@ export function DataTable() {
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
                         onDoubleClick={() => onEditRequest(row)}
-                        className="cursor-pointer"
+                        className="cursor-pointer bg-primary-foreground"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id}>
@@ -1490,7 +1540,7 @@ export function DataTable() {
                       colSpan={columns.length}
                       className="h-24 text-center"
                     >
-                        {t.noDataFound.replace('{collection}', state.collection)}
+                        {t.noDataFound.replace("{collection}", collectionLabel)}
                     </TableCell>
                   </TableRow>
                 )}
@@ -1581,7 +1631,7 @@ export function DataTable() {
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t.delete?.deleteRecord?.title || "Delete record?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              {(t.delete?.deleteRecord?.description || "This action cannot be undone. You are about to delete one record from \"{collection}\".").replace('{collection}', state.collection)}
+              {(t.delete?.deleteRecord?.description || "This action cannot be undone. You are about to delete one record from \"{collection}\".").replace("{collection}", collectionLabel)}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogFooter>
@@ -1597,7 +1647,7 @@ export function DataTable() {
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t.delete?.deleteSelected?.title || "Delete selected records?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              {(t.delete?.deleteSelected?.description || "This action cannot be undone. You are about to delete {count} records from \"{collection}\".").replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{collection}', state.collection)}
+              {(t.delete?.deleteSelected?.description || "This action cannot be undone. You are about to delete {count} records from \"{collection}\".").replace("{count}", String(table.getFilteredSelectedRowModel().rows.length)).replace("{collection}", collectionLabel)}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
           <ResponsiveDialogFooter>
@@ -1636,39 +1686,7 @@ export function DataTable() {
       }}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{(() => {
-              const collectionToEntityKey = (collection: string): string => {
-                const specialCases: Record<string, string> = {
-                  'echelon_employees': 'employee_echelon',
-                  'product_variants': 'product_variant',
-                  'asset_variants': 'asset_variant',
-                  'text_variants': 'text_variant',
-                  'wallet_transactions': 'wallet_transaction',
-                  'base_moves': 'base_move',
-                  'base_move_routes': 'base_move_route',
-                  'message_threads': 'message_thread',
-                  'outreach_referrals': 'outreach_referral',
-                  'echelons': 'employee_echelon',
-                  'employee_timesheets': 'employee_timesheet',
-                  'employee_leaves': 'employee_leave',
-                  'journal_generations': 'journal_generation',
-                  'journal_connections': 'journal_connection',
-                  'user_sessions': 'user_session',
-                  'user_bans': 'user_ban',
-                  'user_verifications': 'user_verification',
-                  'role_permissions': 'role_permission',
-                }
-                if (specialCases[collection]) return specialCases[collection]
-                if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
-                if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
-                if (collection.endsWith('s')) return collection.slice(0, -1)
-                return collection
-              }
-              const entityKey = collectionToEntityKey(state.collection)
-              const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
-              const collectionLabel = entityOptions[entityKey] || state.collection
-              return t.addRecord.title.replace('{collection}', collectionLabel)
-            })()}</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
               {t.addRecord.description}
             </ResponsiveDialogDescription>
@@ -1961,39 +1979,7 @@ export function DataTable() {
       }}>
         <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
           <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{(() => {
-              const collectionToEntityKey = (collection: string): string => {
-                const specialCases: Record<string, string> = {
-                  'echelon_employees': 'employee_echelon',
-                  'product_variants': 'product_variant',
-                  'asset_variants': 'asset_variant',
-                  'text_variants': 'text_variant',
-                  'wallet_transactions': 'wallet_transaction',
-                  'base_moves': 'base_move',
-                  'base_move_routes': 'base_move_route',
-                  'message_threads': 'message_thread',
-                  'outreach_referrals': 'outreach_referral',
-                  'echelons': 'employee_echelon',
-                  'employee_timesheets': 'employee_timesheet',
-                  'employee_leaves': 'employee_leave',
-                  'journal_generations': 'journal_generation',
-                  'journal_connections': 'journal_connection',
-                  'user_sessions': 'user_session',
-                  'user_bans': 'user_ban',
-                  'user_verifications': 'user_verification',
-                  'role_permissions': 'role_permission',
-                }
-                if (specialCases[collection]) return specialCases[collection]
-                if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
-                if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
-                if (collection.endsWith('s')) return collection.slice(0, -1)
-                return collection
-              }
-              const entityKey = collectionToEntityKey(state.collection)
-              const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
-              const collectionLabel = entityOptions[entityKey] || state.collection
-              return (t.editRecord?.title || "Edit record in {collection}").replace('{collection}', collectionLabel)
-            })()}</ResponsiveDialogTitle>
+            <ResponsiveDialogTitle>{(t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
               {t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden."}
             </ResponsiveDialogDescription>

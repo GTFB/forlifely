@@ -17,6 +17,7 @@ import {
   SquareTerminal,
 } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
+import { PROJECT_SETTINGS, LANGUAGES } from "@/settings"
 
 import { NavMain } from "@/components/application-blocks/nav-main"
 import { NavUser } from "@/components/application-blocks/nav-user"
@@ -35,7 +36,6 @@ import {
 } from "@/components/ui/sidebar"
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
-import { PROJECT_SETTINGS } from "@/settings"
 
 type CollectionsResponse = {
   success: boolean
@@ -44,8 +44,14 @@ type CollectionsResponse = {
 }
 
 type MeResponse = {
-  user?: { id: string; email: string; name: string; role: string }
+  user?: { id: string; email: string; name: string; role: string; avatarUrl?: string | null }
   error?: string
+}
+
+function toFirstLastName(fullName: string): string {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 2) return parts.join(" ")
+  return parts.slice(0, 2).join(" ")
 }
 
 const categoryIcon: Record<string, any> = {
@@ -122,15 +128,23 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+  type LanguageCode = (typeof LANGUAGES)[number]['code']
+  const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+  
+  const [locale, setLocale] = React.useState<LanguageCode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar-locale')
-      if (saved === 'en' || saved === 'ru') {
-        return saved
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
       }
     }
-    // Use 'ru' as default (overriding PROJECT_SETTINGS.defaultLanguage for admin panel)
-    return 'ru'
+    // Use PROJECT_SETTINGS.defaultLanguage, but ensure it's in LANGUAGES
+    const defaultLang = PROJECT_SETTINGS.defaultLanguage
+    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
+      return defaultLang as LanguageCode
+    }
+    // Fallback to first available language
+    return LANGUAGES[0]?.code || 'en'
   })
 
   // Use global ref to preserve translations across component remounts
@@ -153,20 +167,27 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       try {
         const cachedTranslations = JSON.parse(cached)
         translationsRef.current = cachedTranslations
-        setVersion() // Trigger re-render once to use translations
-        return
+        // Use cached immediately, but still fetch fresh in background (important for newly added locales like rs)
+        setVersion()
       } catch (e) {
         // If parsing fails, proceed with fetch
       }
     }
 
+    let isMounted = true
+
     const loadTranslations = async () => {
       try {
         const response = await fetch(`/api/locales/${locale}`)
+        if (!isMounted) return
+        
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
         const translationsData = await response.json() as any
+        
+        if (!isMounted) return
+        
         translationsRef.current = translationsData
         
         // Cache translations
@@ -175,6 +196,8 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         }
         setVersion() // Trigger re-render to use translations
       } catch (e) {
+        if (!isMounted) return
+        
         console.error('Failed to load translations:', e)
         // Fallback: try dynamic import as backup
         try {
@@ -182,6 +205,9 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
             ? await import("@/packages/content/locales/ru.json")
             : await import("@/packages/content/locales/en.json")
           const translationsData = translationsModule.default || translationsModule
+          
+          if (!isMounted) return
+          
           translationsRef.current = translationsData
           
           // Cache fallback translations too
@@ -190,12 +216,17 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
           }
           setVersion() // Trigger re-render to use translations
         } catch (fallbackError) {
+          if (!isMounted) return
           console.error('Fallback import also failed:', fallbackError)
         }
       }
     }
+
+    void loadTranslations()
     
-    loadTranslations()
+    return () => {
+      isMounted = false
+    }
   }, [locale])
   
   // Use stable reference from ref
@@ -243,6 +274,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   }
 
   // Create stable translation functions that don't change reference
+  // Include locale in dependencies to ensure translations update when locale changes
   const t = React.useMemo(() => {
     if (!translations) {
       return {
@@ -265,16 +297,21 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         return entityOptions[entityKey as keyof typeof entityOptions] || collection
       },
     }
-  }, [translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
+  }, [locale, translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
 
-  const handleLocaleChange = React.useCallback((newLocale: 'en' | 'ru') => {
+  const handleLocaleChange = React.useCallback((newLocale: LanguageCode) => {
+    // Validate that the locale is in supported languages
+    if (!supportedLanguageCodes.includes(newLocale)) {
+      console.warn(`Locale ${newLocale} is not in supported languages`)
+      return
+    }
     setLocale(newLocale)
     if (typeof window !== 'undefined') {
       localStorage.setItem('sidebar-locale', newLocale)
       // Dispatch custom event to notify other components about locale change
       window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
     }
-  }, [])
+  }, [supportedLanguageCodes])
 
   React.useEffect(() => {
     // Check if data is already loaded in sessionStorage
@@ -291,56 +328,37 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       }
     }
 
-    const controller = new AbortController()
     let isMounted = true
     
     const load = async () => {
       // Only show loading if we don't have cached data
       if (!cachedGroups || !cachedUser) {
-        if (!controller.signal.aborted && isMounted) {
+        if (isMounted) {
           setLoading(true)
         }
       }
-      if (!controller.signal.aborted && isMounted) {
+      if (isMounted) {
         setError(null)
       }
       
       try {
         const [collectionsRes, meRes] = await Promise.all([
-          fetch("/api/admin/collections", {
-            credentials: "include",
-            signal: controller.signal,
-          }).catch((err) => {
-            // Suppress AbortError from being logged
-            if (err.name === 'AbortError') {
-              return null as any
-            }
-            throw err
-          }),
-          fetch("/api/auth/me", { credentials: "include", signal: controller.signal }).catch((err) => {
-            // Suppress AbortError from being logged
-            if (err.name === 'AbortError') {
-              return null as any
-            }
-            throw err
-          }),
+          fetch("/api/admin/collections", { credentials: "include" }),
+          fetch("/api/auth/me", { credentials: "include" }),
         ])
-        
-        // Check if request was aborted before processing
-        if (controller.signal.aborted || !isMounted || !collectionsRes || !meRes) {
-          return
-        }
+
+        if (!isMounted) return
         
         if (!collectionsRes.ok) throw new Error(`Collections failed: ${collectionsRes.status}`)
         const collectionsJson: CollectionsResponse = await collectionsRes.json()
         
-        if (!controller.signal.aborted && isMounted) {
-          setGroups(collectionsJson.groups)
-        }
+        if (!isMounted) return
+        
+        setGroups(collectionsJson.groups)
 
         if (meRes.ok) {
           const meJson: MeResponse = await meRes.json()
-          if (meJson.user && !controller.signal.aborted && isMounted) {
+          if (meJson.user && isMounted) {
             setUser(meJson.user)
             
             // Cache the data
@@ -351,38 +369,48 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
           }
         }
       } catch (e) {
-        // Ignore AbortError - it's expected when component unmounts
-        if (e instanceof Error && e.name === "AbortError") {
-          // Request was cancelled, this is normal - don't update state
-          return
-        }
-        // Only set error if component is still mounted and not aborted
-        if (!controller.signal.aborted && isMounted) {
+        if (isMounted) {
           setError((e as Error).message)
         }
       } finally {
         // Only update loading state if component is still mounted
-        if (!controller.signal.aborted && isMounted) {
+        if (isMounted) {
           setLoading(false)
         }
       }
     }
     
-    // Wrap load() to catch any unhandled promise rejections
-    load().catch((err) => {
-      // Silently ignore AbortError
-      if (err?.name !== 'AbortError' && !controller.signal.aborted && isMounted) {
-        console.error('Failed to load sidebar data:', err)
-      }
-    })
+    void load()
     
     return () => {
       isMounted = false
-      // Suppress abort error by catching it
+    }
+  }, [])
+
+  // Allow profile page to push updated user fields (e.g., avatar) without full reload
+  React.useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Partial<NonNullable<MeResponse["user"]>> | undefined
+      if (!detail) return
+      setUser((prev) => (prev ? ({ ...prev, ...detail } as any) : (detail as any)))
       try {
-        controller.abort()
-      } catch (err) {
-        // Ignore abort errors
+        if (typeof window !== "undefined") {
+          const cached = sessionStorage.getItem("sidebar-user")
+          if (cached) {
+            const parsed = JSON.parse(cached)
+            sessionStorage.setItem("sidebar-user", JSON.stringify({ ...parsed, ...detail }))
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("sidebar-user-updated", handler as EventListener)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("sidebar-user-updated", handler as EventListener)
       }
     }
   }, [])
@@ -401,6 +429,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const itemsStructureRef = globalItemsStructureRef
   const currentCollectionRef = globalCurrentCollectionRef
   const tRef = React.useRef(t)
+  const localeRefForItems = React.useRef(locale)
   
   // Restore items structure to global ref if groups changed
   if (itemsStructure.length > 0 && (
@@ -411,13 +440,17 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     itemsStructureRef.current = itemsStructure
   }
   
-  // Initialize items on mount or when structure first appears
-  // Only rebuild if structure actually changed or items are empty
+  // Initialize items on mount or when structure/translations change
+  // Rebuild if structure changed, items are empty, locale changed, or translations changed
   const needsRebuild = itemsRef.current.length === 0 || 
     itemsRef.current.length !== itemsStructure.length ||
-    itemsRef.current.some((item: any, i: number) => item.category !== itemsStructure[i]?.category)
+    itemsRef.current.some((item: any, i: number) => item.category !== itemsStructure[i]?.category) ||
+    localeRefForItems.current !== locale || // Rebuild when locale changes
+    tRef.current !== t // Rebuild when translation functions change
   
   if (needsRebuild && itemsStructure.length > 0 && translations) {
+    localeRefForItems.current = locale // Update locale ref
+    tRef.current = t // Update translation functions ref
     itemsRef.current = itemsStructure.map((group) => ({
       title: t.category(group.category),
       url: "#",
@@ -449,11 +482,17 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     const structureChanged = itemsRef.current.length !== itemsStructure.length ||
       itemsRef.current.some((item: any, i: number) => item.category !== itemsStructure[i]?.category)
     
-    if (structureChanged && itemsStructure.length > 0 && translations) {
-      // Rebuild items completely - but this should be rare
+    // Check if locale or translations changed
+    const localeChanged = localeRefForItems.current !== locale
+    const translationsChanged = tRef.current !== t
+    
+    if ((structureChanged || localeChanged || translationsChanged) && itemsStructure.length > 0 && translations) {
+      // Rebuild items completely when structure, locale, or translations change
+      localeRefForItems.current = locale
+      tRef.current = t
       itemsStructureRef.current = itemsStructure
       itemsRef.current = itemsStructure.map((group) => ({
-        title: tRef.current.category(group.category),
+        title: t.category(group.category),
         url: "#",
         icon: group.icon,
         category: group.category,
@@ -465,7 +504,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
           params.set("p", "1")
           
           return {
-            title: tRef.current.collection(name),
+            title: t.collection(name),
             url: `/admin?${params.toString()}`,
           }
         }),
@@ -491,10 +530,20 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       currentCollectionRef.current = currentCollection
       // No updates needed - items are static, NavMainItem reads from URL
     }
-  }, [itemsStructure, currentCollection, translations])
+  }, [itemsStructure, currentCollection, translations, locale, t])
+  
+  // Use state to trigger re-renders when items change due to locale/translations
+  const [itemsState, setItemsState] = React.useState(itemsRef.current)
+  
+  // Update state when itemsRef changes (due to locale/translations change)
+  React.useEffect(() => {
+    if (itemsRef.current.length > 0) {
+      setItemsState(itemsRef.current)
+    }
+  }, [locale, translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
   
   // Always return same reference - mutations happen in-place
-  const items = itemsRef.current
+  const items = itemsState.length > 0 ? itemsState : itemsRef.current
 
   // Use global ref to preserve teams across component remounts
   const teamsRef = globalTeamsRef
@@ -516,20 +565,21 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   React.useEffect(() => {
     if (user) {
       const newProps = {
-        name: user.name,
+        name: toFirstLastName(user.name),
         email: user.email,
-        avatar: "/avatars/placeholder-user.jpg",
+        avatar: (user as any).avatarUrl || "/avatars/placeholder-user.jpg",
       }
       // Only update if changed
       if (!userPropsRef.current || 
           userPropsRef.current.name !== newProps.name ||
-          userPropsRef.current.email !== newProps.email) {
+          userPropsRef.current.email !== newProps.email ||
+          userPropsRef.current.avatar !== newProps.avatar) {
         userPropsRef.current = newProps
       }
     } else {
       userPropsRef.current = null
     }
-  }, [user?.name, user?.email])
+  }, [user?.name, user?.email, (user as any)?.avatarUrl])
   const userProps = userPropsRef.current
 
   // Use global ref for platformLabel to maintain stable reference
@@ -576,3 +626,4 @@ export const AppSidebar = React.memo(AppSidebarComponent, (prevProps, nextProps)
   // The actual optimization happens inside the component with global refs
   return false // Allow re-render (React.memo default behavior)
 })
+

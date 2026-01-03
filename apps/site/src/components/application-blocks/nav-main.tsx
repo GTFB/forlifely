@@ -37,6 +37,7 @@ export const NavMain = React.memo(function NavMain({
     title: string
     url: string
     icon?: LucideIcon
+    category?: string
     collections?: string[]
     items?: {
       title: string
@@ -47,40 +48,27 @@ export const NavMain = React.memo(function NavMain({
   platformLabel?: string
   currentCollection?: string
 }) {
-  // Track open state for each collapsible - use ref to persist across re-renders
-  const openStatesRef = React.useRef<Record<string, boolean>>({})
-  
-  // Initialize open states - check if current collection is in any category
-  // Admin category should not auto-open
-  if (Object.keys(openStatesRef.current).length === 0 && currentCollection) {
-    items.forEach((item: any) => {
-      // Don't auto-open Admin category
-      if (item.title !== "Admin" && item.collections?.includes(currentCollection)) {
-        openStatesRef.current[item.title] = true
-      }
-    })
-  }
-
-  const handleOpenChange = React.useCallback((title: string, open: boolean) => {
-    openStatesRef.current[title] = open
-  }, [])
+  // Accordion behavior: only one group can be expanded at a time
+  // Default: all collapsed (independent of locale)
+  const [openKey, setOpenKey] = React.useState<string | null>(null)
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{platformLabel}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
+          const itemKey = (item as any).category || item.title
           // Determine if any sub-item is active by checking if currentCollection is in this category
           const isCategoryActive = (item as any).collections?.includes(currentCollection) ?? false
-          // Admin category should not auto-open, even if it contains the active collection
-          const shouldAutoOpen = item.title !== "Admin" ? isCategoryActive : false
           return (
             <NavMainItem
-              key={item.title}
+              key={itemKey}
               item={item}
               currentCollection={currentCollection}
-              initialOpen={openStatesRef.current[item.title] ?? shouldAutoOpen}
-              onOpenChange={(open) => handleOpenChange(item.title, open)}
+              open={openKey === itemKey}
+              onOpenChange={(open) => {
+                setOpenKey((prev) => (open ? itemKey : prev === itemKey ? null : prev))
+              }}
             />
           )
         })}
@@ -140,13 +128,14 @@ export const NavMain = React.memo(function NavMain({
 const NavMainItem = React.memo(function NavMainItem({
   item,
   currentCollection,
-  initialOpen,
+  open,
   onOpenChange,
 }: {
   item: {
     title: string
     url: string
     icon?: LucideIcon
+    category?: string
     collections?: string[]
     items?: {
       title: string
@@ -155,7 +144,7 @@ const NavMainItem = React.memo(function NavMainItem({
     }[]
   }
   currentCollection: string
-  initialOpen: boolean
+  open: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const { state } = useSidebar()
@@ -164,22 +153,7 @@ const NavMainItem = React.memo(function NavMainItem({
   // Determine active state from collection prop - simple comparison, no hooks
   const isCategoryActive = item.collections?.includes(currentCollection) ?? false
   
-  // Internal state that persists across parent re-renders
-  const [internalOpen, setInternalOpen] = React.useState(initialOpen)
-  const prevIsActiveRef = React.useRef(isCategoryActive)
-  
-  // Auto-open category if it becomes active (but don't close if user manually closed)
-  // Admin category should never auto-open
-  React.useEffect(() => {
-    if (!prevIsActiveRef.current && isCategoryActive && item.title !== "Admin") {
-      // Category became active - auto-open it (except Admin)
-      setInternalOpen(true)
-    }
-    prevIsActiveRef.current = isCategoryActive
-  }, [isCategoryActive, item.title])
-  
   const handleOpenChange = React.useCallback((open: boolean) => {
-    setInternalOpen(open)
     onOpenChange(open)
   }, [onOpenChange])
   
@@ -207,7 +181,7 @@ const NavMainItem = React.memo(function NavMainItem({
               const isSubItemActive = subItemCollection === currentCollection
               
               return (
-                <DropdownMenuItem key={subItem.title} asChild>
+                <DropdownMenuItem key={subItem.url} asChild>
                   <a
                     href={subItem.url}
                     className={isSubItemActive ? "bg-accent" : ""}
@@ -233,7 +207,7 @@ const NavMainItem = React.memo(function NavMainItem({
   return (
     <Collapsible
       asChild
-      open={internalOpen}
+      open={open}
       onOpenChange={handleOpenChange}
       className="group/collapsible"
     >
@@ -248,7 +222,7 @@ const NavMainItem = React.memo(function NavMainItem({
               <CollapsibleContent>
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title}>
+                    <SidebarMenuSubItem key={subItem.url}>
                       <SidebarMenuSubButton asChild>
                         <Link href={subItem.url}>
                           <span>{subItem.title}</span>
@@ -265,6 +239,9 @@ const NavMainItem = React.memo(function NavMainItem({
   // Only re-render if structure changed OR currentCollection changed (for active state)
   // We allow re-render when currentCollection changes to update active CSS classes
   // This is fine - React will efficiently update only the changed DOM nodes
+  if (prevProps.open !== nextProps.open) {
+    return false
+  }
   if (prevProps.item.title !== nextProps.item.title) {
     return false
   }

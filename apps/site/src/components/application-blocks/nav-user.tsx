@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   Bell,
   ChevronsUpDown,
+  Check,
   CreditCard,
   Globe,
   LogOut,
@@ -24,6 +25,9 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -34,8 +38,28 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useTheme } from "@/packages/hooks/use-theme"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useCallback } from "react"
+import { LANGUAGES } from "@/settings"
+import { getLanguageFlag } from "@/shared/utils/language-flags"
+
+type LanguageCode = (typeof LANGUAGES)[number]['code']
+
+function getInitialsFromNameOrEmail(inputName: string | undefined, email: string | undefined): string {
+  const name = (inputName || "").trim()
+  const source = name || (email || "").trim()
+  if (!source) return "U"
+
+  // Prefer first/last from name when possible
+  const parts = source
+    .replace(/[@._-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[1][0]).toUpperCase()
+}
 
 export const NavUser = React.memo(function NavUser({
   user,
@@ -48,13 +72,20 @@ export const NavUser = React.memo(function NavUser({
     email: string
     avatar: string
   }
-  locale?: 'en' | 'ru'
-  onLocaleChange?: (locale: 'en' | 'ru') => void
+  locale?: LanguageCode
+  onLocaleChange?: (locale: LanguageCode) => void
   translations?: any
 }) {
   const { isMobile } = useSidebar()
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+  const pathname = usePathname()
+
+  const basePath = React.useMemo(() => {
+    if (pathname?.startsWith("/m/")) return "/m"
+    if (pathname?.startsWith("/admin")) return "/admin"
+    return "/admin"
+  }, [pathname])
 
   const t = translations?.navUser || {
     notifications: "Notifications",
@@ -76,13 +107,24 @@ export const NavUser = React.memo(function NavUser({
         credentials: "include",
       })
       if (res.ok) {
-        router.push("/")
-        router.refresh()
+        window.location.href = "/login"
       }
     } catch (e) {
-      router.push("/")
+      window.location.href = "/login"
     }
   }
+
+  const currentLanguage = React.useMemo(() => {
+    if (locale) {
+      const found = LANGUAGES.find((l) => l.code === locale)
+      if (found) return found
+    }
+    return LANGUAGES[0]
+  }, [locale])
+
+  const initials = React.useMemo(() => {
+    return getInitialsFromNameOrEmail(user.name, user.email)
+  }, [user.name, user.email])
 
   return (
     <SidebarMenu>
@@ -95,7 +137,7 @@ export const NavUser = React.memo(function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -110,30 +152,69 @@ export const NavUser = React.memo(function NavUser({
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
+            <DropdownMenuItem
+              className="p-0 font-normal cursor-pointer"
+              onClick={() => router.push(`${basePath}/profile`)}
+            >
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
-            </DropdownMenuLabel>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <Bell />
                 {t.notifications}
               </DropdownMenuItem>
-              {onLocaleChange && (
+              {onLocaleChange && LANGUAGES.length > 1 && (
                 <>
-                  <DropdownMenuItem onClick={() => onLocaleChange(locale === 'ru' ? 'en' : 'ru')}>
-                    <Globe />
-                    {locale === 'ru' ? t.english : t.russian} ({locale?.toUpperCase()})
-                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2">
+                      {(() => {
+                        const FlagComponent = getLanguageFlag(currentLanguage?.code || "")
+                        return FlagComponent ? (
+                          <FlagComponent className="h-4 w-3" />
+                        ) : (
+                          <Globe className="h-4 w-4" />
+                        )
+                      })()}
+                      <span className="flex-1">
+                        {currentLanguage?.name} ({currentLanguage?.shortName})
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent sideOffset={6} className="min-w-56">
+                      {LANGUAGES.map((lang) => {
+                        const FlagComponent = getLanguageFlag(lang.code)
+                        const isCurrentLocale = locale === lang.code
+
+                        return (
+                          <DropdownMenuItem
+                            key={lang.code}
+                            disabled={isCurrentLocale}
+                            onClick={() => onLocaleChange(lang.code)}
+                            className="flex items-center gap-2"
+                          >
+                            {FlagComponent ? (
+                              <FlagComponent className="h-4 w-3" />
+                            ) : (
+                              <Globe className="h-4 w-4" />
+                            )}
+                            <span className="flex-1">
+                              {lang.name} ({lang.shortName})
+                            </span>
+                            {isCurrentLocale ? <Check className="h-4 w-4" /> : null}
+                          </DropdownMenuItem>
+                        )
+                      })}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator />
                 </>
               )}

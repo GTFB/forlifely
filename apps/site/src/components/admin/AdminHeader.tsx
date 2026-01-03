@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { getCollection } from "@/shared/collections/getCollection"
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 interface AdminHeaderProps {
   title?: string
   breadcrumbItems?: Array<{ label: string; href?: string }>
@@ -25,14 +26,23 @@ export const AdminHeader = React.memo(function AdminHeader({
 }: AdminHeaderProps) {
   // Only subscribe to collection, not entire state
   const currentCollection = useAdminCollection()
-  const [locale, setLocale] = React.useState<'en' | 'ru'>(() => {
+  type LanguageCode = (typeof LANGUAGES)[number]['code']
+  const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+  
+  const [locale, setLocale] = React.useState<LanguageCode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sidebar-locale')
-      if (saved === 'en' || saved === 'ru') {
-        return saved
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
       }
     }
-    return 'ru'
+    // Use PROJECT_SETTINGS.defaultLanguage, but ensure it's in LANGUAGES
+    const defaultLang = PROJECT_SETTINGS.defaultLanguage
+    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
+      return defaultLang as LanguageCode
+    }
+    // Fallback to first available language
+    return LANGUAGES[0]?.code || 'en'
   })
   const [displayTitle, setDisplayTitle] = React.useState<string>(title || '')
   const prevCollectionRef = React.useRef<string | null>(null)
@@ -43,8 +53,8 @@ export const AdminHeader = React.memo(function AdminHeader({
   React.useEffect(() => {
     const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
       const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
-      if (newLocale === 'en' || newLocale === 'ru') {
-        setLocale(newLocale)
+      if (newLocale && supportedLanguageCodes.includes(newLocale as LanguageCode)) {
+        setLocale(newLocale as LanguageCode)
       }
     }
 
@@ -93,9 +103,13 @@ export const AdminHeader = React.memo(function AdminHeader({
         console.error('[AdminHeader] Failed to load translations:', e)
         // Fallback to direct import
         try {
-          const translationsModule = locale === 'ru'
-            ? await import("@/packages/content/locales/ru.json")
-            : await import("@/packages/content/locales/en.json")
+          // Try to import the locale file, fallback to 'en' if not found
+          let translationsModule
+          try {
+            translationsModule = await import(`@/packages/content/locales/${locale}.json`)
+          } catch {
+            translationsModule = await import("@/packages/content/locales/en.json")
+          }
           setTranslations(translationsModule.default || translationsModule)
         } catch (fallbackError) {
           console.error('Fallback import also failed:', fallbackError)
@@ -109,7 +123,36 @@ export const AdminHeader = React.memo(function AdminHeader({
   const adminPanelLabel = React.useMemo(() => {
     const label = translations?.dataTable?.adminPanel || "Admin Panel"
     return label
-  }, [translations?.dataTable?.adminPanel])
+  }, [locale, translations?.dataTable?.adminPanel])
+
+  // Convert collection name to taxonomy entity key (used for translations)
+  const collectionToEntityKey = React.useCallback((collection: string): string => {
+    const specialCases: Record<string, string> = {
+      echelon_employees: "employee_echelon",
+      product_variants: "product_variant",
+      asset_variants: "asset_variant",
+      text_variants: "text_variant",
+      wallet_transactions: "wallet_transaction",
+      base_moves: "base_move",
+      base_move_routes: "base_move_route",
+      message_threads: "message_thread",
+      outreach_referrals: "outreach_referral",
+      echelons: "employee_echelon",
+      employee_timesheets: "employee_timesheet",
+      employee_leaves: "employee_leave",
+      journal_generations: "journal_generation",
+      journal_connections: "journal_connection",
+      user_sessions: "user_session",
+      user_bans: "user_ban",
+      user_verifications: "user_verification",
+      role_permissions: "role_permission",
+    }
+    if (specialCases[collection]) return specialCases[collection]
+    if (collection.endsWith("ies")) return collection.slice(0, -3) + "y"
+    if (collection.endsWith("es") && !collection.endsWith("ses")) return collection.slice(0, -2)
+    if (collection.endsWith("s")) return collection.slice(0, -1)
+    return collection
+  }, [])
 
   React.useEffect(() => {
     if (title) {
@@ -119,44 +162,15 @@ export const AdminHeader = React.memo(function AdminHeader({
       return
     }
 
-    // Only update if collection actually changed
-    if (prevCollectionRef.current === currentCollection) {
+    if (!currentCollection) {
       return
     }
+
     prevCollectionRef.current = currentCollection
 
     // Get collection config to check for __title
     const collection = getCollection(currentCollection)
     const titleConfig = (collection as any).__title
-    
-    // Helper function to convert collection name to taxonomy entity key
-    const collectionToEntityKey = (collection: string): string => {
-      const specialCases: Record<string, string> = {
-        'echelon_employees': 'employee_echelon',
-        'product_variants': 'product_variant',
-        'asset_variants': 'asset_variant',
-        'text_variants': 'text_variant',
-        'wallet_transactions': 'wallet_transaction',
-        'base_moves': 'base_move',
-        'base_move_routes': 'base_move_route',
-        'message_threads': 'message_thread',
-        'outreach_referrals': 'outreach_referral',
-        'echelons': 'employee_echelon',
-        'employee_timesheets': 'employee_timesheet',
-        'employee_leaves': 'employee_leave',
-        'journal_generations': 'journal_generation',
-        'journal_connections': 'journal_connection',
-        'user_sessions': 'user_session',
-        'user_bans': 'user_ban',
-        'user_verifications': 'user_verification',
-        'role_permissions': 'role_permission',
-      }
-      if (specialCases[collection]) return specialCases[collection]
-      if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
-      if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
-      if (collection.endsWith('s')) return collection.slice(0, -1)
-      return collection
-    }
     
     // Try to get translated collection name from taxonomy.entityOptions
     let collectionTitle: string
@@ -195,59 +209,24 @@ export const AdminHeader = React.memo(function AdminHeader({
     return () => {
       timeouts.forEach(t => clearTimeout(t))
     }
-  }, [currentCollection, title, translations?.taxonomy?.entityOptions, translations?.dataTable?.adminPanel])
+  }, [locale, currentCollection, title, translations?.taxonomy?.entityOptions, translations?.dataTable?.adminPanel, collectionToEntityKey])
 
-  // Use ref for breadcrumb items to prevent re-creation
-  const finalBreadcrumbItemsRef = React.useRef<Array<{ label: string; href?: string }>>(
-    breadcrumbItems || [
-      { label: "Admin Panel", href: "#" },
-      { label: displayTitleRef.current || currentCollection },
-    ]
-  )
-  
-  React.useEffect(() => {
+  // Use state for breadcrumb items to trigger re-renders when translations change
+  const finalBreadcrumbItems = React.useMemo(() => {
     if (breadcrumbItems) {
-      finalBreadcrumbItemsRef.current = breadcrumbItems
-    } else {
-      // Use displayTitle state instead of ref for breadcrumbs
-      const collectionToEntityKey = (collection: string): string => {
-        const specialCases: Record<string, string> = {
-          'echelon_employees': 'employee_echelon',
-          'product_variants': 'product_variant',
-          'asset_variants': 'asset_variant',
-          'text_variants': 'text_variant',
-          'wallet_transactions': 'wallet_transaction',
-          'base_moves': 'base_move',
-          'base_move_routes': 'base_move_route',
-          'message_threads': 'message_thread',
-          'outreach_referrals': 'outreach_referral',
-          'echelons': 'employee_echelon',
-          'employee_timesheets': 'employee_timesheet',
-          'employee_leaves': 'employee_leave',
-          'journal_generations': 'journal_generation',
-          'journal_connections': 'journal_connection',
-          'user_sessions': 'user_session',
-          'user_bans': 'user_ban',
-          'user_verifications': 'user_verification',
-          'role_permissions': 'role_permission',
-        }
-        if (specialCases[collection]) return specialCases[collection]
-        if (collection.endsWith('ies')) return collection.slice(0, -3) + 'y'
-        if (collection.endsWith('es') && !collection.endsWith('ses')) return collection.slice(0, -2)
-        if (collection.endsWith('s')) return collection.slice(0, -1)
-        return collection
-      }
-      const entityKey = collectionToEntityKey(currentCollection)
-      const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
-      const collectionLabel = displayTitle || entityOptions[entityKey] || currentCollection
-      finalBreadcrumbItemsRef.current = [
-        { label: adminPanelLabel, href: "#" },
-        { label: collectionLabel },
-      ]
+      return breadcrumbItems
     }
-  }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel, translations?.taxonomy?.entityOptions])
-  
-  const finalBreadcrumbItems = finalBreadcrumbItemsRef.current
+    
+    // Use displayTitle state and translations for breadcrumbs
+    const entityKey = collectionToEntityKey(currentCollection)
+    const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+    const collectionLabel = displayTitle || entityOptions[entityKey] || currentCollection
+    
+    return [
+      { label: adminPanelLabel, href: "#" },
+      { label: collectionLabel },
+    ]
+  }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel, translations?.taxonomy?.entityOptions, collectionToEntityKey, locale])
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -297,4 +276,5 @@ export const AdminHeader = React.memo(function AdminHeader({
   
   return true // Skip re-render
 })
+
 

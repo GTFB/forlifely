@@ -124,6 +124,7 @@
       "apiNotFound": "API endpoint не найден. Убедитесь, что сервер разработки запущен правильно.\n\nДля локальной разработки с Cloudflare Functions используйте:\n  npm run dev:all\n\nЭто запустит серверы Next.js и Wrangler.",
       "serverError": "Ошибка сервера. Пожалуйста, попробуйте позже.",
       "unexpectedResponse": "Сервер вернул неожиданный ответ",
+      "invalidCredentials": "Неверный email или пароль",
       "loginFailed": "Ошибка входа",
       "unknownError": "Неизвестная ошибка"
     }
@@ -248,6 +249,48 @@
       "title": "Заголовок",
       "category": "Категория",
       "sortOrder": "Порядок сортировки"
+    }
+  },
+  "profile": {
+    "title": "Профиль",
+    "tabs": {
+      "personal": "Личные данные",
+      "security": "Безопасность"
+    },
+    "fields": {
+      "avatar": "Аватар",
+      "firstName": "Имя",
+      "lastName": "Фамилия",
+      "middleName": "Отчество",
+      "currentPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "confirmPassword": "Подтвердите новый пароль"
+    },
+    "actions": {
+      "save": "Сохранить",
+      "saving": "Сохранение...",
+      "changePassword": "Сменить пароль",
+      "changing": "Сохранение...",
+      "removeAvatar": "Удалить аватар",
+      "removing": "Удаление..."
+    },
+    "alerts": {
+      "errorTitle": "Ошибка",
+      "successTitle": "Успешно"
+    },
+    "messages": {
+      "profileUpdated": "Профиль обновлен",
+      "avatarUpdated": "Аватар обновлен",
+      "passwordUpdated": "Пароль обновлен"
+    },
+    "errors": {
+      "loadProfile": "Не удалось загрузить профиль",
+      "updateProfile": "Не удалось обновить профиль",
+      "uploadAvatar": "Не удалось загрузить аватар",
+      "removeAvatar": "Не удалось удалить аватар",
+      "changePassword": "Не удалось изменить пароль",
+      "required": "Все поля обязательны",
+      "mismatch": "Пароли не совпадают"
     }
   }
 }

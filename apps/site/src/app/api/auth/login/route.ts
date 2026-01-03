@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
     const persistedUser = await usersRepository.findByEmail(email)
     if (!persistedUser) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
+      return new Response(JSON.stringify({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     const userWithRoles = await meRepository.findByEmailWithRoles(email)
 
     if (!userWithRoles) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
+      return new Response(JSON.stringify({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       })
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // Verify password
     const isValidPassword = await verifyPassword(persistedUser.salt, password, persistedUser.passwordHash)
     if (!isValidPassword) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), {
+      return new Response(JSON.stringify({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       })

@@ -54,15 +54,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Extract phone from human.dataIn if available
+    // Extract phone + avatar from human.dataIn if available
     let phone: string | undefined
+    let avatarMediaUuid: string | undefined
     if (human?.dataIn) {
       try {
         const dataIn = typeof human.dataIn === 'string' ? JSON.parse(human.dataIn) : human.dataIn
         phone = dataIn?.phone || undefined
+        avatarMediaUuid = dataIn?.avatarMedia?.uuid || undefined
       } catch {
         // If parsing fails, try to access as object directly
         phone = (human.dataIn as any)?.phone || undefined
+        avatarMediaUuid = (human.dataIn as any)?.avatarMedia?.uuid || undefined
       }
     }
 
@@ -72,6 +75,8 @@ export async function GET(request: NextRequest) {
       email: dbUser.email,
       name: human?.fullName || dbUser.email,
       phone,
+      avatarMediaUuid: avatarMediaUuid || null,
+      avatarUrl: avatarMediaUuid ? `/api/esnad/v1/media/${avatarMediaUuid}` : null,
       humanAid: dbUser.humanAid || null,
       roles: roles.map((role) => ({
         uuid: role.uuid,

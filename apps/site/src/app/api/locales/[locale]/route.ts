@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { LANGUAGES } from '@/settings'
 
 // For static export, we need to configure this route
 export const dynamic = 'force-static'
 
 export async function generateStaticParams() {
   // Return supported locales for static generation
-  return [{ locale: 'ru' }, { locale: 'en' }]
+  return LANGUAGES.map((l) => ({ locale: l.code }))
 }
 
 export async function GET(
@@ -13,11 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ locale: string }> }
 ) {
   try {
-    const { locale } = await params
+    const { locale: rawLocale } = await params
+    const locale = (rawLocale || '').toLowerCase()
     
-    if (locale !== 'en' && locale !== 'ru') {
+    const supported = LANGUAGES.map((l) => l.code.toLowerCase())
+    if (!supported.includes(locale)) {
       return NextResponse.json(
-        { error: 'Invalid locale. Supported locales: en, ru' },
+        { error: `Invalid locale. Supported locales: ${supported.join(', ')}` },
         { status: 400 }
       )
     }
@@ -25,10 +28,11 @@ export async function GET(
     // Use dynamic import to load JSON files
     let translations
     try {
-      if (locale === 'ru') {
-        const module = await import('@/packages/content/locales/ru.json')
+      try {
+        const module = await import(`@/packages/content/locales/${locale}.json`)
         translations = module.default || module
-      } else {
+      } catch {
+        // Fallback to English if locale file is missing
         const module = await import('@/packages/content/locales/en.json')
         translations = module.default || module
       }

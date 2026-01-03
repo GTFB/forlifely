@@ -166,6 +166,9 @@ export default function LoginPage() {
           }
           return
         }
+        if ((data as any)?.code === 'INVALID_CREDENTIALS' || data.error === 'Invalid credentials') {
+          throw new Error((t.errors as any).invalidCredentials || data.error || t.errors.loginFailed)
+        }
         throw new Error(data.error || t.errors.loginFailed)
       }
 
