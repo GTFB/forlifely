@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, X } from "lucide-react"
+import { Eye, EyeOff, Dice6, KeyRound, Loader2, Mail, Monitor, Smartphone, X } from "lucide-react"
 import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
+import { validatePassword } from "@/shared/password"
+import Link from "next/link"
 
 type AdminProfile = {
   id: string
@@ -23,6 +25,24 @@ type AdminProfile = {
   lastName?: string
   middleName?: string
   avatarMediaUuid?: string
+}
+
+type UserSessionItem = {
+  uuid: string
+  userAgent: string | null
+  ip: string | null
+  lastSeenAt: string | null
+  expiresAt: string | null
+  device: "mobile" | "desktop"
+  isCurrent: boolean
+}
+
+type JournalRow = {
+  id: number
+  uuid: string
+  action: string
+  details: any
+  createdAt?: string | null
 }
 
 type LanguageCode = (typeof LANGUAGES)[number]["code"]
@@ -69,6 +89,115 @@ function getInitials(firstName?: string, lastName?: string, name?: string, email
   return (parts[0][0] + parts[1][0]).toUpperCase()
 }
 
+function generateRandomPassword(length = 16): string {
+  const lower = "abcdefghijklmnopqrstuvwxyz"
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  const digits = "0123456789"
+  const special = "!@#$%^&*()-_=+[]{};:,.<>?"
+  const all = lower + upper + digits + special
+
+  const pick = (charset: string) => charset[Math.floor(Math.random() * charset.length)] || ""
+
+  const chars: string[] = [
+    pick(lower),
+    pick(upper),
+    pick(digits),
+    pick(special),
+  ]
+
+  const remaining = Math.max(0, length - chars.length)
+  const bytes = new Uint8Array(remaining)
+  crypto.getRandomValues(bytes)
+  for (let i = 0; i < remaining; i++) {
+    chars.push(all[bytes[i] % all.length] as string)
+  }
+
+  // Shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[chars[i], chars[j]] = [chars[j] as string, chars[i] as string]
+  }
+
+  return chars.join("")
+}
+
+function SecretInput({
+  id,
+  value,
+  onChange,
+  placeholder,
+  leftIconLabel,
+  rightAction,
+  rightActionLabel,
+  name,
+  autoComplete,
+  variant = "password",
+}: {
+  id: string
+  value: string
+  onChange: (next: string) => void
+  placeholder?: string
+  leftIconLabel: string
+  rightAction?: () => void
+  rightActionLabel?: string
+  name: string
+  autoComplete?: string
+  variant?: "password" | "maskedText"
+}) {
+  const [visible, setVisible] = React.useState(false)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label={leftIconLabel}
+        title={leftIconLabel}
+        onClick={() => setVisible((v) => !v)}
+        className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+      {rightAction ? (
+        <button
+          type="button"
+          aria-label={rightActionLabel || ""}
+          title={rightActionLabel || ""}
+          onClick={rightAction}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
+        >
+          <Dice6 className="h-4 w-4" />
+        </button>
+      ) : null}
+      <Input
+        id={id}
+        type={variant === "password" ? (visible ? "text" : "password") : "text"}
+        name={name}
+        autoComplete={autoComplete}
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        {...(variant === "maskedText"
+          ? {
+              "data-lpignore": "true",
+              "data-1p-ignore": "true",
+              "data-form-type": "other",
+            }
+          : {})}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={[
+          "pl-10",
+          rightAction ? "pr-10" : "",
+          variant === "maskedText" && !visible ? "[-webkit-text-security:disc]" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      />
+    </div>
+  )
+}
+
 export default function AdminProfilePageClient() {
   const [profile, setProfile] = React.useState<AdminProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -92,6 +221,22 @@ export default function AdminProfilePageClient() {
     newPassword: "",
     confirmPassword: "",
   })
+
+  const [newEmail, setNewEmail] = React.useState("")
+  const [emailChangeLoading, setEmailChangeLoading] = React.useState(false)
+  const [emailChangeError, setEmailChangeError] = React.useState<string | null>(null)
+  const [emailChangeSuccess, setEmailChangeSuccess] = React.useState<string | null>(null)
+
+  const [sessions, setSessions] = React.useState<UserSessionItem[]>([])
+  const [sessionsLoading, setSessionsLoading] = React.useState(false)
+  const [sessionsError, setSessionsError] = React.useState<string | null>(null)
+
+  const [journalRows, setJournalRows] = React.useState<JournalRow[]>([])
+  const [journalLoading, setJournalLoading] = React.useState(false)
+  const [journalError, setJournalError] = React.useState<string | null>(null)
+  const [journalPage, setJournalPage] = React.useState(1)
+  const [journalPageSize] = React.useState(10)
+  const [journalTotalPages, setJournalTotalPages] = React.useState(1)
 
   const supportedLanguageCodes = React.useMemo(() => LANGUAGES.map((l) => l.code), [])
   const [locale, setLocale] = React.useState<LanguageCode>(() => {
@@ -169,6 +314,7 @@ export default function AdminProfilePageClient() {
           firstName: "First name",
           lastName: "Last name",
           middleName: "Middle name",
+          email: "Email",
           currentPassword: "Current password",
           newPassword: "New password",
           confirmPassword: "Confirm new password",
@@ -178,8 +324,20 @@ export default function AdminProfilePageClient() {
           saving: "Saving...",
           changePassword: "Change password",
           changing: "Saving...",
+          requestEmailChange: "Send verification link",
           removeAvatar: "Remove avatar",
           removing: "Removing...",
+        },
+        email: {
+          title: "Change email",
+          newEmail: "New email",
+          description: "We will send a verification link to your new email address.",
+          success: "Verification link sent to the new email.",
+          errors: {
+            invalid: "Please enter a valid email.",
+            sameAsCurrent: "New email must be different from current email.",
+            failed: "Failed to request email change.",
+          },
         },
         alerts: { errorTitle: "Error", successTitle: "Success" },
         messages: { profileUpdated: "Profile updated", avatarUpdated: "Avatar updated", passwordUpdated: "Password updated" },
@@ -195,6 +353,65 @@ export default function AdminProfilePageClient() {
       }
     )
   }, [translations])
+
+  const requestEmailChange = async () => {
+    setEmailChangeLoading(true)
+    setEmailChangeError(null)
+    setEmailChangeSuccess(null)
+    try {
+      const next = newEmail.trim()
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)
+      if (!isValidEmail) {
+        setEmailChangeError(tProfile.email?.errors?.invalid || "Invalid email")
+        return
+      }
+      if (profile?.email && next.toLowerCase() === profile.email.toLowerCase()) {
+        setEmailChangeError(tProfile.email?.errors?.sameAsCurrent || "Email is same")
+        return
+      }
+
+      const res = await fetch("/api/esnad/v1/admin/profile/change-email/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ newEmail: next, locale }),
+      })
+      const json = (await res.json().catch(() => null)) as { success?: boolean; message?: string } | null
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || tProfile.email?.errors?.failed || "Failed")
+      }
+      setEmailChangeSuccess(tProfile.email?.success || "Sent")
+      setTimeout(() => setEmailChangeSuccess(null), 2500)
+    } catch (e) {
+      setEmailChangeError(e instanceof Error ? e.message : tProfile.email?.errors?.failed || "Failed")
+    } finally {
+      setEmailChangeLoading(false)
+    }
+  }
+
+  const emailChangeI18n = translations?.profile?.email as any
+  const emailChangeActionLabel = translations?.profile?.actions?.requestEmailChange as string | undefined
+  const emailChangeSectionReady = Boolean(emailChangeI18n && emailChangeActionLabel)
+
+  const isNewEmailValid = React.useMemo(() => {
+    const next = newEmail.trim()
+    if (!next) return false
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)
+    if (!isValidEmail) return false
+    if (profile?.email && next.toLowerCase() === profile.email.toLowerCase()) return false
+    return true
+  }, [newEmail, profile?.email])
+
+  const newEmailValidationMessage = React.useMemo(() => {
+    const next = newEmail.trim()
+    if (!next) return null
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)
+    if (!isValidEmail) return emailChangeI18n?.errors?.invalid || null
+    if (profile?.email && next.toLowerCase() === profile.email.toLowerCase()) {
+      return emailChangeI18n?.errors?.sameAsCurrent || null
+    }
+    return null
+  }, [newEmail, profile?.email, emailChangeI18n])
 
   const fetchProfile = React.useCallback(async () => {
     setLoading(true)
@@ -217,9 +434,71 @@ export default function AdminProfilePageClient() {
     }
   }, [])
 
+  const fetchSessions = React.useCallback(async () => {
+    setSessionsLoading(true)
+    setSessionsError(null)
+    try {
+      const res = await fetch("/api/esnad/v1/admin/profile/sessions", { credentials: "include" })
+      const json = (await res.json().catch(() => null)) as { success?: boolean; sessions?: UserSessionItem[]; message?: string } | null
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || "Failed to load sessions")
+      }
+      setSessions(Array.isArray(json.sessions) ? json.sessions : [])
+    } catch (e) {
+      setSessionsError(e instanceof Error ? e.message : "Failed to load sessions")
+    } finally {
+      setSessionsLoading(false)
+    }
+  }, [])
+
+  const revokeSession = React.useCallback(async (sessionUuid: string, isCurrent: boolean) => {
+    try {
+      await fetch("/api/esnad/v1/admin/profile/sessions/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ sessionUuid }),
+      })
+    } finally {
+      if (isCurrent) {
+        window.location.href = "/login"
+        return
+      }
+      void fetchSessions()
+    }
+  }, [fetchSessions])
+
+  const fetchJournals = React.useCallback(async (page: number) => {
+    setJournalLoading(true)
+    setJournalError(null)
+    try {
+      const res = await fetch(`/api/esnad/v1/admin/profile/journals?p=${page}&ps=${journalPageSize}`, {
+        credentials: "include",
+      })
+      const json = (await res.json().catch(() => null)) as any
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || "Failed to load activity")
+      }
+      setJournalRows((json.docs || []) as JournalRow[])
+      setJournalTotalPages(Number(json.pagination?.totalPages || 1))
+    } catch (e) {
+      setJournalError(e instanceof Error ? e.message : "Failed to load activity")
+    } finally {
+      setJournalLoading(false)
+    }
+  }, [journalPageSize])
+
   React.useEffect(() => {
     void fetchProfile()
   }, [fetchProfile])
+
+  React.useEffect(() => {
+    void fetchSessions()
+  }, [fetchSessions])
+
+  React.useEffect(() => {
+    void fetchJournals(journalPage)
+  }, [fetchJournals, journalPage])
 
   const handleSave = async () => {
     setSaving(true)
@@ -342,8 +621,17 @@ export default function AdminProfilePageClient() {
     setPasswordError(null)
     setPasswordSuccess(null)
     try {
+      const validation = validatePassword(passwordData.newPassword)
       if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
         setPasswordError(tProfile.errors.required)
+        return
+      }
+      if (!validation.valid) {
+        const localized =
+          passwordData.newPassword.length < 8
+            ? (tProfile.errors as any).passwordTooShort
+            : null
+        setPasswordError(localized || validation.error || tProfile.errors.changePassword)
         return
       }
       if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -373,6 +661,13 @@ export default function AdminProfilePageClient() {
       setChangingPassword(false)
     }
   }
+
+  const canChangePassword = React.useMemo(() => {
+    if (!passwordData.currentPassword) return false
+    if (!passwordData.newPassword || !passwordData.confirmPassword) return false
+    if (passwordData.newPassword !== passwordData.confirmPassword) return false
+    return validatePassword(passwordData.newPassword).valid
+  }, [passwordData.currentPassword, passwordData.newPassword, passwordData.confirmPassword])
 
   const avatarSrc = profile?.avatarMediaUuid ? `/api/esnad/v1/media/${profile.avatarMediaUuid}` : null
   const initials = React.useMemo(() => {
@@ -412,6 +707,9 @@ export default function AdminProfilePageClient() {
                     </TabsTrigger>
                     <TabsTrigger className="data-[state=active]:bg-primary-foreground" value="security">
                       {tProfile.tabs.security}
+                    </TabsTrigger>
+                    <TabsTrigger className="data-[state=active]:bg-primary-foreground" value="activity">
+                      {(tProfile.tabs as any).activity || "Activity"}
                     </TabsTrigger>
                   </TabsList>
 
@@ -481,6 +779,10 @@ export default function AdminProfilePageClient() {
                               onChange={(e) => setFormData((p) => ({ ...p, middleName: e.target.value }))}
                             />
                           </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="email">{tProfile.fields.email}</Label>
+                            <Input id="email" value={profile?.email || ""} disabled />
+                          </div>
                         </div>
 
                         <div className="flex justify-end">
@@ -512,36 +814,283 @@ export default function AdminProfilePageClient() {
                         ) : null}
 
                         <div className="space-y-2">
-                          <Label htmlFor="currentPassword">{tProfile.fields.currentPassword}</Label>
-                          <Input
+                          <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="currentPassword">{tProfile.fields.currentPassword}</Label>
+                            {translations?.profile?.actions?.forgotPassword ? (
+                              <Link
+                                href={`/login?forgot=1&email=${encodeURIComponent(profile?.email || "")}`}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                {translations.profile.actions.forgotPassword}
+                              </Link>
+                            ) : null}
+                          </div>
+                          <SecretInput
                             id="currentPassword"
-                            type="password"
+                            name="currentPassword"
+                            autoComplete="current-password"
                             value={passwordData.currentPassword}
-                            onChange={(e) => setPasswordData((p) => ({ ...p, currentPassword: e.target.value }))}
+                            leftIconLabel={tProfile.fields.currentPassword}
+                            onChange={(next) => setPasswordData((p) => ({ ...p, currentPassword: next }))}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="newPassword">{tProfile.fields.newPassword}</Label>
-                          <Input
+                          <SecretInput
                             id="newPassword"
-                            type="password"
+                            name="newPassword"
+                            autoComplete="off"
+                            variant="maskedText"
                             value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData((p) => ({ ...p, newPassword: e.target.value }))}
+                            leftIconLabel={tProfile.fields.newPassword}
+                            rightAction={() => {
+                              const next = generateRandomPassword(16)
+                              setPasswordData((p) => ({ ...p, newPassword: next, confirmPassword: next }))
+                            }}
+                            rightActionLabel={tProfile.actions.generatePassword || "Generate password"}
+                            onChange={(next) => setPasswordData((p) => ({ ...p, newPassword: next }))}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="confirmPassword">{tProfile.fields.confirmPassword}</Label>
-                          <Input
-                            id="confirmPassword"
-                            type="password"
-                            value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData((p) => ({ ...p, confirmPassword: e.target.value }))}
-                          />
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                            <div className="flex-1">
+                              <SecretInput
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                autoComplete="off"
+                                variant="maskedText"
+                                value={passwordData.confirmPassword}
+                                leftIconLabel={tProfile.fields.confirmPassword}
+                                onChange={(next) => setPasswordData((p) => ({ ...p, confirmPassword: next }))}
+                              />
+                            </div>
+                            <Button
+                              className="w-full sm:w-auto"
+                              onClick={() => void handlePasswordChange()}
+                              disabled={changingPassword || !canChangePassword}
+                            >
+                              {changingPassword ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  {tProfile.actions.changing}
+                                </>
+                              ) : (
+                                <>
+                                  <KeyRound className="mr-2 h-4 w-4" />
+                                  {tProfile.actions.changePassword}
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
 
-                        <div className="flex justify-end">
-                          <Button onClick={() => void handlePasswordChange()} disabled={changingPassword}>
-                            {changingPassword ? tProfile.actions.changing : tProfile.actions.changePassword}
+                        {emailChangeSectionReady ? (
+                          <div className="pt-4 border-t">
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium">{emailChangeI18n.title}</div>
+                              <div className="text-xs text-muted-foreground">{emailChangeI18n.description}</div>
+                            </div>
+                            {emailChangeError ? (
+                              <Alert variant="destructive" className="mt-3">
+                                <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
+                                <AlertDescription>{emailChangeError}</AlertDescription>
+                              </Alert>
+                            ) : null}
+                            {emailChangeSuccess ? (
+                              <Alert className="mt-3">
+                                <AlertTitle>{tProfile.alerts.successTitle}</AlertTitle>
+                                <AlertDescription>{emailChangeSuccess}</AlertDescription>
+                              </Alert>
+                            ) : null}
+                            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
+                              <div className="space-y-2">
+                                <Label htmlFor="newEmail">{emailChangeI18n.newEmail}</Label>
+                                <Input
+                                  id="newEmail"
+                                  type="email"
+                                  value={newEmail}
+                                  onChange={(e) => {
+                                    setNewEmail(e.target.value)
+                                    setEmailChangeError(null)
+                                    setEmailChangeSuccess(null)
+                                  }}
+                                  placeholder="name@example.com"
+                                  autoComplete="email"
+                                />
+                              </div>
+
+                              <Button
+                                type="button"
+                                className="w-full sm:w-auto sm:self-end"
+                                onClick={() => void requestEmailChange()}
+                                disabled={emailChangeLoading || !isNewEmailValid}
+                              >
+                                {emailChangeLoading ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    {(translations?.profile?.actions as any)?.sendingEmailChange || tProfile.actions.changing}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    {emailChangeActionLabel}
+                                  </>
+                                )}
+                              </Button>
+
+                              <div className="min-h-4 text-xs text-destructive sm:col-start-1">
+                                {newEmailValidationMessage || ""}
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="activity" className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>{(translations?.profile?.activity?.sessions?.title as string) || "Active sessions"}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {sessionsError ? (
+                          <Alert variant="destructive">
+                            <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
+                            <AlertDescription>{sessionsError}</AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {sessionsLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {(translations?.profile?.activity?.sessions?.loading as string) || "Loading..."}
+                          </div>
+                        ) : null}
+
+                        {!sessionsLoading && sessions.length === 0 ? (
+                          <div className="text-sm text-muted-foreground">
+                            {(translations?.profile?.activity?.sessions?.empty as string) || "No active sessions"}
+                          </div>
+                        ) : null}
+
+                        {!sessionsLoading && sessions.length ? (
+                          <div className="space-y-2">
+                            {sessions.map((s) => (
+                              <div
+                                key={s.uuid}
+                                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="mt-0.5 text-muted-foreground">
+                                    {s.device === "mobile" ? (
+                                      <Smartphone className="h-4 w-4" />
+                                    ) : (
+                                      <Monitor className="h-4 w-4" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                                      <span className="truncate">
+                                        {s.userAgent || (translations?.profile?.activity?.sessions?.unknownDevice as string) || "Unknown device"}
+                                      </span>
+                                      {s.isCurrent ? (
+                                        <span className="rounded bg-muted px-2 py-0.5 text-xs">
+                                          {(translations?.profile?.activity?.sessions?.current as string) || "Current"}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                      {s.ip ? `IP: ${s.ip}` : null}
+                                      {s.lastSeenAt ? ` • ${(translations?.profile?.activity?.sessions?.lastSeen as string) || "Last seen"}: ${s.lastSeenAt}` : null}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => revokeSession(s.uuid, s.isCurrent)}
+                                >
+                                  {(translations?.profile?.activity?.sessions?.revoke as string) || "Close"}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>{(translations?.profile?.activity?.journal?.title as string) || "Activity"}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {journalError ? (
+                          <Alert variant="destructive">
+                            <AlertTitle>{tProfile.alerts.errorTitle}</AlertTitle>
+                            <AlertDescription>{journalError}</AlertDescription>
+                          </Alert>
+                        ) : null}
+
+                        {journalLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {(translations?.profile?.activity?.journal?.loading as string) || "Loading..."}
+                          </div>
+                        ) : null}
+
+                        {!journalLoading && journalRows.length === 0 ? (
+                          <div className="text-sm text-muted-foreground">
+                            {(translations?.profile?.activity?.journal?.empty as string) || "No activity yet"}
+                          </div>
+                        ) : null}
+
+                        {!journalLoading && journalRows.length ? (
+                          <div className="space-y-2">
+                            {journalRows.map((row) => {
+                              const payload = row?.details?.payload
+                              const url = payload?.url || payload?.pathname || null
+                              return (
+                                <div key={row.uuid} className="rounded-lg border p-3">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-sm font-medium">
+                                      {row.action}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {row.createdAt || ""}
+                                    </div>
+                                  </div>
+                                  {url ? (
+                                    <div className="mt-1 text-xs text-muted-foreground break-all">{String(url)}</div>
+                                  ) : null}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : null}
+
+                        <div className="flex items-center justify-between pt-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={journalPage <= 1}
+                            onClick={() => setJournalPage((p) => Math.max(1, p - 1))}
+                          >
+                            {(translations?.profile?.activity?.journal?.prev as string) || "Prev"}
+                          </Button>
+                          <div className="text-xs text-muted-foreground">
+                            {(translations?.profile?.activity?.journal?.page as string) || "Page"} {journalPage} / {journalTotalPages}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={journalPage >= journalTotalPages}
+                            onClick={() => setJournalPage((p) => Math.min(journalTotalPages, p + 1))}
+                          >
+                            {(translations?.profile?.activity?.journal?.next as string) || "Next"}
                           </Button>
                         </div>
                       </CardContent>

@@ -120,13 +120,42 @@
     "passwordPlaceholder": "••••••••",
     "loginButton": "Войти",
     "loggingIn": "Вход...",
+    "forgotPassword": "Забыли пароль?",
+    "resetTitle": "Сброс пароля",
+    "resetDescription": "Введите email, и мы отправим ссылку для сброса пароля",
+    "sendResetLink": "Отправить ссылку",
+    "sendingResetLink": "Отправляем...",
+    "backToLogin": "Назад ко входу",
+    "resetEmailSent": "Если аккаунт с таким email существует, мы отправили ссылку для сброса пароля.",
     "errors": {
       "apiNotFound": "API endpoint не найден. Убедитесь, что сервер разработки запущен правильно.\n\nДля локальной разработки с Cloudflare Functions используйте:\n  npm run dev:all\n\nЭто запустит серверы Next.js и Wrangler.",
       "serverError": "Ошибка сервера. Пожалуйста, попробуйте позже.",
       "unexpectedResponse": "Сервер вернул неожиданный ответ",
       "invalidCredentials": "Неверный email или пароль",
+      "emailRequired": "Укажите email",
       "loginFailed": "Ошибка входа",
       "unknownError": "Неизвестная ошибка"
+    }
+  },
+  "passwordReset": {
+    "title": "Сброс пароля",
+    "description": "Установите новый пароль для аккаунта",
+    "newPassword": "Новый пароль",
+    "confirmPassword": "Подтвердите новый пароль",
+    "submit": "Сохранить новый пароль",
+    "submitting": "Сохраняем...",
+    "backToLogin": "Назад ко входу",
+    "generate": "Сгенерировать пароль",
+    "errors": {
+      "invalidLink": "Некорректная ссылка для сброса пароля",
+      "required": "Все поля обязательны",
+      "mismatch": "Пароли не совпадают",
+      "weak": "Пароль должен быть не короче 8 символов",
+      "failed": "Не удалось сбросить пароль"
+    },
+    "success": {
+      "title": "Успешно",
+      "message": "Пароль обновлен. Теперь вы можете войти в систему."
     }
   },
   "dataTable": {
@@ -255,13 +284,15 @@
     "title": "Профиль",
     "tabs": {
       "personal": "Личные данные",
-      "security": "Безопасность"
+      "security": "Безопасность",
+      "activity": "Активность"
     },
     "fields": {
       "avatar": "Аватар",
       "firstName": "Имя",
       "lastName": "Фамилия",
       "middleName": "Отчество",
+      "email": "Email",
       "currentPassword": "Текущий пароль",
       "newPassword": "Новый пароль",
       "confirmPassword": "Подтвердите новый пароль"
@@ -271,8 +302,23 @@
       "saving": "Сохранение...",
       "changePassword": "Сменить пароль",
       "changing": "Сохранение...",
+      "forgotPassword": "Забыли пароль?",
+      "requestEmailChange": "Отправить ссылку подтверждения",
+      "sendingEmailChange": "Отправка...",
+      "generatePassword": "Сгенерировать пароль",
       "removeAvatar": "Удалить аватар",
       "removing": "Удаление..."
+    },
+    "email": {
+      "title": "Смена email",
+      "description": "Мы отправим ссылку подтверждения на новый email.",
+      "newEmail": "Новый email",
+      "success": "Ссылка подтверждения отправлена на новый email.",
+      "errors": {
+        "invalid": "Укажите корректный email.",
+        "sameAsCurrent": "Новый email должен отличаться от текущего.",
+        "failed": "Не удалось отправить ссылку для смены email."
+      }
     },
     "alerts": {
       "errorTitle": "Ошибка",
@@ -289,8 +335,39 @@
       "uploadAvatar": "Не удалось загрузить аватар",
       "removeAvatar": "Не удалось удалить аватар",
       "changePassword": "Не удалось изменить пароль",
+      "passwordTooShort": "Пароль должен быть не короче 8 символов",
       "required": "Все поля обязательны",
       "mismatch": "Пароли не совпадают"
     }
+    ,
+    "activity": {
+      "sessions": {
+        "title": "Активные сессии",
+        "loading": "Загрузка...",
+        "empty": "Нет активных сессий",
+        "unknownDevice": "Неизвестное устройство",
+        "current": "Текущая",
+        "lastSeen": "Последняя активность",
+        "revoke": "Закрыть"
+      },
+      "journal": {
+        "title": "Журнал активности",
+        "loading": "Загрузка...",
+        "empty": "Пока нет активности",
+        "prev": "Назад",
+        "next": "Вперед",
+        "page": "Страница"
+      }
+    }
+  }
+  ,
+  "confirmEmailChange": {
+    "title": "Подтверждение смены email",
+    "description": "Подтверждаем новый email…",
+    "successTitle": "Успешно",
+    "successMessage": "Email обновлен. Пожалуйста, войдите снова.",
+    "errorTitle": "Ошибка",
+    "errorMessage": "Не удалось подтвердить смену email.",
+    "backToLogin": "Перейти ко входу"
   }
 }

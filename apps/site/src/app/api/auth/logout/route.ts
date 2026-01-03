@@ -5,6 +5,7 @@ import type { Env } from '@/shared/types'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { buildRequestEnv } from '@/shared/env'
+import { UserSessionsRepository } from '@/shared/repositories/user-sessions.repository'
 
 /**
  * POST /api/auth/logout
@@ -21,6 +22,14 @@ export const onRequestPost = async (context: { request: Request; env: Env }) => 
         const user = await usersRepository.findByEmail(session.email)
         if (user) {
           await logUserJournalEvent(env, 'USER_JOURNAL_LOGOUT', user)
+        }
+      }
+      if (session?.sessionUuid && session?.id) {
+        try {
+          const repo = UserSessionsRepository.getInstance()
+          await repo.revokeSession(session.sessionUuid, Number(session.id))
+        } catch (e) {
+          console.error('Failed to revoke user session', e)
         }
       }
     } catch (error) {

@@ -6,12 +6,17 @@ import { UserWithRoles, SessionData, SessionUser } from './types'
 
 const COOKIE_NAME = 'session'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days in seconds
+export const SESSION_COOKIE_MAX_AGE_SECONDS = COOKIE_MAX_AGE
 
 type SameSite = 'Strict' | 'Lax' | 'None'
 
 export type SessionCookieOptions = {
   secure?: boolean
   sameSite?: SameSite
+}
+
+export type SessionCreateOptions = SessionCookieOptions & {
+  sessionUuid?: string
 }
 
 export function isSecureRequest(request: Request): boolean {
@@ -154,11 +159,13 @@ async function decrypt(encrypted: string, secret: string): Promise<string | null
 export async function createSession(
   user: SessionUser,
   secret: string,
-  options?: SessionCookieOptions
+  options?: SessionCreateOptions
 ): Promise<string> {
+  const sessionUuid = options?.sessionUuid ?? crypto.randomUUID()
   const sessionData: SessionData = {
     user,
     expiresAt: Date.now() + COOKIE_MAX_AGE * 1000,
+    sessionUuid,
   }
   
   const encrypted = await encrypt(JSON.stringify(sessionData), secret)
@@ -196,7 +203,10 @@ export async function getSession(request: Request, secret: string): Promise<Sess
       return null
     }
     
-    return sessionData.user
+    return {
+      ...sessionData.user,
+      sessionUuid: sessionData.sessionUuid,
+    }
   } catch (error) {
     console.error('Failed to parse session:', error)
     return null
@@ -237,7 +247,10 @@ export async function getSessionFromCookies(secret?: string): Promise<SessionUse
         return null
       }
       
-      return sessionData.user
+      return {
+        ...sessionData.user,
+        sessionUuid: sessionData.sessionUuid,
+      }
     } catch (error) {
       console.error('Failed to parse session:', error)
       return null

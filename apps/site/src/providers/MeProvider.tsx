@@ -1,8 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react'
 import { MeUser } from '@/shared/types/shared'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 
 interface MeContextValue {
@@ -32,6 +33,8 @@ export function MeProvider({
   refetchInterval,
   refetchOnFocus = false,
 }: MeProviderProps) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState<MeUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -122,6 +125,38 @@ export function MeProvider({
       setLoading(false)
     }
   }, [authDebugEnabled])
+
+  const currentUrl = useMemo(() => {
+    const qs = searchParams?.toString()
+    return `${pathname || ''}${qs ? `?${qs}` : ''}`
+  }, [pathname, searchParams])
+
+  const lastTrackedUrlRef = useRef<string | null>(null)
+
+  // Track page views across the whole app (requires auth; endpoint returns 204 if not authenticated)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!currentUrl) return
+    if (lastTrackedUrlRef.current === currentUrl) return
+    lastTrackedUrlRef.current = currentUrl
+
+    const payload = {
+      pathname: pathname || null,
+      search: searchParams?.toString() || null,
+      url: window.location.href,
+      referrer: document.referrer || null,
+      userAgent: navigator.userAgent,
+    }
+
+    fetch('/api/auth/page-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    }).catch(() => {
+      // ignore
+    })
+  }, [currentUrl, pathname, searchParams])
 
   // Initial fetch
   useEffect(() => {

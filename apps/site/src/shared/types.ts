@@ -33,12 +33,14 @@ export interface SessionUser {
     email: string
     name?: string
     role?: string
+    sessionUuid?: string
 }
 
 
 export interface SessionData {
     user: SessionUser
     expiresAt: number
+    sessionUuid?: string
 }
 
 export interface AuthenticatedContext extends Context {

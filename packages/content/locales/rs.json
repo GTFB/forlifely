@@ -121,13 +121,42 @@
       "passwordPlaceholder": "••••••••",
       "loginButton": "Prijavi se",
       "loggingIn": "Prijavljivanje...",
+      "forgotPassword": "Zaboravili ste lozinku?",
+      "resetTitle": "Reset lozinke",
+      "resetDescription": "Unesite imejl i poslaćemo vam link za reset lozinke",
+      "sendResetLink": "Pošalji link",
+      "sendingResetLink": "Slanje...",
+      "backToLogin": "Nazad na prijavu",
+      "resetEmailSent": "Ako nalog sa ovim imejlom postoji, link za reset lozinke je poslat.",
       "errors": {
         "apiNotFound": "API krajnja tačka nije pronađena. Molimo proverite da li server za razvoj radi ispravno.\n\nZa lokalni razvoj sa Cloudflare Functions, koristite:\n  npm run dev:all\n\nOvo će pokrenuti i Next.js i Wrangler servere.",
         "serverError": "Greška na serveru. Molimo pokušajte ponovo kasnije.",
         "unexpectedResponse": "Server je vratio neočekivan odgovor",
         "invalidCredentials": "Neispravni podaci za prijavu",
+        "emailRequired": "Imejl je obavezan",
         "loginFailed": "Prijava nije uspela",
         "unknownError": "Nepoznata greška"
+      }
+    },
+    "passwordReset": {
+      "title": "Reset lozinke",
+      "description": "Postavite novu lozinku za vaš nalog",
+      "newPassword": "Nova lozinka",
+      "confirmPassword": "Potvrdite novu lozinku",
+      "submit": "Sačuvaj novu lozinku",
+      "submitting": "Čuvanje...",
+      "backToLogin": "Nazad na prijavu",
+      "generate": "Generiši lozinku",
+      "errors": {
+        "invalidLink": "Neispravan link za reset lozinke",
+        "required": "Sva polja su obavezna",
+        "mismatch": "Lozinke se ne poklapaju",
+        "weak": "Lozinka mora imati najmanje 8 karaktera",
+        "failed": "Neuspešan reset lozinke"
+      },
+      "success": {
+        "title": "Uspešno",
+        "message": "Lozinka je ažurirana. Sada se možete prijaviti."
       }
     },
     "dataTable": {
@@ -255,13 +284,15 @@
     "title": "Profil",
     "tabs": {
       "personal": "Lični podaci",
-      "security": "Bezbednost"
+      "security": "Bezbednost",
+      "activity": "Aktivnost"
     },
     "fields": {
       "avatar": "Avatar",
       "firstName": "Ime",
       "lastName": "Prezime",
       "middleName": "Srednje ime",
+      "email": "Imejl",
       "currentPassword": "Trenutna lozinka",
       "newPassword": "Nova lozinka",
       "confirmPassword": "Potvrdite novu lozinku"
@@ -271,8 +302,23 @@
       "saving": "Čuvanje...",
       "changePassword": "Promeni lozinku",
       "changing": "Čuvanje...",
+      "forgotPassword": "Zaboravili ste lozinku?",
+      "requestEmailChange": "Pošalji verifikacioni link",
+      "sendingEmailChange": "Slanje...",
+      "generatePassword": "Generiši lozinku",
       "removeAvatar": "Ukloni avatar",
       "removing": "Uklanjanje..."
+    },
+    "email": {
+      "title": "Promena imejla",
+      "description": "Poslaćemo verifikacioni link na vaš novi imejl.",
+      "newEmail": "Novi imejl",
+      "success": "Verifikacioni link je poslat na novi imejl.",
+      "errors": {
+        "invalid": "Unesite ispravan imejl.",
+        "sameAsCurrent": "Novi imejl mora biti drugačiji od trenutnog.",
+        "failed": "Neuspešno slanje linka za promenu imejla."
+      }
     },
     "alerts": {
       "errorTitle": "Greška",
@@ -289,8 +335,39 @@
       "uploadAvatar": "Neuspešno otpremanje avatara",
       "removeAvatar": "Neuspešno uklanjanje avatara",
       "changePassword": "Neuspešna promena lozinke",
+      "passwordTooShort": "Lozinka mora imati najmanje 8 karaktera",
       "required": "Sva polja su obavezna",
       "mismatch": "Lozinke se ne poklapaju"
     }
+    ,
+    "activity": {
+      "sessions": {
+        "title": "Aktivne sesije",
+        "loading": "Učitavanje...",
+        "empty": "Nema aktivnih sesija",
+        "unknownDevice": "Nepoznati uređaj",
+        "current": "Trenutna",
+        "lastSeen": "Poslednja aktivnost",
+        "revoke": "Zatvori"
+      },
+      "journal": {
+        "title": "Dnevnik aktivnosti",
+        "loading": "Učitavanje...",
+        "empty": "Još nema aktivnosti",
+        "prev": "Nazad",
+        "next": "Napred",
+        "page": "Stranica"
+      }
+    }
+  }
+  ,
+  "confirmEmailChange": {
+    "title": "Potvrda promene imejla",
+    "description": "Potvrđujemo novi imejl…",
+    "successTitle": "Uspešno",
+    "successMessage": "Imejl je ažuriran. Molimo prijavite se ponovo.",
+    "errorTitle": "Greška",
+    "errorMessage": "Neuspešna potvrda promene imejla.",
+    "backToLogin": "Nazad na prijavu"
   }
 }

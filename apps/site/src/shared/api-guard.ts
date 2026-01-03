@@ -2,6 +2,7 @@
 import { buildRequestEnv } from '@/shared/env'
 import { getSession } from '@/shared/session'
 import { MeRepository } from '@/shared/repositories/me.repository'
+import { UserSessionsRepository } from '@/shared/repositories/user-sessions.repository'
 import type { RequestContext, Env } from '@/shared/types'
 
 export type AuthenticatedRequestContext = RequestContext & {
@@ -43,6 +44,29 @@ export function withRoleGuard<T extends RequestContext>(handler: RouteHandler<T>
           headers: { 'content-type': 'application/json' } 
         }
       )
+    }
+
+    if (session?.sessionUuid) {
+      try {
+        const repo = UserSessionsRepository.getInstance()
+        const active = await repo.isActiveSessionForUser(session.sessionUuid, Number(session.id))
+        if (!active) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'UNAUTHORIZED',
+              message: 'Unauthorized',
+            }),
+            {
+              status: 401,
+              headers: { 'content-type': 'application/json' },
+            },
+          )
+        }
+        await repo.touch(session.sessionUuid)
+      } catch (e) {
+        console.error('Failed to validate sessionUuid:', e)
+      }
     }
 
     const meRepo = MeRepository.getInstance()

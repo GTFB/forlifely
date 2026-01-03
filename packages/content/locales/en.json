@@ -121,13 +121,42 @@
     "passwordPlaceholder": "••••••••",
     "loginButton": "Login",
     "loggingIn": "Logging in...",
+    "forgotPassword": "Forgot password?",
+    "resetTitle": "Password reset",
+    "resetDescription": "Enter your email and we will send you a reset link",
+    "sendResetLink": "Send reset link",
+    "sendingResetLink": "Sending...",
+    "backToLogin": "Back to login",
+    "resetEmailSent": "If an account exists for this email, a reset link has been sent.",
     "errors": {
       "apiNotFound": "API endpoint not found. Please ensure you are running the development server correctly.\n\nFor local development with Cloudflare Functions, use:\n  npm run dev:all\n\nThis will start both Next.js and Wrangler servers.",
       "serverError": "Server error. Please try again later.",
       "unexpectedResponse": "Server returned an unexpected response",
       "invalidCredentials": "Invalid credentials",
+      "emailRequired": "Email is required",
       "loginFailed": "Login failed",
       "unknownError": "Unknown error"
+    }
+  },
+  "passwordReset": {
+    "title": "Reset password",
+    "description": "Set a new password for your account",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Save new password",
+    "submitting": "Saving...",
+    "backToLogin": "Back to login",
+    "generate": "Generate password",
+    "errors": {
+      "invalidLink": "Invalid reset link",
+      "required": "All fields are required",
+      "mismatch": "Passwords do not match",
+      "weak": "Password must be at least 8 characters",
+      "failed": "Failed to reset password"
+    },
+    "success": {
+      "title": "Success",
+      "message": "Password was updated. You can now sign in."
     }
   },
   "dataTable": {
@@ -255,13 +284,15 @@
     "title": "Profile",
     "tabs": {
       "personal": "Personal",
-      "security": "Security"
+      "security": "Security",
+      "activity": "Activity"
     },
     "fields": {
       "avatar": "Avatar",
       "firstName": "First name",
       "lastName": "Last name",
       "middleName": "Middle name",
+      "email": "Email",
       "currentPassword": "Current password",
       "newPassword": "New password",
       "confirmPassword": "Confirm new password"
@@ -271,8 +302,23 @@
       "saving": "Saving...",
       "changePassword": "Change password",
       "changing": "Saving...",
+      "forgotPassword": "Forgot password?",
+      "requestEmailChange": "Send verification link",
+      "sendingEmailChange": "Sending...",
+      "generatePassword": "Generate password",
       "removeAvatar": "Remove avatar",
       "removing": "Removing..."
+    },
+    "email": {
+      "title": "Change email",
+      "description": "We will send a verification link to your new email address.",
+      "newEmail": "New email",
+      "success": "Verification link sent to the new email.",
+      "errors": {
+        "invalid": "Please enter a valid email.",
+        "sameAsCurrent": "New email must be different from current email.",
+        "failed": "Failed to request email change."
+      }
     },
     "alerts": {
       "errorTitle": "Error",
@@ -289,8 +335,39 @@
       "uploadAvatar": "Failed to upload avatar",
       "removeAvatar": "Failed to remove avatar",
       "changePassword": "Failed to change password",
+      "passwordTooShort": "Password must be at least 8 characters",
       "required": "All fields are required",
       "mismatch": "Passwords do not match"
     }
+    ,
+    "activity": {
+      "sessions": {
+        "title": "Active sessions",
+        "loading": "Loading...",
+        "empty": "No active sessions",
+        "unknownDevice": "Unknown device",
+        "current": "Current",
+        "lastSeen": "Last seen",
+        "revoke": "Close"
+      },
+      "journal": {
+        "title": "Activity",
+        "loading": "Loading...",
+        "empty": "No activity yet",
+        "prev": "Prev",
+        "next": "Next",
+        "page": "Page"
+      }
+    }
+  }
+  ,
+  "confirmEmailChange": {
+    "title": "Confirm email change",
+    "description": "We are confirming your new email address…",
+    "successTitle": "Success",
+    "successMessage": "Email was updated. Please sign in again.",
+    "errorTitle": "Error",
+    "errorMessage": "Failed to confirm email change.",
+    "backToLogin": "Back to login"
   }
 }
