@@ -1185,7 +1185,13 @@ export default function AdminProfilePageClient() {
                                         </div>
                                         <div className="mt-1 text-xs text-muted-foreground break-words">
                                           {s.ip ? `IP: ${s.ip}` : null}
-                                          {s.region ? ` • ${(translations?.profile?.activity?.sessions?.region as string) || "Region"}: ${s.region}` : null}
+                                          {(() => {
+                                            const isLocalhost = s.ip === '127.0.0.1' || s.ip === 'localhost'
+                                            const displayRegion = s.region === 'Localhost' 
+                                              ? ((translations?.profile?.activity?.sessions?.local as string) || "Localhost")
+                                              : (s.region || (isLocalhost ? ((translations?.profile?.activity?.sessions?.local as string) || "Localhost") : null))
+                                            return displayRegion ? ` • ${(translations?.profile?.activity?.sessions?.region as string) || "Region"}: ${displayRegion}` : null
+                                          })()}
                                           {s.lastSeenAt ? ` • ${(translations?.profile?.activity?.sessions?.lastSeen as string) || "Last seen"}: ${formatLocalDateTime(s.lastSeenAt, locale)}` : null}
                                         </div>
                                       </div>

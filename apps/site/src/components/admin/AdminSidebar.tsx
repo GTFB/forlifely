@@ -27,6 +27,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -49,6 +51,24 @@ import { useTheme } from '@/packages/hooks/use-theme'
 import { User, Sun, Moon } from 'lucide-react'
 import { useNotice } from './AdminNoticesProvider'
 import { Badge } from '@/components/ui/badge'
+import { TeamSwitcher } from '@/components/application-blocks/team-switcher'
+import { NavUser } from '@/components/application-blocks/nav-user'
+import { LANGUAGES } from '@/settings'
+
+// Remove middle name (отчество) from full name - keep only first and last name
+function toFirstLastName(fullName: string): string {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 2) return parts.join(" ")
+  // For Russian names: LastName FirstName MiddleName -> LastName FirstName
+  // For English names: FirstName LastName MiddleName -> FirstName LastName
+  const hasCyrillic = /[А-Яа-яЁё]/.test(fullName)
+  if (hasCyrillic && parts.length >= 2) {
+    // Russian format: LastName FirstName MiddleName
+    return `${parts[0]} ${parts[1]}`
+  }
+  // English format: FirstName LastName MiddleName
+  return `${parts[0]} ${parts[1]}`
+}
 
 export interface NavigationItem {
   title: string
@@ -158,9 +178,135 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const { handleMouseDown } = useResizableSidebar()
   const { theme, setTheme } = useTheme()
   const { user: meUser } = useMe()
+  const [translations, setTranslations] = React.useState<any>(null)
+  type LanguageCode = (typeof LANGUAGES)[number]['code']
+  const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
 
   // Determine base path prefix (/m or /admin)
   const basePath = pathname?.startsWith('/m/') ? '/m' : '/admin'
+
+  // Load translations and locale
+  const [locale, setLocale] = React.useState<LanguageCode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
+      }
+    }
+    return 'ru'
+  })
+
+  React.useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const response = await fetch(`/api/locales/${locale}`)
+        if (response.ok) {
+          const data = await response.json()
+          setTranslations(data)
+        }
+      } catch (e) {
+        console.error('Failed to load translations:', e)
+      }
+    }
+    loadTranslations()
+  }, [locale])
+
+  const handleLocaleChange = React.useCallback((newLocale: LanguageCode) => {
+    if (supportedLanguageCodes.includes(newLocale)) {
+      setLocale(newLocale)
+      localStorage.setItem('sidebar-locale', newLocale)
+      window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
+    }
+  }, [supportedLanguageCodes])
+
+  // Prepare user props for NavUser - get avatar from meUser if available
+  const userProps = React.useMemo(() => {
+    if (!user) {
+      // Try to get user from meUser hook if user prop is not provided
+      if (meUser) {
+        const avatarUrl = (meUser as any).avatarUrl || null
+        return {
+          name: toFirstLastName(meUser.name),
+          email: meUser.email,
+          avatar: avatarUrl || "/avatars/placeholder-user.jpg",
+        }
+      }
+      return null
+    }
+    // If user prop is provided, use it, but prefer avatarUrl from meUser if available
+    const avatarUrl = (meUser as any)?.avatarUrl || user.avatar
+    return {
+      name: toFirstLastName(user.name),
+      email: user.email,
+      avatar: avatarUrl || "/avatars/placeholder-user.jpg",
+    }
+  }, [user, meUser])
+
+  // Check if user is super admin (has Administrator role)
+  const isSuperAdmin = meUser?.roles?.some((role) => role.name === 'Administrator') || false
+
+  // Build teams from user roles
+  const teams = React.useMemo(() => {
+    if (!meUser?.roles) return []
+    
+    const roleTeams = meUser.roles
+      .filter(role => {
+        try {
+          const dataIn = typeof role.dataIn === 'string' ? JSON.parse(role.dataIn) : role.dataIn
+          return dataIn?.auth_redirect_url
+        } catch {
+          return false
+        }
+      })
+      .map(role => {
+        const dataIn = typeof role.dataIn === 'string' ? JSON.parse(role.dataIn) : role.dataIn
+        const name = role.title.replace(/Кабинет\s*/, '')
+        // Try to get order from dataIn, fallback to 0
+        const order = dataIn?.order ? Number(dataIn.order) : 0
+        return {
+          name: name,
+          logo: Logo,
+          plan: role.description || '',
+          href: dataIn.auth_redirect_url,
+          order: order,
+        }
+      })
+      .sort((a, b) => a.order - b.order)
+
+    // Add Super Admin role if user has Administrator role
+    if (isSuperAdmin) {
+      const superAdminExists = roleTeams.some(team => team.href === '/admin/dashboard')
+      if (!superAdminExists) {
+        roleTeams.unshift({
+          name: 'Супер-админ',
+          logo: Logo,
+          plan: "Super Admin Dashboard",
+          href: "/admin/dashboard",
+          order: -1,
+        })
+      }
+    }
+
+    // Add Manager's Cabinet if user has admin/manager role or is on /m/ path
+    const isAdminOrManager = meUser.roles.some(r => ['Administrator', 'admin', 'Manager'].includes(r.name))
+    const isManagerPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/m/')
+
+    if (isAdminOrManager || isManagerPath) {
+      const managerRoleExists = roleTeams.some(team => team.href === '/m/dashboard')
+      if (!managerRoleExists) {
+        roleTeams.push({
+          name: 'Менеджерский',
+          logo: Logo,
+          plan: "Manager's Dashboard",
+          href: "/m/dashboard",
+          order: 0,
+        })
+      }
+    }
+
+    // Sort by order after all additions
+    return roleTeams.sort((a, b) => a.order - b.order)
+  }, [meUser?.roles, isSuperAdmin])
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light')
@@ -174,8 +320,33 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     return pathname === url || pathname?.startsWith(url + '/')
   }
 
-  // Check if user is super admin (has Administrator role)
-  const isSuperAdmin = meUser?.roles?.some((role) => role.name === 'Administrator') || false
+  // Hooks must be called before any conditional returns
+  const newLoans = useNotice('new_loans_count')
+  const kycPending = useNotice('kyc_pending_count')
+  const unreadSupportChats = useNotice('unread_support_chats_count')
+
+  // Compute active role name based on pathname and teams
+  const activeRoleName = React.useMemo(() => {
+    if (!pathname || !teams || teams.length === 0) {
+      return translations?.sidebar?.platform || "Platform"
+    }
+    
+    // Find active team based on pathname
+    let activeTeam = null
+    if (pathname.startsWith('/admin')) {
+      activeTeam = teams.find(t => t.href === '/admin/dashboard' || t.href?.startsWith('/admin'))
+    } else if (pathname.startsWith('/m/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/m/'))
+    } else if (pathname.startsWith('/c/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/c/'))
+    } else if (pathname.startsWith('/i/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/i/'))
+    } else if (pathname.startsWith('/p/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/p/'))
+    }
+
+    return activeTeam?.name || teams[0]?.name || translations?.sidebar?.platform || "Platform"
+  }, [pathname, teams, translations?.sidebar?.platform])
 
   // Build navigation groups dynamically based on user role
   const getNavigationGroups = (): NavigationGroup[] => {
@@ -208,28 +379,23 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
     return groups
   }
-  const newLoans = useNotice('new_loans_count')
-  const kycPending = useNotice('kyc_pending_count')
-  const unreadSupportChats = useNotice('unread_support_chats_count')
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-4 py-6">
-        <div className="flex flex-col items-start gap-2 pl-2">
-          <Logo className="h-8" />
-          <Link className="text-sm font-semibold" href='/'>Админ-панель</Link>
-        </div>
+      <SidebarHeader>
+        <TeamSwitcher teams={teams} translations={translations} />
       </SidebarHeader>
       <SidebarContent>
-        <div className="p-4">
+        <SidebarGroup>
+          <SidebarGroupLabel>{activeRoleName}</SidebarGroupLabel>
           <Accordion type="multiple" className="w-full">
             {getNavigationGroups().map((group) => (
               <AccordionItem key={group.title} value={group.title} className="border-none">
-                <AccordionTrigger className="py-2 text-sm font-medium">
+                <AccordionTrigger className="px-2 py-2 text-sm font-medium">
                   {group.title}
                 </AccordionTrigger>
                 <AccordionContent>
-                  <SidebarMenu>
+                  <SidebarMenu className="overflow-visible">
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const active = isActive(item.url)
@@ -240,7 +406,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
                       const hasKycPending = typeof kycPending === 'number' && kycPending > 0
                       const hasUnreadSupportChats = typeof unreadSupportChats === 'number' && unreadSupportChats > 0
                       return (
-                        <SidebarMenuItem key={item.url}>
+                        <SidebarMenuItem key={item.url} className="mx-2">
                           <SidebarMenuButton
                             asChild
                             isActive={active}
@@ -283,59 +449,16 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
               </AccordionItem>
             ))}
           </Accordion>
-        </div>
+        </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t px-4 py-4">
-        {user && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-sidebar-accent">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>
-                    {user.name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-1 flex-col overflow-hidden">
-                  <span className="truncate text-sm font-medium">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </span>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={toggleTheme}>
-                {theme === 'light' ? (
-                  <>
-                    <Moon className="mr-2 h-4 w-4" />
-                    <span>Темная тема</span>
-                  </>
-                ) : (
-                  <>
-                    <Sun className="mr-2 h-4 w-4" />
-                    <span>Светлая тема</span>
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).then(() => {
-                    window.location.href = '/login'
-                  })
-                }}>
-                <span>Выход</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <SidebarFooter>
+        {userProps && (
+          <NavUser
+            user={userProps}
+            locale={locale}
+            onLocaleChange={handleLocaleChange}
+            translations={translations}
+          />
         )}
       </SidebarFooter>
       <SidebarRail onMouseDown={handleMouseDown} />

@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
 import { PROJECT_SETTINGS, LANGUAGES } from "@/settings"
+import { usePathname } from "next/navigation"
 
 import { NavMain } from "@/components/application-blocks/nav-main"
 import { NavUser } from "@/components/application-blocks/nav-user"
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
+import { useMe } from "@/providers/MeProvider"
 
 type CollectionsResponse = {
   success: boolean
@@ -120,6 +122,7 @@ const globalUserPropsRef = globalRefs.userPropsRef
 // Custom comparison to prevent re-renders on state changes that don't affect sidebar
 const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { handleMouseDown } = useResizableSidebar()
+  const pathname = usePathname()
   
   // Only subscribe to collection changes, not entire state
   const currentCollection = useAdminCollection()
@@ -548,14 +551,99 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   // Use global ref to preserve teams across component remounts
   const teamsRef = globalTeamsRef
   
-  // Update team name without causing re-renders - mutate in place
+  // Get user roles from useMe hook
+  const { user: meUser } = useMe()
+  
+  // Transform user roles to teams format
   React.useEffect(() => {
-    const adminCategory = translations?.sidebar?.categories?.Admin || "Admin"
-    // Mutate in place instead of recreating array
-    if (teamsRef.current[0] && teamsRef.current[0].name !== adminCategory) {
-      teamsRef.current[0].name = adminCategory
+    if (!meUser?.roles) {
+      return
     }
-  }, [translations?.sidebar?.categories?.Admin])
+    
+    const roleTeams: Array<{
+      name: string
+      logo: React.ElementType
+      plan: string
+      href: string
+      order: number
+    }> = []
+    
+    // Process roles with auth_redirect_url
+    meUser.roles.forEach((role) => {
+      if (!role.dataIn) return
+      
+      let dataIn: any
+      try {
+        dataIn = typeof role.dataIn === 'string' ? JSON.parse(role.dataIn) : role.dataIn
+      } catch {
+        return
+      }
+      
+      const authRedirectUrl = dataIn?.auth_redirect_url
+      if (!authRedirectUrl || typeof authRedirectUrl !== 'string') {
+        return
+      }
+      
+      // Remove "Кабинет" from role title/name
+      let roleName = role.title || role.name || ''
+      roleName = roleName.replace(/^Кабинет\s+/i, '').trim()
+      
+      // Try to get order from dataIn, fallback to 0
+      const order = dataIn?.order ? Number(dataIn.order) : 0
+      
+      roleTeams.push({
+        name: roleName,
+        logo: Logo,
+        plan: role.description || '',
+        href: authRedirectUrl,
+        order,
+      })
+    })
+    
+    // Add Super Admin role if user has Administrator role
+    const isSuperAdmin = meUser.roles.some((r) => r.name === 'Administrator')
+    if (isSuperAdmin) {
+      const superAdminExists = roleTeams.some((rt) => rt.href === '/admin/dashboard')
+      if (!superAdminExists) {
+        roleTeams.unshift({
+          name: 'Супер-админ',
+          logo: Logo,
+          plan: 'Super Admin Dashboard',
+          href: '/admin/dashboard',
+          order: -1,
+        })
+      }
+    }
+
+    // Add manager cabinet (/m/) if user has access (check if current pathname starts with /m/ or user has admin role)
+    const hasManagerAccess = meUser.roles.some(
+      (r) => r.name === 'Administrator' || r.name === 'admin' || r.name === 'manager'
+    ) || (typeof window !== 'undefined' && window.location.pathname.startsWith('/m/'))
+    
+    if (hasManagerAccess) {
+      // Check if manager cabinet already exists in roles
+      const hasManagerRole = roleTeams.some((rt) => rt.href.startsWith('/m/'))
+      if (!hasManagerRole) {
+        roleTeams.push({
+          name: 'Менеджерский',
+          logo: Logo,
+          plan: '',
+          href: '/m/dashboard',
+          order: 500, // Between regular roles and admin
+        })
+      }
+    }
+    
+    // Sort by order
+    roleTeams.sort((a, b) => a.order - b.order)
+    
+    // Update teamsRef if changed
+    const currentTeamsStr = JSON.stringify(teamsRef.current)
+    const newTeamsStr = JSON.stringify(roleTeams)
+    if (currentTeamsStr !== newTeamsStr) {
+      teamsRef.current = roleTeams as any
+    }
+  }, [meUser?.roles])
   
   // Always return same reference - mutations happen in-place
   const teams = teamsRef.current
@@ -582,14 +670,37 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   }, [user?.name, user?.email, (user as any)?.avatarUrl])
   const userProps = userPropsRef.current
 
+  // Compute active role name based on pathname and teams
+  const activeRoleName = React.useMemo(() => {
+    const teams = teamsRef.current
+    if (!pathname || !teams || teams.length === 0) {
+      return translations?.sidebar?.platform || "Platform"
+    }
+    
+    // Find active team based on pathname
+    let activeTeam = null
+    if (pathname.startsWith('/admin')) {
+      activeTeam = teams.find(t => t.href === '/admin/dashboard' || t.href?.startsWith('/admin'))
+    } else if (pathname.startsWith('/m/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/m/'))
+    } else if (pathname.startsWith('/c/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/c/'))
+    } else if (pathname.startsWith('/i/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/i/'))
+    } else if (pathname.startsWith('/p/')) {
+      activeTeam = teams.find(t => t.href?.startsWith('/p/'))
+    }
+    
+    return activeTeam?.name || teams[0]?.name || translations?.sidebar?.platform || "Platform"
+  }, [pathname, teams, translations?.sidebar?.platform])
+
   // Use global ref for platformLabel to maintain stable reference
   const platformLabelRef = globalPlatformLabelRef
   React.useEffect(() => {
-    const newLabel = translations?.sidebar?.platform || "Platform"
-    if (platformLabelRef.current !== newLabel) {
-      platformLabelRef.current = newLabel
+    if (platformLabelRef.current !== activeRoleName) {
+      platformLabelRef.current = activeRoleName
     }
-  }, [translations?.sidebar?.platform])
+  }, [activeRoleName])
   const platformLabel = platformLabelRef.current
   
   return (

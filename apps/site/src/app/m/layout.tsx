@@ -11,6 +11,8 @@ import {
 import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
 import { AdminSocketProvider } from "@/components/admin/AdminSocketProvider"
 import { AdminNoticesProvider } from "@/components/admin/AdminNoticesProvider"
+import { NotificationsProvider } from "@/components/admin/NotificationsContext"
+import { NotificationsDrawer } from "@/components/admin/NotificationsDrawer"
 import { BottomNavigation } from "@/components/cabinet/BottomNavigation"
 import {
   LayoutDashboard,
@@ -54,12 +56,12 @@ const SidebarWrapper = React.memo(({ children }: { children: ReactNode }) => {
     fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data: unknown) => {
-        const response = data as { user?: { name?: string; email: string; avatar?: string } }
+        const response = data as { user?: { name?: string; email: string; avatarUrl?: string | null } }
         if (response.user) {
           setUser({
             name: response.user.name || response.user.email,
             email: response.user.email,
-            avatar: response.user.avatar,
+            avatar: response.user.avatarUrl || undefined,
           })
         }
       })
@@ -134,13 +136,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <AdminStateProvider>
         <AdminSocketProvider>
           <AdminNoticesProvider>
-            <AdminAuthGuard>
-              <AskForNotificationPush />
-              <SidebarWrapper>
-                {children}
-              </SidebarWrapper>
-              <BottomNavigation navigationItems={adminNavigationItems} />
-            </AdminAuthGuard>
+            <NotificationsProvider>
+              <AdminAuthGuard>
+                <AskForNotificationPush />
+                <SidebarWrapper>
+                  {children}
+                </SidebarWrapper>
+                <BottomNavigation navigationItems={adminNavigationItems} />
+                <NotificationsDrawer />
+              </AdminAuthGuard>
+            </NotificationsProvider>
           </AdminNoticesProvider>
         </AdminSocketProvider>
       </AdminStateProvider>

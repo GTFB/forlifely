@@ -23,7 +23,7 @@ export const GET = withAdminGuard(async (context: AuthenticatedRequestContext): 
   // Build WHERE conditions
   const conditions: any[] = [sql`${schema.journals.user_id} = ${userId}`]
   
-  if (actionFilter) {
+  if (actionFilter && actionFilter !== 'all') {
     conditions.push(sql`${schema.journals.action} = ${actionFilter}`)
   }
   
@@ -43,50 +43,94 @@ export const GET = withAdminGuard(async (context: AuthenticatedRequestContext): 
   if (pageFilter) {
     // Search in details JSON for url or pathname
     // Structure: details.payload.url and details.payload.pathname
-    const searchPattern = `%${pageFilter}%`
-    conditions.push(
-      sql`(
-        ${schema.journals.details}::text ILIKE ${searchPattern} OR
-        (${schema.journals.details}->'payload'->>'url') ILIKE ${searchPattern} OR
-        (${schema.journals.details}->'payload'->>'pathname') ILIKE ${searchPattern}
-      )`
-    )
+    // Escape special ILIKE characters: %, _, \ 
+    // Note: We escape the filter text, then add % wildcards around it
+    const trimmedFilter = pageFilter.trim()
+    if (trimmedFilter) {
+      // Escape special ILIKE characters in the filter text itself
+      const escapedFilter = trimmedFilter
+        .replace(/\\/g, '\\\\')  // Escape backslashes first
+        .replace(/%/g, '\\%')    // Escape % for ILIKE
+        .replace(/_/g, '\\_')    // Escape _ for ILIKE
+      // Add wildcards after escaping - drizzle will handle parameterization
+      const searchPattern = `%${escapedFilter}%`
+      // IMPORTANT: in our DB migrations `journals.details` is TEXT (JSON string).
+      // Filter "Page" must match only payload.url / payload.pathname (NOT the full details text),
+      // otherwise values like referrer can cause unexpected matches (e.g. /login).
+      conditions.push(
+        sql`(
+          COALESCE(
+            CASE
+              WHEN left(${schema.journals.details}::text, 1) = '{' THEN ((${schema.journals.details}::jsonb)->'payload'->>'url')
+              ELSE NULL
+            END,
+            ''
+          ) ILIKE ${searchPattern}
+          OR
+          COALESCE(
+            CASE
+              WHEN left(${schema.journals.details}::text, 1) = '{' THEN ((${schema.journals.details}::jsonb)->'payload'->>'pathname')
+              ELSE NULL
+            END,
+            ''
+          ) ILIKE ${searchPattern}
+        )`
+      )
+    }
   }
 
   const whereClause = conditions.length > 1 
     ? conditions.reduce((acc, condition) => sql`${acc} AND ${condition}`)
     : conditions[0]
 
-  const rows = await db
-    .select()
-    .from(schema.journals)
-    .where(whereClause)
-    .orderBy(sql`${schema.journals.id} desc`)
-    .limit(pageSize)
-    .offset(offset)
-    .execute()
+  try {
+    const rows = await db
+      .select()
+      .from(schema.journals)
+      .where(whereClause)
+      .orderBy(sql`${schema.journals.id} desc`)
+      .limit(pageSize)
+      .offset(offset)
+      .execute()
 
-  const totalRows = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(schema.journals)
-    .where(whereClause)
-    .execute()
+    const totalRows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.journals)
+      .where(whereClause)
+      .execute()
 
-  const total = Number((totalRows?.[0] as any)?.count || 0)
+    const total = Number((totalRows?.[0] as any)?.count || 0)
 
-  return NextResponse.json(
-    {
-      success: true,
-      docs: rows,
-      pagination: {
-        total,
-        page,
-        limit: pageSize,
-        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    return NextResponse.json(
+      {
+        success: true,
+        docs: rows,
+        pagination: {
+          total,
+          page,
+          limit: pageSize,
+          totalPages: Math.max(1, Math.ceil(total / pageSize)),
+        },
       },
-    },
-    { status: 200 },
-  )
+      { status: 200 },
+    )
+  } catch (error) {
+    console.error('Error fetching journals:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load activity'
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    } : error
+    console.error('Error details:', JSON.stringify(errorDetails, null, 2))
+    return NextResponse.json(
+      {
+        success: false,
+        message: errorMessage,
+      },
+      { status: 500 },
+    )
+  }
 })
 
 

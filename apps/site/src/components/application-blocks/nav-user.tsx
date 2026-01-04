@@ -42,6 +42,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { useCallback } from "react"
 import { LANGUAGES } from "@/settings"
 import { getLanguageFlag } from "@/shared/utils/language-flags"
+import { useNotifications } from "@/components/admin/NotificationsContext"
 
 type LanguageCode = (typeof LANGUAGES)[number]['code']
 
@@ -59,6 +60,21 @@ function getInitialsFromNameOrEmail(inputName: string | undefined, email: string
 
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[1][0]).toUpperCase()
+}
+
+// Remove middle name (отчество) from full name - keep only first and last name
+function toFirstLastName(fullName: string): string {
+  const parts = (fullName || "").trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 2) return parts.join(" ")
+  // For Russian names: LastName FirstName MiddleName -> LastName FirstName
+  // For English names: FirstName LastName MiddleName -> FirstName LastName
+  const hasCyrillic = /[А-Яа-яЁё]/.test(fullName)
+  if (hasCyrillic && parts.length >= 2) {
+    // Russian format: LastName FirstName MiddleName
+    return `${parts[0]} ${parts[1]}`
+  }
+  // English format: FirstName LastName MiddleName
+  return `${parts[0]} ${parts[1]}`
 }
 
 export const NavUser = React.memo(function NavUser({
@@ -80,6 +96,7 @@ export const NavUser = React.memo(function NavUser({
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const pathname = usePathname()
+  const { setOpen: setNotificationsOpen } = useNotifications()
 
   const basePath = React.useMemo(() => {
     if (pathname?.startsWith("/m/")) return "/m"
@@ -123,8 +140,13 @@ export const NavUser = React.memo(function NavUser({
   }, [locale])
 
   const initials = React.useMemo(() => {
-    return getInitialsFromNameOrEmail(user.name, user.email)
+    const displayName = toFirstLastName(user.name)
+    return getInitialsFromNameOrEmail(displayName, user.email)
   }, [user.name, user.email])
+
+  const displayName = React.useMemo(() => {
+    return toFirstLastName(user.name)
+  }, [user.name])
 
   return (
     <SidebarMenu>
@@ -136,11 +158,11 @@ export const NavUser = React.memo(function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={user.avatar} alt={displayName} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate font-medium">{displayName}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -158,18 +180,18 @@ export const NavUser = React.memo(function NavUser({
             >
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={user.avatar} alt={displayName} />
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
+                  <span className="truncate font-medium">{displayName}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setNotificationsOpen(true)}>
                 <Bell />
                 {t.notifications}
               </DropdownMenuItem>

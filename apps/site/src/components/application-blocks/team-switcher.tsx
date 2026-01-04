@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
-import { useRouter, usePathname } from "next/navigation"
+import { ChevronsUpDown, Check } from "lucide-react"
+import { usePathname } from "next/navigation"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
@@ -11,7 +11,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -41,7 +40,6 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
   translations?: any
 }) {
   const { isMobile, state } = useSidebar()
-  const router = useRouter()
   const pathname = usePathname()
   const isCollapsed = state === "collapsed"
   // Use ref to track teams to avoid unnecessary state updates
@@ -80,15 +78,64 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
   const t = React.useMemo(() => {
     if (!translations) {
       return {
-        teamSwitcher: { teamsLabel: "Teams", addTeam: "Add team" },
+        teamSwitcher: { teamsLabel: "Roles" },
         dashboard: { title: "Dashboard" },
       }
     }
     return {
-      teamSwitcher: translations.teamSwitcher || { teamsLabel: "Teams", addTeam: "Add team" },
+      teamSwitcher: translations.teamSwitcher || { teamsLabel: "Roles" },
       dashboard: translations.dashboard || { title: "Dashboard" },
     }
   }, [translations])
+
+  // Detect platform for hotkey display
+  const isMac = React.useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return /Mac|iPhone|iPod|iPad/i.test(navigator.platform) || /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent)
+  }, [])
+
+  // Format hotkey shortcut for display
+  const formatHotkey = React.useCallback((index: number) => {
+    if (isMac) {
+      return `⌘⌥${index + 1}`
+    }
+    return `Ctrl+Alt+${index + 1}`
+  }, [isMac])
+
+  // Handle team navigation - open in new window
+  const handleTeamClick = React.useCallback((team: typeof teams[0]) => {
+    if (team.href) {
+      window.open(team.href, '_blank', 'noopener,noreferrer')
+    }
+  }, [])
+
+  // Register global hotkeys
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl+Alt+{1-9} or Cmd+Alt+{1-9}
+      const isModifierPressed = isMac 
+        ? (e.metaKey || e.ctrlKey) && e.altKey
+        : e.ctrlKey && e.altKey
+      
+      if (!isModifierPressed) return
+
+      // Check if number key 1-9 is pressed
+      const key = e.key
+      if (key >= '1' && key <= '9') {
+        const index = parseInt(key) - 1
+        if (teams[index] && teams[index].href) {
+          e.preventDefault()
+          e.stopPropagation()
+          handleTeamClick(teams[index])
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [teams, isMac, handleTeamClick])
 
   if (!activeTeam) {
     return null
@@ -163,28 +210,34 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               {t.teamSwitcher.teamsLabel}
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
-              <DropdownMenuItem
-                key={team.name}
-                onClick={() => {
-                  setActiveTeam(team)
-                  if (team.href) {
-                    router.push(team.href)
-                  }
-                }}
-                className="gap-2 p-2"
-              >
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
-                <Plus className="size-4" />
-              </div>
-              <div className="text-muted-foreground font-medium">{t.teamSwitcher.addTeam}</div>
-            </DropdownMenuItem>
+            {teams.map((team, index) => {
+              // Determine if this team is active based on pathname (without useMemo - hooks can't be in loops)
+              const isActive = (() => {
+                if (!pathname || !team.href) return false
+                if (pathname.startsWith('/admin') && team.href === '/admin/dashboard') return true
+                if (pathname.startsWith('/m/') && team.href.startsWith('/m/')) return true
+                if (pathname.startsWith('/c/') && team.href.startsWith('/c/')) return true
+                if (pathname.startsWith('/i/') && team.href.startsWith('/i/')) return true
+                if (pathname.startsWith('/p/') && team.href.startsWith('/p/')) return true
+                return false
+              })()
+
+              return (
+                <DropdownMenuItem
+                  key={team.name}
+                  onClick={() => {
+                    handleTeamClick(team)
+                  }}
+                  className="gap-2 p-2"
+                >
+                  {team.name}
+                  <div className="ml-auto flex items-center gap-2">
+                    {isActive && <Check className="h-4 w-4" />}
+                    <DropdownMenuShortcut>{formatHotkey(index)}</DropdownMenuShortcut>
+                  </div>
+                </DropdownMenuItem>
+              )
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

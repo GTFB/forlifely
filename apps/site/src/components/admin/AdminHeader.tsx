@@ -12,9 +12,19 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Bell, Grip } from "lucide-react"
 import { useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { getCollection } from "@/shared/collections/getCollection"
 import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
+import { useNotifications } from "./NotificationsContext"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 interface AdminHeaderProps {
   title?: string
   breadcrumbItems?: Array<{ label: string; href?: string }>
@@ -48,6 +58,8 @@ export const AdminHeader = React.memo(function AdminHeader({
   const prevCollectionRef = React.useRef<string | null>(null)
   const displayTitleRef = React.useRef<string>(title || '')
   const [translations, setTranslations] = React.useState<any>(null)
+  const { open: notificationsOpen, setOpen: setNotificationsOpen } = useNotifications()
+  const [unreadCount, setUnreadCount] = React.useState(0)
 
   // Sync locale with sidebar when it changes
   React.useEffect(() => {
@@ -211,6 +223,39 @@ export const AdminHeader = React.memo(function AdminHeader({
     }
   }, [locale, currentCollection, title, translations?.taxonomy?.entityOptions, translations?.dataTable?.adminPanel, collectionToEntityKey])
 
+  // Fetch unread notifications count
+  const fetchUnreadCount = React.useCallback(async () => {
+    try {
+      const response = await fetch("/api/altrp/v1/admin/notifications?limit=50&offset=0", {
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (response.ok) {
+        const data = (await response.json()) as { success: boolean; notifications?: Array<{ isRead?: boolean }> }
+        if (data.success) {
+          const unread = (data.notifications || []).filter((n) => !n.isRead).length
+          setUnreadCount(unread)
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch unread count", err)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    fetchUnreadCount()
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [fetchUnreadCount])
+
+  // Refresh count when drawer closes
+  React.useEffect(() => {
+    if (!notificationsOpen) {
+      fetchUnreadCount()
+    }
+  }, [notificationsOpen, fetchUnreadCount])
+
   // Use state for breadcrumb items to trigger re-renders when translations change
   const finalBreadcrumbItems = React.useMemo(() => {
     if (breadcrumbItems) {
@@ -229,29 +274,75 @@ export const AdminHeader = React.memo(function AdminHeader({
   }, [breadcrumbItems, displayTitle, currentCollection, adminPanelLabel, translations?.taxonomy?.entityOptions, collectionToEntityKey, locale])
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
-        <BreadcrumbList>
-          {finalBreadcrumbItems.map((item, index) => {
-            const isLast = index === finalBreadcrumbItems.length - 1
-            return (
-              <React.Fragment key={index}>
-                {index > 0 && <BreadcrumbSeparator className="hidden md:block" />}
-                <BreadcrumbItem className={index > 0 ? "hidden md:block" : ""}>
-                  {isLast ? (
-                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbLink asChild><Link href={item.href || "#"}>{item.label}</Link></BreadcrumbLink>
-                  )}
-                </BreadcrumbItem>
-              </React.Fragment>
-            )
-          })}
-        </BreadcrumbList>
-      </Breadcrumb>
-    </header>
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb className="flex-1">
+          <BreadcrumbList>
+            {finalBreadcrumbItems.map((item, index) => {
+              const isLast = index === finalBreadcrumbItems.length - 1
+              return (
+                <React.Fragment key={index}>
+                  {index > 0 && <BreadcrumbSeparator className="hidden md:block" />}
+                  <BreadcrumbItem className={index > 0 ? "hidden md:block" : ""}>
+                    {isLast ? (
+                      <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild><Link href={item.href || "#"}>{item.label}</Link></BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </React.Fragment>
+              )
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+        <div className="flex items-center gap-2">
+          {/* Notifications Bell */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setNotificationsOpen(true)
+            }}
+          >
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </Badge>
+            )}
+            <span className="sr-only">Notifications</span>
+          </Button>
+          {/* Quick Access Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Grip className="h-5 w-5" />
+                <span className="sr-only">Quick Access</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link href="/admin/deals">Сделки</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/admin/tasks">Задачи</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/admin/transactions">Финансы</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+    </>
   )
 }, (prevProps, nextProps) => {
   // Only re-render if title or breadcrumbItems actually changed

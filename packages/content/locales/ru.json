@@ -100,8 +100,7 @@
     "viewEditProducts": "Просмотр и редактирование продуктов"
   },
   "teamSwitcher": {
-    "teamsLabel": "Команды",
-    "addTeam": "Добавить команду"
+    "teamsLabel": "Роли"
   },
   "navUser": {
     "notifications": "Уведомления",
@@ -357,7 +356,8 @@
         "revokedAt": "Закрыта",
         "activeTab": "Активные",
         "archivedTab": "Архив",
-        "region": "Регион"
+        "region": "Регион",
+        "local": "Локальный"
       },
       "journal": {
         "title": "Журнал активности",

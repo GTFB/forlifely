@@ -101,8 +101,7 @@
     "viewEditProducts": "View and edit products"
   },
   "teamSwitcher": {
-    "teamsLabel": "Teams",
-    "addTeam": "Add team"
+    "teamsLabel": "Roles"
   },
   "navUser": {
     "notifications": "Notifications",
@@ -357,7 +356,8 @@
         "revokedAt": "Revoked",
         "activeTab": "Active",
         "archivedTab": "Archived",
-        "region": "Region"
+        "region": "Region",
+        "local": "Localhost"
       },
       "journal": {
         "title": "Activity",

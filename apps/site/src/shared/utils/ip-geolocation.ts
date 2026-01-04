@@ -6,10 +6,13 @@
 export async function getRegionFromIp(ip: string | null | undefined): Promise<string | null> {
   if (!ip) return null
   
-  // Skip localhost and private IPs
+  // Return "Localhost" for localhost IPs
+  if (ip === '127.0.0.1' || ip === 'localhost') {
+    return 'Localhost'
+  }
+  
+  // Skip private IPs (return null for them)
   if (
-    ip === '127.0.0.1' ||
-    ip === 'localhost' ||
     ip.startsWith('192.168.') ||
     ip.startsWith('10.') ||
     ip.startsWith('172.16.') ||
