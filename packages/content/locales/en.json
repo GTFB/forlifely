@@ -76,7 +76,13 @@
       "Content": "Content",
       "Chats": "Chats",
       "Admin": "Admin",
-      "Logs": "Logs"
+      "Logs": "Logs",
+      "System": "System"
+    },
+    "menuItems": {
+      "Settings": "Settings",
+      "Seed": "Seed",
+      "SqlEditor": "SQL Editor"
     }
   },
   "dashboard": {
@@ -209,7 +215,23 @@
       "title": "Edit record in {collection}",
       "description": "Change fields below. Auto-generated fields are not editable and hidden."
     },
-    "loading": "Loading {collection}..."
+    "loading": "Loading {collection}...",
+    "fields": {
+      "roles": {
+        "id": "ID",
+        "uuid": "UUID",
+        "raid": "RAID",
+        "title": "Title",
+        "name": "Name",
+        "description": "Description",
+        "is_system": "System role",
+        "order": "Order",
+        "xaid": "Expanse",
+        "created_at": "Created",
+        "updated_at": "Updated",
+        "data_in": "Data (JSON)"
+      }
+    }
   },
   "taxonomy": {
     "entityOptions": {

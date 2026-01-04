@@ -76,7 +76,13 @@
         "Content": "Sadržaj",
         "Chats": "Ćaskanja",
         "Admin": "Admin",
-        "Logs": "Evidencije"
+        "Logs": "Evidencije",
+        "System": "Sistem"
+      },
+      "menuItems": {
+        "Settings": "Podešavanja",
+        "Seed": "Seed",
+        "SqlEditor": "SQL Editor"
       }
     },
     "dashboard": {
@@ -210,7 +216,23 @@
         "title": "Uredi zapis u {collection}",
         "description": "Promenite polja ispod. Automatski generisana polja se ne mogu menjati i sakrivena su."
       },
-      "loading": "Učitavanje {collection}..."
+      "loading": "Učitavanje {collection}...",
+      "fields": {
+        "roles": {
+          "id": "ID",
+          "uuid": "UUID",
+          "raid": "RAID",
+          "title": "Naziv",
+          "name": "Ime",
+          "description": "Opis",
+          "is_system": "Sistemska uloga",
+          "order": "Redosled",
+          "xaid": "Projekti",
+          "created_at": "Kreirano",
+          "updated_at": "Ažurirano",
+          "data_in": "Podaci (JSON)"
+        }
+      }
     },
     "taxonomy": {
       "entityOptions": {

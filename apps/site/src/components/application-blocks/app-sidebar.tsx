@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Settings2,
   SquareTerminal,
+  Terminal,
 } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
 import { PROJECT_SETTINGS, LANGUAGES } from "@/settings"
@@ -546,13 +547,62 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   }, [locale, translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
   
   // Always return same reference - mutations happen in-place
-  const items = itemsState.length > 0 ? itemsState : itemsRef.current
+  let items = itemsState.length > 0 ? itemsState : itemsRef.current
 
   // Use global ref to preserve teams across component remounts
   const teamsRef = globalTeamsRef
   
   // Get user roles from useMe hook
   const { user: meUser } = useMe()
+  
+  // Add System section with SQL Editor for super admins
+  const isSuperAdmin = meUser?.roles?.some((r) => r.name === 'Administrator') || false
+  const finalItems = React.useMemo(() => {
+    if (!isSuperAdmin) return items
+    
+    // Check if System section already exists
+    const hasSystemSection = items.some((item: any) => item.category === 'System')
+    if (hasSystemSection) return items
+    
+    const sqlEditorTitle = translations?.sidebar?.menuItems?.SqlEditor || 'SQL Editor'
+    const seedTitle = translations?.sidebar?.menuItems?.Seed || 'Seed'
+    const settingsTitle = translations?.sidebar?.menuItems?.Settings || 'Settings'
+
+    // Add System section at the end
+    return [
+      ...items,
+      {
+        title: translations?.sidebar?.categories?.System || 'Система',
+        url: '#',
+        icon: Settings2,
+        category: 'System',
+        collections: [],
+        items: [
+          {
+            title: sqlEditorTitle,
+            url: '/admin/sql-editor',
+          },
+          {
+            title: seedTitle,
+            url: '/admin/seed',
+          },
+          {
+            title: settingsTitle,
+            url: '/admin/settings',
+          },
+        ],
+      },
+    ]
+  }, [
+    items,
+    isSuperAdmin,
+    translations?.sidebar?.categories?.System,
+    translations?.sidebar?.menuItems?.SqlEditor,
+    translations?.sidebar?.menuItems?.Seed,
+    translations?.sidebar?.menuItems?.Settings,
+  ])
+  
+  items = finalItems
   
   // Transform user roles to teams format
   React.useEffect(() => {

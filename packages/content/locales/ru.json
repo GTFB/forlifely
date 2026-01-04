@@ -75,7 +75,13 @@
       "Content": "Контент",
       "Chats": "Чаты",
       "Admin": "Админ",
-      "Logs": "Журналы"
+      "Logs": "Журналы",
+      "System": "Система"
+    },
+    "menuItems": {
+      "Settings": "Настройки",
+      "Seed": "Seed",
+      "SqlEditor": "SQL Редактор"
     }
   },
   "dashboard": {
@@ -208,7 +214,23 @@
       "title": "Редактировать запись в {collection}",
       "description": "Измените поля ниже. Автоматически генерируемые поля не редактируются и скрыты."
     },
-    "loading": "Загрузка {collection}..."
+    "loading": "Загрузка {collection}...",
+    "fields": {
+      "roles": {
+        "id": "ID",
+        "uuid": "UUID",
+        "raid": "RAID",
+        "title": "Название",
+        "name": "Имя",
+        "description": "Описание",
+        "is_system": "Системная роль",
+        "order": "Порядок",
+        "xaid": "Проект",
+        "created_at": "Создано",
+        "updated_at": "Обновлено",
+        "data_in": "Данные (JSON)"
+      }
+    }
   },
   "taxonomy": {
     "entityOptions": {

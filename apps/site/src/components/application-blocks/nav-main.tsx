@@ -149,9 +149,25 @@ const NavMainItem = React.memo(function NavMainItem({
 }) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
+  const pathname = usePathname()
   
   // Determine active state from collection prop - simple comparison, no hooks
   const isCategoryActive = item.collections?.includes(currentCollection) ?? false
+  
+  // Check if any sub-item is active by pathname (for direct links like SQL Editor)
+  const hasActiveSubItem = React.useMemo(() => {
+    if (!item.items || !pathname) return false
+    return item.items.some((subItem) => {
+      // For collection links (with ?c= parameter), check currentCollection
+      if (subItem.url.includes('?c=')) {
+        const params = new URLSearchParams(subItem.url.split('?')[1] || '')
+        return params.get('c') === currentCollection
+      }
+      // For direct links (like /admin/sql-editor), check pathname
+      const subItemPath = subItem.url.split('?')[0]
+      return pathname === subItemPath || pathname.startsWith(subItemPath + '/')
+    })
+  }, [item.items, pathname, currentCollection])
   
   const handleOpenChange = React.useCallback((open: boolean) => {
     onOpenChange(open)
@@ -163,7 +179,7 @@ const NavMainItem = React.memo(function NavMainItem({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton tooltip={item.title} isActive={isCategoryActive}>
+            <SidebarMenuButton tooltip={item.title} isActive={isCategoryActive || hasActiveSubItem}>
               {item.icon && <item.icon />}
               {!isCollapsed && <span>{item.title}</span>}
             </SidebarMenuButton>
@@ -175,10 +191,18 @@ const NavMainItem = React.memo(function NavMainItem({
             sideOffset={8}
           >
             {item.items?.map((subItem) => {
-              // Determine if sub-item is active by parsing its URL
-              const subItemParams = new URLSearchParams(subItem.url.split('?')[1] || '')
-              const subItemCollection = subItemParams.get('c') || ''
-              const isSubItemActive = subItemCollection === currentCollection
+              // Determine if sub-item is active
+              let isSubItemActive = false
+              if (subItem.url.includes('?c=')) {
+                // Collection link - check currentCollection
+                const subItemParams = new URLSearchParams(subItem.url.split('?')[1] || '')
+                const subItemCollection = subItemParams.get('c') || ''
+                isSubItemActive = subItemCollection === currentCollection
+              } else {
+                // Direct link - check pathname
+                const subItemPath = subItem.url.split('?')[0]
+                isSubItemActive = pathname === subItemPath || (pathname?.startsWith(subItemPath + '/') ?? false)
+              }
               
               return (
                 <DropdownMenuItem key={subItem.url} asChild>
@@ -213,7 +237,7 @@ const NavMainItem = React.memo(function NavMainItem({
     >
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title} isActive={isCategoryActive}>
+                <SidebarMenuButton tooltip={item.title} isActive={isCategoryActive || hasActiveSubItem}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -221,15 +245,29 @@ const NavMainItem = React.memo(function NavMainItem({
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <SidebarMenuSub>
-                  {item.items?.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.url}>
-                      <SidebarMenuSubButton asChild>
-                        <Link href={subItem.url}>
-                          <span>{subItem.title}</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  ))}
+                  {item.items?.map((subItem) => {
+                    // Determine if sub-item is active
+                    let isSubItemActive = false
+                    if (subItem.url.includes('?c=')) {
+                      // Collection link - check currentCollection
+                      const params = new URLSearchParams(subItem.url.split('?')[1] || '')
+                      isSubItemActive = params.get('c') === currentCollection
+                    } else {
+                      // Direct link - check pathname
+                      const subItemPath = subItem.url.split('?')[0]
+                      isSubItemActive = pathname === subItemPath || (pathname?.startsWith(subItemPath + '/') ?? false)
+                    }
+                    
+                    return (
+                      <SidebarMenuSubItem key={subItem.url}>
+                        <SidebarMenuSubButton asChild isActive={isSubItemActive}>
+                          <Link href={subItem.url}>
+                            <span>{subItem.title}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    )
+                  })}
                 </SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>

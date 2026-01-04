@@ -45,7 +45,14 @@ function AdminStateProviderInner({ children }: { children: ReactNode }) {
   const pathname = usePathname()
 
   const parseStateFromSearch = useCallback((): AdminState => {
-    const collection = searchParams.get("c") || DEFAULT_STATE.collection
+    const paramCollection = searchParams.get("c")
+    const isAdminRoot = pathname === "/admin" || pathname === "/admin/"
+    const collection =
+      paramCollection !== null
+        ? paramCollection
+        : isAdminRoot
+          ? DEFAULT_STATE.collection
+          : ""
     const page = Math.max(1, Number(searchParams.get("p") || DEFAULT_STATE.page))
     const pageSize = Math.max(1, Number(searchParams.get("ps") || DEFAULT_STATE.pageSize))
     const search = searchParams.get("s") || DEFAULT_STATE.search
@@ -60,14 +67,14 @@ function AdminStateProviderInner({ children }: { children: ReactNode }) {
       } catch {}
     }
     return { collection, page, pageSize, filters, search }
-  }, [searchParams])
+  }, [searchParams, pathname])
 
   const [state, _setState] = useState<AdminState>(() => parseStateFromSearch())
   const pendingUrlUpdateRef = React.useRef<string | null>(null)
 
   // Update document title based on collection
   useEffect(() => {
-    document.title = `${state.collection} - Admin Panel`
+    document.title = state.collection ? `${state.collection} - Admin Panel` : "Admin Panel"
   }, [state.collection])
 
   // Apply pending URL updates

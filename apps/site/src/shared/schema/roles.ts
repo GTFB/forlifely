@@ -5,7 +5,7 @@ export const roles = pgTable('roles', {
   id: serial('id').primaryKey(),
   uuid: text('uuid').notNull(),
   raid: text('raid'),
-  title: text('title'),
+  title: jsonb('title'),
   name: text('name'),
   description: text('description'),
   isSystem: boolean('is_system').default(false),

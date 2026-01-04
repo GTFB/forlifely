@@ -18,6 +18,7 @@ import {
   IconArrowUp,
   IconArrowDown,
   IconArrowsSort,
+  IconCopy,
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
@@ -172,6 +173,39 @@ function formatCellValue(value: any): React.ReactNode {
   }
   if (typeof value === "object") return JSON.stringify(value)
   return String(value)
+}
+
+function formatDateTimeForLocale(value: any, locale: string): string {
+  if (!value) return "-"
+  try {
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return String(value)
+
+    const loc = locale === "ru" ? "ru-RU" : locale === "rs" ? "sr-RS" : "en-US"
+    return new Intl.DateTimeFormat(loc, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
+  } catch {
+    return String(value)
+  }
+}
+
+function truncateMiddle(value: string, head: number = 8, tail: number = 6): string {
+  const v = String(value || "")
+  if (v.length <= head + tail + 1) return v
+  return `${v.slice(0, head)}…${v.slice(-tail)}`
+}
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // ignore
+  }
 }
 
 // Combobox Component for select fields with search
@@ -412,6 +446,40 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       cell: ({ row }: { row: Row<CollectionData> }) => {
         const value = row.original[col.name]
         
+        if (col.name === 'id') {
+          return <div className="font-mono tabular-nums">{value ?? "-"}</div>
+        }
+
+        if (col.name === 'uuid' || col.name === 'raid') {
+          const raw = value ? String(value) : ""
+          if (!raw) return <div>-</div>
+          return (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs" title={raw}>
+                {truncateMiddle(raw)}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  void copyToClipboard(raw)
+                }}
+              >
+                <IconCopy className="h-4 w-4" />
+                <span className="sr-only">Copy</span>
+              </Button>
+            </div>
+          )
+        }
+
+        if (col.name === 'created_at' || col.name === 'updated_at') {
+          return <div className="whitespace-nowrap">{formatDateTimeForLocale(value, locale)}</div>
+        }
+
         // For boolean type, show checkbox-like display
         if (col.fieldType === 'boolean') {
           const boolValue = value === 1 || value === true || value === '1' || value === 'true'
@@ -461,7 +529,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         }
         
         // For JSON fields in taxonomy collection (title and category fields), extract translation by locale
-        if (col.fieldType === 'json' && collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) {
+        // Also handle title field in roles collection
+        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title'))) {
           let jsonValue = value
           
           // If category is empty, try to extract it from data_in
@@ -488,7 +557,13 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             }
           }
           if (jsonValue && typeof jsonValue === 'object') {
-            const localizedValue = jsonValue[locale] || jsonValue.en || jsonValue.ru || value || "-"
+            const localizedValue =
+              jsonValue[locale] ||
+              jsonValue.en ||
+              jsonValue.ru ||
+              jsonValue.rs ||
+              value ||
+              "-"
             return <div>{localizedValue}</div>
           }
         }
@@ -583,6 +658,48 @@ export function DataTable() {
   
   // Local state for price inputs to allow free input without formatting interference
   const [priceInputs, setPriceInputs] = React.useState<Record<string, string>>({})
+
+  // Form tabs and data_in state
+  const [createFormTab, setCreateFormTab] = React.useState<"main" | "info" | "details">("main")
+  const [editFormTab, setEditFormTab] = React.useState<"main" | "info" | "details">("main")
+  const [createDataInLanguage, setCreateDataInLanguage] = React.useState<LanguageCode>(locale)
+  const [editDataInLanguage, setEditDataInLanguage] = React.useState<LanguageCode>(locale)
+  const [createDataInEntries, setCreateDataInEntries] = React.useState<Array<{ key: string; value: string }>>([])
+  const [editDataInEntries, setEditDataInEntries] = React.useState<Array<{ key: string; value: string }>>([])
+  const [createDataInRaw, setCreateDataInRaw] = React.useState<string>("")
+  const [editDataInRaw, setEditDataInRaw] = React.useState<string>("")
+  const [createDataInRawError, setCreateDataInRawError] = React.useState<string | null>(null)
+  const [editDataInRawError, setEditDataInRawError] = React.useState<string | null>(null)
+
+  // Data_in helper functions
+  const parseLooseJson = React.useCallback((input: string): any => {
+    const s = String(input ?? "").trim()
+    if (!s) return ""
+    // Try to parse JSON primitives/objects/arrays; fallback to string
+    try {
+      return JSON.parse(s)
+    } catch {
+      return s
+    }
+  }, [])
+
+  const entriesToObject = React.useCallback((entries: Array<{ key: string; value: string }>) => {
+    const obj: Record<string, any> = {}
+    entries.forEach((e) => {
+      const k = String(e.key || "").trim()
+      if (!k) return
+      obj[k] = parseLooseJson(e.value)
+    })
+    return obj
+  }, [parseLooseJson])
+
+  const objectToEntries = React.useCallback((obj: any) => {
+    if (!obj || typeof obj !== "object") return [] as Array<{ key: string; value: string }>
+    return Object.entries(obj).map(([k, v]) => ({
+      key: k,
+      value: typeof v === "string" ? v : JSON.stringify(v),
+    }))
+  }, [])
 
   // Load Taxonomy config when collection is taxonomy
   React.useEffect(() => {
@@ -798,6 +915,19 @@ export function DataTable() {
       
       // Get collection config and apply column settings
       const collection = getCollection(state.collection)
+
+      const inferFieldTypeFromDbType = (dbType: string | undefined): ColumnSchemaExtended["fieldType"] | undefined => {
+        const t = (dbType || "").toUpperCase()
+        if (!t) return undefined
+        if (t === "JSON" || t === "JSONB") return "json"
+        if (t === "BOOLEAN") return "boolean"
+        if (t === "DATE") return "date"
+        if (t.startsWith("TIMESTAMP")) return "datetime"
+        if (t === "TIME") return "time"
+        if (t === "INTEGER" || t === "BIGINT" || t === "SMALLINT") return "number"
+        if (t === "NUMERIC" || t === "DECIMAL" || t === "REAL" || t === "DOUBLE PRECISION") return "number"
+        return "text"
+      }
       
       const extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
         const columnConfig = (collection as any)?.fields?.find((f: any) => f.name === col.name)
@@ -809,8 +939,8 @@ export function DataTable() {
           fieldConfig = taxonomyConfig.fields.find((f: any) => f.name === col.name)
         }
         
-        // Hide system fields (created_at, updated_at, deleted_at, uuid, data_in)
-        const isSystemField = ['created_at', 'updated_at', 'deleted_at', 'uuid', 'data_in'].includes(col.name)
+        // Hide system fields in table (data_in should be visible/editable via separate tab)
+        const isSystemField = ['created_at', 'updated_at', 'deleted_at', 'uuid'].includes(col.name)
         
         // Extract select options if field is select type
         let selectOptions: SelectOption[] | undefined
@@ -841,22 +971,52 @@ export function DataTable() {
           const fieldKey = translationKey as keyof typeof taxonomyFields
           fieldTitle = taxonomyFields[fieldKey]
         }
+
+        const dataTableFieldTitle =
+          (translations as any)?.dataTable?.fields?.[state.collection]?.[col.name] as string | undefined
+        if (dataTableFieldTitle) {
+          fieldTitle = dataTableFieldTitle
+        }
         
         // Capitalize first letter and replace underscores with spaces
         const defaultTitle = col.name.charAt(0).toUpperCase() + col.name.slice(1).replace(/_/g, ' ')
         
+        const inferredDbFieldType = inferFieldTypeFromDbType((col as any).type)
+        const forcedFieldType =
+          col.name === "data_in"
+            ? "json"
+            : state.collection === "roles" && col.name === "title"
+              ? "json"
+              : undefined
+
+        const forcedRelation: RelationConfig | undefined =
+          col.name === "xaid"
+            ? {
+                collection: "expanses",
+                valueField: "xaid",
+                labelField: "title",
+              }
+            : undefined
+
+        const isSystemFieldByName = ['created_at', 'updated_at', 'deleted_at', 'uuid'].includes(col.name)
+
         return {
           ...col,
           title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
           hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || isSystemField, // Hide system fields
+          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in', // Hide only core system fields and data_in
           readOnly: options.readOnly || false,
           required: options.required || fieldConfig?.required || columnConfig?.required || false,
           virtual: options.virtual || false,
-          fieldType: options.type || fieldConfig?.type || (columnConfig?.type === 'select' ? 'select' : columnConfig?.type),
+          fieldType:
+            options.type ||
+            fieldConfig?.type ||
+            (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
+            forcedFieldType ||
+            inferredDbFieldType,
           textarea: options.textarea || false,
           enum: options.enum,
-          relation: options.relation,
+          relation: forcedRelation || options.relation,
           selectOptions,
         }
       })
@@ -1042,8 +1202,8 @@ export function DataTable() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [formData, setFormData] = React.useState<Record<string, any>>({})
   const [createError, setCreateError] = React.useState<string | null>(null)
-  // Language selector for JSON fields (title, category)
-  const [jsonFieldLanguage, setJsonFieldLanguage] = React.useState<Record<string, 'en' | 'ru'>>({})
+  // Language selector for i18n JSON fields (e.g., title)
+  const [jsonFieldLanguage, setJsonFieldLanguage] = React.useState<Record<string, LanguageCode>>({})
 
   // Clear form data when collection changes
   React.useEffect(() => {
@@ -1053,17 +1213,18 @@ export function DataTable() {
     setPriceInputs({})
   }, [state.collection])
 
-  // Fields to skip (auto-generated): id, uuid, {x}aid (but not relation fields), created_at, updated_at, deleted_at, data_in
+  // Fields to skip (auto-generated): id, uuid, {x}aid (but not relation fields), created_at, updated_at, deleted_at
   const isAutoGeneratedField = React.useCallback((fieldName: string, hasRelation?: boolean): boolean => {
     const lower = fieldName.toLowerCase()
     return (
       lower === 'id' ||
       lower === 'uuid' ||
-      (lower.endsWith('aid') && !hasRelation) || // Skip aid fields unless they have relations
+      // Skip aid fields unless they have relations (raid must be editable)
+      (lower.endsWith('aid') && !hasRelation && lower !== 'raid') ||
       lower === 'created_at' ||
       lower === 'updated_at' ||
       lower === 'deleted_at' ||
-      lower === 'data_in'
+      false
     )
   }, [])
 
@@ -1087,85 +1248,173 @@ export function DataTable() {
     setPriceInputs({})
   }, [state.collection])
 
+  // Init create data_in when drawer opens
+  React.useEffect(() => {
+    if (!createOpen) return
+    const existing = (formData as any).data_in
+    const entries = objectToEntries(existing)
+    setCreateDataInEntries(entries)
+    try {
+      setCreateDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
+    } catch {
+      setCreateDataInRaw("{}")
+    }
+    setCreateDataInRawError(null)
+    setCreateFormTab("main")
+    setCreateDataInLanguage(locale)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOpen, locale])
+
+  // Sync createDataInRaw when createDataInEntries changes
+  React.useEffect(() => {
+    if (!createOpen) return
+    const obj = entriesToObject(createDataInEntries)
+    try {
+      setCreateDataInRaw(JSON.stringify(obj, null, 2))
+      setCreateDataInRawError(null)
+    } catch (e) {
+      setCreateDataInRawError(e instanceof Error ? e.message : "Failed to stringify")
+    }
+  }, [createDataInEntries, createOpen, entriesToObject])
+
+  // Init edit data_in when drawer opens
+  React.useEffect(() => {
+    if (!editOpen || !recordToEdit) return
+    const existing = (editData as any).data_in
+    const entries = objectToEntries(existing)
+    setEditDataInEntries(entries)
+    try {
+      setEditDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
+    } catch {
+      setEditDataInRaw("{}")
+    }
+    setEditDataInRawError(null)
+    setEditFormTab("main")
+    setEditDataInLanguage(locale)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editOpen, recordToEdit, locale])
+
+  // Sync editDataInRaw when editDataInEntries changes
+  React.useEffect(() => {
+    if (!editOpen) return
+    const obj = entriesToObject(editDataInEntries)
+    try {
+      setEditDataInRaw(JSON.stringify(obj, null, 2))
+    } catch {
+      // ignore
+    }
+  }, [editDataInEntries, editOpen, entriesToObject])
+
+      const enabledLanguageCodes = supportedLanguageCodes
+
+  const getI18nJsonFieldsForCollection = React.useCallback((collection: string): string[] => {
+    if (collection === 'taxonomy') return ['title', 'category']
+    if (collection === 'roles') return ['title']
+    return []
+  }, [])
+
   const onEditRequest = React.useCallback((row: Row<CollectionData>) => {
-    const record = row.original
-    setRecordToEdit(record)
-    const initial: Record<string, any> = {}
-    const pricePrefill: Record<string, string> = {}
-    for (const col of schema) {
-      if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
-        if (col.fieldType === 'boolean') {
-          initial[col.name] = record[col.name] === 1 || record[col.name] === true || record[col.name] === '1' || record[col.name] === 'true'
-        } else if (col.fieldType === 'date' || col.fieldType === 'time' || col.fieldType === 'datetime') {
-          initial[col.name] = record[col.name] ? new Date(record[col.name]) : null
-        } else if (col.fieldType === 'json' && state.collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) {
-          // For title and category JSON fields, parse and extract en/ru values
-          let jsonValue = record[col.name]
-          
-          // If category is empty, try to extract it from data_in
-          if (col.name === 'category' && (!jsonValue || jsonValue === '' || jsonValue === null)) {
-            const dataIn = record.data_in
-            if (dataIn && typeof dataIn === 'string') {
-              try {
-                const dataInJson = JSON.parse(dataIn)
-                if (dataInJson && typeof dataInJson === 'object' && dataInJson.category) {
-                  jsonValue = dataInJson.category
+    try {
+      const record = row.original
+      setRecordToEdit(record)
+      const initial: Record<string, any> = {}
+      const pricePrefill: Record<string, string> = {}
+      const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+      // Add system fields for info tab
+      if (state.collection === 'roles') {
+        initial.id = record.id ?? null
+        initial.uuid = record.uuid ?? null
+        initial.order = record.order ?? null
+        initial.created_at = record.created_at ?? null
+        initial.updated_at = record.updated_at ?? null
+      }
+      
+      for (const col of schema) {
+        if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
+          if (col.fieldType === 'boolean') {
+            initial[col.name] =
+              record[col.name] === 1 ||
+              record[col.name] === true ||
+              record[col.name] === '1' ||
+              record[col.name] === 'true'
+          } else if (col.fieldType === 'date' || col.fieldType === 'time' || col.fieldType === 'datetime') {
+            initial[col.name] = record[col.name] ? new Date(record[col.name]) : null
+          } else if (col.fieldType === 'json' && i18nFields.includes(col.name)) {
+            // For i18n JSON fields, parse and extract values per enabled language
+            let jsonValue = record[col.name]
+
+            // If category is empty, try to extract it from data_in
+            if (col.name === 'category' && (!jsonValue || jsonValue === '' || jsonValue === null)) {
+              const dataIn = record.data_in
+              if (dataIn && typeof dataIn === 'string') {
+                try {
+                  const dataInJson = JSON.parse(dataIn)
+                  if (dataInJson && typeof dataInJson === 'object' && dataInJson.category) {
+                    jsonValue = dataInJson.category
+                  }
+                } catch {
+                  // ignore
                 }
-              } catch (e) {
-                // data_in is not valid JSON, ignore
               }
             }
-          }
-          
-          if (typeof jsonValue === 'string') {
-            try {
-              jsonValue = JSON.parse(jsonValue)
-            } catch (e) {
-              // If it's not valid JSON, treat as plain text (backward compatibility)
-              jsonValue = { en: jsonValue || '', ru: jsonValue || '' }
-            }
-          }
-          if (!jsonValue || typeof jsonValue !== 'object') {
-            jsonValue = { en: '', ru: '' }
-          }
-          initial[`${col.name}_en`] = jsonValue.en || ''
-          initial[`${col.name}_ru`] = jsonValue.ru || ''
-          // Initialize language selector to current locale
-          setJsonFieldLanguage(prev => ({ ...prev, [col.name]: locale as 'en' | 'ru' }))
-        } else if (col.fieldType === 'price') {
-          const cents = record[col.name]
-          const numericCents = cents == null ? null : Number(cents)
-          initial[col.name] = numericCents
-          pricePrefill[`edit-${col.name}`] =
-            numericCents == null || Number.isNaN(numericCents)
-              ? ''
-              : (numericCents / 100).toFixed(2)
-        } else if (col.fieldType === 'json') {
-          // Keep JSON fields as objects (or parse from string if needed)
-          if (record[col.name] != null) {
-            if (typeof record[col.name] === 'string') {
+
+            if (typeof jsonValue === 'string') {
               try {
-                initial[col.name] = JSON.parse(record[col.name])
+                jsonValue = JSON.parse(jsonValue)
               } catch {
-                initial[col.name] = {}
+                // If it's not valid JSON, treat as plain text (backward compatibility)
+                const replicated: Record<string, string> = {}
+                enabledLanguageCodes.forEach((lc) => {
+                  replicated[lc] = jsonValue || ''
+                })
+                jsonValue = replicated
+              }
+            }
+            if (!jsonValue || typeof jsonValue !== 'object') {
+              jsonValue = {}
+            }
+            enabledLanguageCodes.forEach((lc) => {
+              initial[`${col.name}_${lc}`] = (jsonValue as any)[lc] || ''
+            })
+            setJsonFieldLanguage((prev) => ({ ...prev, [col.name]: locale }))
+          } else if (col.fieldType === 'price') {
+            const cents = record[col.name]
+            const numericCents = cents == null ? null : Number(cents)
+            initial[col.name] = numericCents
+            pricePrefill[`edit-${col.name}`] =
+              numericCents == null || Number.isNaN(numericCents) ? '' : (numericCents / 100).toFixed(2)
+          } else if (col.fieldType === 'json') {
+            // Keep JSON fields as objects (or parse from string if needed)
+            if (record[col.name] != null) {
+              if (typeof record[col.name] === 'string') {
+                try {
+                  initial[col.name] = JSON.parse(record[col.name])
+                } catch {
+                  initial[col.name] = {}
+                }
+              } else {
+                initial[col.name] = record[col.name]
               }
             } else {
-              initial[col.name] = record[col.name]
+              initial[col.name] = {}
             }
           } else {
-            initial[col.name] = {}
+            initial[col.name] = record[col.name] != null ? String(record[col.name]) : ''
           }
-        } else {
-          initial[col.name] = record[col.name] != null ? String(record[col.name]) : ''
         }
       }
+      setEditData(initial)
+      if (Object.keys(pricePrefill).length > 0) {
+        setPriceInputs((prev) => ({ ...prev, ...pricePrefill }))
+      }
+      setEditError(null)
+      setEditOpen(true)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setEditError(message)
+      setEditOpen(true)
     }
-    setEditData(initial)
-    if (Object.keys(pricePrefill).length > 0) {
-      setPriceInputs((prev) => ({ ...prev, ...pricePrefill }))
-    }
-    setEditOpen(true)
-  }, [schema, isAutoGeneratedField, state.collection, locale])
+  }, [schema, isAutoGeneratedField, state.collection, locale, enabledLanguageCodes, getI18nJsonFieldsForCollection])
 
   const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | number | null) => {
     setEditData((prev) => ({ ...prev, [fieldName]: value }))
@@ -1255,26 +1504,24 @@ export function DataTable() {
     try {
       // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
       const payload = Object.entries(formData).reduce((acc, [key, value]) => {
-        const isTaxonomyTranslation =
-          state.collection === 'taxonomy' &&
-          (key === 'title_en' ||
-            key === 'title_ru' ||
-            key === 'category_en' ||
-            key === 'category_ru')
-
-        if (isTaxonomyTranslation) {
-          const fieldName = key.replace(/_en$/, '').replace(/_ru$/, '')
-          const existing = (acc[fieldName] as { en: string; ru: string }) || { en: '', ru: '' }
-          acc[fieldName] = {
-            ...existing,
-            [key.endsWith('_en') ? 'en' : 'ru']: (value as string) || '',
+        const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+        const i18nMatch = key.match(/^(.+)_([a-z]{2})$/)
+        if (i18nMatch) {
+          const baseField = i18nMatch[1]
+          const lang = i18nMatch[2] as LanguageCode
+          if (i18nFields.includes(baseField) && enabledLanguageCodes.includes(lang)) {
+            const existing = (acc[baseField] as Record<string, string>) || {}
+            acc[baseField] = { ...existing, [lang]: (value as string) || '' }
+            return acc
           }
-          return acc
         }
 
-        if (key.match(/_(en|ru)$/)) {
-          // Skip other *_en/_ru helper fields – already processed above when applicable
-          return acc
+        // Skip any helper fields for i18n json inputs
+        if (i18nMatch && enabledLanguageCodes.includes(i18nMatch[2] as LanguageCode)) {
+          const baseField = i18nMatch[1]
+          if (getI18nJsonFieldsForCollection(state.collection).includes(baseField)) {
+            return acc
+          }
         }
 
         const field = schema.find((f) => f.name === key)
@@ -1335,26 +1582,24 @@ export function DataTable() {
     try {
       // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
       const payload = Object.entries(editData).reduce((acc, [key, value]) => {
-        const isTaxonomyTranslation =
-          state.collection === 'taxonomy' &&
-          (key === 'title_en' ||
-            key === 'title_ru' ||
-            key === 'category_en' ||
-            key === 'category_ru')
-
-        if (isTaxonomyTranslation) {
-          const fieldName = key.replace(/_en$/, '').replace(/_ru$/, '')
-          const existing = (acc[fieldName] as { en: string; ru: string }) || { en: '', ru: '' }
-          acc[fieldName] = {
-            ...existing,
-            [key.endsWith('_en') ? 'en' : 'ru']: (value as string) || '',
+        const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+        const i18nMatch = key.match(/^(.+)_([a-z]{2})$/)
+        if (i18nMatch) {
+          const baseField = i18nMatch[1]
+          const lang = i18nMatch[2] as LanguageCode
+          if (i18nFields.includes(baseField) && enabledLanguageCodes.includes(lang)) {
+            const existing = (acc[baseField] as Record<string, string>) || {}
+            acc[baseField] = { ...existing, [lang]: (value as string) || '' }
+            return acc
           }
-          return acc
         }
 
-        if (key.match(/_(en|ru)$/)) {
-          // Skip other *_en/_ru helper fields – already processed above when applicable
-          return acc
+        // Skip any helper fields for i18n json inputs
+        if (i18nMatch && enabledLanguageCodes.includes(i18nMatch[2] as LanguageCode)) {
+          const baseField = i18nMatch[1]
+          if (getI18nJsonFieldsForCollection(state.collection).includes(baseField)) {
+            return acc
+          }
         }
 
         const field = schema.find((f) => f.name === key)
@@ -1667,12 +1912,19 @@ export function DataTable() {
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={createOpen} onOpenChange={(open) => {
+      <ResponsiveDialog
+        open={createOpen}
+        onOpenChange={(open) => {
         setCreateOpen(open)
         if (!open) {
           // Clear form data and price inputs when dialog closes
           setFormData({})
           setCreateError(null)
+          setCreateFormTab("main")
+          setCreateDataInLanguage(locale)
+          setCreateDataInEntries([])
+          setCreateDataInRaw("{}")
+          setCreateDataInRawError(null)
           setPriceInputs(prev => {
             const newInputs = { ...prev }
             editableFields.forEach(field => {
@@ -1683,17 +1935,40 @@ export function DataTable() {
             return newInputs
           })
         }
-      }}>
-        <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              {t.addRecord.description}
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <form onSubmit={handleCreateSubmit} className="space-y-4">
-            {editableFields.map((field) => (
-              <div key={field.name} className="flex flex-col gap-2">
+      }}
+        onlyDrawer
+        direction="right"
+        handleOnly
+      >
+        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
+          <div className="flex h-full flex-col">
+            <div className="border-b px-5 py-4">
+              <ResponsiveDialogHeader>
+                <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription>
+                  {t.addRecord.description}
+                </ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+            </div>
+            <form onSubmit={handleCreateSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                <Tabs value={createFormTab} onValueChange={(v) => setCreateFormTab(v as any)} className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="main">Основное</TabsTrigger>
+                    {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
+                    <TabsTrigger value="details">Подробнее</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="main" className="mt-0">
+                    <div className="grid gap-4">
+                      {editableFields.filter((f) => {
+                        if (f.name === "data_in") return false
+                        if (state.collection === 'roles') {
+                          // For roles, show: title, raid, name, description, is_system, xaid
+                          return ['title', 'raid', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                        }
+                        return true
+                      }).map((field) => (
+                    <div key={field.name} className="flex flex-col gap-2">
                 {field.fieldType === 'boolean' ? (
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -1762,7 +2037,7 @@ export function DataTable() {
                       <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
                   </>
-                ) : field.fieldType === 'json' && state.collection === 'taxonomy' && (field.name === 'title' || field.name === 'category') ? (
+                ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
                   <>
                     <div className="flex items-center justify-between">
                       <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -1771,40 +2046,38 @@ export function DataTable() {
                       </Label>
                       <Tabs
                         value={jsonFieldLanguage[field.name] || locale}
-                        onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as 'en' | 'ru' }))}
+                        onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
                         className="w-auto"
                       >
                         <TabsList className="h-8">
-                          <TabsTrigger value="en" className="text-xs px-2 py-1">EN</TabsTrigger>
-                          <TabsTrigger value="ru" className="text-xs px-2 py-1">RU</TabsTrigger>
+                          {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                            <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                              {l.shortName}
+                            </TabsTrigger>
+                          ))}
                         </TabsList>
                       </Tabs>
                     </div>
                     <Tabs
                       value={jsonFieldLanguage[field.name] || locale}
-                      onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as 'en' | 'ru' }))}
+                      onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
                       className="w-full"
                     >
-                      <TabsContent value="en" className="mt-0">
-                        <Input
-                          id={`field-${field.name}_en`}
-                          type="text"
-                          required={!field.nullable}
-                          value={formData[`${field.name}_en`] || ""}
-                          onChange={(e) => handleFieldChange(`${field.name}_en`, e.target.value)}
-                          placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (English)`) || `Enter ${field.title || field.name} (English)`}
-                        />
-                      </TabsContent>
-                      <TabsContent value="ru" className="mt-0">
-                        <Input
-                          id={`field-${field.name}_ru`}
-                          type="text"
-                          required={!field.nullable}
-                          value={formData[`${field.name}_ru`] || ""}
-                          onChange={(e) => handleFieldChange(`${field.name}_ru`, e.target.value)}
-                          placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                        />
-                      </TabsContent>
+                      {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                        <TabsContent key={l.code} value={l.code} className="mt-0">
+                          <Input
+                            id={`field-${field.name}_${l.code}`}
+                            type="text"
+                            required={!field.nullable}
+                            value={formData[`${field.name}_${l.code}`] || ""}
+                            onChange={(e) => handleFieldChange(`${field.name}_${l.code}`, e.target.value)}
+                            placeholder={
+                              t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
+                              `Enter ${field.title || field.name} (${l.name})`
+                            }
+                          />
+                        </TabsContent>
+                      ))}
                     </Tabs>
                   </>
                 ) : (field as any).fieldType === 'price' ? (
@@ -1925,6 +2198,21 @@ export function DataTable() {
                       rows={6}
                     />
                   </>
+                ) : field.name === 'description' ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Textarea
+                      id={`field-${field.name}`}
+                      required={!field.nullable}
+                      value={formData[field.name] || ""}
+                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                      rows={4}
+                    />
+                  </>
                 ) : (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -1941,31 +2229,190 @@ export function DataTable() {
                     />
                   </>
                 )}
+                      </div>
+                    ))}
+                    </div>
+                  </TabsContent>
+                  {state.collection === 'roles' && (
+                    <TabsContent value="info" className="mt-0">
+                      <div className="grid gap-4">
+                        {schema.filter((f) => ['id', 'uuid', 'order', 'created_at', 'updated_at'].includes(f.name)).map((field) => {
+                          // For create form, these fields won't have values yet
+                          const value = formData[field.name] ?? null
+                          return (
+                            <div key={field.name} className="flex flex-col gap-2">
+                              <Label className="text-sm font-medium select-text">
+                                {field.title || field.name}
+                              </Label>
+                              <div className="text-sm select-text">
+                                {field.name === 'created_at' || field.name === 'updated_at' ? (
+                                  <span className="select-text">
+                                    {value ? formatDateTimeForLocale(value, locale) : '-'}
+                                  </span>
+                                ) : (
+                                  <span className="select-text">
+                                    {value ?? '-'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </TabsContent>
+                  )}
+                  <TabsContent value="details" className="mt-0">
+                    <div className="grid gap-4">
+                      {/* Language tabs */}
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Язык для редактирования</div>
+                        <Tabs
+                          value={createDataInLanguage}
+                          onValueChange={(value) => setCreateDataInLanguage(value as LanguageCode)}
+                          className="w-auto"
+                        >
+                          <TabsList className="h-8">
+                            {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                              <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                                {l.shortName}
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                      
+                      {/* Data_in fields */}
+                      <div className="grid gap-4">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreateDataInEntries((prev) => [...prev, { key: "", value: "" }])}
+                          >
+                            <IconPlus className="mr-2 h-4 w-4" />
+                            Добавить поле
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {createDataInEntries.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">Нет полей</div>
+                          ) : (
+                            createDataInEntries.map((entry, idx) => (
+                              <div key={idx} className="grid grid-cols-2 gap-2">
+                                <Input
+                                  value={entry.key}
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                    setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                  }}
+                                  placeholder="Key"
+                                />
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={entry.value}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))
+                                    }}
+                                    placeholder="Value (string или JSON)"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setCreateDataInEntries((prev) => prev.filter((_, i) => i !== idx))}
+                                  >
+                                    <IconX className="h-4 w-4" />
+                                    <span className="sr-only">Remove</span>
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Raw JSON */}
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium">Raw JSON</div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              void copyToClipboard(createDataInRaw || "")
+                            }}
+                          >
+                            <IconCopy className="mr-2 h-4 w-4" />
+                            Copy
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={createDataInRaw}
+                          onChange={(e) => setCreateDataInRaw(e.target.value)}
+                          className="font-mono text-xs"
+                          rows={10}
+                        />
+                        {createDataInRawError ? (
+                          <div className="text-sm text-destructive">{createDataInRawError}</div>
+                        ) : null}
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              try {
+                                const parsed = JSON.parse(createDataInRaw || "{}")
+                                setCreateDataInEntries(objectToEntries(parsed))
+                                setCreateDataInRawError(null)
+                              } catch (e) {
+                                setCreateDataInRawError(e instanceof Error ? e.message : String(e))
+                              }
+                            }}
+                          >
+                            Применить JSON
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+                {createError && (
+                  <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    {createError}
+                  </div>
+                )}
               </div>
-            ))}
-            {createError && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                {createError}
+              <div className="border-t px-5 py-4">
+                <ResponsiveDialogFooter className="m-0">
+                  <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                    {t.form?.cancel || "Cancel"}
+                  </Button>
+                  <Button type="submit">{t.form?.create || "Create"}</Button>
+                </ResponsiveDialogFooter>
               </div>
-            )}
-            <ResponsiveDialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                {t.form?.cancel || "Cancel"}
-              </Button>
-              <Button type="submit">{t.form?.create || "Create"}</Button>
-            </ResponsiveDialogFooter>
-          </form>
-          <ResponsiveDialogClose className="sr-only" />
+            </form>
+            <ResponsiveDialogClose className="sr-only" />
+          </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={editOpen} onOpenChange={(open) => {
+      <ResponsiveDialog
+        open={editOpen}
+        onOpenChange={(open) => {
         setEditOpen(open)
         if (!open) {
           // Clear edit data and price inputs when dialog closes
           setEditData({})
           setEditError(null)
           setRecordToEdit(null)
+          setEditFormTab("main")
+          setEditDataInLanguage(locale)
+          setEditDataInEntries([])
+          setEditDataInRaw("{}")
+          setEditDataInRawError(null)
           setPriceInputs(prev => {
             const newInputs = { ...prev }
             schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
@@ -1976,17 +2423,42 @@ export function DataTable() {
             return newInputs
           })
         }
-      }}>
-        <ResponsiveDialogContent className="max-h-[90vh] overflow-y-auto p-5">
-          <ResponsiveDialogHeader>
-            <ResponsiveDialogTitle>{(t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
-            <ResponsiveDialogDescription>
-              {t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden."}
-            </ResponsiveDialogDescription>
-          </ResponsiveDialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            {schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).map((field) => (
-              <div key={field.name} className="flex flex-col gap-2">
+      }}
+        onlyDrawer
+        direction="right"
+        handleOnly
+      >
+        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
+          <div className="flex h-full flex-col">
+            <div className="border-b px-5 py-4">
+              <ResponsiveDialogHeader>
+                <ResponsiveDialogTitle>{(t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription>
+                  {t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden."}
+                </ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+            </div>
+            <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                <Tabs value={editFormTab} onValueChange={(v) => setEditFormTab(v as any)} className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="main">Основное</TabsTrigger>
+                    {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
+                    <TabsTrigger value="details">Подробнее</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="main" className="mt-0">
+                    <div className="grid gap-4">
+                      {schema.filter((f) => {
+                        if (!isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden && f.name !== "data_in") {
+                          if (state.collection === 'roles') {
+                            // For roles, show: title, raid, name, description, is_system, xaid
+                            return ['title', 'raid', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                          }
+                          return true
+                        }
+                        return false
+                      }).map((field) => (
+                    <div key={field.name} className="flex flex-col gap-2">
                 {field.fieldType === 'boolean' ? (
                   <div className="flex items-center gap-2">
                     <Checkbox
@@ -2056,7 +2528,7 @@ export function DataTable() {
                       <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
                     )}
                   </>
-                ) : field.fieldType === 'json' && state.collection === 'taxonomy' && (field.name === 'title' || field.name === 'category') ? (
+                ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
                   <>
                     <div className="flex items-center justify-between">
                       <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
@@ -2065,42 +2537,39 @@ export function DataTable() {
                       </Label>
                       <Tabs
                         value={jsonFieldLanguage[field.name] || locale}
-                        onValueChange={(value) => setJsonFieldLanguage(prev => ({ ...prev, [field.name]: value as 'en' | 'ru' }))}
+                        onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
                         className="w-auto"
                       >
                         <TabsList className="h-8">
-                          <TabsTrigger value="en" className="text-xs px-2 py-1">EN</TabsTrigger>
-                          <TabsTrigger value="ru" className="text-xs px-2 py-1">RU</TabsTrigger>
+                          {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                            <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                              {l.shortName}
+                            </TabsTrigger>
+                          ))}
                         </TabsList>
                       </Tabs>
                     </div>
                     <Tabs
                       value={jsonFieldLanguage[field.name] || locale}
-                      onValueChange={(value) => setJsonFieldLanguage(prev => ({ ...prev, [field.name]: value as 'en' | 'ru' }))}
+                      onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
                       className="w-full"
                     >
-                      <TabsContent value="en" className="mt-0">
-                        <Input
-                          id={`edit-field-${field.name}_en`}
-                          type="text"
-                          required={!field.nullable}
-                          value={editData[`${field.name}_en`] || ""}
-                          onChange={(e) => handleEditFieldChange(`${field.name}_en`, e.target.value)}
-                          placeholder={t.form?.enter?.replace('{field}', `${field.title || field.name} (English)`) || `Enter ${field.title || field.name} (English)`}
-                          disabled={field.readOnly}
-                        />
-                      </TabsContent>
-                      <TabsContent value="ru" className="mt-0">
-                        <Input
-                          id={`edit-field-${field.name}_ru`}
-                          type="text"
-                          required={!field.nullable}
-                          value={editData[`${field.name}_ru`] || ""}
-                          onChange={(e) => handleEditFieldChange(`${field.name}_ru`, e.target.value)}
-                          placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                          disabled={field.readOnly}
-                        />
-                      </TabsContent>
+                      {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                        <TabsContent key={l.code} value={l.code} className="mt-0">
+                          <Input
+                            id={`edit-field-${field.name}_${l.code}`}
+                            type="text"
+                            required={!field.nullable}
+                            value={editData[`${field.name}_${l.code}`] || ""}
+                            onChange={(e) => handleEditFieldChange(`${field.name}_${l.code}`, e.target.value)}
+                            placeholder={
+                              t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
+                              `Enter ${field.title || field.name} (${l.name})`
+                            }
+                            disabled={field.readOnly}
+                          />
+                        </TabsContent>
+                      ))}
                     </Tabs>
                   </>
                 ) : (field as any).fieldType === 'price' ? (
@@ -2200,6 +2669,22 @@ export function DataTable() {
                       rows={6}
                     />
                   </>
+                ) : field.name === 'description' ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <Textarea
+                      id={`edit-field-${field.name}`}
+                      required={!field.nullable}
+                      value={editData[field.name] || ''}
+                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                      disabled={field.readOnly}
+                      rows={4}
+                    />
+                  </>
                 ) : (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
@@ -2217,21 +2702,173 @@ export function DataTable() {
                     />
                   </>
                 )}
+                      </div>
+                    ))}
+                    </div>
+                  </TabsContent>
+                  {state.collection === 'roles' && (
+                    <TabsContent value="info" className="mt-0">
+                      <div className="grid gap-4">
+                        {schema.filter((f) => ['id', 'uuid', 'order', 'created_at', 'updated_at'].includes(f.name)).map((field) => {
+                          // Use recordToEdit for edit form to get original data
+                          const value = recordToEdit?.[field.name] ?? editData[field.name] ?? null
+                          return (
+                            <div key={field.name} className="flex flex-col gap-2">
+                              <Label className="text-sm font-medium select-text">
+                                {field.title || field.name}
+                              </Label>
+                              <div className="text-sm select-text">
+                                {field.name === 'created_at' || field.name === 'updated_at' ? (
+                                  <span className="select-text">
+                                    {value ? formatDateTimeForLocale(value, locale) : '-'}
+                                  </span>
+                                ) : (
+                                  <span className="select-text">
+                                    {value ?? '-'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </TabsContent>
+                  )}
+                  <TabsContent value="details" className="mt-0">
+                    <div className="grid gap-4">
+                      {/* Language tabs */}
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">Язык для редактирования</div>
+                        <Tabs
+                          value={editDataInLanguage}
+                          onValueChange={(value) => setEditDataInLanguage(value as LanguageCode)}
+                          className="w-auto"
+                        >
+                          <TabsList className="h-8">
+                            {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                              <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                                {l.shortName}
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                      
+                      {/* Data_in fields */}
+                      <div className="grid gap-4">
+                        <div className="flex items-center justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditDataInEntries((prev) => [...prev, { key: "", value: "" }])}
+                          >
+                            <IconPlus className="mr-2 h-4 w-4" />
+                            Добавить поле
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          {editDataInEntries.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">Нет полей</div>
+                          ) : (
+                            editDataInEntries.map((entry, idx) => (
+                              <div key={idx} className="grid grid-cols-2 gap-2">
+                                <Input
+                                  value={entry.key}
+                                  onChange={(e) => {
+                                    const v = e.target.value
+                                    setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                  }}
+                                  placeholder="Key"
+                                />
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={entry.value}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))
+                                    }}
+                                    placeholder="Value (string или JSON)"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setEditDataInEntries((prev) => prev.filter((_, i) => i !== idx))}
+                                  >
+                                    <IconX className="h-4 w-4" />
+                                    <span className="sr-only">Remove</span>
+                                  </Button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Raw JSON */}
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium">Raw JSON</div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              void copyToClipboard(editDataInRaw || "")
+                            }}
+                          >
+                            <IconCopy className="mr-2 h-4 w-4" />
+                            Copy
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={editDataInRaw}
+                          onChange={(e) => setEditDataInRaw(e.target.value)}
+                          className="font-mono text-xs"
+                          rows={10}
+                        />
+                        {editDataInRawError ? (
+                          <div className="text-sm text-destructive">{editDataInRawError}</div>
+                        ) : null}
+                        <div className="flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              try {
+                                const parsed = JSON.parse(editDataInRaw || "{}")
+                                setEditDataInEntries(objectToEntries(parsed))
+                                setEditDataInRawError(null)
+                              } catch (e) {
+                                setEditDataInRawError(e instanceof Error ? e.message : String(e))
+                              }
+                            }}
+                          >
+                            Применить JSON
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+                {editError && (
+                  <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    {editError}
+                  </div>
+                )}
               </div>
-            ))}
-            {editError && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                {editError}
+              <div className="border-t px-5 py-4">
+                <ResponsiveDialogFooter className="m-0">
+                  <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                    {t.form?.cancel || "Cancel"}
+                  </Button>
+                  <Button type="submit">{t.form?.save || "Save"}</Button>
+                </ResponsiveDialogFooter>
               </div>
-            )}
-            <ResponsiveDialogFooter>
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                {t.form?.cancel || "Cancel"}
-              </Button>
-              <Button type="submit">{t.form?.save || "Save"}</Button>
-            </ResponsiveDialogFooter>
-          </form>
-          <ResponsiveDialogClose className="sr-only" />
+            </form>
+            <ResponsiveDialogClose className="sr-only" />
+          </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>
     </Tabs>

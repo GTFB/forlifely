@@ -15,6 +15,7 @@ import {
   Database,
   Settings,
   CreditCard,
+  Terminal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/providers/MeProvider'
@@ -313,11 +314,22 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   }
 
   const isActive = (url: string) => {
-    if (url.includes('?')) {
-      const [baseUrl] = url.split('?')
-      return pathname === baseUrl || pathname?.startsWith(baseUrl + '/')
+    if (!pathname) return false
+    
+    // Remove query parameters from URL for comparison
+    const cleanUrl = url.split('?')[0]
+    const cleanPathname = pathname.split('?')[0]
+    
+    // Exact match
+    if (cleanPathname === cleanUrl) return true
+    
+    // Check if pathname starts with url + '/' (for nested routes)
+    // But only if url doesn't end with '/'
+    if (cleanPathname.startsWith(cleanUrl + '/')) {
+      return true
     }
-    return pathname === url || pathname?.startsWith(url + '/')
+    
+    return false
   }
 
   // Hooks must be called before any conditional returns
@@ -360,18 +372,28 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
 
     // Add system links for super admin only
     if (isSuperAdmin) {
+      const systemCategoryTitle = translations?.sidebar?.categories?.System || 'Система'
+      const settingsTitle = translations?.sidebar?.menuItems?.Settings || 'Настройки'
+      const seedTitle = translations?.sidebar?.menuItems?.Seed || 'Seed'
+      const sqlEditorTitle = translations?.sidebar?.menuItems?.SqlEditor || 'SQL Editor'
+      
       groups.push({
-        title: 'Система',
+        title: systemCategoryTitle,
         items: [
           {
-            title: 'Настройки',
+            title: settingsTitle,
             url: `${basePath}/settings`,
             icon: Settings,
           },
           {
-            title: 'Seed',
+            title: seedTitle,
             url: `${basePath}/seed`,
             icon: Database,
+          },
+          {
+            title: sqlEditorTitle,
+            url: `${basePath}/sql-editor`,
+            icon: Terminal,
           },
         ],
       })

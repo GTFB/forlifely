@@ -63,8 +63,8 @@ export default function SeedPage() {
   const seedItems = React.useMemo<SeedItem[]>(() => {
     return seeds.map((seed: any) => ({
       id: seed.id,
-      name: seed.meta.name,
-      meta: seed.meta,
+      name: seed.data?.__meta__?.name || seed.id,
+      meta: seed.data?.__meta__ || { name: seed.id, versions: [] },
     }))
   }, [])
 
