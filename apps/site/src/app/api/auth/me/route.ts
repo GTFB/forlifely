@@ -111,7 +111,6 @@ export async function GET(request: NextRequest) {
       humanAid: dbUser.humanAid || null,
       roles: roles.map((role) => ({
         uuid: role.uuid,
-        raid: role.raid,
         title: role.title,
         name: role.name,
         description: role.description,

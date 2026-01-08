@@ -240,6 +240,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const collectionToEntityKey = (collection: string): string => {
     // Special cases mapping
     const specialCases: Record<string, string> = {
+      'roles': 'role',
       'echelon_employees': 'employee_echelon',
       'product_variants': 'product_variant',
       'asset_variants': 'asset_variant',

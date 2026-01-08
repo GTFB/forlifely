@@ -13,7 +13,6 @@ export const Role: CollectionConfig = {
       admin: { readOnly: true },
       hooks: { beforeChange: [generateUUID] },
     },
-    { name: 'raid', type: 'text' },
     { name: 'title', type: 'text' },
     { name: 'name', type: 'text' },
     { name: 'description', type: 'text' },

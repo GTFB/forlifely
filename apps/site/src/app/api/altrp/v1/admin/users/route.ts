@@ -27,7 +27,6 @@ interface CreateUserRequest {
 interface UserWithRoles extends EsnadUser {
   roles?: Array<{
     uuid: string
-    raid: string | null
     title: string | null
     name: string | null
     description: string | null
@@ -156,7 +155,6 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
             ...user,
             roles: userWithRoles?.roles?.map((role) => ({
               uuid: role.uuid,
-              raid: role.raid ?? null,
               title: role.title ?? null,
               name: role.name ?? null,
               description: role.description ?? null,

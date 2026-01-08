@@ -331,7 +331,12 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
     const hasUpdatedAt = columns.some((n: string) => n.toLowerCase() === 'updated_at')
 
     // Build safe update set from provided body keys that exist in table and are not PK
-    const allowedKeys = Object.keys(processedBody).filter((k) => columns.includes(k) && k !== pk)
+    // Exclude updated_at from allowedKeys since it's always set automatically
+    const allowedKeys = Object.keys(processedBody).filter((k) => 
+      columns.includes(k) && 
+      k !== pk && 
+      k.toLowerCase() !== 'updated_at'
+    )
 
     const assignments: string[] = []
     const values: any[] = []

@@ -119,7 +119,6 @@ async function handlePost(request: Request, env: Env) {
 
     if (!adminRole) {
       adminRole = await rolesRepository.create({
-        raid: generateAid('r'),
         name: 'Administrator',
         title: 'Суперадминистратор',
         isSystem: true,

@@ -195,7 +195,8 @@
     },
     "actions": {
       "view": "View",
-      "edit": "Edit"
+      "edit": "Edit",
+      "duplicate": "Duplicate"
     },
     "delete": {
       "selected": "Delete Selected",
@@ -226,6 +227,7 @@
         "description": "Description",
         "is_system": "System role",
         "order": "Order",
+        "suffix": "Suffix",
         "xaid": "Expanse",
         "created_at": "Created",
         "updated_at": "Updated",

@@ -37,7 +37,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface Role {
   uuid: string
-  raid: string | null
   title: string | null
   name: string | null
   description: string | null
@@ -755,7 +754,7 @@ export default function EditUserPage() {
                         <span className="truncate">
                           {selectedRoles.length > 0
                             ? selectedRoles.length === 1
-                              ? selectedRoles[0].title || selectedRoles[0].name || selectedRoles[0].raid || 'Роль'
+                              ? selectedRoles[0].title || selectedRoles[0].name || 'Роль'
                               : `Выбрано: ${selectedRoles.length}`
                             : 'Выберите роли...'}
                         </span>
@@ -770,7 +769,7 @@ export default function EditUserPage() {
                           <CommandGroup>
                             {roles.map((role) => {
                               const isSelected = formData.roleUuids.includes(role.uuid)
-                              const roleLabel = role.title || role.name || role.raid || 'Роль'
+                              const roleLabel = role.title || role.name || 'Роль'
                               return (
                                 <CommandItem
                                   key={role.uuid}
@@ -807,7 +806,7 @@ export default function EditUserPage() {
                     <div className="flex flex-wrap gap-2 mt-2">
                       {selectedRoles.map((role) => (
                         <Badge key={role.uuid} variant="secondary">
-                          {role.title || role.name || role.raid}
+                          {role.title || role.name}
                           <button
                             type="button"
                             onClick={() => {

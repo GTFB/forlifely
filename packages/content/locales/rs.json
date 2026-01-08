@@ -196,7 +196,8 @@
       },
       "actions": {
         "view": "Pregled",
-        "edit": "Uredi"
+        "edit": "Uredi",
+        "duplicate": "Dupliraj"
       },
       "delete": {
         "selected": "Obriši izabrano",
@@ -227,6 +228,7 @@
           "description": "Opis",
           "is_system": "Sistemska uloga",
           "order": "Redosled",
+          "suffix": "Sufiks",
           "xaid": "Projekti",
           "created_at": "Kreirano",
           "updated_at": "Ažurirano",

@@ -4,7 +4,6 @@ import { sql } from 'drizzle-orm'
 export const roles = pgTable('roles', {
   id: serial('id').primaryKey(),
   uuid: text('uuid').notNull(),
-  raid: text('raid'),
   title: jsonb('title'),
   name: text('name'),
   description: text('description'),

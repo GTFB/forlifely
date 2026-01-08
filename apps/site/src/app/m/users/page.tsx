@@ -73,7 +73,6 @@ import {
 interface UserWithRoles extends Omit<EsnadUser, 'human'> {
   roles?: Array<{
     uuid: string
-    raid: string | null
     title: string | null
     name: string | null
     description: string | null
@@ -86,7 +85,6 @@ interface UserWithRoles extends Omit<EsnadUser, 'human'> {
 
 interface Role {
   uuid: string
-  raid: string | null
   title: string | null
   name: string | null
   description: string | null
@@ -444,7 +442,7 @@ export default function AdminUsersPage() {
 
   const selectedRolesLabels = roles
     .filter((role) => formData.roleUuids.includes(role.uuid))
-    .map((role) => role.title || role.name || role.raid || 'Роль')
+    .map((role) => role.title || role.name || 'Роль')
 
   // if (loading) {
   //   return (
@@ -505,7 +503,7 @@ export default function AdminUsersPage() {
                 <SelectItem value="all">Все роли</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.uuid} value={role.uuid}>
-                    {role.title || role.name || role.raid || 'Роль'}
+                    {role.title || role.name || 'Роль'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -652,7 +650,7 @@ export default function AdminUsersPage() {
                               <CommandGroup>
                                 {roles.map((role) => {
                                   const isSelected = formData.roleUuids.includes(role.uuid)
-                                  const roleLabel = role.title || role.name || role.raid || 'Роль'
+                                  const roleLabel = role.title || role.name || 'Роль'
                                   return (
                                     <CommandItem
                                       key={role.uuid}
@@ -681,7 +679,7 @@ export default function AdminUsersPage() {
                         {roles
                           .filter((role) => formData.roleUuids.includes(role.uuid))
                           .map((role) => {
-                            const roleLabel = role.title || role.name || role.raid || 'Роль'
+                            const roleLabel = role.title || role.name || 'Роль'
                             return (
                               <Badge key={role.uuid} variant="secondary" className="text-xs">
                                 {roleLabel}
@@ -828,7 +826,7 @@ export default function AdminUsersPage() {
                                   key={role.uuid}
                                   variant={role.isSystem ? 'default' : 'outline'}
                                   className="text-xs">
-                                  {role.title || role.name || role.raid || 'Роль'}
+                                  {role.title || role.name || 'Роль'}
                                 </Badge>
                               ))
                             ) : (

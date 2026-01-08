@@ -43,7 +43,6 @@ export interface MeUser {
     humanAid?: string | null
     roles: Array<{
       uuid: string
-      raid: string
       title: string
       name: string
       description: string | null

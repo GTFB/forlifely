@@ -8,14 +8,12 @@ import { useMe } from "@/providers/MeProvider"
 interface RoleAuthGuardProps {
   children: ReactNode
   allowedRoles?: string[]
-  allowedRaids?: string[]
   redirectTo?: string
 }
 
 export default function RoleAuthGuard({
   children,
   allowedRoles = [],
-  allowedRaids = [],
   redirectTo = "/login",
 }: RoleAuthGuardProps) {
   const router = useRouter()
@@ -40,11 +38,6 @@ export default function RoleAuthGuard({
 
     // Determine if user is admin (has any system role)
 
-    // Extract raid values from roles array
-    const userRaids = user.roles
-      .map((r) => r.raid)
-      .filter((v): v is string => Boolean(v)) 
-
     const roleNames = user.roles
       .map((r) => r.name)
       .filter((v): v is string => Boolean(v))
@@ -52,14 +45,11 @@ export default function RoleAuthGuard({
     const roleAllowed = allowedRoles.length
       ? allowedRoles.some((r) => roleNames.includes(r))
       : false
-    const raidAllowed = allowedRaids.length
-      ? allowedRaids.some((r) => userRaids.includes(r))
-      : false
 
-    if (!(roleAllowed || raidAllowed)) {
+    if (!roleAllowed) {
       redirect()
     }
-  }, [user, loading, allowedRoles, allowedRaids, redirect])
+  }, [user, loading, allowedRoles, redirect])
 
   if (loading) {
     return (

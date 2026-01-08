@@ -225,7 +225,7 @@ export default function LoginPage() {
 
       // Check if user has Administrator role
       const hasAdministratorRole = data.user?.roles?.some(
-        (role) => role.name === 'Administrator' || role.raid === 'Administrator'
+        (role) => role.name === 'Administrator'
       )
 
       // Check if user has any role with auth_redirect_url

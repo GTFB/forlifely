@@ -365,7 +365,7 @@ function RelationSelect({
 }
 
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string): ColumnDef<CollectionData>[] {
+function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string): ColumnDef<CollectionData>[] {
   return [
   {
     id: "select",
@@ -399,10 +399,11 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
+        const isCentered = col.name === 'is_system' || col.name === 'order'
         return (
           <Button
             variant="ghost"
-            className="h-auto p-0 hover:bg-transparent font-semibold"
+            className={`h-auto p-0 hover:bg-transparent font-semibold ${isCentered ? 'justify-center' : ''}`}
             onClick={(e) => {
               if (e.shiftKey) {
                 // Shift + click: add to multi-sort
@@ -413,7 +414,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               }
             }}
           >
-            <div className="flex items-center gap-1">
+            <div className={`flex items-center gap-1 ${isCentered ? 'justify-center' : ''}`}>
               <span>{col.title || col.name}</span>
               {col.primary && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0">
@@ -576,6 +577,15 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             ? col.format(value, locale) 
             : formatCellValue(value)
         
+        // For order column, center the content
+        if (col.name === 'order') {
+          return (
+            <div className="text-center">
+              {displayValue}
+            </div>
+          )
+        }
+        
         // For textarea fields, truncate text in table
         if (col.textarea) {
           const textValue = typeof displayValue === 'string' ? displayValue : String(displayValue || '')
@@ -593,6 +603,60 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         )
       },
     })),
+    // Add virtual suffix column for roles collection
+    ...(collection === 'roles' ? [{
+      accessorKey: 'suffix',
+      enableSorting: false,
+      header: () => {
+        const suffixTranslation = (translations as any)?.dataTable?.fields?.roles?.suffix
+        return (
+          <div className="text-center">
+            {suffixTranslation || 'Suffix'}
+          </div>
+        )
+      },
+      cell: ({ row }: { row: Row<CollectionData> }) => {
+        const dataIn = row.original.data_in
+        let suffixValue: string | null = null
+        
+        if (dataIn) {
+          try {
+            // Parse data_in if it's a string
+            let parsed: any = dataIn
+            if (typeof dataIn === 'string') {
+              try {
+                parsed = JSON.parse(dataIn)
+              } catch (e) {
+                // If parsing fails, treat as plain string
+                parsed = null
+              }
+            }
+            
+            // Extract suffix value
+            if (parsed && typeof parsed === 'object' && parsed.suffix !== undefined) {
+              const suffix = parsed.suffix
+              
+              // If suffix is an object with language keys
+              if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
+                // Try current locale first, then fallback to en, ru, rs
+                suffixValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
+                if (suffixValue !== null) {
+                  suffixValue = String(suffixValue)
+                }
+              } else if (suffix !== null && suffix !== undefined) {
+                // If suffix is a simple value (string, number, etc.)
+                suffixValue = String(suffix)
+              }
+            }
+          } catch (e) {
+            // Ignore parse errors
+            console.warn('Failed to parse suffix from data_in:', e)
+          }
+        }
+        
+        return <div className="text-center">{suffixValue || '-'}</div>
+      },
+    }] : []),
   {
     id: "actions",
       cell: ({ row }) => (
@@ -608,8 +672,12 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           </Button>
         </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem>{translations?.actions?.view || "View"}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEditRequest(row)}>{translations?.actions?.edit || "Edit"}</DropdownMenuItem>
+            {onDuplicateRequest && (
+              <DropdownMenuItem onClick={() => onDuplicateRequest(row)}>
+                {translations?.actions?.duplicate || "Duplicate"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => onDeleteRequest(row)}>
               {translations?.delete?.delete || "Delete"}
@@ -695,10 +763,36 @@ export function DataTable() {
 
   const objectToEntries = React.useCallback((obj: any) => {
     if (!obj || typeof obj !== "object") return [] as Array<{ key: string; value: string }>
-    return Object.entries(obj).map(([k, v]) => ({
-      key: k,
-      value: typeof v === "string" ? v : JSON.stringify(v),
-    }))
+    const entries: Array<{ key: string; value: string }> = []
+    
+    for (const [k, v] of Object.entries(obj)) {
+      // Check if value is an object with language keys (en, ru, rs)
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        const langObj = v as Record<string, any>
+        // Check if it looks like a language object (has keys like 'en', 'ru', 'rs')
+        const langKeys = Object.keys(langObj).filter(key => ['en', 'ru', 'rs'].includes(key.toLowerCase()))
+        if (langKeys.length > 0) {
+          // Expand language object into separate entries for each language
+          for (const [lang, langValue] of Object.entries(langObj)) {
+            if (['en', 'ru', 'rs'].includes(lang.toLowerCase())) {
+              entries.push({
+                key: `${k}_${lang.toLowerCase()}`,
+                value: typeof langValue === 'string' ? langValue : String(langValue || ''),
+              })
+            }
+          }
+          continue
+        }
+      }
+      
+      // Regular entry (not a language object)
+      entries.push({
+        key: k,
+        value: typeof v === "string" ? v : JSON.stringify(v),
+      })
+    }
+    
+    return entries
   }, [])
 
   // Load Taxonomy config when collection is taxonomy
@@ -820,6 +914,10 @@ export function DataTable() {
       editRecord: {
         title: "Edit record in {collection}",
         description: "Change fields below. Auto-generated fields are not editable and hidden."
+      },
+      createRecord: {
+        title: "Create record in {collection}",
+        description: "Fill in the fields below. Auto-generated fields are not editable and hidden."
       },
       loading: "Loading {collection}...",
       actions: {
@@ -1004,7 +1102,7 @@ export function DataTable() {
           ...col,
           title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
           hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in', // Hide only core system fields and data_in
+          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid'), // Hide only core system fields, data_in, and raid for roles
           readOnly: options.readOnly || false,
           required: options.required || fieldConfig?.required || columnConfig?.required || false,
           virtual: options.virtual || false,
@@ -1238,12 +1336,14 @@ export function DataTable() {
   const [recordToEdit, setRecordToEdit] = React.useState<CollectionData | null>(null)
   const [editData, setEditData] = React.useState<Record<string, any>>({})
   const [editError, setEditError] = React.useState<string | null>(null)
+  const [isDuplicate, setIsDuplicate] = React.useState(false)
 
   // Clear edit data when collection changes
   React.useEffect(() => {
     setEditData({})
     setEditError(null)
     setRecordToEdit(null)
+    setIsDuplicate(false)
     setJsonFieldLanguage({}) // Reset language selectors
     setPriceInputs({})
   }, [state.collection])
@@ -1416,6 +1516,111 @@ export function DataTable() {
     }
   }, [schema, isAutoGeneratedField, state.collection, locale, enabledLanguageCodes, getI18nJsonFieldsForCollection])
 
+  const onDuplicateRequest = React.useCallback((row: Row<CollectionData>) => {
+    try {
+      const record = row.original
+      // Create a copy of the record without id, uuid, and other system fields
+      const duplicatedRecord = { ...record }
+      delete duplicatedRecord.id
+      delete duplicatedRecord.uuid
+      delete duplicatedRecord.created_at
+      delete duplicatedRecord.updated_at
+      delete duplicatedRecord.deleted_at
+      
+      setRecordToEdit(duplicatedRecord)
+      const initial: Record<string, any> = {}
+      const pricePrefill: Record<string, string> = {}
+      const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+      
+      for (const col of schema) {
+        if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
+          if (col.fieldType === 'boolean') {
+            initial[col.name] =
+              duplicatedRecord[col.name] === 1 ||
+              duplicatedRecord[col.name] === true ||
+              duplicatedRecord[col.name] === '1' ||
+              duplicatedRecord[col.name] === 'true'
+          } else if (col.fieldType === 'date' || col.fieldType === 'time' || col.fieldType === 'datetime') {
+            initial[col.name] = duplicatedRecord[col.name] ? new Date(duplicatedRecord[col.name]) : null
+          } else if (col.fieldType === 'json' && i18nFields.includes(col.name)) {
+            // For i18n JSON fields, parse and extract values per enabled language
+            let jsonValue = duplicatedRecord[col.name]
+
+            // If category is empty, try to extract it from data_in
+            if (col.name === 'category' && (!jsonValue || jsonValue === '' || jsonValue === null)) {
+              const dataIn = duplicatedRecord.data_in
+              if (dataIn && typeof dataIn === 'string') {
+                try {
+                  const dataInJson = JSON.parse(dataIn)
+                  if (dataInJson && typeof dataInJson === 'object' && dataInJson.category) {
+                    jsonValue = dataInJson.category
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+            }
+
+            if (typeof jsonValue === 'string') {
+              try {
+                jsonValue = JSON.parse(jsonValue)
+              } catch {
+                // If it's not valid JSON, treat as plain text (backward compatibility)
+                const replicated: Record<string, string> = {}
+                enabledLanguageCodes.forEach((lc) => {
+                  replicated[lc] = jsonValue || ''
+                })
+                jsonValue = replicated
+              }
+            }
+            if (!jsonValue || typeof jsonValue !== 'object') {
+              jsonValue = {}
+            }
+            enabledLanguageCodes.forEach((lc) => {
+              initial[`${col.name}_${lc}`] = (jsonValue as any)[lc] || ''
+            })
+            setJsonFieldLanguage((prev) => ({ ...prev, [col.name]: locale }))
+          } else if (col.fieldType === 'price') {
+            const cents = duplicatedRecord[col.name]
+            const numericCents = cents == null ? null : Number(cents)
+            initial[col.name] = numericCents
+            pricePrefill[`edit-${col.name}`] =
+              numericCents == null || Number.isNaN(numericCents) ? '' : (numericCents / 100).toFixed(2)
+          } else if (col.fieldType === 'json') {
+            // Keep JSON fields as objects (or parse from string if needed)
+            if (duplicatedRecord[col.name] != null) {
+              if (typeof duplicatedRecord[col.name] === 'string') {
+                try {
+                  initial[col.name] = JSON.parse(duplicatedRecord[col.name])
+                } catch {
+                  initial[col.name] = {}
+                }
+              } else {
+                initial[col.name] = duplicatedRecord[col.name]
+              }
+            } else {
+              initial[col.name] = {}
+            }
+          } else {
+            initial[col.name] = duplicatedRecord[col.name] != null ? String(duplicatedRecord[col.name]) : ''
+          }
+        }
+      }
+      setEditData(initial)
+      if (Object.keys(pricePrefill).length > 0) {
+        setPriceInputs((prev) => ({ ...prev, ...pricePrefill }))
+      }
+      setEditError(null)
+      setIsDuplicate(true)
+      setEditOpen(true)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setEditError(message)
+      setIsDuplicate(false)
+      setEditOpen(true)
+    }
+  }, [schema, isAutoGeneratedField, state.collection, locale, enabledLanguageCodes, getI18nJsonFieldsForCollection])
+
   const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | number | null) => {
     setEditData((prev) => ({ ...prev, [fieldName]: value }))
   }, [])
@@ -1423,8 +1628,8 @@ export function DataTable() {
   // Create dialog keep after
   // Generate columns dynamically
   const columns = React.useMemo(
-    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, locale, relationData, t, state.collection) : []),
-    [schema, onDeleteRequest, onEditRequest, locale, relationData, t, state.collection]
+    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection) : []),
+    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection]
   )
 
   const table = useReactTable({
@@ -1543,6 +1748,54 @@ export function DataTable() {
         return acc
       }, {} as Record<string, any>)
       
+        // Process data_in entries with language support for all fields
+        const dataInObj = entriesToObject(createDataInEntries)
+        const processedDataIn: Record<string, any> = {}
+        const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
+        const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
+        
+        for (const [key, value] of Object.entries(dataInObj)) {
+          // Check if key matches field_name_<lang> pattern
+          const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+          if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
+            const fieldName = langMatch[1]
+            const lang = langMatch[2].toLowerCase()
+            if (!languageFields[fieldName]) {
+              languageFields[fieldName] = {}
+            }
+            languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
+          } else {
+            // Plain field without language suffix
+            plainFields[key] = value
+          }
+        }
+        
+        // Convert language fields to objects
+        for (const [fieldName, langValues] of Object.entries(languageFields)) {
+          processedDataIn[fieldName] = langValues
+        }
+        
+        // Convert plain fields to language objects (create entries for all languages)
+        for (const [fieldName, value] of Object.entries(plainFields)) {
+          // Skip if this field already has language entries
+          if (!languageFields[fieldName]) {
+            const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
+            const langObject: Record<string, string> = {}
+            for (const lang of enabledLanguageCodes) {
+              langObject[lang] = fieldValue
+            }
+            processedDataIn[fieldName] = langObject
+          } else {
+            // Field has language entries, skip plain value
+            continue
+          }
+        }
+      
+      // Add data_in to payload if there are any entries
+      if (Object.keys(processedDataIn).length > 0) {
+        payload.data_in = processedDataIn
+      }
+      
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1578,6 +1831,131 @@ export function DataTable() {
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!recordToEdit) return
+    
+    // If this is a duplicate, create a new record instead of updating
+    if (isDuplicate) {
+      setEditError(null)
+      try {
+        // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
+        const payload = Object.entries(editData).reduce((acc, [key, value]) => {
+          const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+          const i18nMatch = key.match(/^(.+)_([a-z]{2})$/)
+          if (i18nMatch) {
+            const baseField = i18nMatch[1]
+            const lang = i18nMatch[2] as LanguageCode
+            if (i18nFields.includes(baseField) && enabledLanguageCodes.includes(lang)) {
+              const existing = (acc[baseField] as Record<string, string>) || {}
+              acc[baseField] = { ...existing, [lang]: (value as string) || '' }
+              return acc
+            }
+          }
+
+          // Skip any helper fields for i18n json inputs
+          if (i18nMatch && enabledLanguageCodes.includes(i18nMatch[2] as LanguageCode)) {
+            const baseField = i18nMatch[1]
+            if (getI18nJsonFieldsForCollection(state.collection).includes(baseField)) {
+              return acc
+            }
+          }
+
+          const field = schema.find((f) => f.name === key)
+
+          if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
+            acc[key] = value // Keep as object, server will stringify
+          } else if (field?.fieldType === 'price') {
+            if (value != null && typeof value === 'number') {
+              acc[key] = value
+            } else if (value === null && field.nullable) {
+              acc[key] = null
+            }
+          } else if (value instanceof Date) {
+            acc[key] = value.toISOString()
+          } else {
+            acc[key] = value
+          }
+
+          return acc
+        }, {} as Record<string, any>)
+        
+        // Process data_in entries with language support for all fields
+        const dataInObj = entriesToObject(editDataInEntries)
+        const processedDataIn: Record<string, any> = {}
+        const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
+        const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
+        
+        for (const [key, value] of Object.entries(dataInObj)) {
+          // Check if key matches field_name_<lang> pattern
+          const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+          if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
+            const fieldName = langMatch[1]
+            const lang = langMatch[2].toLowerCase()
+            if (!languageFields[fieldName]) {
+              languageFields[fieldName] = {}
+            }
+            languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
+          } else {
+            // Plain field without language suffix
+            plainFields[key] = value
+          }
+        }
+        
+        // Convert language fields to objects
+        for (const [fieldName, langValues] of Object.entries(languageFields)) {
+          processedDataIn[fieldName] = langValues
+        }
+        
+        // Convert plain fields to language objects (create entries for all languages)
+        for (const [fieldName, value] of Object.entries(plainFields)) {
+          // Skip if this field already has language entries
+          if (!languageFields[fieldName]) {
+            const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
+            const langObject: Record<string, string> = {}
+            for (const lang of enabledLanguageCodes) {
+              langObject[lang] = fieldValue
+            }
+            processedDataIn[fieldName] = langObject
+          } else {
+            // Field has language entries, skip plain value
+            continue
+          }
+        }
+        
+        // Add data_in to payload if there are any entries
+        if (Object.keys(processedDataIn).length > 0) {
+          payload.data_in = processedDataIn
+        }
+        
+        const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) {
+          const json = await res.json() as { error?: string }
+          throw new Error(json.error || `Create failed: ${res.status}`)
+        }
+        setEditOpen(false)
+        setRecordToEdit(null)
+        setEditData({})
+        setIsDuplicate(false)
+        // Clear price inputs for edit form
+        setPriceInputs(prev => {
+          const newInputs = { ...prev }
+          schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
+            if (field.fieldType === 'price') {
+              delete newInputs[`edit-${field.name}`]
+            }
+          })
+          return newInputs
+        })
+        await fetchData()
+        return
+      } catch (e) {
+        setEditError((e as Error).message)
+        return
+      }
+    }
     setEditError(null)
     try {
       // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
@@ -1621,6 +1999,54 @@ export function DataTable() {
         return acc
       }, {} as Record<string, any>)
       
+      // Process data_in entries with language support for all fields
+      const dataInObj = entriesToObject(editDataInEntries)
+      const processedDataIn: Record<string, any> = {}
+      const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
+      const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
+      
+      for (const [key, value] of Object.entries(dataInObj)) {
+        // Check if key matches field_name_<lang> pattern
+        const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+        if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
+          const fieldName = langMatch[1]
+          const lang = langMatch[2].toLowerCase()
+          if (!languageFields[fieldName]) {
+            languageFields[fieldName] = {}
+          }
+          languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
+        } else {
+          // Plain field without language suffix
+          plainFields[key] = value
+        }
+      }
+      
+      // Convert language fields to objects
+      for (const [fieldName, langValues] of Object.entries(languageFields)) {
+        processedDataIn[fieldName] = langValues
+      }
+      
+      // Convert plain fields to language objects (create entries for all languages)
+      for (const [fieldName, value] of Object.entries(plainFields)) {
+        // Skip if this field already has language entries
+        if (!languageFields[fieldName]) {
+          const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
+          const langObject: Record<string, string> = {}
+          for (const lang of enabledLanguageCodes) {
+            langObject[lang] = fieldValue
+          }
+          processedDataIn[fieldName] = langObject
+        } else {
+          // Field has language entries, skip plain value
+          continue
+        }
+      }
+      
+      // Add data_in to payload if there are any entries
+      if (Object.keys(processedDataIn).length > 0) {
+        payload.data_in = processedDataIn
+      }
+      
       const idValue = recordToEdit[primaryKey]
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(idValue))}`, {
         method: "PUT",
@@ -1635,6 +2061,7 @@ export function DataTable() {
       setEditOpen(false)
       setRecordToEdit(null)
       setEditData({})
+      setIsDuplicate(false)
       // Clear price inputs for edit form
       setPriceInputs(prev => {
         const newInputs = { ...prev }
@@ -1703,16 +2130,18 @@ export function DataTable() {
                     column.getCanHide()
                 )
                 .map((column) => {
+                  // Find column schema to get translated title
+                  const columnSchema = schema.find((col) => col.name === column.id)
+                  const columnTitle = columnSchema?.title || column.id
                   return (
                     <DropdownMenuCheckboxItem
                       key={column.id}
-                      className="capitalize"
                       checked={column.getIsVisible()}
                       onCheckedChange={(value) =>
                         column.toggleVisibility(!!value)
                       }
                     >
-                      {column.id}
+                      {columnTitle}
                     </DropdownMenuCheckboxItem>
                   )
                 })}
@@ -1732,7 +2161,7 @@ export function DataTable() {
           <div className="flex items-center justify-center py-8">
             <IconLoader className="size-6 animate-spin text-muted-foreground" />
             <span className="ml-2 text-sm text-muted-foreground">
-              {(t.loading || "Loading {collection}...").replace("{collection}", collectionLabel)}
+              {t.loading ? t.loading.replace("{collection}", collectionLabel) : `Loading ${collectionLabel}...`}
             </span>
           </div>
         )}
@@ -1963,8 +2392,8 @@ export function DataTable() {
                       {editableFields.filter((f) => {
                         if (f.name === "data_in") return false
                         if (state.collection === 'roles') {
-                          // For roles, show: title, raid, name, description, is_system, xaid
-                          return ['title', 'raid', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                          // For roles, show: title, name, description, is_system, xaid
+                          return ['title', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
                         }
                         return true
                       }).map((field) => (
@@ -2303,8 +2732,37 @@ export function DataTable() {
                                 <Input
                                   value={entry.key}
                                   onChange={(e) => {
-                                    const v = e.target.value
-                                    setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                    const v = e.target.value.trim()
+                                    const currentValue = entry.value
+                                    
+                                    // Check if key ends with language suffix
+                                    const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
+                                    const hasLangSuffix = langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
+                                    
+                                    if (!hasLangSuffix && v && !v.includes('_')) {
+                                      // Key without language suffix - expand to language-specific entries
+                                      setCreateDataInEntries((prev) => {
+                                        const filtered = prev.filter((_, i) => i !== idx)
+                                        // Check if entries for this field already exist
+                                        const fieldBaseName = v.toLowerCase()
+                                        const hasFieldEntries = filtered.some(p => {
+                                          const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
+                                          return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
+                                        })
+                                        if (!hasFieldEntries) {
+                                          // Add entries for all enabled languages
+                                          const newEntries = enabledLanguageCodes.map((lang) => ({
+                                            key: `${v}_${lang}`,
+                                            value: currentValue || '',
+                                          }))
+                                          return [...filtered, ...newEntries]
+                                        }
+                                        return filtered
+                                      })
+                                    } else {
+                                      // Regular key change (with language suffix or empty)
+                                      setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                    }
                                   }}
                                   placeholder="Key"
                                 />
@@ -2408,6 +2866,7 @@ export function DataTable() {
           setEditData({})
           setEditError(null)
           setRecordToEdit(null)
+          setIsDuplicate(false)
           setEditFormTab("main")
           setEditDataInLanguage(locale)
           setEditDataInEntries([])
@@ -2432,9 +2891,17 @@ export function DataTable() {
           <div className="flex h-full flex-col">
             <div className="border-b px-5 py-4">
               <ResponsiveDialogHeader>
-                <ResponsiveDialogTitle>{(t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
+                <ResponsiveDialogTitle>
+                  {isDuplicate 
+                    ? (t.createRecord?.title || "Create record in {collection}").replace("{collection}", collectionLabel)
+                    : (t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)
+                  }
+                </ResponsiveDialogTitle>
                 <ResponsiveDialogDescription>
-                  {t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden."}
+                  {isDuplicate
+                    ? (t.createRecord?.description || "Fill in the fields below. Auto-generated fields are not editable and hidden.")
+                    : (t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden.")
+                  }
                 </ResponsiveDialogDescription>
               </ResponsiveDialogHeader>
             </div>
@@ -2451,8 +2918,8 @@ export function DataTable() {
                       {schema.filter((f) => {
                         if (!isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden && f.name !== "data_in") {
                           if (state.collection === 'roles') {
-                            // For roles, show: title, raid, name, description, is_system, xaid
-                            return ['title', 'raid', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                            // For roles, show: title, name, description, is_system, xaid
+                            return ['title', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
                           }
                           return true
                         }
@@ -2776,8 +3243,37 @@ export function DataTable() {
                                 <Input
                                   value={entry.key}
                                   onChange={(e) => {
-                                    const v = e.target.value
-                                    setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                    const v = e.target.value.trim()
+                                    const currentValue = entry.value
+                                    
+                                    // Check if key ends with language suffix
+                                    const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
+                                    const hasLangSuffix = langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
+                                    
+                                    if (!hasLangSuffix && v && !v.includes('_')) {
+                                      // Key without language suffix - expand to language-specific entries
+                                      setEditDataInEntries((prev) => {
+                                        const filtered = prev.filter((_, i) => i !== idx)
+                                        // Check if entries for this field already exist
+                                        const fieldBaseName = v.toLowerCase()
+                                        const hasFieldEntries = filtered.some(p => {
+                                          const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
+                                          return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
+                                        })
+                                        if (!hasFieldEntries) {
+                                          // Add entries for all enabled languages
+                                          const newEntries = enabledLanguageCodes.map((lang) => ({
+                                            key: `${v}_${lang}`,
+                                            value: currentValue || '',
+                                          }))
+                                          return [...filtered, ...newEntries]
+                                        }
+                                        return filtered
+                                      })
+                                    } else {
+                                      // Regular key change (with language suffix or empty)
+                                      setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                    }
                                   }}
                                   placeholder="Key"
                                 />

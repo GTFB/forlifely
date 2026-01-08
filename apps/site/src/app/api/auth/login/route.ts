@@ -142,7 +142,6 @@ export async function POST(request: Request) {
           role: isAdmin ? 'admin' : 'user',
           roles: roles.map((role) => ({
             uuid: role.uuid,
-            raid: role.raid,
             title: role.title,
             name: role.name,
             description: role.description,

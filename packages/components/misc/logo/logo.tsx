@@ -30,6 +30,7 @@ export function Logo({ className }: LogoProps) {
         alt="Sun Day Logo" 
         width={90} 
         height={32}
+        priority
         className={cn(
           "object-contain",
           hasHeight ? "h-full w-auto" : "w-full h-auto"
