@@ -6,9 +6,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "next dev -p 3103 -H 0.0.0.0",
-    "dev:wrangler": "bun run build:static && wrangler pages dev --port 3303",
-    "dev:all": "cross-env NEXT_PORT=3103 WRANGLER_PORT=3303 PROXY_PORT=3403 node scripts/dev-server.mjs",
+    "dev": "next dev -p 3105 -H 0.0.0.0",
+    "dev:wrangler": "bun run build:static && wrangler pages dev --port 3305",
+    "dev:all": "cross-env NEXT_PORT=3103 WRANGLER_PORT=3303 PROXY_PORT=3405 node scripts/dev-server.mjs",
     "build": "next build --experimental-build-mode compile",
     "build:static": "cross-env STATIC_EXPORT=true next build",
     "start": "next start -p 3100",

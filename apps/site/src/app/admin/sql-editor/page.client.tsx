@@ -31,6 +31,14 @@ export default function SqlEditorPageClient() {
   } | null>(null)
   const [executionTime, setExecutionTime] = React.useState<number | null>(null)
 
+  interface SqlExecuteResponse {
+    success: boolean
+    error?: string
+    data?: any[]
+    rowCount?: number
+    columns?: string[]
+  }
+
   const handleExecute = async () => {
     if (!query.trim()) {
       setError("Please enter a SQL query")
@@ -59,7 +67,7 @@ export default function SqlEditorPageClient() {
       const endTime = Date.now()
       setExecutionTime(endTime - startTime)
 
-      const data = await response.json()
+      const data = (await response.json()) as SqlExecuteResponse
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Failed to execute query")

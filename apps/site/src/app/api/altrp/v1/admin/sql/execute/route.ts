@@ -86,12 +86,14 @@ const handlePost = async (
       let result: any[]
       let rowCount = 0
 
-      if (client instanceof postgres.Sql) {
+      // Check if it's postgres-js (has unsafe method)
+      if ('unsafe' in client && typeof (client as any).unsafe === 'function') {
         // postgres-js
+        const sqlClient = client as postgres.Sql
         if (params && params.length > 0) {
-          result = await client.unsafe(trimmedQuery, params)
+          result = await sqlClient.unsafe(trimmedQuery, params)
         } else {
-          result = await client.unsafe(trimmedQuery)
+          result = await sqlClient.unsafe(trimmedQuery)
         }
         rowCount = Array.isArray(result) ? result.length : 0
       } else {

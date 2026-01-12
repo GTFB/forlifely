@@ -65,7 +65,7 @@ export const onRequestGet = async (context: RequestContext): Promise<Response> =
             roles: userWithRoles.roles.map((role) => ({
               uuid: role.uuid,
               name: role.name,
-              title: role.title,
+              title: (typeof role.title === 'string' ? role.title : null) as string | null,
             })),
           })
         }

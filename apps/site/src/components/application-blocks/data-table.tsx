@@ -2732,37 +2732,41 @@ export function DataTable() {
                                 <Input
                                   value={entry.key}
                                   onChange={(e) => {
+                                    const v = e.target.value
+                                    setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                  }}
+                                  onBlur={(e) => {
                                     const v = e.target.value.trim()
-                                    const currentValue = entry.value
-                                    
-                                    // Check if key ends with language suffix
-                                    const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
-                                    const hasLangSuffix = langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
-                                    
-                                    if (!hasLangSuffix && v && !v.includes('_')) {
-                                      // Key without language suffix - expand to language-specific entries
-                                      setCreateDataInEntries((prev) => {
+                                    setCreateDataInEntries((prev) => {
+                                      const current = prev[idx]
+                                      if (!current) return prev
+
+                                      const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
+                                      const hasLangSuffix =
+                                        langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
+
+                                      if (!hasLangSuffix && v && !v.includes('_')) {
                                         const filtered = prev.filter((_, i) => i !== idx)
-                                        // Check if entries for this field already exist
                                         const fieldBaseName = v.toLowerCase()
-                                        const hasFieldEntries = filtered.some(p => {
+                                        const hasFieldEntries = filtered.some((p) => {
                                           const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
                                           return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
                                         })
                                         if (!hasFieldEntries) {
-                                          // Add entries for all enabled languages
                                           const newEntries = enabledLanguageCodes.map((lang) => ({
                                             key: `${v}_${lang}`,
-                                            value: currentValue || '',
+                                            value: current.value || "",
                                           }))
                                           return [...filtered, ...newEntries]
                                         }
                                         return filtered
-                                      })
-                                    } else {
-                                      // Regular key change (with language suffix or empty)
-                                      setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
-                                    }
+                                      }
+
+                                      if (current.key !== v) {
+                                        return prev.map((p, i) => (i === idx ? { ...p, key: v } : p))
+                                      }
+                                      return prev
+                                    })
                                   }}
                                   placeholder="Key"
                                 />
@@ -3243,37 +3247,41 @@ export function DataTable() {
                                 <Input
                                   value={entry.key}
                                   onChange={(e) => {
+                                    const v = e.target.value
+                                    setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
+                                  }}
+                                  onBlur={(e) => {
                                     const v = e.target.value.trim()
-                                    const currentValue = entry.value
-                                    
-                                    // Check if key ends with language suffix
-                                    const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
-                                    const hasLangSuffix = langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
-                                    
-                                    if (!hasLangSuffix && v && !v.includes('_')) {
-                                      // Key without language suffix - expand to language-specific entries
-                                      setEditDataInEntries((prev) => {
+                                    setEditDataInEntries((prev) => {
+                                      const current = prev[idx]
+                                      if (!current) return prev
+
+                                      const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
+                                      const hasLangSuffix =
+                                        langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
+
+                                      if (!hasLangSuffix && v && !v.includes('_')) {
                                         const filtered = prev.filter((_, i) => i !== idx)
-                                        // Check if entries for this field already exist
                                         const fieldBaseName = v.toLowerCase()
-                                        const hasFieldEntries = filtered.some(p => {
+                                        const hasFieldEntries = filtered.some((p) => {
                                           const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
                                           return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
                                         })
                                         if (!hasFieldEntries) {
-                                          // Add entries for all enabled languages
                                           const newEntries = enabledLanguageCodes.map((lang) => ({
                                             key: `${v}_${lang}`,
-                                            value: currentValue || '',
+                                            value: current.value || "",
                                           }))
                                           return [...filtered, ...newEntries]
                                         }
                                         return filtered
-                                      })
-                                    } else {
-                                      // Regular key change (with language suffix or empty)
-                                      setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
-                                    }
+                                      }
+
+                                      if (current.key !== v) {
+                                        return prev.map((p, i) => (i === idx ? { ...p, key: v } : p))
+                                      }
+                                      return prev
+                                    })
                                   }}
                                   placeholder="Key"
                                 />
