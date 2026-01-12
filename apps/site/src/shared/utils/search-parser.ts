@@ -26,6 +26,7 @@ export type ParsedSearchQuery = {
  * Parse a search query string into structured conditions
  */
 export function parseSearchQuery(query: string): ParsedSearchQuery {
+  console.log('parseSearchQuery', query)
   if (!query || query.trim() === '') {
     return { conditions: [], defaultOperator: 'OR' }
   }
@@ -103,6 +104,10 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
       }
     }
   }
+  console.log('parseSearchQuery', {
+    conditions,
+    defaultOperator: 'OR'
+  })
 
   return {
     conditions,

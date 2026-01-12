@@ -27,7 +27,7 @@ import {
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
-import { parseSearchQuery, matchesSearchQuery, type ParsedSearchQuery, type SearchCondition } from "@/shared/utils/search-parser"
+import { SmartSearch } from "./smart-search"
 import { exportTable, getFileExtension, getMimeType, addBOM, type ExportFormat } from "@/shared/utils/table-export"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
@@ -1116,10 +1116,6 @@ export function DataTable() {
   const [translations, setTranslations] = React.useState<any>(null)
   const [taxonomyConfig, setTaxonomyConfig] = React.useState<any>(null)
   
-  // Local search state for input (debounced before updating global state)
-  const [searchInput, setSearchInput] = React.useState(state.search)
-  // Parsed search conditions with badges (only created on Enter press)
-  const [searchConditions, setSearchConditions] = React.useState<SearchCondition[]>([])
   
   // Local state for price inputs to allow free input without formatting interference
   const [priceInputs, setPriceInputs] = React.useState<Record<string, string>>({})
@@ -1497,6 +1493,8 @@ export function DataTable() {
     return dataTableTranslations || defaultT
   }, [translations?.dataTable])
 
+
+
   const collectionToEntityKey = React.useCallback((collection: string): string => {
     const normalized = (collection || "").toLowerCase()
     const specialCases: Record<string, string> = {
@@ -1543,19 +1541,11 @@ export function DataTable() {
     setLoading(true)
     setError(null)
     try {
-      // Check if search has operators - if yes, don't send to server (filter client-side)
-      // Also need to load all data (no pagination limit) when filtering client-side
-      const hasSearchOperators = searchConditions.some(c => c.operator)
-      const serverSearch = hasSearchOperators ? undefined : state.search
-      // When filtering client-side, load all data (use large page size)
-      const serverPageSize = hasSearchOperators ? 10000 : state.pageSize
-      const serverPage = hasSearchOperators ? 1 : state.page
-
       const queryParams = qs.stringify({
         c: state.collection,
-        p: serverPage,
-        ps: serverPageSize,
-        ...(serverSearch && { s: serverSearch }),
+        p: state.page,
+        ps: state.pageSize,
+        ...(state.search && { s: state.search }),
         ...(state.filters.length > 0 && { filters: state.filters }),
       })
 
@@ -1754,18 +1744,11 @@ export function DataTable() {
       
       setRelationData(relationDataMap)
       
-      // Update local state (preserve search from current state only if no operators)
-      // hasSearchOperators already declared above
-      const updateState = hasSearchOperators 
-        ? { ...json.state, search: state.search } // Preserve search with operators
-        : { ...json.state }
-      setState((prev) => ({ ...prev, ...updateState }))
+      // Update local state with server state
+      setState((prev) => ({ ...prev, ...json.state }))
       setSchema(extendedColumns)
-      // When filtering client-side, total will be updated after filtering
-      if (!hasSearchOperators) {
       setTotal(json.schema.total)
       setTotalPages(json.schema.totalPages)
-      }
       setData(json.data)
     } catch (e) {
       // Ignore AbortError - it's expected when component unmounts
@@ -1779,7 +1762,7 @@ export function DataTable() {
         setLoading(false)
       }
     }
-  }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState, taxonomyConfig, translations, searchConditions])
+  }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState, taxonomyConfig, translations])
 
   React.useEffect(() => {
     const controller = new AbortController()
@@ -1808,24 +1791,6 @@ export function DataTable() {
   }, [fetchData])
 
   // Sync searchInput with state.search when collection changes
-  React.useEffect(() => {
-    setSearchInput(state.search)
-  }, [state.collection])
-
-  // Debounce search input and update state
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchInput !== state.search) {
-        setState((prev) => ({
-          ...prev,
-          search: searchInput,
-          page: 1, // Reset to first page when search changes
-        }))
-      }
-    }, 500) // 500ms debounce
-
-    return () => clearTimeout(timer)
-  }, [searchInput, state.search, setState])
 
   // Default page size (stored in localStorage)
   const [defaultPageSize, setDefaultPageSize] = React.useState<number>(() => {
@@ -2098,14 +2063,6 @@ export function DataTable() {
     
     loadColumnVisibility()
   }, [state.collection, primaryRole])
-  
-  // Reload data when search conditions with operators change (need all data for client-side filtering)
-  React.useEffect(() => {
-    const hasOperators = searchConditions.some(c => c.operator)
-    if (hasOperators && searchConditions.length > 0) {
-      void fetchData()
-    }
-  }, [searchConditions, fetchData])
   
   // Default sorting state (stored in localStorage)
   const [defaultSorting, setDefaultSorting] = React.useState<SortingState>(() => {
@@ -2623,57 +2580,8 @@ export function DataTable() {
     [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment]
   )
 
-  // Parse search query for client-side filtering with operators
-  const parsedSearchQuery = React.useMemo(() => {
-    if (searchConditions.length > 0) {
-      return { conditions: searchConditions, defaultOperator: 'OR' as const }
-    }
-    return null
-  }, [searchConditions])
-
-  // Check if we need client-side filtering (when search has operators)
-  const needsClientSideFilter = React.useMemo(() => {
-    return parsedSearchQuery && parsedSearchQuery.conditions.some(c => c.operator)
-  }, [parsedSearchQuery])
-
-  // Filter data client-side if search has operators (server doesn't support them)
-  const filteredData = React.useMemo(() => {
-    if (!needsClientSideFilter || !parsedSearchQuery) {
-      return data
-    }
-
-    // Has operators - filter client-side
-    const filtered = data.filter((row) => {
-      // Search across all text fields in the row
-      const searchableText = Object.values(row)
-        .filter(v => v != null)
-        .map(v => {
-          if (typeof v === 'string') return v
-          if (typeof v === 'number') return String(v)
-          if (typeof v === 'boolean') return String(v)
-          if (typeof v === 'object') {
-            try {
-              return JSON.stringify(v)
-            } catch {
-              return ''
-            }
-          }
-          return ''
-        })
-        .join(' ')
-
-      const matches = matchesSearchQuery(searchableText.toLowerCase(), parsedSearchQuery, false)
-      return matches
-    })
-
-    // Update total when filtering client-side
-    if (filtered.length !== total) {
-      setTotal(filtered.length)
-      setTotalPages(Math.max(1, Math.ceil(filtered.length / pagination.pageSize)))
-    }
-
-    return filtered
-  }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize])
+  // Server-side search handles all operators; use data as-is
+  const filteredData = data
 
   const table = useReactTable({
     data: filteredData,
@@ -3124,75 +3032,13 @@ export function DataTable() {
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
         {/* Search Field */}
-        <div className="relative w-full max-w-sm">
-          <div className="relative flex items-center gap-1 min-h-9 rounded-md border bg-primary-foreground px-3 py-1 shadow-xs">
-            <IconSearch className="size-4 shrink-0 text-muted-foreground" />
-            <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
-              {searchConditions.map((condition, idx) => (
-                <Badge
-                  key={idx}
-                  variant="secondary"
-                  className="text-xs px-2 py-0.5 h-6 flex items-center gap-1 shrink-0"
-                >
-                  <span>
-                    {condition.type === 'exact' ? `"${condition.value}"` : condition.value}
-                    {condition.operator && ` ${condition.operator}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const newConditions = searchConditions.filter((_, i) => i !== idx)
-                      setSearchConditions(newConditions)
-                      // Update global search state
-                      const searchString = newConditions.map(c => 
-                        c.type === 'exact' ? `"${c.value}"` : c.value
-                      ).join(' ')
-                      setState(prev => ({ ...prev, search: searchString, page: 1 }))
-                      // Reload data if operators are still present
-                      if (newConditions.some(c => c.operator)) {
-                        void fetchData()
-                      } else if (newConditions.length === 0) {
-                        // No conditions left - reload without search
-                        void fetchData()
-                      }
-                    }}
-                    className="ml-1 hover:bg-muted rounded-full p-0.5 -mr-1"
-                  >
-                    <IconX className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              <Input
-                type="text"
-                placeholder={searchConditions.length === 0 ? (t.search + ' (Enter для добавления, "фраза" для точного поиска, AND/OR для операторов)') : ''}
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchInput.trim()) {
-                    e.preventDefault()
-                    const parsed = parseSearchQuery(searchInput.trim())
-                    if (parsed.conditions.length > 0) {
-                      const newConditions = [...searchConditions, ...parsed.conditions]
-                      setSearchConditions(newConditions)
-                      setSearchInput('')
-                      // Update global search state with combined conditions
-                      const searchString = newConditions.map(c => 
-                        c.type === 'exact' ? `"${c.value}"` : c.value
-                      ).join(' ')
-                      setState(prev => ({ ...prev, search: searchString, page: 1 }))
-                      // Reload data if operators are present (to get all data for client-side filtering)
-                      if (newConditions.some(c => c.operator)) {
-                        void fetchData()
-                      }
-                    }
-                  }
-                }}
-                className="border-0 p-0 h-auto flex-1 min-w-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none bg-transparent"
-              />
-            </div>
-          </div>
-        </div>
+        <SmartSearch
+          value={state.search}
+          onChange={(searchString) => {
+            setState((prev) => ({ ...prev, search: searchString, page: 1 }))
+          }}
+          placeholder={t.search + ' (Enter для добавления, "фраза" для точного поиска, AND/OR для операторов)'}
+        />
         
         <Label htmlFor="view-selector" className="sr-only">
           View
