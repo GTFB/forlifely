@@ -632,20 +632,23 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               }
             }
             
-            // Extract suffix value
-            if (parsed && typeof parsed === 'object' && parsed.suffix !== undefined) {
-              const suffix = parsed.suffix
-              
-              // If suffix is an object with language keys
-              if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
-                // Try current locale first, then fallback to en, ru, rs
-                suffixValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
-                if (suffixValue !== null) {
-                  suffixValue = String(suffixValue)
+            // Extract suffix value (case-insensitive search)
+            if (parsed && typeof parsed === 'object') {
+              const suffixKey = Object.keys(parsed).find(key => key.toLowerCase() === 'suffix')
+              if (suffixKey && parsed[suffixKey] !== undefined) {
+                const suffix = parsed[suffixKey]
+                
+                // If suffix is an object with language keys
+                if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
+                  // Try current locale first, then fallback to en, ru, rs
+                  suffixValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
+                  if (suffixValue !== null) {
+                    suffixValue = String(suffixValue)
+                  }
+                } else if (suffix !== null && suffix !== undefined) {
+                  // If suffix is a simple value (string, number, etc.)
+                  suffixValue = String(suffix)
                 }
-              } else if (suffix !== null && suffix !== undefined) {
-                // If suffix is a simple value (string, number, etc.)
-                suffixValue = String(suffix)
               }
             }
           } catch (e) {
@@ -728,12 +731,57 @@ export function DataTable() {
   const [priceInputs, setPriceInputs] = React.useState<Record<string, string>>({})
 
   // Form tabs and data_in state
-  const [createFormTab, setCreateFormTab] = React.useState<"main" | "info" | "details">("main")
-  const [editFormTab, setEditFormTab] = React.useState<"main" | "info" | "details">("main")
+  const [createFormTab, setCreateFormTab] = React.useState<"main" | "info" | "details" | "columns">("main")
+  const [editFormTab, setEditFormTab] = React.useState<"main" | "info" | "details" | "columns">("main")
   const [createDataInLanguage, setCreateDataInLanguage] = React.useState<LanguageCode>(locale)
   const [editDataInLanguage, setEditDataInLanguage] = React.useState<LanguageCode>(locale)
-  const [createDataInEntries, setCreateDataInEntries] = React.useState<Array<{ key: string; value: string }>>([])
-  const [editDataInEntries, setEditDataInEntries] = React.useState<Array<{ key: string; value: string }>>([])
+  const [createDataInEntries, setCreateDataInEntries] = React.useState<Array<{ key: string; title: string; value: string }>>([])
+  const [editDataInEntries, setEditDataInEntries] = React.useState<Array<{ key: string; title: string; value: string }>>([])
+  // Temporary key values for input fields to prevent re-renders during typing
+  const [createKeyInputs, setCreateKeyInputs] = React.useState<Record<string, string>>({})
+  const [editKeyInputs, setEditKeyInputs] = React.useState<Record<string, string>>({})
+  // Temporary title and value inputs to prevent re-renders during typing
+  const [createTitleInputs, setCreateTitleInputs] = React.useState<Record<string, string>>({})
+  const [createValueInputs, setCreateValueInputs] = React.useState<Record<string, string>>({})
+  const [editTitleInputs, setEditTitleInputs] = React.useState<Record<string, string>>({})
+  const [editValueInputs, setEditValueInputs] = React.useState<Record<string, string>>({})
+  // Column visibility state for columns tab
+  const [visibleColumns, setVisibleColumns] = React.useState<Set<string>>(new Set())
+  
+  // Sync visibleColumns with columnVisibility when changed
+  React.useEffect(() => {
+    if (visibleColumns.size > 0) {
+      const newVisibility: VisibilityState = {}
+      // Set all columns to hidden first
+      schema.forEach(col => {
+        if (!col.primary && col.name !== 'data_in') {
+          newVisibility[col.name] = visibleColumns.has(col.name)
+        }
+      })
+      // Handle data_in columns
+      const allDataInKeys = new Set<string>()
+      createDataInEntries.forEach(e => {
+        const langMatch = e.key.match(/^(.+)_([a-z]{2})$/i)
+        if (langMatch) {
+          allDataInKeys.add(langMatch[1])
+        } else {
+          allDataInKeys.add(e.key)
+        }
+      })
+      editDataInEntries.forEach(e => {
+        const langMatch = e.key.match(/^(.+)_([a-z]{2})$/i)
+        if (langMatch) {
+          allDataInKeys.add(langMatch[1])
+        } else {
+          allDataInKeys.add(e.key)
+        }
+      })
+      allDataInKeys.forEach(key => {
+        newVisibility[`data_in.${key}`] = visibleColumns.has(`data_in.${key}`)
+      })
+      setColumnVisibility(newVisibility)
+    }
+  }, [visibleColumns, schema, createDataInEntries, editDataInEntries])
   const [createDataInRaw, setCreateDataInRaw] = React.useState<string>("")
   const [editDataInRaw, setEditDataInRaw] = React.useState<string>("")
   const [createDataInRawError, setCreateDataInRawError] = React.useState<string | null>(null)
@@ -751,7 +799,9 @@ export function DataTable() {
     }
   }, [])
 
-  const entriesToObject = React.useCallback((entries: Array<{ key: string; value: string }>) => {
+  const entriesToObject = React.useCallback((entries: Array<{ key: string; title: string; value: string }>) => {
+    // This function is used for raw JSON sync, but we should use entriesToLanguageObject instead
+    // Keeping for backward compatibility but it will be replaced
     const obj: Record<string, any> = {}
     entries.forEach((e) => {
       const k = String(e.key || "").trim()
@@ -761,9 +811,44 @@ export function DataTable() {
     return obj
   }, [parseLooseJson])
 
+  const entriesToLanguageObject = React.useCallback((entries: Array<{ key: string; title: string; value: string }>) => {
+    const obj: Record<string, any> = {}
+    const languageFields: Record<string, Record<string, { title: string; value: any }>> = {}
+    const plainFields: Record<string, any> = {}
+    
+    for (const entry of entries) {
+      const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+      if (langMatch && supportedLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
+        const fieldName = langMatch[1]
+        const lang = langMatch[2].toLowerCase()
+        if (!languageFields[fieldName]) {
+          languageFields[fieldName] = {}
+        }
+        languageFields[fieldName][lang] = {
+          title: entry.title || '',
+          value: parseLooseJson(entry.value)
+        }
+      } else {
+        plainFields[entry.key] = parseLooseJson(entry.value)
+      }
+    }
+    
+    // Add language fields as objects with title and value structure
+    for (const [fieldName, langValues] of Object.entries(languageFields)) {
+      obj[fieldName] = langValues
+    }
+    
+    // Add plain fields (without language suffix)
+    for (const [key, value] of Object.entries(plainFields)) {
+      obj[key] = value
+    }
+    
+    return obj
+  }, [parseLooseJson, supportedLanguageCodes])
+
   const objectToEntries = React.useCallback((obj: any) => {
-    if (!obj || typeof obj !== "object") return [] as Array<{ key: string; value: string }>
-    const entries: Array<{ key: string; value: string }> = []
+    if (!obj || typeof obj !== "object") return [] as Array<{ key: string; title: string; value: string }>
+    const entries: Array<{ key: string; title: string; value: string }> = []
     
     for (const [k, v] of Object.entries(obj)) {
       // Check if value is an object with language keys (en, ru, rs)
@@ -775,10 +860,21 @@ export function DataTable() {
           // Expand language object into separate entries for each language
           for (const [lang, langValue] of Object.entries(langObj)) {
             if (['en', 'ru', 'rs'].includes(lang.toLowerCase())) {
-              entries.push({
-                key: `${k}_${lang.toLowerCase()}`,
-                value: typeof langValue === 'string' ? langValue : String(langValue || ''),
-              })
+              // Check if langValue is an object with title and value
+              if (langValue && typeof langValue === 'object' && !Array.isArray(langValue) && ('title' in langValue || 'value' in langValue)) {
+                entries.push({
+                  key: `${k}_${lang.toLowerCase()}`,
+                  title: langValue.title || '',
+                  value: langValue.value != null ? String(langValue.value) : '',
+                })
+              } else {
+                // Legacy format: just a string value
+                entries.push({
+                  key: `${k}_${lang.toLowerCase()}`,
+                  title: '',
+                  value: typeof langValue === 'string' ? langValue : String(langValue || ''),
+                })
+              }
             }
           }
           continue
@@ -788,12 +884,77 @@ export function DataTable() {
       // Regular entry (not a language object)
       entries.push({
         key: k,
+        title: '',
         value: typeof v === "string" ? v : JSON.stringify(v),
       })
     }
     
     return entries
   }, [])
+
+  // Helper function to get unique base keys from entries (without language suffix)
+  const getUniqueBaseKeys = React.useCallback((entries: Array<{ key: string; title: string; value: string }>): string[] => {
+    const baseKeys = new Set<string>()
+    for (const entry of entries) {
+      const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+      if (langMatch && supportedLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
+        baseKeys.add(langMatch[1])
+      } else {
+        baseKeys.add(entry.key)
+      }
+    }
+    return Array.from(baseKeys)
+  }, [supportedLanguageCodes])
+
+  // Helper function to get title and value for a specific language from entries
+  const getTitleAndValueForLanguage = React.useCallback((entries: Array<{ key: string; title: string; value: string }>, baseKey: string, lang: LanguageCode): { title: string; value: string } => {
+    const langKey = `${baseKey}_${lang}`
+    const entry = entries.find(e => e.key === langKey)
+    return {
+      title: entry?.title || '',
+      value: entry?.value || ''
+    }
+  }, [])
+
+  // Helper function to update title and value for a specific language in entries
+  const updateTitleAndValueForLanguage = React.useCallback((entries: Array<{ key: string; title: string; value: string }>, baseKey: string, lang: LanguageCode, title: string, value: string, duplicateToAll: boolean = false): Array<{ key: string; title: string; value: string }> => {
+    const langKey = `${baseKey}_${lang}`
+    
+    if (duplicateToAll) {
+      // Remove existing entries for this base key and add entries for all languages
+      const filtered = entries.filter(e => {
+        const langMatch = e.key.match(/^(.+)_([a-z]{2})$/i)
+        if (langMatch && langMatch[1] === baseKey) {
+          return false
+        }
+        return e.key !== baseKey
+      })
+      
+      // Add entries for all languages with the same title and value
+      const newEntries = supportedLanguageCodes.map((l) => ({
+        key: `${baseKey}_${l}`,
+        title: title,
+        value: value,
+      }))
+      return [...filtered, ...newEntries]
+    } else {
+      // Update only the current language entry, keep others unchanged to avoid re-renders
+      const result = entries.map(e => {
+        if (e.key === langKey) {
+          return { ...e, title: title, value: value }
+        }
+        return e
+      })
+      
+      // If entry doesn't exist, add it
+      const exists = result.some(e => e.key === langKey)
+      if (!exists) {
+        result.push({ key: langKey, title: title, value: value })
+      }
+      
+      return result
+    }
+  }, [supportedLanguageCodes])
 
   // Load Taxonomy config when collection is taxonomy
   React.useEffect(() => {
@@ -963,6 +1124,7 @@ export function DataTable() {
       user_bans: "user_ban",
       user_verifications: "user_verification",
       role_permissions: "role_permission",
+      roles: "role",
     }
     const mapped = specialCases[normalized] || normalized
     if (mapped.endsWith("ies")) return mapped.slice(0, -3) + "y"
@@ -1350,10 +1512,28 @@ export function DataTable() {
 
   // Init create data_in when drawer opens
   React.useEffect(() => {
-    if (!createOpen) return
+    if (!createOpen) {
+      // Clear temp inputs when drawer closes
+      setCreateKeyInputs({})
+      setCreateTitleInputs({})
+      setCreateValueInputs({})
+      return
+    }
     const existing = (formData as any).data_in
     const entries = objectToEntries(existing)
     setCreateDataInEntries(entries)
+    // Clear temp inputs when drawer opens
+    setCreateKeyInputs({})
+    setCreateTitleInputs({})
+    setCreateValueInputs({})
+    // Initialize visible columns based on current column visibility
+    const currentVisible = new Set<string>()
+    Object.entries(columnVisibility).forEach(([key, visible]) => {
+      if (visible) {
+        currentVisible.add(key)
+      }
+    })
+    setVisibleColumns(currentVisible)
     try {
       setCreateDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
     } catch {
@@ -1368,21 +1548,39 @@ export function DataTable() {
   // Sync createDataInRaw when createDataInEntries changes
   React.useEffect(() => {
     if (!createOpen) return
-    const obj = entriesToObject(createDataInEntries)
+    const obj = entriesToLanguageObject(createDataInEntries)
     try {
       setCreateDataInRaw(JSON.stringify(obj, null, 2))
       setCreateDataInRawError(null)
     } catch (e) {
       setCreateDataInRawError(e instanceof Error ? e.message : "Failed to stringify")
     }
-  }, [createDataInEntries, createOpen, entriesToObject])
+  }, [createDataInEntries, createOpen, entriesToLanguageObject])
 
   // Init edit data_in when drawer opens
   React.useEffect(() => {
-    if (!editOpen || !recordToEdit) return
+    if (!editOpen || !recordToEdit) {
+      // Clear temp inputs when drawer closes
+      setEditKeyInputs({})
+      setEditTitleInputs({})
+      setEditValueInputs({})
+      return
+    }
     const existing = (editData as any).data_in
     const entries = objectToEntries(existing)
     setEditDataInEntries(entries)
+    // Clear temp inputs when drawer opens
+    setEditKeyInputs({})
+    setEditTitleInputs({})
+    setEditValueInputs({})
+    // Initialize visible columns based on current column visibility
+    const currentVisible = new Set<string>()
+    Object.entries(columnVisibility).forEach(([key, visible]) => {
+      if (visible) {
+        currentVisible.add(key)
+      }
+    })
+    setVisibleColumns(currentVisible)
     try {
       setEditDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
     } catch {
@@ -1397,13 +1595,13 @@ export function DataTable() {
   // Sync editDataInRaw when editDataInEntries changes
   React.useEffect(() => {
     if (!editOpen) return
-    const obj = entriesToObject(editDataInEntries)
+    const obj = entriesToLanguageObject(editDataInEntries)
     try {
       setEditDataInRaw(JSON.stringify(obj, null, 2))
     } catch {
       // ignore
     }
-  }, [editDataInEntries, editOpen, entriesToObject])
+  }, [editDataInEntries, editOpen, entriesToLanguageObject])
 
       const enabledLanguageCodes = supportedLanguageCodes
 
@@ -1748,53 +1946,11 @@ export function DataTable() {
         return acc
       }, {} as Record<string, any>)
       
-        // Process data_in entries with language support for all fields
-        const dataInObj = entriesToObject(createDataInEntries)
-        const processedDataIn: Record<string, any> = {}
-        const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
-        const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
-        
-        for (const [key, value] of Object.entries(dataInObj)) {
-          // Check if key matches field_name_<lang> pattern
-          const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
-          if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
-            const fieldName = langMatch[1]
-            const lang = langMatch[2].toLowerCase()
-            if (!languageFields[fieldName]) {
-              languageFields[fieldName] = {}
-            }
-            languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
-          } else {
-            // Plain field without language suffix
-            plainFields[key] = value
-          }
-        }
-        
-        // Convert language fields to objects
-        for (const [fieldName, langValues] of Object.entries(languageFields)) {
-          processedDataIn[fieldName] = langValues
-        }
-        
-        // Convert plain fields to language objects (create entries for all languages)
-        for (const [fieldName, value] of Object.entries(plainFields)) {
-          // Skip if this field already has language entries
-          if (!languageFields[fieldName]) {
-            const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
-            const langObject: Record<string, string> = {}
-            for (const lang of enabledLanguageCodes) {
-              langObject[lang] = fieldValue
-            }
-            processedDataIn[fieldName] = langObject
-          } else {
-            // Field has language entries, skip plain value
-            continue
-          }
-        }
+        // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
+        const processedDataIn = entriesToLanguageObject(createDataInEntries)
       
-      // Add data_in to payload if there are any entries
-      if (Object.keys(processedDataIn).length > 0) {
-        payload.data_in = processedDataIn
-      }
+      // Always add data_in to payload (even if empty, to allow clearing it)
+      payload.data_in = processedDataIn
       
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
         method: "POST",
@@ -1878,7 +2034,7 @@ export function DataTable() {
         }, {} as Record<string, any>)
         
         // Process data_in entries with language support for all fields
-        const dataInObj = entriesToObject(editDataInEntries)
+        const dataInObj = entriesToLanguageObject(editDataInEntries)
         const processedDataIn: Record<string, any> = {}
         const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
         const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
@@ -1920,10 +2076,8 @@ export function DataTable() {
           }
         }
         
-        // Add data_in to payload if there are any entries
-        if (Object.keys(processedDataIn).length > 0) {
-          payload.data_in = processedDataIn
-        }
+        // Always add data_in to payload (even if empty, to allow clearing it)
+        payload.data_in = processedDataIn
         
         const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
           method: "POST",
@@ -1999,53 +2153,11 @@ export function DataTable() {
         return acc
       }, {} as Record<string, any>)
       
-      // Process data_in entries with language support for all fields
-      const dataInObj = entriesToObject(editDataInEntries)
-      const processedDataIn: Record<string, any> = {}
-      const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
-      const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
+      // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
+      const processedDataIn = entriesToLanguageObject(editDataInEntries)
       
-      for (const [key, value] of Object.entries(dataInObj)) {
-        // Check if key matches field_name_<lang> pattern
-        const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
-        if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
-          const fieldName = langMatch[1]
-          const lang = langMatch[2].toLowerCase()
-          if (!languageFields[fieldName]) {
-            languageFields[fieldName] = {}
-          }
-          languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
-        } else {
-          // Plain field without language suffix
-          plainFields[key] = value
-        }
-      }
-      
-      // Convert language fields to objects
-      for (const [fieldName, langValues] of Object.entries(languageFields)) {
-        processedDataIn[fieldName] = langValues
-      }
-      
-      // Convert plain fields to language objects (create entries for all languages)
-      for (const [fieldName, value] of Object.entries(plainFields)) {
-        // Skip if this field already has language entries
-        if (!languageFields[fieldName]) {
-          const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
-          const langObject: Record<string, string> = {}
-          for (const lang of enabledLanguageCodes) {
-            langObject[lang] = fieldValue
-          }
-          processedDataIn[fieldName] = langObject
-        } else {
-          // Field has language entries, skip plain value
-          continue
-        }
-      }
-      
-      // Add data_in to payload if there are any entries
-      if (Object.keys(processedDataIn).length > 0) {
-        payload.data_in = processedDataIn
-      }
+      // Always add data_in to payload (even if empty, to allow clearing it)
+      payload.data_in = processedDataIn
       
       const idValue = recordToEdit[primaryKey]
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(idValue))}`, {
@@ -2386,6 +2498,7 @@ export function DataTable() {
                     <TabsTrigger value="main">Основное</TabsTrigger>
                     {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
                     <TabsTrigger value="details">Подробнее</TabsTrigger>
+                    <TabsTrigger value="columns">Колонки</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
@@ -2717,81 +2830,203 @@ export function DataTable() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => setCreateDataInEntries((prev) => [...prev, { key: "", value: "" }])}
+                            onClick={() => {
+                              // Add a new entry with a temporary unique key
+                              const tempKey = `new_field_${Date.now()}`
+                              setCreateDataInEntries((prev) => {
+                                const newEntries = supportedLanguageCodes.map((lang) => ({
+                                  key: `${tempKey}_${lang}`,
+                                  title: '',
+                                  value: '',
+                                }))
+                                return [...prev, ...newEntries]
+                              })
+                            }}
                           >
                             <IconPlus className="mr-2 h-4 w-4" />
                             Добавить поле
                           </Button>
                         </div>
                         <div className="grid gap-3">
-                          {createDataInEntries.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">Нет полей</div>
-                          ) : (
-                            createDataInEntries.map((entry, idx) => (
-                              <div key={idx} className="grid grid-cols-2 gap-2">
-                                <Input
-                                  value={entry.key}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                    setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
-                                  }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim()
-                                    setCreateDataInEntries((prev) => {
-                                      const current = prev[idx]
-                                      if (!current) return prev
-
-                                      const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
-                                      const hasLangSuffix =
-                                        langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
-
-                                      if (!hasLangSuffix && v && !v.includes('_')) {
-                                        const filtered = prev.filter((_, i) => i !== idx)
-                                        const fieldBaseName = v.toLowerCase()
-                                        const hasFieldEntries = filtered.some((p) => {
-                                          const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
-                                          return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
-                                        })
-                                        if (!hasFieldEntries) {
-                                          const newEntries = enabledLanguageCodes.map((lang) => ({
-                                            key: `${v}_${lang}`,
-                                            value: current.value || "",
-                                          }))
-                                          return [...filtered, ...newEntries]
-                                        }
-                                        return filtered
-                                      }
-
-                                      if (current.key !== v) {
-                                        return prev.map((p, i) => (i === idx ? { ...p, key: v } : p))
-                                      }
-                                      return prev
-                                    })
-                                  }}
-                                  placeholder="Key"
-                                />
-                                <div className="flex gap-2">
+                          {(() => {
+                            const uniqueBaseKeys = getUniqueBaseKeys(createDataInEntries)
+                            if (uniqueBaseKeys.length === 0) {
+                              return <div className="text-sm text-muted-foreground">Нет полей</div>
+                            }
+                            return uniqueBaseKeys.map((baseKey, idx) => {
+                              const { title: currentTitle, value: currentValue } = getTitleAndValueForLanguage(createDataInEntries, baseKey, createDataInLanguage)
+                              const hasAnyValue = supportedLanguageCodes.some(lang => {
+                                const { value } = getTitleAndValueForLanguage(createDataInEntries, baseKey, lang)
+                                return value && value.trim() !== ''
+                              })
+                              
+                              const tempKey = createKeyInputs[baseKey] ?? baseKey
+                              const tempTitle = createTitleInputs[baseKey] ?? currentTitle
+                              const tempValue = createValueInputs[baseKey] ?? currentValue
+                              
+                              return (
+                                <div key={`create-entry-${baseKey}-${idx}`} className="flex gap-2 items-center">
                                   <Input
-                                    value={entry.value}
+                                    value={tempKey}
                                     onChange={(e) => {
                                       const v = e.target.value
-                                      setCreateDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))
+                                      // Update only the temporary state, don't update entries yet
+                                      setCreateKeyInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value.trim()
+                                      if (!v || v === baseKey) {
+                                        // Reset to original if empty or unchanged
+                                        setCreateKeyInputs((prev) => {
+                                          const newState = { ...prev }
+                                          delete newState[baseKey]
+                                          return newState
+                                        })
+                                        return
+                                      }
+                                      // Update base key in all language entries
+                                      setCreateDataInEntries((prev) => {
+                                        const result: Array<{ key: string; title: string; value: string }> = []
+                                        const oldData: Record<string, { title: string; value: string }> = {}
+                                        
+                                        // Collect old title and value for all languages
+                                        supportedLanguageCodes.forEach(lang => {
+                                          const oldLangKey = `${baseKey}_${lang}`
+                                          const oldEntry = prev.find(e => e.key === oldLangKey)
+                                          if (oldEntry) {
+                                            oldData[lang] = { title: oldEntry.title, value: oldEntry.value }
+                                          }
+                                        })
+                                        
+                                        // Keep entries that don't match this base key
+                                        prev.forEach(entry => {
+                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                          if (langMatch && langMatch[1] === baseKey) {
+                                            return // Skip old entries for this base key
+                                          }
+                                          if (entry.key === baseKey) {
+                                            return // Skip old entry without language suffix
+                                          }
+                                          result.push(entry)
+                                        })
+                                        
+                                        // Add new entries with new base key
+                                        supportedLanguageCodes.forEach(lang => {
+                                          result.push({
+                                            key: `${v}_${lang}`,
+                                            title: oldData[lang]?.title || '',
+                                            value: oldData[lang]?.value || ''
+                                          })
+                                        })
+                                        
+                                        // Update temp key state with new base key
+                                        setCreateKeyInputs((prev) => {
+                                          const newState = { ...prev }
+                                          delete newState[baseKey]
+                                          newState[v] = v
+                                          return newState
+                                        })
+                                        
+                                        return result
+                                      })
+                                    }}
+                                    placeholder="Name (key)"
+                                    className="flex-1"
+                                  />
+                                  <Input
+                                    value={tempTitle}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      // Update only temporary state, don't update entries yet
+                                      setCreateTitleInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value
+                                      // Update title - duplicate to all languages if this is the first value entered
+                                      setCreateDataInEntries((prev) => {
+                                        const allEmpty = supportedLanguageCodes.every(l => {
+                                          const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
+                                          return !value || value.trim() === ''
+                                        })
+                                        
+                                        const currentData = getTitleAndValueForLanguage(prev, baseKey, createDataInLanguage)
+                                        return updateTitleAndValueForLanguage(prev, baseKey, createDataInLanguage, v, currentData.value, allEmpty && currentData.value.trim() !== '')
+                                      })
+                                      // Clear temp state
+                                      setCreateTitleInputs((prev) => {
+                                        const newState = { ...prev }
+                                        delete newState[baseKey]
+                                        return newState
+                                      })
+                                    }}
+                                    placeholder="Title"
+                                    className="flex-1"
+                                  />
+                                  <Input
+                                    value={tempValue}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      // Update only temporary state, don't update entries yet
+                                      setCreateValueInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value
+                                      // Update value - duplicate to all languages if this is the first value entered
+                                      setCreateDataInEntries((prev) => {
+                                        // Check if this is the first value (all languages are empty)
+                                        const allEmpty = supportedLanguageCodes.every(l => {
+                                          const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
+                                          return !value || value.trim() === ''
+                                        })
+                                        
+                                        const currentData = getTitleAndValueForLanguage(prev, baseKey, createDataInLanguage)
+                                        return updateTitleAndValueForLanguage(prev, baseKey, createDataInLanguage, currentData.title, v, allEmpty && v.trim() !== '')
+                                      })
+                                      // Clear temp state
+                                      setCreateValueInputs((prev) => {
+                                        const newState = { ...prev }
+                                        delete newState[baseKey]
+                                        return newState
+                                      })
                                     }}
                                     placeholder="Value (string или JSON)"
+                                    className="flex-1"
                                   />
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => setCreateDataInEntries((prev) => prev.filter((_, i) => i !== idx))}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      // Remove all entries for this base key
+                                      setCreateDataInEntries((prev) => {
+                                        return prev.filter(entry => {
+                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                          if (langMatch && langMatch[1] === baseKey) {
+                                            return false
+                                          }
+                                          return entry.key !== baseKey
+                                        })
+                                      })
+                                    }}
                                   >
                                     <IconX className="h-4 w-4" />
                                     <span className="sr-only">Remove</span>
                                   </Button>
                                 </div>
-                              </div>
-                            ))
-                          )}
+                              )
+                            })
+                          })()}
                         </div>
                       </div>
                       
@@ -2836,6 +3071,71 @@ export function DataTable() {
                           >
                             Применить JSON
                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="columns" className="mt-0">
+                    <div className="grid gap-4">
+                      <div className="text-sm font-medium">Выберите колонки для отображения в таблице</div>
+                      <div className="grid gap-3 max-h-[400px] overflow-y-auto">
+                        {/* Schema fields */}
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Поля схемы</div>
+                          {schema.filter(col => !col.primary && col.name !== 'data_in').map((col) => (
+                            <div key={col.name} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`col-schema-${col.name}`}
+                                checked={visibleColumns.has(col.name)}
+                                onCheckedChange={(checked) => {
+                                  setVisibleColumns((prev) => {
+                                    const newSet = new Set(prev)
+                                    if (checked) {
+                                      newSet.add(col.name)
+                                    } else {
+                                      newSet.delete(col.name)
+                                    }
+                                    return newSet
+                                  })
+                                }}
+                              />
+                              <Label htmlFor={`col-schema-${col.name}`} className="text-sm cursor-pointer">
+                                {col.title || col.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Data_in fields */}
+                        <div className="space-y-2 border-t pt-3">
+                          <div className="text-sm font-medium text-muted-foreground">Поля из data_in</div>
+                          {(() => {
+                            const uniqueBaseKeys = getUniqueBaseKeys(createDataInEntries)
+                            if (uniqueBaseKeys.length === 0) {
+                              return <div className="text-sm text-muted-foreground">Нет полей в data_in</div>
+                            }
+                            return uniqueBaseKeys.map((baseKey) => (
+                              <div key={`col-data-${baseKey}`} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`col-data-${baseKey}`}
+                                  checked={visibleColumns.has(`data_in.${baseKey}`)}
+                                  onCheckedChange={(checked) => {
+                                    setVisibleColumns((prev) => {
+                                      const newSet = new Set(prev)
+                                      if (checked) {
+                                        newSet.add(`data_in.${baseKey}`)
+                                      } else {
+                                        newSet.delete(`data_in.${baseKey}`)
+                                      }
+                                      return newSet
+                                    })
+                                  }}
+                                />
+                                <Label htmlFor={`col-data-${baseKey}`} className="text-sm cursor-pointer">
+                                  {baseKey}
+                                </Label>
+                              </div>
+                            ))
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -2916,6 +3216,7 @@ export function DataTable() {
                     <TabsTrigger value="main">Основное</TabsTrigger>
                     {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
                     <TabsTrigger value="details">Подробнее</TabsTrigger>
+                    <TabsTrigger value="columns">Колонки</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
@@ -3232,81 +3533,203 @@ export function DataTable() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => setEditDataInEntries((prev) => [...prev, { key: "", value: "" }])}
+                            onClick={() => {
+                              // Add a new entry with a temporary unique key
+                              const tempKey = `new_field_${Date.now()}`
+                              setEditDataInEntries((prev) => {
+                                const newEntries = supportedLanguageCodes.map((lang) => ({
+                                  key: `${tempKey}_${lang}`,
+                                  title: '',
+                                  value: '',
+                                }))
+                                return [...prev, ...newEntries]
+                              })
+                            }}
                           >
                             <IconPlus className="mr-2 h-4 w-4" />
                             Добавить поле
                           </Button>
                         </div>
                         <div className="grid gap-3">
-                          {editDataInEntries.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">Нет полей</div>
-                          ) : (
-                            editDataInEntries.map((entry, idx) => (
-                              <div key={idx} className="grid grid-cols-2 gap-2">
-                                <Input
-                                  value={entry.key}
-                                  onChange={(e) => {
-                                    const v = e.target.value
-                                    setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, key: v } : p)))
-                                  }}
-                                  onBlur={(e) => {
-                                    const v = e.target.value.trim()
-                                    setEditDataInEntries((prev) => {
-                                      const current = prev[idx]
-                                      if (!current) return prev
-
-                                      const langMatch = v.match(/^(.+)_([a-z]{2})$/i)
-                                      const hasLangSuffix =
-                                        langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)
-
-                                      if (!hasLangSuffix && v && !v.includes('_')) {
-                                        const filtered = prev.filter((_, i) => i !== idx)
-                                        const fieldBaseName = v.toLowerCase()
-                                        const hasFieldEntries = filtered.some((p) => {
-                                          const pLangMatch = p.key.match(/^(.+)_([a-z]{2})$/i)
-                                          return pLangMatch && pLangMatch[1].toLowerCase() === fieldBaseName
-                                        })
-                                        if (!hasFieldEntries) {
-                                          const newEntries = enabledLanguageCodes.map((lang) => ({
-                                            key: `${v}_${lang}`,
-                                            value: current.value || "",
-                                          }))
-                                          return [...filtered, ...newEntries]
-                                        }
-                                        return filtered
-                                      }
-
-                                      if (current.key !== v) {
-                                        return prev.map((p, i) => (i === idx ? { ...p, key: v } : p))
-                                      }
-                                      return prev
-                                    })
-                                  }}
-                                  placeholder="Key"
-                                />
-                                <div className="flex gap-2">
+                          {(() => {
+                            const uniqueBaseKeys = getUniqueBaseKeys(editDataInEntries)
+                            if (uniqueBaseKeys.length === 0) {
+                              return <div className="text-sm text-muted-foreground">Нет полей</div>
+                            }
+                            return uniqueBaseKeys.map((baseKey, idx) => {
+                              const { title: currentTitle, value: currentValue } = getTitleAndValueForLanguage(editDataInEntries, baseKey, editDataInLanguage)
+                              const hasAnyValue = supportedLanguageCodes.some(lang => {
+                                const { value } = getTitleAndValueForLanguage(editDataInEntries, baseKey, lang)
+                                return value && value.trim() !== ''
+                              })
+                              
+                              const tempKey = editKeyInputs[baseKey] ?? baseKey
+                              const tempTitle = editTitleInputs[baseKey] ?? currentTitle
+                              const tempValue = editValueInputs[baseKey] ?? currentValue
+                              
+                              return (
+                                <div key={`edit-entry-${baseKey}-${idx}`} className="flex gap-2 items-center">
                                   <Input
-                                    value={entry.value}
+                                    value={tempKey}
                                     onChange={(e) => {
                                       const v = e.target.value
-                                      setEditDataInEntries((prev) => prev.map((p, i) => (i === idx ? { ...p, value: v } : p)))
+                                      // Update only the temporary state, don't update entries yet
+                                      setEditKeyInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value.trim()
+                                      if (!v || v === baseKey) {
+                                        // Reset to original if empty or unchanged
+                                        setEditKeyInputs((prev) => {
+                                          const newState = { ...prev }
+                                          delete newState[baseKey]
+                                          return newState
+                                        })
+                                        return
+                                      }
+                                      // Update base key in all language entries
+                                      setEditDataInEntries((prev) => {
+                                        const result: Array<{ key: string; title: string; value: string }> = []
+                                        const oldData: Record<string, { title: string; value: string }> = {}
+                                        
+                                        // Collect old title and value for all languages
+                                        supportedLanguageCodes.forEach(lang => {
+                                          const oldLangKey = `${baseKey}_${lang}`
+                                          const oldEntry = prev.find(e => e.key === oldLangKey)
+                                          if (oldEntry) {
+                                            oldData[lang] = { title: oldEntry.title, value: oldEntry.value }
+                                          }
+                                        })
+                                        
+                                        // Keep entries that don't match this base key
+                                        prev.forEach(entry => {
+                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                          if (langMatch && langMatch[1] === baseKey) {
+                                            return // Skip old entries for this base key
+                                          }
+                                          if (entry.key === baseKey) {
+                                            return // Skip old entry without language suffix
+                                          }
+                                          result.push(entry)
+                                        })
+                                        
+                                        // Add new entries with new base key
+                                        supportedLanguageCodes.forEach(lang => {
+                                          result.push({
+                                            key: `${v}_${lang}`,
+                                            title: oldData[lang]?.title || '',
+                                            value: oldData[lang]?.value || ''
+                                          })
+                                        })
+                                        
+                                        // Update temp key state with new base key
+                                        setEditKeyInputs((prev) => {
+                                          const newState = { ...prev }
+                                          delete newState[baseKey]
+                                          newState[v] = v
+                                          return newState
+                                        })
+                                        
+                                        return result
+                                      })
+                                    }}
+                                    placeholder="Name (key)"
+                                    className="flex-1"
+                                  />
+                                  <Input
+                                    value={tempTitle}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      // Update only temporary state, don't update entries yet
+                                      setEditTitleInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value
+                                      // Update title - duplicate to all languages if this is the first value entered
+                                      setEditDataInEntries((prev) => {
+                                        const allEmpty = supportedLanguageCodes.every(l => {
+                                          const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
+                                          return !value || value.trim() === ''
+                                        })
+                                        
+                                        const currentData = getTitleAndValueForLanguage(prev, baseKey, editDataInLanguage)
+                                        return updateTitleAndValueForLanguage(prev, baseKey, editDataInLanguage, v, currentData.value, allEmpty && currentData.value.trim() !== '')
+                                      })
+                                      // Clear temp state
+                                      setEditTitleInputs((prev) => {
+                                        const newState = { ...prev }
+                                        delete newState[baseKey]
+                                        return newState
+                                      })
+                                    }}
+                                    placeholder="Title"
+                                    className="flex-1"
+                                  />
+                                  <Input
+                                    value={tempValue}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      // Update only temporary state, don't update entries yet
+                                      setEditValueInputs((prev) => ({
+                                        ...prev,
+                                        [baseKey]: v
+                                      }))
+                                    }}
+                                    onBlur={(e) => {
+                                      const v = e.target.value
+                                      // Update value - duplicate to all languages if this is the first value entered
+                                      setEditDataInEntries((prev) => {
+                                        // Check if this is the first value (all languages are empty)
+                                        const allEmpty = supportedLanguageCodes.every(l => {
+                                          const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
+                                          return !value || value.trim() === ''
+                                        })
+                                        
+                                        const currentData = getTitleAndValueForLanguage(prev, baseKey, editDataInLanguage)
+                                        return updateTitleAndValueForLanguage(prev, baseKey, editDataInLanguage, currentData.title, v, allEmpty && v.trim() !== '')
+                                      })
+                                      // Clear temp state
+                                      setEditValueInputs((prev) => {
+                                        const newState = { ...prev }
+                                        delete newState[baseKey]
+                                        return newState
+                                      })
                                     }}
                                     placeholder="Value (string или JSON)"
+                                    className="flex-1"
                                   />
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() => setEditDataInEntries((prev) => prev.filter((_, i) => i !== idx))}
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      // Remove all entries for this base key
+                                      setEditDataInEntries((prev) => {
+                                        return prev.filter(entry => {
+                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                          if (langMatch && langMatch[1] === baseKey) {
+                                            return false
+                                          }
+                                          return entry.key !== baseKey
+                                        })
+                                      })
+                                    }}
                                   >
                                     <IconX className="h-4 w-4" />
                                     <span className="sr-only">Remove</span>
                                   </Button>
                                 </div>
-                              </div>
-                            ))
-                          )}
+                              )
+                            })
+                          })()}
                         </div>
                       </div>
                       
@@ -3351,6 +3774,71 @@ export function DataTable() {
                           >
                             Применить JSON
                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="columns" className="mt-0">
+                    <div className="grid gap-4">
+                      <div className="text-sm font-medium">Выберите колонки для отображения в таблице</div>
+                      <div className="grid gap-3 max-h-[400px] overflow-y-auto">
+                        {/* Schema fields */}
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Поля схемы</div>
+                          {schema.filter(col => !col.primary && col.name !== 'data_in').map((col) => (
+                            <div key={col.name} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`col-schema-edit-${col.name}`}
+                                checked={visibleColumns.has(col.name)}
+                                onCheckedChange={(checked) => {
+                                  setVisibleColumns((prev) => {
+                                    const newSet = new Set(prev)
+                                    if (checked) {
+                                      newSet.add(col.name)
+                                    } else {
+                                      newSet.delete(col.name)
+                                    }
+                                    return newSet
+                                  })
+                                }}
+                              />
+                              <Label htmlFor={`col-schema-edit-${col.name}`} className="text-sm cursor-pointer">
+                                {col.title || col.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Data_in fields */}
+                        <div className="space-y-2 border-t pt-3">
+                          <div className="text-sm font-medium text-muted-foreground">Поля из data_in</div>
+                          {(() => {
+                            const uniqueBaseKeys = getUniqueBaseKeys(editDataInEntries)
+                            if (uniqueBaseKeys.length === 0) {
+                              return <div className="text-sm text-muted-foreground">Нет полей в data_in</div>
+                            }
+                            return uniqueBaseKeys.map((baseKey) => (
+                              <div key={`col-data-edit-${baseKey}`} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`col-data-edit-${baseKey}`}
+                                  checked={visibleColumns.has(`data_in.${baseKey}`)}
+                                  onCheckedChange={(checked) => {
+                                    setVisibleColumns((prev) => {
+                                      const newSet = new Set(prev)
+                                      if (checked) {
+                                        newSet.add(`data_in.${baseKey}`)
+                                      } else {
+                                        newSet.delete(`data_in.${baseKey}`)
+                                      }
+                                      return newSet
+                                    })
+                                  }}
+                                />
+                                <Label htmlFor={`col-data-edit-${baseKey}`} className="text-sm cursor-pointer">
+                                  {baseKey}
+                                </Label>
+                              </div>
+                            ))
+                          })()}
                         </div>
                       </div>
                     </div>
