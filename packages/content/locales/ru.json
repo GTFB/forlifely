@@ -216,6 +216,8 @@
       "description": "Измените поля ниже. Автоматически генерируемые поля не редактируются и скрыты."
     },
     "loading": "Загрузка {collection}...",
+    "dataInFields": "Поля из data_in",
+    "showFilters": "Показать фильтры",
     "fields": {
       "roles": {
         "id": "ID",

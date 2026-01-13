@@ -3215,7 +3215,6 @@ export function DataTable() {
               <Button variant="outline" size="sm" className="bg-primary-foreground">
                 <IconDownload />
                 <span className="hidden lg:inline">Экспорт</span>
-                <span className="lg:hidden">Экспорт</span>
                 <IconChevronDown />
               </Button>
             </DropdownMenuTrigger>
@@ -3239,7 +3238,6 @@ export function DataTable() {
               <Button variant="outline" size="sm" className="bg-primary-foreground">
                 <IconLayoutColumns />
                 <span className="hidden lg:inline">Настроить таблицу</span>
-                <span className="lg:hidden">Настроить</span>
                 <IconChevronDown />
               </Button>
             </DropdownMenuTrigger>
@@ -3361,149 +3359,6 @@ export function DataTable() {
                     </DropdownMenuSub>
                   )
                 })}
-              {/* Virtual suffix column for roles */}
-              {state.collection === 'roles' && (() => {
-                const suffixColumn = table.getAllColumns().find(col => col.id === 'suffix')
-                if (suffixColumn) {
-                  // Try to get title from data_in in first record
-                  let suffixTitle: string | null = null
-                  if (data && data.length > 0) {
-                    for (const row of data) {
-                      const dataIn = row.data_in
-                      if (dataIn) {
-                        try {
-                          let parsed: any = dataIn
-                          if (typeof dataIn === 'string') {
-                            try {
-                              parsed = JSON.parse(dataIn)
-                            } catch (e) {
-                              continue
-                            }
-                          }
-                          if (parsed && typeof parsed === 'object') {
-                            const suffixKey = Object.keys(parsed).find(key => key.toLowerCase() === 'suffix')
-                            if (suffixKey && parsed[suffixKey] !== undefined) {
-                              const suffix = parsed[suffixKey]
-                              if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
-                                const localeValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
-                                if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
-                                  suffixTitle = localeValue.title || null
-                                  if (suffixTitle) break
-                                }
-                              }
-                            }
-                          }
-                        } catch (e) {
-                          continue
-                        }
-                      }
-                    }
-                  }
-                  // Fallback to translation or default
-                  const suffixTranslation = (t as any)?.dataTable?.fields?.roles?.suffix || 'Suffix'
-                  const columnTitle = suffixTitle || suffixTranslation
-                  const canSort = suffixColumn.getCanSort()
-                  const defaultSortForColumn = defaultSorting.find(s => s.id === suffixColumn.id)
-                  const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
-                  
-                  return (
-                    <DropdownMenuSub key="suffix">
-                      <DropdownMenuSubTrigger>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{columnTitle}</span>
-                          <div className="flex items-center gap-1 ml-2">
-                            {suffixColumn.getIsVisible() && (
-                              <IconCheck className="h-3 w-3" />
-                            )}
-                            {defaultSortForColumn && (
-                              defaultSortForColumn.desc ? (
-                                <IconArrowDown className="h-3 w-3 opacity-50" />
-                              ) : (
-                                <IconArrowUp className="h-3 w-3 opacity-50" />
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuCheckboxItem
-                          checked={suffixColumn.getIsVisible()}
-                          onCheckedChange={(value) =>
-                            suffixColumn.toggleVisibility(!!value)
-                          }
-                        >
-                          Показать колонку
-                        </DropdownMenuCheckboxItem>
-                        {canSort && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Сортировка по умолчанию</DropdownMenuLabel>
-                            <DropdownMenuRadioGroup
-                              value={sortValue}
-                              onValueChange={(value) => {
-                                if (value === 'none') {
-                                  const newDefaultSorting = defaultSorting.filter(s => s.id !== suffixColumn.id)
-                                  setDefaultSorting(newDefaultSorting)
-                                  if (sorting.find(s => s.id === suffixColumn.id)) {
-                                    const newSorting = sorting.filter(s => s.id !== suffixColumn.id)
-                                    setSorting(newSorting)
-                                  }
-                                } else {
-                                  const newSort = { id: suffixColumn.id, desc: value === 'desc' }
-                                  const newDefaultSorting = defaultSorting.filter(s => s.id !== suffixColumn.id)
-                                  newDefaultSorting.push(newSort)
-                                  setDefaultSorting(newDefaultSorting)
-                                  const newSorting = sorting.filter(s => s.id !== suffixColumn.id)
-                                  newSorting.push(newSort)
-                                  setSorting(newSorting)
-                                }
-                              }}
-                            >
-                              <DropdownMenuRadioItem value="none">
-                                <IconArrowsSort className="h-4 w-4 mr-2" />
-                                Нет
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="asc">
-                                <IconArrowUp className="h-4 w-4 mr-2" />
-                                A-Z
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="desc">
-                                <IconArrowDown className="h-4 w-4 mr-2" />
-                                Z-A
-                              </DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Выравнивание</DropdownMenuLabel>
-                        <DropdownMenuRadioGroup
-                          value={columnAlignment['suffix'] || 'left'}
-                          onValueChange={(value) => {
-                            setColumnAlignment(prev => ({
-                              ...prev,
-                              'suffix': value as 'left' | 'center' | 'right'
-                            }))
-                          }}
-                        >
-                          <DropdownMenuRadioItem value="left">
-                            <IconAlignLeft className="h-4 w-4 mr-2" />
-                            Слева
-                          </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="center">
-                            <IconAlignCenter className="h-4 w-4 mr-2" />
-                            По центру
-                          </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="right">
-                            <IconAlignRight className="h-4 w-4 mr-2" />
-                            Справа
-                          </DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )
-                }
-                return null
-              })()}
               {/* Data_in fields */}
               {(() => {
                 // Get all unique base keys from data_in in all records
@@ -3537,13 +3392,24 @@ export function DataTable() {
                   }
                 })
                 
-                // Exclude 'suffix' for roles as it has a virtual column
+                // Exclude 'suffix' for roles (will be added separately) and 'main' (system field)
                 const filteredKeys = Array.from(allDataInKeys).filter((baseKey) => {
-                  if (state.collection === 'roles' && baseKey.toLowerCase() === 'suffix') {
+                  const lowerKey = baseKey.toLowerCase()
+                  // Exclude suffix for roles (will be added separately in this section)
+                  if (state.collection === 'roles' && lowerKey === 'suffix') {
+                    return false
+                  }
+                  // Exclude main (system field)
+                  if (lowerKey === 'main') {
                     return false
                   }
                   return true
                 }).sort()
+                
+                // For roles collection, add suffix to the list (it's a virtual column but should appear in data_in section)
+                if (state.collection === 'roles') {
+                  filteredKeys.push('suffix')
+                }
                 
                 if (filteredKeys.length === 0) {
                   return null
@@ -3553,11 +3419,16 @@ export function DataTable() {
                   <>
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                      Поля из data_in
+                      {(t as any)?.dataTable?.dataInFields || "Поля из data_in"}
                     </div>
                     {filteredKeys.map((baseKey) => {
-                      const columnId = `data_in.${baseKey}`
-                      const isVisible = columnVisibility[columnId] !== false
+                      // For suffix in roles, use virtual column id 'suffix', otherwise use data_in.baseKey
+                      const isSuffix = state.collection === 'roles' && baseKey.toLowerCase() === 'suffix'
+                      const columnId = isSuffix ? 'suffix' : `data_in.${baseKey}`
+                      const suffixColumn = isSuffix ? table.getAllColumns().find(col => col.id === 'suffix') : null
+                      const isVisible = isSuffix 
+                        ? (suffixColumn?.getIsVisible() ?? false)
+                        : (columnVisibility[columnId] !== false)
                       // Try to get title from data_in in first record that has this field
                       let fieldTitle: string | null = null
                       if (data && data.length > 0) {
@@ -3602,8 +3473,8 @@ export function DataTable() {
                       // Fallback to translation or baseKey
                       const fieldTranslation = (t as any)?.dataTable?.fields?.[state.collection]?.[baseKey]
                       const columnTitle = fieldTitle || fieldTranslation || baseKey
-                      const dataInColumn = table.getAllColumns().find(col => col.id === columnId)
-                      const canSort = dataInColumn?.getCanSort() || false
+                      const dataInColumn = isSuffix ? suffixColumn : table.getAllColumns().find(col => col.id === columnId)
+                      const canSort = dataInColumn?.getCanSort() ?? false
                       const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
                       const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
                       
@@ -3630,10 +3501,15 @@ export function DataTable() {
                             <DropdownMenuCheckboxItem
                               checked={isVisible}
                               onCheckedChange={(value) => {
-                                setColumnVisibility((prev) => ({
-                                  ...prev,
-                                  [columnId]: !!value
-                                }))
+                                if (isSuffix && suffixColumn) {
+                                  // For suffix, use table column visibility
+                                  suffixColumn.toggleVisibility(!!value)
+                                } else {
+                                  setColumnVisibility((prev) => ({
+                                    ...prev,
+                                    [columnId]: !!value
+                                  }))
+                                }
                               }}
                             >
                               Показать колонку
@@ -3681,11 +3557,11 @@ export function DataTable() {
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel>Выравнивание</DropdownMenuLabel>
                             <DropdownMenuRadioGroup
-                              value={columnAlignment[columnId] || 'left'}
+                              value={columnAlignment[isSuffix ? 'suffix' : columnId] || 'left'}
                               onValueChange={(value) => {
                                 setColumnAlignment(prev => ({
                                   ...prev,
-                                  [columnId]: value as 'left' | 'center' | 'right'
+                                  [isSuffix ? 'suffix' : columnId]: value as 'left' | 'center' | 'right'
                                 }))
                               }}
                             >
@@ -3747,9 +3623,10 @@ export function DataTable() {
               <DropdownMenuCheckboxItem
                 checked={showFilterRow}
                 onCheckedChange={(value) => setShowFilterRow(!!value)}
+                className="justify-end"
               >
                 <IconFilter className="h-4 w-4 mr-2" />
-                Показать фильтры
+                {(t as any)?.dataTable?.showFilters || "Показать фильтры"}
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
