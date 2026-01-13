@@ -209,19 +209,50 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       }
     }
 
-    // Add search condition if search is provided
+    // Add search condition if search is provided (supports AND/OR operators)
     if (state.search) {
-      // Get all TEXT columns for search
+      // Split search by OR (case-sensitive), then by AND inside each group
+      const orGroups = state.search
+        .split('OR')
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+        .map((part) =>
+          part
+            .split('AND')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0)
+        )
+        .filter((group) => group.length > 0)
+
+      // Get all TEXT/INTEGER columns for search
       const searchableColumns = columns.filter((col: { type: string }) => col.type === 'TEXT' || col.type === 'INTEGER')
-      if (searchableColumns.length > 0) {
-        const searchConditions = searchableColumns.map((col: { name: string }, idx: number) => 
-          `${q(col.name)} LIKE $${bindings.length + idx + 1}`
-        ).join(' OR ')
-        whereParts.push(`(${searchConditions})`)
-        // Add search pattern for each searchable column
-        searchableColumns.forEach(() => {
-          bindings.push(`%${state.search}%`)
-        })
+
+      if (orGroups.length > 0 && searchableColumns.length > 0) {
+        const groupClauses: string[] = []
+
+        for (const group of orGroups) {
+          const andClauses: string[] = []
+
+          for (const term of group) {
+            const placeholders: string[] = []
+            for (const col of searchableColumns) {
+              placeholders.push(`${q(col.name)} LIKE $${bindings.length + 1}`)
+              bindings.push(`%${term}%`)
+            }
+            // For this term, match any searchable column
+            andClauses.push(`(${placeholders.join(' OR ')})`)
+          }
+
+          if (andClauses.length > 0) {
+            // All terms in group must match (AND)
+            groupClauses.push(`(${andClauses.join(' AND ')})`)
+          }
+        }
+
+        if (groupClauses.length > 0) {
+          // Any group can match (OR)
+          whereParts.push(`(${groupClauses.join(' OR ')})`)
+        }
       }
     }
     
