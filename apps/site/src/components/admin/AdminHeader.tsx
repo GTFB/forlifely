@@ -158,6 +158,7 @@ export const AdminHeader = React.memo(function AdminHeader({
       user_bans: "user_ban",
       user_verifications: "user_verification",
       role_permissions: "role_permission",
+      roles: "role",
     }
     if (specialCases[collection]) return specialCases[collection]
     if (collection.endsWith("ies")) return collection.slice(0, -3) + "y"
@@ -330,13 +331,13 @@ export const AdminHeader = React.memo(function AdminHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem asChild>
-                <Link href="/admin/deals">Сделки</Link>
+                <Link href="/admin/deals">{translations?.admin?.deals || "Deals"}</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/admin/tasks">Задачи</Link>
+                <Link href="/admin/tasks">{translations?.admin?.tasks || "Tasks"}</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/admin/transactions">Финансы</Link>
+                <Link href="/admin/transactions">{translations?.admin?.finances || "Finances"}</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

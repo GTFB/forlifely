@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { Bell, Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ru } from "date-fns/locale"
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
+import { useNotifications } from "./NotificationsContext"
 
 interface Notification {
   id: number
@@ -26,14 +28,92 @@ interface Notification {
   dataIn: any
 }
 
-import { useNotifications } from "./NotificationsContext"
-
 export function NotificationsDrawer() {
   const { open, setOpen: onOpenChange } = useNotifications()
   const [notifications, setNotifications] = React.useState<Notification[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [unreadCount, setUnreadCount] = React.useState(0)
+  
+  type LanguageCode = (typeof LANGUAGES)[number]['code']
+  const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+  const [locale, setLocale] = React.useState<LanguageCode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
+      }
+    }
+    const defaultLang = PROJECT_SETTINGS.defaultLanguage
+    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
+      return defaultLang as LanguageCode
+    }
+    return LANGUAGES[0]?.code || 'en'
+  })
+  const [translations, setTranslations] = React.useState<any>(null)
+
+  // Sync locale with sidebar when it changes
+  React.useEffect(() => {
+    const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
+      const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
+      if (newLocale && supportedLanguageCodes.includes(newLocale as LanguageCode)) {
+        setLocale(newLocale as LanguageCode)
+      }
+    }
+
+    window.addEventListener('storage', handleLocaleChanged as EventListener)
+    window.addEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', handleLocaleChanged as EventListener)
+      window.removeEventListener('sidebar-locale-changed', handleLocaleChanged as EventListener)
+    }
+  }, [])
+
+  // Load translations
+  React.useEffect(() => {
+    const loadTranslations = async () => {
+      try {
+        const cacheKey = `sidebar-translations-${locale}`
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+        
+        if (cached) {
+          try {
+            const cachedTranslations = JSON.parse(cached)
+            setTranslations(cachedTranslations)
+          } catch (e) {
+            console.error('[NotificationsDrawer] Failed to parse cached translations:', e)
+          }
+        }
+        
+        const response = await fetch(`/api/locales/${locale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json()
+        setTranslations(translationsData)
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+      } catch (e) {
+        console.error('[NotificationsDrawer] Failed to load translations:', e)
+        try {
+          let translationsModule
+          try {
+            translationsModule = await import(`@/packages/content/locales/${locale}.json`)
+          } catch {
+            translationsModule = await import("@/packages/content/locales/en.json")
+          }
+          setTranslations(translationsModule.default || translationsModule)
+        } catch (fallbackError) {
+          console.error('Fallback import also failed:', fallbackError)
+        }
+      }
+    }
+    
+    loadTranslations()
+  }, [locale])
 
   const fetchNotifications = React.useCallback(async () => {
     setLoading(true)
@@ -125,7 +205,7 @@ export function NotificationsDrawer() {
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            Уведомления
+            {translations?.admin?.notifications || "Notifications"}
             {unreadCount > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {unreadCount}
@@ -134,8 +214,8 @@ export function NotificationsDrawer() {
           </SheetTitle>
           <SheetDescription>
             {unreadCount > 0
-              ? `У вас ${unreadCount} непрочитанных уведомлений`
-              : "Все уведомления прочитаны"}
+              ? (translations?.admin?.unreadNotificationsCount || "You have {count} unread notifications").replace('{count}', String(unreadCount))
+              : (translations?.admin?.allNotificationsRead || "All notifications read")}
           </SheetDescription>
         </SheetHeader>
 
@@ -148,7 +228,7 @@ export function NotificationsDrawer() {
             <div className="py-8 text-center text-sm text-destructive">{error}</div>
           ) : notifications.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              Нет уведомлений
+              {translations?.admin?.noNotifications || "No notifications"}
             </div>
           ) : (
             <ScrollArea className="h-[calc(100vh-200px)]">
@@ -165,7 +245,7 @@ export function NotificationsDrawer() {
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium leading-none">
-                            {notification.title || "Уведомление"}
+                            {notification.title || (translations?.admin?.notification || "Notification")}
                           </p>
                           {!notification.isRead && (
                             <div className="h-2 w-2 rounded-full bg-primary" />

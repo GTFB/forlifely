@@ -24,11 +24,13 @@ import {
   IconAlignRight,
   IconFilter,
   IconDownload,
+  IconUpload,
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
 import { parseSearchQuery, matchesSearchQuery, type ParsedSearchQuery, type SearchCondition } from "@/shared/utils/search-parser"
 import { exportTable, getFileExtension, getMimeType, addBOM, type ExportFormat } from "@/shared/utils/table-export"
+import { parseImportFile, importRows, type ImportFormat } from "@/shared/utils/table-import"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
 import qs from "qs"
@@ -304,16 +306,19 @@ function ColumnFilterMultiselect({
   value,
   onValueChange,
   placeholder,
+  translations,
 }: {
   options: Array<{ value: string; label: string }>
   value: string[]
   onValueChange: (value: string[]) => void
   placeholder?: string
+  translations?: any
 }) {
   const [open, setOpen] = React.useState(false)
 
   const selectedValues = Array.isArray(value) ? value : []
   const selectedOptions = options.filter((opt) => selectedValues.includes(opt.value))
+  const t = translations?.dataTable || translations
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -326,17 +331,17 @@ function ColumnFilterMultiselect({
         >
           <span className="truncate">
             {selectedOptions.length > 0
-              ? `${selectedOptions.length} выбрано`
-              : placeholder || "Выберите..."}
+              ? `${selectedOptions.length} ${t?.form?.selected || "selected"}`
+              : placeholder || t?.form?.selectPlaceholder || "Select..."}
           </span>
           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10002]" align="start">
         <Command>
-          <CommandInput placeholder="Поиск..." className="h-8" />
+          <CommandInput placeholder={t?.search || "Search..."} className="h-8" />
           <CommandList>
-            <CommandEmpty>Ничего не найдено</CommandEmpty>
+            <CommandEmpty>{t?.form?.noResults || "No results found."}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => {
                 const isSelected = selectedValues.includes(option.value)
@@ -456,10 +461,11 @@ function RelationSelect({
 }
 
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>): ColumnDef<CollectionData>[] {
+function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>): ColumnDef<CollectionData>[] {
   return [
   {
     id: "select",
+    enableResizing: false,
     header: ({ table }) => (
       <div className="flex items-center justify-center">
         <Checkbox
@@ -487,6 +493,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
     ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
       accessorKey: col.name,
       enableSorting: true,
+      enableResizing: true,
+      size: columnSizing?.[col.name] || undefined,
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
@@ -510,7 +518,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 column.toggleSorting(isSorted === "asc")
               }
             }}
-            title={column.getCanSort() ? (hasMultipleSorts ? "Клик: изменить сортировку | Shift+Клик: добавить к сортировке" : "Клик: сортировать | Shift+Клик: добавить к сортировке") : undefined}
+            title={column.getCanSort() ? (hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort") : undefined}
           >
             <div className={`flex items-center gap-1 ${headerAlignClass}`}>
               <span>{col.title || col.name}</span>
@@ -701,6 +709,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
     ...(collection === 'roles' ? [{
       accessorKey: 'suffix',
       enableSorting: true,
+      enableResizing: true,
+      size: columnSizing?.['suffix'] || undefined,
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
@@ -763,7 +773,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 column.toggleSorting(isSorted === "asc")
               }
             }}
-            title={hasMultipleSorts ? "Клик: изменить сортировку | Shift+Клик: добавить к сортировке" : "Клик: сортировать | Shift+Клик: добавить к сортировке"}
+            title={hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort"}
           >
             <div className={`flex items-center gap-1 ${headerAlignClass}`}>
               <span>{columnTitle}</span>
@@ -843,6 +853,153 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         
         return <div className={alignmentClass}>{suffixValue || '-'}</div>
       },
+    }, {
+      accessorKey: 'main',
+      enableSorting: true,
+      enableResizing: true,
+      size: columnSizing?.['main'] || undefined,
+      header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
+        const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
+        const isSorted = column.getIsSorted()
+        const hasMultipleSorts = table.getState().sorting.length > 1
+        
+        // Try to get title from data_in in first record
+        let mainTitle: string | null = null
+        if (data && data.length > 0) {
+          for (const row of data) {
+            const dataIn = row.data_in
+            if (dataIn) {
+              try {
+                let parsed: any = dataIn
+                if (typeof dataIn === 'string') {
+                  try {
+                    parsed = JSON.parse(dataIn)
+                  } catch (e) {
+                    continue
+                  }
+                }
+                if (parsed && typeof parsed === 'object') {
+                  const mainKey = Object.keys(parsed).find(key => key.toLowerCase() === 'main')
+                  if (mainKey && parsed[mainKey] !== undefined) {
+                    const main = parsed[mainKey]
+                    if (typeof main === 'object' && main !== null && !Array.isArray(main)) {
+                      const localeValue = main[locale] || main.en || main.ru || main.rs || null
+                      if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
+                        mainTitle = localeValue.title || null
+                        if (mainTitle) break
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                continue
+              }
+            }
+          }
+        }
+        // Fallback to translation or default
+        const mainTranslation = (translations as any)?.dataTable?.fields?.[collection]?.main
+        const columnTitle = mainTitle || mainTranslation || (translations as any)?.dataTable?.main || 'Main'
+        
+        // Get alignment for main column
+        const alignment = columnAlignment?.['main'] || 'left'
+        const isCentered = alignment === 'center'
+        const isRight = alignment === 'right'
+        const headerAlignClass = isCentered ? 'justify-center' : isRight ? 'justify-end' : 'justify-start'
+        
+        return (
+          <Button
+            variant="ghost"
+            className={`h-auto p-0 hover:bg-transparent font-semibold ${headerAlignClass}`}
+            onClick={(e) => {
+              if (e.shiftKey) {
+                // Shift + click: add to multi-sort
+                column.toggleSorting(isSorted === "asc", true)
+              } else {
+                // Regular click: toggle sort (replaces existing sorts)
+                column.toggleSorting(isSorted === "asc")
+              }
+            }}
+            title={hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort"}
+          >
+            <div className={`flex items-center gap-1 ${headerAlignClass}`}>
+              <span>{columnTitle}</span>
+              <span className="ml-1 flex items-center gap-0.5">
+                {isSorted ? (
+                  <>
+                    {isSorted === "asc" ? (
+                      <IconArrowUp className="h-3 w-3" />
+                    ) : (
+                      <IconArrowDown className="h-3 w-3" />
+                    )}
+                    {sortedIndex >= 0 && hasMultipleSorts && (
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
+                        {sortedIndex + 1}
+                      </Badge>
+                    )}
+                  </>
+                ) : (
+                  <IconArrowsSort className="h-3 w-3 opacity-30" />
+                )}
+              </span>
+            </div>
+          </Button>
+        )
+      },
+      cell: ({ row }: { row: Row<CollectionData> }) => {
+        const dataIn = row.original.data_in
+        let mainValue: string | null = null
+        
+        if (dataIn) {
+          try {
+            // Parse data_in if it's a string
+            let parsed: any = dataIn
+            if (typeof dataIn === 'string') {
+              try {
+                parsed = JSON.parse(dataIn)
+              } catch (e) {
+                // If parsing fails, treat as plain string
+                parsed = null
+              }
+            }
+            
+            // Extract main value (case-insensitive search)
+            if (parsed && typeof parsed === 'object') {
+              const mainKey = Object.keys(parsed).find(key => key.toLowerCase() === 'main')
+              if (mainKey && parsed[mainKey] !== undefined) {
+                const main = parsed[mainKey]
+                
+                // If main is an object with language keys
+                if (typeof main === 'object' && main !== null && !Array.isArray(main)) {
+                  // Try current locale first, then fallback to en, ru, rs
+                  const localeValue = main[locale] || main.en || main.ru || main.rs || null
+                  if (localeValue !== null && localeValue !== undefined) {
+                    // Check if localeValue is an object with title and value structure
+                    if (typeof localeValue === 'object' && 'value' in localeValue) {
+                      mainValue = localeValue.value != null ? String(localeValue.value) : null
+                    } else {
+                      // If it's a simple value (string, number, etc.)
+                      mainValue = String(localeValue)
+                    }
+                  }
+                } else if (main !== null && main !== undefined) {
+                  // If main is a simple value (string, number, etc.)
+                  mainValue = String(main)
+                }
+              }
+            }
+          } catch (e) {
+            // Ignore parse errors
+            console.warn('Failed to parse main from data_in:', e)
+          }
+        }
+        
+        // Get alignment for main column
+        const alignment = columnAlignment?.['main'] || 'left'
+        const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
+        
+        return <div className={alignmentClass}>{mainValue || '-'}</div>
+      },
     }] : []),
     // Dynamic columns from data_in
     ...(data && columnVisibility ? (() => {
@@ -879,10 +1036,15 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       
       // Create columns only for visible data_in fields
       // Exclude 'suffix' for roles collection as it has a virtual column
+      // Exclude 'main' as it's a duplicate/virtual field
       return Array.from(allDataInKeys)
         .filter((baseKey) => {
           // Skip suffix for roles as it's handled by virtual column
           if (collection === 'roles' && baseKey.toLowerCase() === 'suffix') {
+            return false
+          }
+          // Skip main as it's a duplicate/virtual field
+          if (baseKey.toLowerCase() === 'main') {
             return false
           }
           const columnId = `data_in.${baseKey}`
@@ -1007,7 +1169,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                       column.toggleSorting(isSorted === "asc")
                     }
                   }}
-                  title={hasMultipleSorts ? "Клик: изменить сортировку | Shift+Клик: добавить к сортировке" : "Клик: сортировать | Shift+Клик: добавить к сортировке"}
+                  title={hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort"}
                 >
                   <div className={`flex items-center gap-1 ${headerAlignClass}`}>
                     <span>{columnTitle}</span>
@@ -1046,7 +1208,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
     })() : []),
   {
     id: "actions",
-      cell: ({ row }) => (
+    enableResizing: false,
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -1492,7 +1655,63 @@ export function DataTable() {
           deleting: "Deleting...",
           deleteAll: "Delete All"
         }
-      }
+      },
+      export: "Export",
+      import: "Import",
+      configureTable: "Configure Table",
+      exportData: "Export Data",
+      importData: "Import Data",
+      exportedRecords: "Exported {count} records in {format} format",
+      importDescription: "Load a file or paste data to import into {collection} collection",
+      fileFormat: "File Format",
+      importMode: "Import Mode",
+      loadFile: "Load File",
+      pasteText: "Paste Text",
+      file: "File",
+      pasteData: "Paste Data",
+      importing: "Importing...",
+      importedRecords: "Imported: {count} records",
+      importButton: "Import",
+      close: "Close",
+      selectedFile: "Selected file: {name} ({size} KB)",
+      pasteDataPlaceholder: "Paste data in {format} format...",
+      errors: "Errors:",
+      copy: "Copy",
+      copied: "Copied!",
+      downloadFile: "Download File",
+      showColumn: "Show Column",
+      defaultSorting: "Default Sorting",
+      alignment: "Alignment",
+      none: "None",
+      asc: "A-Z",
+      desc: "Z-A",
+      left: "Left",
+      center: "Center",
+      right: "Right",
+      dataInFields: "Additional",
+      showFilters: "Show Filters",
+      sortTooltipMultiple: "Click: change sort | Shift+Click: add to sort",
+      sortTooltipSingle: "Click: sort | Shift+Click: add to sort",
+      filterPlaceholder: "Filter...",
+      valuePlaceholder: "Value (string or JSON)",
+      previousRecord: "Previous record",
+      nextRecord: "Next record",
+      importNoData: "File contains no data to import",
+      importError: "Error importing file",
+      main: "Main",
+      tabs: {
+        main: "Main",
+        info: "Info",
+        details: "Details"
+      },
+      editLanguage: "Language for editing",
+      applyJson: "Apply JSON",
+      selectFile: "Select file",
+      fileNotSelected: "No file selected",
+      width: "Width",
+      widthAuto: "Auto",
+      widthReset: "Reset",
+      widthPixels: "pixels"
     }
     return dataTableTranslations || defaultT
   }, [translations?.dataTable])
@@ -1539,13 +1758,25 @@ export function DataTable() {
 
   const primaryKey = React.useMemo(() => schema.find((c) => c.primary)?.name || "id", [schema])
 
+  // Memoize filters string to prevent unnecessary re-renders
+  const filtersString = React.useMemo(() => JSON.stringify(state.filters), [state.filters])
+  
+  // Use ref for searchConditions to avoid dependency issues
+  const searchConditionsRef = React.useRef(searchConditions)
+  React.useEffect(() => {
+    searchConditionsRef.current = searchConditions
+  }, [searchConditions])
+
+  // Track fetching state to prevent concurrent requests
+  const isFetchingRef = React.useRef(false)
+
   const fetchData = React.useCallback(async (abortSignal?: AbortSignal, isMountedRef?: { current: boolean }) => {
     setLoading(true)
     setError(null)
     try {
       // Check if search has operators - if yes, don't send to server (filter client-side)
       // Also need to load all data (no pagination limit) when filtering client-side
-      const hasSearchOperators = searchConditions.some(c => c.operator)
+      const hasSearchOperators = searchConditionsRef.current.some(c => c.operator)
       const serverSearch = hasSearchOperators ? undefined : state.search
       // When filtering client-side, load all data (use large page size)
       const serverPageSize = hasSearchOperators ? 10000 : state.pageSize
@@ -1754,12 +1985,33 @@ export function DataTable() {
       
       setRelationData(relationDataMap)
       
-      // Update local state (preserve search from current state only if no operators)
-      // hasSearchOperators already declared above
-      const updateState = hasSearchOperators 
-        ? { ...json.state, search: state.search } // Preserve search with operators
-        : { ...json.state }
-      setState((prev) => ({ ...prev, ...updateState }))
+      // Update local state - only update collection and filters from API
+      // NEVER update pageSize, page, or search from API response to prevent infinite loops
+      // These values are controlled by UI state and should not be overwritten
+      setState((prev) => {
+        const newState: Partial<typeof prev> = {}
+        let hasChanges = false
+        
+        // Only update collection if it changed
+        if (json.state.collection !== prev.collection) {
+          newState.collection = json.state.collection
+          hasChanges = true
+        }
+        
+        // Only update filters if they changed
+        if (JSON.stringify(json.state.filters) !== JSON.stringify(prev.filters)) {
+          newState.filters = json.state.filters
+          hasChanges = true
+        }
+        
+        // DO NOT update pageSize, page, or search from API
+        // They are controlled by UI and updating them causes infinite loops
+        
+        if (!hasChanges) {
+          return prev // Return same reference if nothing changed
+        }
+        return { ...prev, ...newState }
+      })
       setSchema(extendedColumns)
       // When filtering client-side, total will be updated after filtering
       if (!hasSearchOperators) {
@@ -1771,31 +2023,88 @@ export function DataTable() {
       // Ignore AbortError - it's expected when component unmounts
       if (isMountedRef && !isMountedRef.current) return
       if ((e as any)?.name !== "AbortError") {
-
-        setError((e as Error).message)
+        const errorMessage = e instanceof Error ? e.message : String(e)
+        setError(errorMessage)
+        console.error('[DataTable] Fetch error:', errorMessage, e)
+        // Reset lastFetchParamsRef on error to allow retry
+        const hasSearchOperators = searchConditionsRef.current.some(c => c.operator)
+        const currentFetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}`
+        if (lastFetchParamsRef.current === currentFetchKey) {
+          lastFetchParamsRef.current = ''
+        }
       }
     } finally {
+      // Always reset fetching flag, even if component unmounted
+      isFetchingRef.current = false
       if (!isMountedRef || isMountedRef.current) {
         setLoading(false)
       }
     }
-  }, [state.collection, state.page, state.pageSize, state.search, JSON.stringify(state.filters), setState, taxonomyConfig, translations, searchConditions])
+  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations])
 
+  // Track last fetch parameters to prevent unnecessary refetches
+  const lastFetchParamsRef = React.useRef<string>('')
+  const fetchDataRef = React.useRef(fetchData)
+  
+  // Keep fetchDataRef in sync
   React.useEffect(() => {
+    fetchDataRef.current = fetchData
+  }, [fetchData])
+  
+  // Reset fetching state on collection change to prevent stuck state
+  React.useEffect(() => {
+    isFetchingRef.current = false
+    lastFetchParamsRef.current = ''
+  }, [state.collection])
+  
+  React.useEffect(() => {
+    // Don't fetch if collection is not set
+    if (!state.collection) {
+      console.log('[DataTable] Skipping fetch: no collection')
+      return
+    }
+    
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      console.log('[DataTable] Skipping fetch: already fetching')
+      return
+    }
+    
     const controller = new AbortController()
     const isMounted = { current: true }
-    let fetchCompleted = false
     
-    const fetchPromise = fetchData(controller.signal, isMounted)
+    // Create a key for current fetch parameters
+    const hasSearchOperators = searchConditionsRef.current.some(c => c.operator)
+    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}`
+    
+    // Skip if parameters haven't changed
+    if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
+      console.log('[DataTable] Skipping fetch: parameters unchanged', { fetchKey, lastFetch: lastFetchParamsRef.current })
+      return
+    }
+    
+    console.log('[DataTable] Starting fetch', { fetchKey, collection: state.collection, page: state.page, pageSize: state.pageSize, lastFetch: lastFetchParamsRef.current })
+    lastFetchParamsRef.current = fetchKey
+    isFetchingRef.current = true
+    
+    // Use ref to avoid dependency on fetchData
+    fetchDataRef.current(controller.signal, isMounted)
       .then(() => {
-        fetchCompleted = true
+        console.log('[DataTable] Fetch succeeded')
       })
       .catch((e) => {
-        fetchCompleted = true
         // Silently ignore AbortError
         if (e?.name !== "AbortError" && isMounted.current) {
-          console.error("Failed to fetch data:", e)
+          console.error('[DataTable] Failed to fetch data:', e)
+          // Reset lastFetchParamsRef on error to allow retry
+          if (lastFetchParamsRef.current === fetchKey) {
+            lastFetchParamsRef.current = ''
+          }
         }
+      })
+      .finally(() => {
+        isFetchingRef.current = false
+        console.log('[DataTable] Fetch completed')
       })
     
     return () => {
@@ -1803,9 +2112,8 @@ export function DataTable() {
       // Don't call abort() - let requests complete naturally
       // Results will be ignored due to isMounted check
       // This prevents AbortError from being thrown
-
     }
-  }, [fetchData])
+  }, [state.collection, state.page, state.pageSize, state.search, filtersString])
 
   // Sync searchInput with state.search when collection changes
   React.useEffect(() => {
@@ -1919,6 +2227,19 @@ export function DataTable() {
   )
   
   // Column alignment settings (left, center, right)
+  const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const saved = localStorage.getItem(`column-sizes-${state.collection}`)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (e) {
+      console.error('Failed to load column sizes:', e)
+    }
+    return {}
+  })
+
   const [columnAlignment, setColumnAlignment] = React.useState<Record<string, 'left' | 'center' | 'right'>>(() => {
     if (typeof window !== 'undefined' && state.collection) {
       try {
@@ -2103,9 +2424,12 @@ export function DataTable() {
   React.useEffect(() => {
     const hasOperators = searchConditions.some(c => c.operator)
     if (hasOperators && searchConditions.length > 0) {
-      void fetchData()
+      const controller = new AbortController()
+      const isMounted = { current: true }
+      // Use ref to avoid dependency on fetchData
+      void fetchDataRef.current(controller.signal, isMounted)
     }
-  }, [searchConditions, fetchData])
+  }, [searchConditions])
   
   // Default sorting state (stored in localStorage)
   const [defaultSorting, setDefaultSorting] = React.useState<SortingState>(() => {
@@ -2208,6 +2532,16 @@ export function DataTable() {
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>('csv')
   const [exportData, setExportData] = React.useState<string>('')
   const [exportCopied, setExportCopied] = React.useState(false)
+  
+  // Import state
+  const [importOpen, setImportOpen] = React.useState(false)
+  const [importFormat, setImportFormat] = React.useState<ImportFormat>('csv')
+  const [importFile, setImportFile] = React.useState<File | null>(null)
+  const [importText, setImportText] = React.useState<string>('')
+  const [importMode, setImportMode] = React.useState<'file' | 'paste'>('file')
+  const [importProgress, setImportProgress] = React.useState({ imported: 0, total: 0 })
+  const [importResult, setImportResult] = React.useState<{ success: boolean; imported: number; errors: string[] } | null>(null)
+  const [importing, setImporting] = React.useState(false)
 
   // Create dialog state
   const [createOpen, setCreateOpen] = React.useState(false)
@@ -2619,8 +2953,8 @@ export function DataTable() {
   // Create dialog keep after
   // Generate columns dynamically
   const columns = React.useMemo(
-    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment) : []),
-    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment]
+    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing) : []),
+    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing]
   )
 
   // Parse search query for client-side filtering with operators
@@ -2675,25 +3009,62 @@ export function DataTable() {
     return filtered
   }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize])
 
+  // Reorder columns for mobile: move actions to the beginning
+  const [isMobile, setIsMobile] = React.useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < 1024
+  })
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const reorderedColumns = React.useMemo(() => {
+    if (!isMobile) return columns
+    
+    const actionsColumn = columns.find(col => col.id === 'actions')
+    const otherColumns = columns.filter(col => col.id !== 'actions')
+    return actionsColumn ? [actionsColumn, ...otherColumns] : columns
+  }, [columns, isMobile])
+
+  // Save column sizes to localStorage
+  React.useEffect(() => {
+    if (Object.keys(columnSizing).length > 0) {
+      try {
+        localStorage.setItem(`column-sizes-${state.collection}`, JSON.stringify(columnSizing))
+      } catch (e) {
+        console.error('Failed to save column sizes:', e)
+      }
+    }
+  }, [columnSizing, state.collection])
+
   const table = useReactTable({
     data: filteredData,
-    columns,
+    columns: reorderedColumns,
     state: {
       sorting,
       columnVisibility,
       rowSelection,
       columnFilters,
       pagination,
+      columnSizing,
     },
     pageCount: totalPages,
     manualPagination: true,
     enableRowSelection: true,
     enableMultiSort: true, // Enable multi-column sorting
+    columnResizeMode: 'onChange',
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -3069,10 +3440,10 @@ export function DataTable() {
     // Get filtered and sorted rows (respects current table state)
     const rows = table.getFilteredRowModel().rows
     
-    // Get column order from table (as user sees it)
+    // Get visible column order from table (only columns that are actually visible)
     const columnOrder = table.getAllColumns()
+      .filter(col => col.getIsVisible() && col.id !== 'select')
       .map(col => col.id)
-      .filter(id => id !== 'select')
     
     // Export with current state
     const exported = exportTable({
@@ -3091,7 +3462,7 @@ export function DataTable() {
     setExportFormat(format)
     setExportOpen(true)
     setExportCopied(false)
-  }, [table, state.collection, schema, columnVisibility, locale, relationData])
+  }, [table, state.collection, schema, columnVisibility, locale, relationData, translations])
 
   const handleExportCopy = React.useCallback(async () => {
     try {
@@ -3117,15 +3488,110 @@ export function DataTable() {
     URL.revokeObjectURL(url)
   }, [exportData, exportFormat, state.collection])
 
+  // Handle import
+  const handleImportFileSelect = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setImportFile(file)
+    // Detect format from file extension
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext === 'csv') {
+      setImportFormat('csv')
+    } else if (ext === 'xls' || ext === 'xlsx') {
+      setImportFormat('xls')
+    } else if (ext === 'json') {
+      setImportFormat('json')
+    } else if (ext === 'sql') {
+      setImportFormat('sql')
+    }
+  }, [])
+
+  const handleImport = React.useCallback(async () => {
+    if (!state.collection) return
+    if (importMode === 'file' && !importFile) return
+    if (importMode === 'paste' && !importText.trim()) return
+    
+    setImporting(true)
+    setImportResult(null)
+    setImportProgress({ imported: 0, total: 0 })
+    
+    try {
+      const content = importMode === 'file' 
+        ? await importFile!.text()
+        : importText
+      const rows = parseImportFile(content, importFormat, state.collection)
+      
+      if (rows.length === 0) {
+        setImportResult({
+          success: false,
+          imported: 0,
+          errors: [t.importNoData]
+        })
+        setImporting(false)
+        return
+      }
+      
+      setImportProgress({ imported: 0, total: rows.length })
+      
+      const result = await importRows(
+        state.collection,
+        rows,
+        (imported, total) => setImportProgress({ imported, total })
+      )
+      
+      setImportResult(result)
+      
+      if (result.success || result.imported > 0) {
+        // Refresh data after successful import
+        const controller = new AbortController()
+        const isMounted = { current: true }
+        await fetchData(controller.signal, isMounted)
+      }
+    } catch (e) {
+      setImportResult({
+        success: false,
+        imported: 0,
+        errors: [e instanceof Error ? e.message : t.importError]
+      })
+    } finally {
+      setImporting(false)
+    }
+  }, [importFile, importText, importMode, importFormat, state.collection])
+
+  const handleImportClose = React.useCallback(() => {
+    setImportOpen(false)
+    setImportFile(null)
+    setImportText('')
+    setImportMode('file')
+    setImportResult(null)
+    setImportProgress({ imported: 0, total: 0 })
+    setImporting(false)
+  }, [])
+  
+  const handleImportDialogChange = React.useCallback((open: boolean) => {
+    if (!open) {
+      setImportOpen(false)
+      setImportFile(null)
+      setImportText('')
+      setImportMode('file')
+      setImportResult(null)
+      setImportProgress({ imported: 0, total: 0 })
+      setImporting(false)
+    } else {
+      setImportOpen(true)
+    }
+  }, [])
+
   return (
     <Tabs
       defaultValue="outline"
       className="w-full flex-col justify-start gap-6"
     >
-      <div className="flex items-center justify-between px-4 lg:px-6">
+      <div className="flex items-center gap-2 px-1 lg:px-2">
         {/* Search Field */}
-        <div className="relative w-full max-w-sm">
-          <div className="relative flex items-center gap-1 min-h-9 rounded-md border bg-primary-foreground px-3 py-1 shadow-xs">
+        <div className="relative w-full lg:max-w-sm">
+          <div className="relative flex items-center gap-1 h-9 rounded-md border bg-primary-foreground px-3 shadow-xs">
             <IconSearch className="size-4 shrink-0 text-muted-foreground" />
             <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
               {searchConditions.map((condition, idx) => (
@@ -3165,7 +3631,7 @@ export function DataTable() {
               ))}
               <Input
                 type="text"
-                placeholder={searchConditions.length === 0 ? (t.search + ' (Enter для добавления, "фраза" для точного поиска, AND/OR для операторов)') : ''}
+                placeholder={searchConditions.length === 0 ? (t.search + (t.searchHint ? ` (${t.searchHint})` : '')) : ''}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -3188,7 +3654,7 @@ export function DataTable() {
                     }
                   }
                 }}
-                className="border-0 p-0 h-auto flex-1 min-w-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none bg-transparent"
+                className="border-0 p-0 h-9 flex-1 min-w-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none bg-transparent"
               />
             </div>
           </div>
@@ -3197,11 +3663,12 @@ export function DataTable() {
         <Label htmlFor="view-selector" className="sr-only">
           View
         </Label>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 lg:gap-2 ml-auto">
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
             <Button 
               variant="destructive" 
               size="sm" 
+              className="h-9"
               onClick={() => setBatchDeleteOpen(true)}
               disabled={batchDeleting}
             >
@@ -3210,38 +3677,45 @@ export function DataTable() {
               <span className="lg:hidden">{t.delete?.delete || "Delete"}</span>
             </Button>
           )}
+          <div className="hidden lg:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
+                  <IconDownload />
+                  <span className="hidden lg:inline">{t.export}</span>
+                  <IconChevronDown className="hidden lg:inline" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('xls')}>
+                  Excel (XLS)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('json')}>
+                  JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('sql')}>
+                  SQL
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                  <IconUpload className="mr-2 h-4 w-4" />
+                  {t.import}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-primary-foreground">
-                <IconDownload />
-                <span className="hidden lg:inline">Экспорт</span>
-                <IconChevronDown />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport('csv')}>
-                CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('xls')}>
-                Excel (XLS)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('json')}>
-                JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('sql')}>
-                SQL
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-primary-foreground">
+              <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
                 <IconLayoutColumns />
-                <span className="hidden lg:inline">Настроить таблицу</span>
-                <IconChevronDown />
+                <span className="hidden lg:inline">{t.configureTable}</span>
+                <IconChevronDown className="hidden lg:inline" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 max-h-[400px] overflow-y-auto">
+            <DropdownMenuContent align="end" className="w-56 max-h-[80vh] lg:max-h-[400px] overflow-y-auto">
               {/* Schema fields */}
               {table
                 .getAllColumns()
@@ -3249,7 +3723,8 @@ export function DataTable() {
                   (column) =>
                     typeof column.accessorFn !== "undefined" &&
                     column.getCanHide() &&
-                    column.id !== 'suffix' // suffix will be handled separately
+                    column.id !== 'suffix' && // suffix will be handled separately
+                    column.id !== 'main' // main will be handled separately in "Additional" section
                 )
                 .map((column) => {
                   // Find column schema to get translated title
@@ -3285,12 +3760,12 @@ export function DataTable() {
                         column.toggleVisibility(!!value)
                       }
                     >
-                          Показать колонку
+                          {t.showColumn}
                     </DropdownMenuCheckboxItem>
                         {canSort && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Сортировка по умолчанию</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
                             <DropdownMenuRadioGroup
                               value={sortValue}
                               onValueChange={(value) => {
@@ -3318,21 +3793,62 @@ export function DataTable() {
                             >
                               <DropdownMenuRadioItem value="none">
                                 <IconArrowsSort className="h-4 w-4 mr-2" />
-                                Нет
+                                {t.none}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="asc">
                                 <IconArrowUp className="h-4 w-4 mr-2" />
-                                A-Z
+                                {t.asc}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="desc">
                                 <IconArrowDown className="h-4 w-4 mr-2" />
-                                Z-A
+                                {t.desc}
                               </DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                           </>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Выравнивание</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
+                        <div className="px-2 py-1.5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="50"
+                              max="1000"
+                              value={columnSizing?.[column.id] || ''}
+                              onChange={(e) => {
+                                const value = e.target.value ? parseInt(e.target.value, 10) : undefined
+                                if (value && value >= 50) {
+                                  setColumnSizing(prev => ({ ...prev, [column.id]: value }))
+                                } else if (!value) {
+                                  setColumnSizing(prev => {
+                                    const next = { ...prev }
+                                    delete next[column.id]
+                                    return next
+                                  })
+                                }
+                              }}
+                              placeholder={t.widthAuto || "Auto"}
+                              className="h-8 text-xs"
+                            />
+                            <span className="text-xs text-muted-foreground">{t.widthPixels || "px"}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-full text-xs"
+                            onClick={() => {
+                              setColumnSizing(prev => {
+                                const next = { ...prev }
+                                delete next[column.id]
+                                return next
+                              })
+                            }}
+                          >
+                            {t.widthReset || "Reset"}
+                          </Button>
+                        </div>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
                         <DropdownMenuRadioGroup
                           value={columnAlignment[column.id] || 'left'}
                           onValueChange={(value) => {
@@ -3344,15 +3860,15 @@ export function DataTable() {
                         >
                           <DropdownMenuRadioItem value="left">
                             <IconAlignLeft className="h-4 w-4 mr-2" />
-                            Слева
+                            {t.left}
                           </DropdownMenuRadioItem>
                           <DropdownMenuRadioItem value="center">
                             <IconAlignCenter className="h-4 w-4 mr-2" />
-                            По центру
+                            {t.center}
                           </DropdownMenuRadioItem>
                           <DropdownMenuRadioItem value="right">
                             <IconAlignRight className="h-4 w-4 mr-2" />
-                            Справа
+                            {t.right}
                           </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
                       </DropdownMenuSubContent>
@@ -3392,23 +3908,23 @@ export function DataTable() {
                   }
                 })
                 
-                // Exclude 'suffix' for roles (will be added separately) and 'main' (system field)
+                // Exclude 'suffix' and 'main' for roles (will be added separately as virtual columns)
                 const filteredKeys = Array.from(allDataInKeys).filter((baseKey) => {
                   const lowerKey = baseKey.toLowerCase()
                   // Exclude suffix for roles (will be added separately in this section)
                   if (state.collection === 'roles' && lowerKey === 'suffix') {
                     return false
                   }
-                  // Exclude main (system field)
-                  if (lowerKey === 'main') {
+                  // Exclude main for roles (will be added separately as virtual column)
+                  if (state.collection === 'roles' && lowerKey === 'main') {
                     return false
                   }
                   return true
                 }).sort()
                 
-                // For roles collection, add suffix to the list (it's a virtual column but should appear in data_in section)
+                // For roles collection, add suffix and main to the beginning of the list
                 if (state.collection === 'roles') {
-                  filteredKeys.push('suffix')
+                  filteredKeys.unshift('suffix', 'main')
                 }
                 
                 if (filteredKeys.length === 0) {
@@ -3419,15 +3935,16 @@ export function DataTable() {
                   <>
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                      {(t as any)?.dataTable?.dataInFields || "Поля из data_in"}
+                      {t.dataInFields}
                     </div>
                     {filteredKeys.map((baseKey) => {
-                      // For suffix in roles, use virtual column id 'suffix', otherwise use data_in.baseKey
+                      // For suffix and main in roles, use virtual column ids, otherwise use data_in.baseKey
                       const isSuffix = state.collection === 'roles' && baseKey.toLowerCase() === 'suffix'
-                      const columnId = isSuffix ? 'suffix' : `data_in.${baseKey}`
-                      const suffixColumn = isSuffix ? table.getAllColumns().find(col => col.id === 'suffix') : null
-                      const isVisible = isSuffix 
-                        ? (suffixColumn?.getIsVisible() ?? false)
+                      const isMain = state.collection === 'roles' && baseKey.toLowerCase() === 'main'
+                      const columnId = isSuffix ? 'suffix' : isMain ? 'main' : `data_in.${baseKey}`
+                      const virtualColumn = (isSuffix || isMain) ? table.getAllColumns().find(col => col.id === columnId) : null
+                      const isVisible = (isSuffix || isMain)
+                        ? (virtualColumn?.getIsVisible() ?? false)
                         : (columnVisibility[columnId] !== false)
                       // Try to get title from data_in in first record that has this field
                       let fieldTitle: string | null = null
@@ -3473,7 +3990,7 @@ export function DataTable() {
                       // Fallback to translation or baseKey
                       const fieldTranslation = (t as any)?.dataTable?.fields?.[state.collection]?.[baseKey]
                       const columnTitle = fieldTitle || fieldTranslation || baseKey
-                      const dataInColumn = isSuffix ? suffixColumn : table.getAllColumns().find(col => col.id === columnId)
+                      const dataInColumn = (isSuffix || isMain) ? virtualColumn : table.getAllColumns().find(col => col.id === columnId)
                       const canSort = dataInColumn?.getCanSort() ?? false
                       const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
                       const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
@@ -3501,9 +4018,9 @@ export function DataTable() {
                             <DropdownMenuCheckboxItem
                               checked={isVisible}
                               onCheckedChange={(value) => {
-                                if (isSuffix && suffixColumn) {
-                                  // For suffix, use table column visibility
-                                  suffixColumn.toggleVisibility(!!value)
+                                if ((isSuffix || isMain) && virtualColumn) {
+                                  // For suffix and main, use table column visibility
+                                  virtualColumn.toggleVisibility(!!value)
                                 } else {
                                   setColumnVisibility((prev) => ({
                                     ...prev,
@@ -3512,12 +4029,12 @@ export function DataTable() {
                                 }
                               }}
                             >
-                              Показать колонку
+                              {t.showColumn}
                             </DropdownMenuCheckboxItem>
                             {canSort && (
                               <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuLabel>Сортировка по умолчанию</DropdownMenuLabel>
+                                <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
                                 <DropdownMenuRadioGroup
                                   value={sortValue}
                                   onValueChange={(value) => {
@@ -3555,16 +4072,57 @@ export function DataTable() {
                               </>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuLabel>Выравнивание</DropdownMenuLabel>
-                            <DropdownMenuRadioGroup
-                              value={columnAlignment[isSuffix ? 'suffix' : columnId] || 'left'}
-                              onValueChange={(value) => {
-                                setColumnAlignment(prev => ({
-                                  ...prev,
-                                  [isSuffix ? 'suffix' : columnId]: value as 'left' | 'center' | 'right'
-                                }))
-                              }}
-                            >
+                            <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
+                            <div className="px-2 py-1.5 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="50"
+                                  max="1000"
+                                  value={columnSizing?.[columnId] || ''}
+                                  onChange={(e) => {
+                                    const value = e.target.value ? parseInt(e.target.value, 10) : undefined
+                                    if (value && value >= 50) {
+                                      setColumnSizing(prev => ({ ...prev, [columnId]: value }))
+                                    } else if (!value) {
+                                      setColumnSizing(prev => {
+                                        const next = { ...prev }
+                                        delete next[columnId]
+                                        return next
+                                      })
+                                    }
+                                  }}
+                                  placeholder={t.widthAuto || "Auto"}
+                                  className="h-8 text-xs"
+                                />
+                                <span className="text-xs text-muted-foreground">{t.widthPixels || "px"}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-full text-xs"
+                                onClick={() => {
+                                  setColumnSizing(prev => {
+                                    const next = { ...prev }
+                                    delete next[columnId]
+                                    return next
+                                  })
+                                }}
+                              >
+                                {t.widthReset || "Reset"}
+                              </Button>
+                            </div>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup
+                          value={columnAlignment[columnId] || 'left'}
+                          onValueChange={(value) => {
+                            setColumnAlignment(prev => ({
+                              ...prev,
+                              [columnId]: value as 'left' | 'center' | 'right'
+                            }))
+                          }}
+                        >
                               <DropdownMenuRadioItem value="left">
                                 <IconAlignLeft className="h-4 w-4 mr-2" />
                                 Слева
@@ -3590,12 +4148,12 @@ export function DataTable() {
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <div className="flex items-center justify-between w-full">
-                    <span>Строк на странице</span>
+                    <span>{t.rowsPerPage}</span>
                     <span className="text-muted-foreground text-sm ml-2">{defaultPageSize}</span>
                   </div>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  <DropdownMenuLabel>Строк на странице</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t.rowsPerPage}</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={String(defaultPageSize)}
                     onValueChange={(value) => {
@@ -3620,14 +4178,21 @@ export function DataTable() {
               </DropdownMenuSub>
               {/* Show/hide filter row */}
               <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={showFilterRow}
-                onCheckedChange={(value) => setShowFilterRow(!!value)}
-                className="justify-end"
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault()
+                  setShowFilterRow(!showFilterRow)
+                }}
+                className="flex items-center justify-between"
               >
-                <IconFilter className="h-4 w-4 mr-2" />
-                {(t as any)?.dataTable?.showFilters || "Показать фильтры"}
-              </DropdownMenuCheckboxItem>
+                <div className="flex items-center">
+                  <IconFilter className="h-4 w-4 mr-2" />
+                  {t.showFilters}
+                </div>
+                {showFilterRow && (
+                  <IconCheck className="h-4 w-4" />
+                )}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm" className="bg-primary-foreground" onClick={() => setCreateOpen(true)}>
@@ -3638,7 +4203,7 @@ export function DataTable() {
       </div>
       <TabsContent
         value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        className="relative flex flex-col gap-4 overflow-auto px-1 lg:px-2"
       >
         {loading && (
           <div className="flex items-center justify-center py-8">
@@ -3661,14 +4226,31 @@ export function DataTable() {
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => {
+                      const canResize = header.column.getCanResize()
+                      const isResizing = header.column.getIsResizing()
                       return (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
+                        <TableHead 
+                          key={header.id} 
+                          colSpan={header.colSpan} 
+                          className={header.column.id === 'actions' ? 'pr-1' : header.column.id === 'select' ? 'pl-1' : ''}
+                          style={{ width: header.getSize(), position: 'relative' }}
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(
                                 header.column.columnDef.header,
                                 header.getContext()
                               )}
+                          {canResize && (
+                            <div
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              className={`absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none ${
+                                isResizing ? 'bg-primary' : 'bg-transparent hover:bg-primary/50'
+                              }`}
+                              style={{ userSelect: 'none' }}
+                            />
+                          )}
                         </TableHead>
                       )
                     })}
@@ -3738,6 +4320,7 @@ export function DataTable() {
                                   <ColumnFilterMultiselect
                                     options={multiselectOptions}
                                     value={multiselectValue}
+                                    translations={translations}
                                     onValueChange={(values) => {
                                       setColumnFilterValues(prev => ({
                                         ...prev,
@@ -3760,11 +4343,11 @@ export function DataTable() {
                                         setColumnFilters(prev => prev.filter(f => f.id !== columnId))
                                       }
                                     }}
-                                    placeholder="Фильтр..."
+                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
                                   />
                                 ) : (
                                   <Input
-                                    placeholder="Фильтр..."
+                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
                                     value={textValue}
                                     onChange={(e) => {
                                       const value = e.target.value
@@ -3812,7 +4395,11 @@ export function DataTable() {
                         className="cursor-pointer bg-primary-foreground"
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id}>
+                          <TableCell 
+                            key={cell.id} 
+                            className={cell.column.id === 'actions' ? 'pr-1' : cell.column.id === 'select' ? 'pl-1' : ''}
+                            style={{ width: cell.column.getSize() }}
+                          >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
                         ))}
@@ -3831,7 +4418,7 @@ export function DataTable() {
               </TableBody>
             </Table>
         </div>
-        <div className="flex items-center justify-between px-4">
+        <div className="flex items-center justify-between px-1 lg:px-2">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                 {t.selectedRecords.replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{total}', String(total))}
           </div>
@@ -3984,7 +4571,7 @@ export function DataTable() {
       >
         <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
           <div className="flex h-full flex-col">
-            <div className="border-b px-5 py-4">
+            <div className="border-b px-3 py-2">
               <ResponsiveDialogHeader>
                 <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
                 <ResponsiveDialogDescription>
@@ -3993,12 +4580,12 @@ export function DataTable() {
               </ResponsiveDialogHeader>
             </div>
             <form onSubmit={handleCreateSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
                 <Tabs value={createFormTab} onValueChange={(v) => setCreateFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
-                    <TabsTrigger value="main">Основное</TabsTrigger>
-                    {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
-                    <TabsTrigger value="details">Подробнее</TabsTrigger>
+                    <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
+                    {state.collection === 'roles' && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
+                    <TabsTrigger value="details">{t.tabs?.details || "Details"}</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
@@ -4307,7 +4894,7 @@ export function DataTable() {
                     <div className="grid gap-4">
                       {/* Language tabs */}
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium">Язык для редактирования</div>
+                        <div className="text-sm font-medium">{t.editLanguage || "Language for editing"}</div>
                         <Tabs
                           value={createDataInLanguage}
                           onValueChange={(value) => setCreateDataInLanguage(value as LanguageCode)}
@@ -4498,7 +5085,7 @@ export function DataTable() {
                                         return newState
                                       })
                                   }}
-                                  placeholder="Value (string или JSON)"
+                                  placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
                                     className="flex-1"
                                 />
                                 <Button
@@ -4569,7 +5156,7 @@ export function DataTable() {
                               }
                             }}
                           >
-                            Применить JSON
+                            {t.applyJson || "Apply JSON"}
                           </Button>
                         </div>
                       </div>
@@ -4582,7 +5169,7 @@ export function DataTable() {
                   </div>
                 )}
               </div>
-              <div className="border-t px-5 py-4">
+              <div className="border-t px-3 py-2">
                 <ResponsiveDialogFooter className="m-0">
                   <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                     {t.form?.cancel || "Cancel"}
@@ -4628,7 +5215,7 @@ export function DataTable() {
       >
         <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
           <div className="flex h-full flex-col">
-            <div className="border-b px-5 py-4">
+            <div className="border-b px-3 py-2">
               <ResponsiveDialogHeader>
                 <ResponsiveDialogTitle>
                   {isDuplicate 
@@ -4645,12 +5232,12 @@ export function DataTable() {
               </ResponsiveDialogHeader>
             </div>
             <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
                 <Tabs value={editFormTab} onValueChange={(v) => setEditFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
-                    <TabsTrigger value="main">Основное</TabsTrigger>
-                    {state.collection === 'roles' && <TabsTrigger value="info">Информация</TabsTrigger>}
-                    <TabsTrigger value="details">Подробнее</TabsTrigger>
+                    <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
+                    {state.collection === 'roles' && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
+                    <TabsTrigger value="details">{t.tabs?.details || "Details"}</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
@@ -4944,7 +5531,7 @@ export function DataTable() {
                     <div className="grid gap-4">
                       {/* Language tabs */}
                       <div className="flex items-center justify-between">
-                        <div className="text-sm font-medium">Язык для редактирования</div>
+                        <div className="text-sm font-medium">{t.editLanguage || "Language for editing"}</div>
                         <Tabs
                           value={editDataInLanguage}
                           onValueChange={(value) => setEditDataInLanguage(value as LanguageCode)}
@@ -5135,7 +5722,7 @@ export function DataTable() {
                                         return newState
                                       })
                                   }}
-                                  placeholder="Value (string или JSON)"
+                                  placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
                                     className="flex-1"
                                 />
                                 <Button
@@ -5206,7 +5793,7 @@ export function DataTable() {
                               }
                             }}
                           >
-                            Применить JSON
+                            {t.applyJson || "Apply JSON"}
                           </Button>
                         </div>
                       </div>
@@ -5219,7 +5806,7 @@ export function DataTable() {
                   </div>
                 )}
               </div>
-              <div className="border-t px-5 py-4">
+              <div className="border-t px-3 py-2">
                 <ResponsiveDialogFooter className="m-0 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {!isDuplicate && (
@@ -5230,7 +5817,7 @@ export function DataTable() {
                           size="icon"
                           onClick={navigateToPrevious}
                           disabled={!hasPreviousRecord}
-                          title="Предыдущая запись"
+                          title={t.previousRecord}
                         >
                           <IconChevronLeft className="h-4 w-4" />
                         </Button>
@@ -5240,7 +5827,7 @@ export function DataTable() {
                           size="icon"
                           onClick={navigateToNext}
                           disabled={!hasNextRecord}
-                          title="Следующая запись"
+                          title={t.nextRecord}
                         >
                           <IconChevronRight className="h-4 w-4" />
                         </Button>
@@ -5269,13 +5856,13 @@ export function DataTable() {
       {/* Export Dialog */}
       <ResponsiveDialog open={exportOpen} onOpenChange={setExportOpen}>
         <ResponsiveDialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-          <ResponsiveDialogHeader className="px-6 pt-6 pb-4">
-            <ResponsiveDialogTitle>Экспорт данных</ResponsiveDialogTitle>
+          <ResponsiveDialogHeader className="px-3 pt-3 pb-2">
+            <ResponsiveDialogTitle>{t.exportData}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
-              Экспортировано {table.getFilteredRowModel().rows.length} записей в формате {exportFormat.toUpperCase()}
+              {(t.exportedRecords || "Exported {count} records in {format} format").replace('{count}', String(table.getFilteredRowModel().rows.length)).replace('{format}', exportFormat.toUpperCase())}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <div className="flex-1 overflow-auto min-h-0 px-6 pb-4">
+          <div className="flex-1 overflow-auto min-h-0 px-3 pb-2">
             <Textarea
               value={exportData}
               readOnly
@@ -5283,17 +5870,164 @@ export function DataTable() {
               style={{ whiteSpace: exportFormat === 'json' ? 'pre' : 'pre-wrap' }}
             />
           </div>
-          <ResponsiveDialogFooter className="flex-shrink-0 px-6 py-4">
+          <ResponsiveDialogFooter className="flex-shrink-0 px-3 py-2">
             <Button variant="outline" onClick={() => setExportOpen(false)}>
-              Закрыть
+              {t.close}
             </Button>
             <Button variant="outline" onClick={handleExportCopy}>
               <IconCopy className="mr-2 h-4 w-4" />
-              {exportCopied ? 'Скопировано!' : 'Копировать'}
+              {exportCopied ? t.copied : t.copy}
             </Button>
             <Button onClick={handleExportDownload}>
               <IconDownload className="mr-2 h-4 w-4" />
-              Скачать файл
+              {t.downloadFile}
+            </Button>
+          </ResponsiveDialogFooter>
+          <ResponsiveDialogClose className="sr-only" />
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
+
+      {/* Import Dialog */}
+      <ResponsiveDialog open={importOpen} onOpenChange={handleImportDialogChange}>
+        <ResponsiveDialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <ResponsiveDialogHeader className="px-3 pt-3 pb-2">
+            <ResponsiveDialogTitle>{t.importData}</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription>
+              {(t.importDescription || "Load a file or paste data to import into {collection} collection").replace('{collection}', state.collection)}
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <div className="flex-1 overflow-auto min-h-0 px-6 pb-4 space-y-4">
+            <div className="space-y-2">
+              <Label>{t.fileFormat}</Label>
+              <Select value={importFormat} onValueChange={(value) => {
+                const newFormat = value as ImportFormat
+                setImportFormat(newFormat)
+                setImportFile(null)
+                setImportText('')
+                // Excel doesn't support paste mode, switch to file mode
+                if (newFormat === 'xls') {
+                  setImportMode('file')
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="csv">CSV</SelectItem>
+                  <SelectItem value="xls">Excel (XLS)</SelectItem>
+                  <SelectItem value="json">JSON</SelectItem>
+                  <SelectItem value="sql">SQL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(importFormat === 'csv' || importFormat === 'json' || importFormat === 'sql') && (
+              <div className="space-y-2">
+                <Label>{t.importMode}</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={importMode === 'file' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setImportMode('file')}
+                    disabled={importing}
+                  >
+                    {t.loadFile}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={importMode === 'paste' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setImportMode('paste')}
+                    disabled={importing}
+                  >
+                    {t.pasteText}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {importMode === 'file' ? (
+              <div className="space-y-2">
+                <Label>{t.file}</Label>
+                <Input
+                  type="file"
+                  accept={importFormat === 'csv' ? '.csv' : importFormat === 'xls' ? '.xls,.xlsx' : importFormat === 'json' ? '.json' : '.sql'}
+                  onChange={handleImportFileSelect}
+                  disabled={importing}
+                />
+              {importFile && (
+                <p className="text-sm text-muted-foreground">
+                  {(t.selectedFile || "Selected file: {name} ({size} KB)").replace('{name}', importFile.name).replace('{size}', (importFile.size / 1024).toFixed(2))}
+                </p>
+              )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>{t.pasteData}</Label>
+                <Textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder={(t.pasteDataPlaceholder || "Paste data in {format} format...").replace('{format}', importFormat.toUpperCase())}
+                  className="font-mono text-sm min-h-[300px] resize-none"
+                  disabled={importing}
+                  style={{ whiteSpace: importFormat === 'json' ? 'pre' : 'pre-wrap' }}
+                />
+              </div>
+            )}
+            {importing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{t.importing}</span>
+                  <span>{importProgress.imported} / {importProgress.total}</span>
+                </div>
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${importProgress.total > 0 ? (importProgress.imported / importProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {importResult && (
+              <div className={`rounded-lg border p-4 ${importResult.success ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-destructive bg-destructive/10'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {importResult.success ? (
+                    <IconCheck className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <IconX className="h-5 w-5 text-destructive" />
+                  )}
+                  <span className={`font-semibold ${importResult.success ? 'text-green-700 dark:text-green-400' : 'text-destructive'}`}>
+                    {(t.importedRecords || "Imported: {count} records").replace('{count}', String(importResult.imported))}
+                  </span>
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm font-semibold text-destructive">{t.errors}</p>
+                    <ul className="text-sm text-destructive list-disc list-inside space-y-1 max-h-40 overflow-y-auto">
+                      {importResult.errors.map((error, idx) => (
+                        <li key={idx}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <ResponsiveDialogFooter className="flex-shrink-0 px-3 py-2">
+            <Button variant="outline" onClick={handleImportClose} disabled={importing}>
+              {importResult ? t.close : t.form?.cancel}
+            </Button>
+            <Button onClick={handleImport} disabled={(importMode === 'file' && !importFile) || (importMode === 'paste' && !importText.trim()) || importing}>
+              {importing ? (
+                <>
+                  <IconLoader className="mr-2 h-4 w-4 animate-spin" />
+                  {t.importing}
+                </>
+              ) : (
+                <>
+                  <IconUpload className="mr-2 h-4 w-4" />
+                  {t.importButton}
+                </>
+              )}
             </Button>
           </ResponsiveDialogFooter>
           <ResponsiveDialogClose className="sr-only" />

@@ -86,6 +86,103 @@ function getVisibleColumnNames(
 }
 
 /**
+ * Get visible table column names (exclude hidden columns, virtual columns, and system fields)
+ * Used for CSV and XLS exports to show only columns visible in the table
+ * Excludes columns with hiddenTable: true, hidden: true, and columns hidden via visibleColumns
+ */
+function getVisibleTableColumns(
+  columns: ColumnSchemaExtended[],
+  visibleColumns: Record<string, boolean>,
+  columnOrder: string[] | undefined,
+  collection: string
+): string[] {
+  // Virtual columns to always exclude
+  const alwaysExclude = ['select', 'actions']
+  
+  // If columnOrder is provided, it already contains only visible columns from table
+  // Use it directly, but filter out system fields and ensure proper handling
+  if (columnOrder && columnOrder.length > 0) {
+    return columnOrder.filter(colName => {
+      // Always exclude select and actions
+      if (alwaysExclude.includes(colName)) {
+        return false
+      }
+      
+      // For schema columns, check if they're hidden (shouldn't happen if columnOrder is correct, but double-check)
+      const column = columns.find(c => c.name === colName)
+      if (column) {
+        // Skip columns with hiddenTable: true (system fields like uuid, created_at, etc.)
+        if (column.hiddenTable === true) {
+          return false
+        }
+        // Skip columns with hidden: true
+        if (column.hidden === true) {
+          return false
+        }
+      }
+      
+      // Include suffix and main for roles if they're in columnOrder (they're virtual columns but visible in table)
+      // Include other data_in columns
+      // Include other columns that are in columnOrder
+      return true
+    })
+  }
+  
+  // Fallback: get visible columns from schema (if columnOrder not provided)
+  const visibleCols: string[] = []
+  
+  // Add schema columns that are visible in table
+  columns.forEach(col => {
+    // Skip always excluded columns
+    if (alwaysExclude.includes(col.name)) {
+      return
+    }
+    
+    // Skip columns with hiddenTable: true (system fields)
+    if (col.hiddenTable === true) {
+      return
+    }
+    
+    // Skip columns with hidden: true
+    if (col.hidden === true) {
+      return
+    }
+    
+    // Skip columns explicitly hidden via visibleColumns
+    if (visibleColumns[col.name] === false) {
+      return
+    }
+    
+    visibleCols.push(col.name)
+  })
+  
+  // Add dynamic data_in columns (excluding data_in.main)
+  // Note: This is a fallback, normally columnOrder should be provided
+  Object.keys(visibleColumns).forEach(colName => {
+    if (colName.startsWith('data_in.') && colName !== 'data_in.main') {
+      if (visibleColumns[colName] !== false && !visibleCols.includes(colName)) {
+        visibleCols.push(colName)
+      }
+    }
+  })
+  
+  // For roles, add suffix if it's visible (virtual column)
+  if (collection === 'roles') {
+    // Check if suffix is visible (not explicitly hidden)
+    // For virtual columns, we check if they're in the table's visible columns
+    // Since we don't have direct access to table here, we rely on columnOrder being passed
+    // In fallback mode, we'll include suffix if it's not explicitly hidden
+    if (visibleColumns['suffix'] !== false) {
+      if (!visibleCols.includes('suffix')) {
+        visibleCols.push('suffix')
+      }
+    }
+  }
+  
+  return visibleCols
+}
+
+/**
  * Get database column names (exclude virtual columns like select, actions, suffix)
  * Used for SQL and JSON exports to ensure only real DB fields are exported
  * Includes all schema columns (even if hiddenTable: true) and dynamic data_in columns
@@ -419,6 +516,47 @@ function getColumnHeader(
     return 'Суффикс'
   }
   
+  // Handle virtual main column for roles
+  if (colName === 'main' && collection === 'roles') {
+    // Try to get title from data_in in first record
+    if (rows && rows.length > 0) {
+      for (const row of rows) {
+        const dataIn = row.original.data_in
+        if (dataIn) {
+          try {
+            let parsed: any = dataIn
+            if (typeof dataIn === 'string') {
+              try {
+                parsed = JSON.parse(dataIn)
+              } catch {
+                continue
+              }
+            }
+            if (parsed && typeof parsed === 'object') {
+              const mainKey = Object.keys(parsed).find(key => key.toLowerCase() === 'main')
+              if (mainKey && parsed[mainKey] !== undefined) {
+                const main = parsed[mainKey]
+                if (typeof main === 'object' && main !== null && !Array.isArray(main)) {
+                  const localeValue = main[locale] || main.en || main.ru || main.rs || null
+                  if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
+                    return localeValue.title || ''
+                  }
+                }
+              }
+            }
+          } catch {
+            continue
+          }
+        }
+      }
+    }
+    // Fallback to translation
+    const mainTranslation = translations?.dataTable?.fields?.roles?.main
+    if (mainTranslation) return mainTranslation
+    // Final fallback
+    return 'Главное'
+  }
+  
   // Try to get translation from translations object
   if (translations?.dataTable?.fields?.[collection]?.[colName]) {
     return translations.dataTable.fields[collection][colName]
@@ -458,7 +596,7 @@ function getColumnHeader(
 }
 
 /**
- * Get value for virtual suffix column
+ * Get value for virtual columns (suffix, main)
  */
 function getVirtualColumnValue(
   colName: string,
@@ -466,7 +604,7 @@ function getVirtualColumnValue(
   collection: string,
   locale: string
 ): string {
-  if (colName === 'suffix' && collection === 'roles') {
+  if (collection === 'roles' && (colName === 'suffix' || colName === 'main')) {
     const dataIn = row.original.data_in
     if (dataIn) {
       try {
@@ -478,24 +616,24 @@ function getVirtualColumnValue(
             return ''
           }
         }
-            if (parsed && typeof parsed === 'object') {
-              const suffixKey = Object.keys(parsed).find(key => key.toLowerCase() === 'suffix')
-              if (suffixKey && parsed[suffixKey] !== undefined) {
-                const suffix = parsed[suffixKey]
-                if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
-                  const localeValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
-                  if (localeValue !== null && localeValue !== undefined) {
-                    if (typeof localeValue === 'object' && 'value' in localeValue) {
-                      return String(localeValue.value || '')
-                    }
-                    return String(localeValue)
-                  }
-                } else if (suffix !== null && suffix !== undefined) {
-                  // If suffix is a simple value (string, number, etc.)
-                  return String(suffix)
+        if (parsed && typeof parsed === 'object') {
+          const fieldKey = Object.keys(parsed).find(key => key.toLowerCase() === colName.toLowerCase())
+          if (fieldKey && parsed[fieldKey] !== undefined) {
+            const fieldValue = parsed[fieldKey]
+            if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
+              const localeValue = fieldValue[locale] || fieldValue.en || fieldValue.ru || fieldValue.rs || null
+              if (localeValue !== null && localeValue !== undefined) {
+                if (typeof localeValue === 'object' && 'value' in localeValue) {
+                  return String(localeValue.value || '')
                 }
+                return String(localeValue)
               }
+            } else if (fieldValue !== null && fieldValue !== undefined) {
+              // If field is a simple value (string, number, etc.)
+              return String(fieldValue)
             }
+          }
+        }
       } catch {
         return ''
       }
@@ -506,7 +644,7 @@ function getVirtualColumnValue(
 
 export function exportToCSV(options: ExportOptions): string {
   const { rows, columns, visibleColumns, locale, relationData, columnOrder, collection, translations } = options
-  const dbCols = getDBColumnNames(columns, visibleColumns, columnOrder, collection)
+  const dbCols = getVisibleTableColumns(columns, visibleColumns, columnOrder, collection)
   
   if (rows.length === 0) {
     return ''
@@ -529,8 +667,12 @@ export function exportToCSV(options: ExportOptions): string {
       let formatted: string
       
       if (!column) {
+        // Handle virtual columns (suffix, main) for roles
+        if (collection === 'roles' && (colName === 'suffix' || colName === 'main')) {
+          formatted = getVirtualColumnValue(colName, row, collection, locale)
+        }
         // Handle dynamic data_in columns (e.g., data_in.someField)
-        if (colName.startsWith('data_in.')) {
+        else if (colName.startsWith('data_in.')) {
           const dataInField = colName.replace('data_in.', '')
           const dataIn = row.original.data_in
           if (dataIn) {
@@ -599,7 +741,7 @@ export function exportToCSV(options: ExportOptions): string {
  */
 export function exportToXLS(options: ExportOptions): string {
   const { rows, columns, visibleColumns, locale, relationData, columnOrder, collection, translations } = options
-  const dbCols = getDBColumnNames(columns, visibleColumns, columnOrder, collection)
+  const dbCols = getVisibleTableColumns(columns, visibleColumns, columnOrder, collection)
   
   if (rows.length === 0) {
     return ''
@@ -622,8 +764,12 @@ export function exportToXLS(options: ExportOptions): string {
       let formatted: string
       
       if (!column) {
+        // Handle virtual columns (suffix, main) for roles
+        if (collection === 'roles' && (colName === 'suffix' || colName === 'main')) {
+          formatted = getVirtualColumnValue(colName, row, collection, locale)
+        }
         // Handle dynamic data_in columns (e.g., data_in.someField)
-        if (colName.startsWith('data_in.')) {
+        else if (colName.startsWith('data_in.')) {
           const dataInField = colName.replace('data_in.', '')
           const dataIn = row.original.data_in
           if (dataIn) {

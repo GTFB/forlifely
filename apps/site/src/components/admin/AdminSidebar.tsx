@@ -364,10 +364,20 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const getNavigationGroups = (): NavigationGroup[] => {
     const groups: NavigationGroup[] = navigationGroups.map(group => ({
       ...group,
-      items: group.items.map(item => ({
-        ...item,
-        url: item.url.replace('/admin', basePath)
-      }))
+      items: group.items.map(item => {
+        // Apply translations for specific items
+        let translatedTitle = item.title
+        if (item.url === '/admin/deals' || item.url === '/m/deals') {
+          translatedTitle = translations?.admin?.deals || item.title
+        } else if (item.url === '/admin/tasks' || item.url === '/m/tasks') {
+          translatedTitle = translations?.admin?.tasks || item.title
+        }
+        return {
+          ...item,
+          title: translatedTitle,
+          url: item.url.replace('/admin', basePath)
+        }
+      })
     }))
 
     // Add system links for super admin only
