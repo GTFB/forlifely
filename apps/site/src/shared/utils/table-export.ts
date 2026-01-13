@@ -506,7 +506,7 @@ function getVirtualColumnValue(
 
 export function exportToCSV(options: ExportOptions): string {
   const { rows, columns, visibleColumns, locale, relationData, columnOrder, collection, translations } = options
-  const visibleCols = getVisibleColumnNames(columns, visibleColumns, columnOrder)
+  const dbCols = getDBColumnNames(columns, visibleColumns, columnOrder, collection)
   
   if (rows.length === 0) {
     return ''
@@ -515,8 +515,7 @@ export function exportToCSV(options: ExportOptions): string {
   const lines: string[] = []
   
   // Header row
-  const headers = visibleCols
-    .filter(c => c !== 'select')
+  const headers = dbCols
     .map(colName => getColumnHeader(colName, columns, collection, locale, translations, rows))
     .filter(h => h !== '') // Remove empty headers
   lines.push(headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','))
@@ -525,28 +524,59 @@ export function exportToCSV(options: ExportOptions): string {
   rows.forEach(row => {
     const values: string[] = []
     
-    visibleCols.forEach(colName => {
-      if (colName === 'select') return
-      
+    dbCols.forEach(colName => {
       const column = columns.find(c => c.name === colName)
       let formatted: string
       
       if (!column) {
-        // Handle virtual columns (e.g., suffix for roles)
-        formatted = getVirtualColumnValue(colName, row, collection, locale)
-        if (formatted === '') {
-          // Handle case when column is not found (e.g., data_in fields)
-          const value = row.original[colName]
-          if (value != null && typeof value === 'object' && !(value instanceof Date)) {
-            // Serialize objects as JSON
+        // Handle dynamic data_in columns (e.g., data_in.someField)
+        if (colName.startsWith('data_in.')) {
+          const dataInField = colName.replace('data_in.', '')
+          const dataIn = row.original.data_in
+          if (dataIn) {
             try {
-              formatted = JSON.stringify(value)
+              let parsed: any = dataIn
+              if (typeof dataIn === 'string') {
+                try {
+                  parsed = JSON.parse(dataIn)
+                } catch {
+                  formatted = ''
+                }
+              }
+              if (parsed && typeof parsed === 'object') {
+                const fieldKey = Object.keys(parsed).find(key => key.toLowerCase() === dataInField.toLowerCase())
+                if (fieldKey && parsed[fieldKey] !== undefined) {
+                  const fieldValue = parsed[fieldKey]
+                  if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
+                    const localeValue = fieldValue[locale] || fieldValue.en || fieldValue.ru || fieldValue.rs || null
+                    if (localeValue !== null && localeValue !== undefined) {
+                      if (typeof localeValue === 'object' && 'value' in localeValue) {
+                        formatted = String(localeValue.value || '')
+                      } else {
+                        formatted = String(localeValue)
+                      }
+                    } else {
+                      formatted = ''
+                    }
+                  } else {
+                    formatted = String(fieldValue)
+                  }
+                } else {
+                  formatted = ''
+                }
+              } else {
+                formatted = ''
+              }
             } catch {
               formatted = ''
             }
           } else {
-            formatted = String(value || '')
+            formatted = ''
           }
+        } else {
+          // Handle case when column is not found
+          const value = row.original[colName]
+          formatted = value != null ? String(value) : ''
         }
       } else {
         const value = row.original[colName]
