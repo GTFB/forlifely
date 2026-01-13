@@ -4,19 +4,19 @@ import { schema } from '../schema'
 import { Deal, Finance } from '../schema/types'
 import { generateAid } from '../generate-aid'
 import {
-  EsnadFinance,
+  altrpFinance,
   FinanceDataIn,
   FinanceDataOut,
   FinanceReceipt,
   FinanceStatusHistoryEntry,
   MediaDataIn,
-  NewEsnadFinance,
+  NewaltrpFinance,
   PaymentScheduleInput,
   PaymentScheduleResult,
   WalletTransaction,
   IsoDate,
   IsoDateTime,
-} from '../types/esnad-finance'
+} from '../types/altrp-finance'
 import { parseJson, withNotDeleted } from './utils'
 import { DealsRepository } from './deals.repository'
 import { MediaRepository } from './media.repository'
@@ -33,7 +33,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
     return new FinancesRepository()
   }
 
-  protected async beforeCreate(data: Partial<NewEsnadFinance>): Promise<void> {
+  protected async beforeCreate(data: Partial<NewaltrpFinance>): Promise<void> {
     if (!data.faid) {
       data.faid = generateAid('f')
     }
@@ -45,7 +45,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
     }
   }
 
-  protected async beforeUpdate(_: string, data: Partial<NewEsnadFinance>): Promise<void> {
+  protected async beforeUpdate(_: string, data: Partial<NewaltrpFinance>): Promise<void> {
     return
   }
 
@@ -157,7 +157,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
 
       scheduleItems.push(financeDataIn)
 
-      const newFinance: NewEsnadFinance = {
+      const newFinance: NewaltrpFinance = {
         uuid: crypto.randomUUID(),
         faid: generateAid('f'),
         fullDaid: input.dealAid,
@@ -208,8 +208,8 @@ export class FinancesRepository extends BaseRepository<Finance> {
       walletTransactionUuid: WalletTransaction['uuid']
       receipts?: MediaDataIn[]
     }
-  ): Promise<EsnadFinance> {
-    const finance = (await this.findByUuid(financeUuid)) as EsnadFinance | null
+  ): Promise<altrpFinance> {
+    const finance = (await this.findByUuid(financeUuid)) as altrpFinance | null
 
     if (!finance) {
       throw new Error(`Finance with uuid ${financeUuid} not found`)
@@ -265,7 +265,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
         statusHistory: updatedStatusHistory,
         receipts,
       },
-    })) as EsnadFinance
+    })) as altrpFinance
 
     // Проверяем, все ли finance по сделке оплачены
     if (finance.fullDaid) {
@@ -313,7 +313,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
     return updatedFinance
   }
 
-  public async markPendingAsOverdue(referenceDate: IsoDate): Promise<EsnadFinance[]> {
+  public async markPendingAsOverdue(referenceDate: IsoDate): Promise<altrpFinance[]> {
     const referenceDateTime = new Date(referenceDate)
     const referenceDateOnly = new Date(
       referenceDateTime.getFullYear(),
@@ -332,7 +332,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
       )
       .execute()
 
-    const overdueFinances: EsnadFinance[] = []
+    const overdueFinances: altrpFinance[] = []
 
     for (const finance of pendingFinances) {
       const dataIn = parseJson<FinanceDataIn | null>(finance.dataIn, null)
@@ -374,7 +374,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
             overdueDays,
             statusHistory: [...existingDataOut.statusHistory, statusHistoryEntry],
           },
-        })) as EsnadFinance
+        })) as altrpFinance
 
         overdueFinances.push(updatedFinance)
       }
@@ -388,7 +388,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
    * @param referenceDate - Дата для проверки (по умолчанию текущая дата)
    * @returns Массив просроченных платежей, которым был изменен статус
    */
-  public async checkAndMarkOverduePayments(referenceDate?: IsoDate): Promise<EsnadFinance[]> {
+  public async checkAndMarkOverduePayments(referenceDate?: IsoDate): Promise<altrpFinance[]> {
     const checkDate = referenceDate || (new Date().toISOString().split('T')[0] as IsoDate)
     return this.markPendingAsOverdue(checkDate)
   }
@@ -409,13 +409,13 @@ export class FinancesRepository extends BaseRepository<Finance> {
     sent: boolean
     error?: string
     notificationType: 'reminder' | 'overdue'
-    finance: EsnadFinance
+    finance: altrpFinance
   }> {
     const daysBeforeThreshold = options?.daysBeforeThreshold ?? 3
     const forceReminder = options?.forceReminder ?? false
 
     // Получаем finance по UUID
-    const finance = (await this.findByUuid(financeUuid)) as EsnadFinance | null
+    const finance = (await this.findByUuid(financeUuid)) as altrpFinance | null
 
     if (!finance) {
       throw new Error(`Finance with uuid ${financeUuid} not found`)
@@ -581,7 +581,7 @@ export class FinancesRepository extends BaseRepository<Finance> {
       return {
         sent: true,
         notificationType,
-        finance: (await this.findByUuid(financeUuid)) as EsnadFinance,
+        finance: (await this.findByUuid(financeUuid)) as altrpFinance,
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

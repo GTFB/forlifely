@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, MessageSquare } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { EsnadSupportChat } from '@/shared/types/esnad-support'
+import type { altrpSupportChat } from '@/shared/types/altrp-support'
 import { useUserSocket } from '@/hooks/use-user-socket'
 import { useMe } from '@/providers/MeProvider'
 import { cn } from '@/lib/utils'
@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils'
 export default function SupportPageClient() {
   const router = useRouter()
   const { user: meUser } = useMe()
-  const [tickets, setTickets] = React.useState<EsnadSupportChat[]>([])
+  const [tickets, setTickets] = React.useState<altrpSupportChat[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -57,7 +57,7 @@ export default function SupportPageClient() {
         throw new Error('Failed to load tickets')
       }
 
-      const data = await response.json() as { docs?: EsnadSupportChat[] }
+      const data = await response.json() as { docs?: altrpSupportChat[] }
       setTickets(data.docs || [])
       setError(null)
     } catch (err) {
@@ -116,7 +116,7 @@ export default function SupportPageClient() {
         throw new Error(data.message || data.error || 'Failed to create ticket')
       }
 
-      const data = await response.json() as { success?: boolean; data?: EsnadSupportChat }
+      const data = await response.json() as { success?: boolean; data?: altrpSupportChat }
       
       // Reset form
       setFormData({ subject: '', message: '' })
@@ -127,7 +127,7 @@ export default function SupportPageClient() {
         credentials: 'include',
       })
       if (ticketsRes.ok) {
-        const ticketsData = await ticketsRes.json() as { docs?: EsnadSupportChat[] }
+        const ticketsData = await ticketsRes.json() as { docs?: altrpSupportChat[] }
         setTickets(ticketsData.docs || [])
       }
 

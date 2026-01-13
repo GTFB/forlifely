@@ -12,8 +12,8 @@ type PageProps = {
 }
 
 export const metadata: Metadata = {
-  title: 'Детали заявки::Esnad Finance',
-  description: 'Детали заявки::Esnad Finance',
+  title: 'Детали заявки::Altrp',
+  description: 'Детали заявки::Altrp',
 }
 export default async function DealDetailPage({ params }: PageProps) {
   await params

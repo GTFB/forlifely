@@ -2,7 +2,7 @@ import { eq, and, desc, or } from 'drizzle-orm'
 import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
 import { WalletTransaction } from '../schema/types'
-import { EsnadWalletTransaction } from '../types/esnad-finance'
+import { altrpWalletTransaction } from '../types/altrp-finance'
 import { withNotDeleted, createDb } from './utils'
 import { WalletRepository } from './wallet.repository'
 
@@ -21,7 +21,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
    * @param limit - Максимальное количество транзакций (по умолчанию 100)
    * @returns Массив транзакций, отсортированных по дате создания (новые первыми)
    */
-  public async findByWalletFullWaid(fullWaid: string, limit: number = 100): Promise<EsnadWalletTransaction[]> {
+  public async findByWalletFullWaid(fullWaid: string, limit: number = 100): Promise<altrpWalletTransaction[]> {
     const transactions = await this.db
       .select()
       .from(schema.walletTransactions)
@@ -35,7 +35,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
       .limit(limit)
       .execute()
 
-    return transactions as EsnadWalletTransaction[]
+    return transactions as altrpWalletTransaction[]
   }
 
   /**
@@ -44,7 +44,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
    * @param limit - Максимальное количество транзакций (по умолчанию 100)
    * @returns Массив транзакций, отсортированных по дате создания (новые первыми)
    */
-  public async findByTargetAid(targetAid: string, limit: number = 100): Promise<EsnadWalletTransaction[]> {
+  public async findByTargetAid(targetAid: string, limit: number = 100): Promise<altrpWalletTransaction[]> {
     const transactions = await this.db
       .select()
       .from(schema.walletTransactions)
@@ -58,7 +58,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
       .limit(limit)
       .execute()
 
-    return transactions as EsnadWalletTransaction[]
+    return transactions as altrpWalletTransaction[]
   }
 
   /**
@@ -68,7 +68,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
    * @param limit - Максимальное количество транзакций (по умолчанию 100)
    * @returns Массив транзакций, отсортированных по дате создания (новые первыми)
    */
-  public async findByInvestorHaid(haid: string, limit: number = 100): Promise<EsnadWalletTransaction[]> {
+  public async findByInvestorHaid(haid: string, limit: number = 100): Promise<altrpWalletTransaction[]> {
     // Получаем кошелек инвестора для поиска по fullWaid
     const walletRepo = WalletRepository.getInstance()
     const wallets = await walletRepo.findAllByHumanHaid(haid)
@@ -96,7 +96,7 @@ export class WalletTransactionRepository extends BaseRepository<WalletTransactio
       .limit(limit)
       .execute()
 
-    return transactions as EsnadWalletTransaction[]
+    return transactions as altrpWalletTransaction[]
   }
 }
 

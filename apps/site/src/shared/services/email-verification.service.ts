@@ -1,5 +1,5 @@
 import type { Env } from '@/shared/types'
-import type { EsnadUser, EsnadUserData } from '@/shared/types/esnad'
+import type { altrpUser, altrpUserData } from '@/shared/types/altrp'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { sendEmail } from './email.service'
 
@@ -21,7 +21,7 @@ export class EmailVerificationError extends Error {
   }
 }
 
-type VerificationMetadata = NonNullable<EsnadUserData['emailVerification']>
+type VerificationMetadata = NonNullable<altrpUserData['emailVerification']>
 
 const textEncoder = new TextEncoder()
 
@@ -32,20 +32,20 @@ const hashToken = async (token: string): Promise<string> => {
     .join('')
 }
 
-const parseUserData = (user: EsnadUser): EsnadUserData => {
+const parseUserData = (user: altrpUser): altrpUserData => {
   if (!user.dataIn) {
     return {}
   }
 
   if (typeof user.dataIn === 'string') {
     try {
-      return JSON.parse(user.dataIn) as EsnadUserData
+      return JSON.parse(user.dataIn) as altrpUserData
     } catch {
       return {}
     }
   }
 
-  return user.dataIn as EsnadUserData
+  return user.dataIn as altrpUserData
 }
 
 const buildBaseUrl = (env: Env, request?: Request): string => {
@@ -58,7 +58,7 @@ const buildBaseUrl = (env: Env, request?: Request): string => {
     return url.origin
   }
 
-  return 'https://esnad.local'
+  return 'https://altrp.local'
 }
 
 const buildVerificationLink = (baseUrl: string, email: string, token: string): string => {
@@ -129,7 +129,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Altrp</div>
               <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Платформа финансовых решений</div>
             </td>
           </tr>
@@ -140,7 +140,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
               <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.4;">Здравствуйте!</h1>
               
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                Вы зарегистрировались в платформе <strong>Esnad</strong>. Для продолжения работы, пожалуйста, подтвердите адрес электронной почты.
+                Вы зарегистрировались в платформе <strong>altrp</strong>. Для продолжения работы, пожалуйста, подтвердите адрес электронной почты.
               </p>
               
               <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #374151;">
@@ -176,7 +176,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
                 Это письмо отправлено автоматически, пожалуйста, не отвечайте на него.
               </p>
               <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
-                Если вы не регистрировались в Esnad Finance, просто проигнорируйте это письмо.
+                Если вы не регистрировались в Altrp, просто проигнорируйте это письмо.
               </p>
             </td>
           </tr>
@@ -187,7 +187,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <tr>
             <td style="padding: 20px 20px 0 20px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} Esnad Finance. Все права защищены.
+                © ${new Date().getFullYear()} Altrp. Все права защищены.
               </p>
             </td>
           </tr>
@@ -238,7 +238,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Altrp</div>
               <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Platforma finansijskih rešenja</div>
             </td>
           </tr>
@@ -249,7 +249,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
               <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.4;">Zdravo!</h1>
               
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                Registrovali ste se na platformi <strong>Esnad</strong>. Da biste nastavili rad, molimo potvrdite adresu elektronske pošte.
+                Registrovali ste se na platformi <strong>altrp</strong>. Da biste nastavili rad, molimo potvrdite adresu elektronske pošte.
               </p>
               
               <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #374151;">
@@ -285,7 +285,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
                 Ova poruka je automatski poslata, molimo ne odgovarajte na nju.
               </p>
               <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
-                Ako se niste registrovali na Esnad Finance, jednostavno ignorišite ovu poruku.
+                Ako se niste registrovali na Altrp, jednostavno ignorišite ovu poruku.
               </p>
             </td>
           </tr>
@@ -296,7 +296,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <tr>
             <td style="padding: 20px 20px 0 20px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} Esnad Finance. Sva prava zadržana.
+                © ${new Date().getFullYear()} Altrp. Sva prava zadržana.
               </p>
             </td>
           </tr>
@@ -347,7 +347,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Altrp</div>
               <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Financial Solutions Platform</div>
             </td>
           </tr>
@@ -358,7 +358,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
               <h1 style="margin: 0 0 24px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.4;">Hello!</h1>
               
               <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                You have registered on the <strong>Esnad</strong> platform. To continue, please confirm your email address.
+                You have registered on the <strong>altrp</strong> platform. To continue, please confirm your email address.
               </p>
               
               <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #374151;">
@@ -394,7 +394,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
                 This email was sent automatically, please do not reply to it.
               </p>
               <p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
-                If you did not register on Esnad Finance, please ignore this email.
+                If you did not register on Altrp, please ignore this email.
               </p>
             </td>
           </tr>
@@ -405,7 +405,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
           <tr>
             <td style="padding: 20px 20px 0 20px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} Esnad Finance. All rights reserved.
+                © ${new Date().getFullYear()} Altrp. All rights reserved.
               </p>
             </td>
           </tr>
@@ -420,7 +420,7 @@ const buildVerificationEmailHtml = (verificationLink: string, locale: string): s
 
 export const sendVerificationEmail = async (
   env: Env,
-  user: EsnadUser,
+  user: altrpUser,
   options: { request?: Request; force?: boolean; locale?: string } = {},
 ): Promise<void> => {
   if (user.emailVerifiedAt) {
@@ -435,7 +435,7 @@ export const sendVerificationEmail = async (
 
   const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
   const hashedToken = await hashToken(token)
-  const updatedDataIn: EsnadUserData = {
+  const updatedDataIn: altrpUserData = {
     ...dataIn,
     emailVerification: {
       tokenHash: hashedToken,
@@ -473,9 +473,9 @@ export const sendVerificationEmail = async (
 
 export const verifyEmailToken = async (
   env: Env,
-  user: EsnadUser,
+  user: altrpUser,
   token: string,
-): Promise<EsnadUser> => {
+): Promise<altrpUser> => {
   if (user.emailVerifiedAt) {
     throw new EmailVerificationError('ALREADY_VERIFIED', 'Email already verified')
   }
@@ -510,12 +510,12 @@ export const verifyEmailToken = async (
   return updatedUser
 }
 
-export const getVerificationMetadata = (user: EsnadUser): VerificationMetadata | undefined => {
+export const getVerificationMetadata = (user: altrpUser): VerificationMetadata | undefined => {
   const dataIn = parseUserData(user)
   return dataIn.emailVerification
 }
 
-export const getNextResendAvailableAt = (user: EsnadUser): string | null => {
+export const getNextResendAvailableAt = (user: altrpUser): string | null => {
   return getNextAttemptAt(getVerificationMetadata(user))
 }
 

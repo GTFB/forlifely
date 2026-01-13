@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportChat, EsnadSupportChatDataIn } from '@/shared/types/esnad-support'
+import { altrpSupportChat, altrpSupportChatDataIn } from '@/shared/types/altrp-support'
 import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { buildRequestEnv } from '@/shared/env'
 
@@ -82,13 +82,13 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     // Parse dataIn for each chat and check for unread messages
     const chatsWithParsedData = await Promise.all(
       result.docs.map(async (chat) => {
-        let parsedDataIn: EsnadSupportChatDataIn | null = null
+        let parsedDataIn: altrpSupportChatDataIn | null = null
         if (chat.dataIn) {
           try {
             if (typeof chat.dataIn === 'string') {
-              parsedDataIn = JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
+              parsedDataIn = JSON.parse(chat.dataIn) as altrpSupportChatDataIn
             } else {
-              parsedDataIn = chat.dataIn as EsnadSupportChatDataIn
+              parsedDataIn = chat.dataIn as altrpSupportChatDataIn
             }
           } catch (error) {
             console.error('Failed to parse dataIn for chat', chat.maid, error)
@@ -103,7 +103,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           dataIn: parsedDataIn || { humanHaid: user.humanAid },
           type: 'SUPPORT' as const,
           hasUnreadMessages,
-        } as EsnadSupportChat & { hasUnreadMessages: boolean }
+        } as altrpSupportChat & { hasUnreadMessages: boolean }
       })
     )
 

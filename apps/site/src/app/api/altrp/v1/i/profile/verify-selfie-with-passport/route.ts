@@ -6,8 +6,8 @@ import { FileStorageService } from '@/shared/services/file-storage.service'
 import { PassportSelfieVerificationService } from '@/shared/services/recognition/passport-selfie-verification.service'
 import { GoogleVisionProvider } from '@/shared/services/recognition/providers/google-vision.provider'
 import { SelfieImageNormalizationService } from '@/shared/services/recognition/selfie-image-normalization.service'
-import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
-import { NewEsnadMedia } from '@/shared/types/esnad-finance'
+import type { ClientDataIn, KycDocumentRef } from '@/shared/types/altrp'
+import { NewaltrpMedia } from '@/shared/types/altrp-finance'
 
 /**
  * POST /api/altrp/v1/i/profile/verify-selfie-with-passport
@@ -166,7 +166,7 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
     const filteredDocuments = existingDocuments.filter(doc => doc.type !== 'selfie_with_passport')
 
     let verificationResult: Awaited<ReturnType<PassportSelfieVerificationService['verifySelfieWithPassport']>> | null = null
-    let avatarMedia: Partial<NewEsnadMedia> | null = null
+    let avatarMedia: Partial<NewaltrpMedia> | null = null
     let newDocument: KycDocumentRef
 
     // Always perform verification (passport should be visible in the photo)

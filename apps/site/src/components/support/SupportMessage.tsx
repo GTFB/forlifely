@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { Check } from 'lucide-react'
 import { useRoomSocket } from '@/hooks/use-user-socket'
 import { useMe } from '@/providers/MeProvider'
-import type { EsnadSupportMessage, EsnadSupportChat } from '@/shared/types/esnad-support'
+import type { altrpSupportMessage, altrpSupportChat } from '@/shared/types/altrp-support'
 
 interface SupportMessageProps {
-  message: EsnadSupportMessage
-  chat: EsnadSupportChat
+  message: altrpSupportMessage
+  chat: altrpSupportChat
   formatDate: (dateString: string | Date | null | undefined) => string
   isClientView?: boolean
   humanDisplayName?: string | null

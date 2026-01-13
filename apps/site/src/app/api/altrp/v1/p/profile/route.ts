@@ -23,7 +23,7 @@ type PartnerProfile = {
 }
 
 let partnerProfileData: PartnerProfile = {
-  name: 'Esnad Маркет Казань',
+  name: 'altrp Маркет Казань',
   address: 'г. Казань, ул. Партнерская, 10',
   inn: '1650000000',
   kpp: '165001001',

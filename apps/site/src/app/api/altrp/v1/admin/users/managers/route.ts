@@ -4,7 +4,7 @@ import { UsersRepository } from '@/shared/repositories/users.repository'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { Env } from '@/shared/types'
 import { RequestContext } from '@/shared/types'
-import type { EsnadUser } from '@/shared/types/esnad'
+import type { altrpUser } from '@/shared/types/altrp'
 import { withAdminGuard } from '@/shared/api-guard'
 
 const corsHeaders = {
@@ -18,7 +18,7 @@ const jsonHeaders = {
   'content-type': 'application/json',
 } as const
 
-interface ManagerUser extends EsnadUser {
+interface ManagerUser extends altrpUser {
   fullName?: string | null
   roles?: Array<{
     uuid: string

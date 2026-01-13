@@ -1,7 +1,7 @@
 import { FileStorageService } from '../file-storage.service'
 import { HumanRepository } from '../../repositories/human.repository'
 import type { IOcrProvider } from './providers'
-import type { EsnadHuman, ClientDataIn } from '../../types/esnad'
+import type { altrpHuman, ClientDataIn } from '../../types/altrp'
 
 export interface RecognizedDocumentData {
   fullName?: string
@@ -172,7 +172,7 @@ export class DocumentRecognitionService {
       }
 
       // 6. Prepare update data (only update empty fields)
-      const updateData: Partial<EsnadHuman> = {}
+      const updateData: Partial<altrpHuman> = {}
 
       if (recognizedData.fullName && !human.fullName) {
         updateData.fullName = recognizedData.fullName

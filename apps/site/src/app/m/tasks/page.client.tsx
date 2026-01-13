@@ -70,7 +70,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useRoomSocket } from '@/hooks/use-user-socket'
-import type { EsnadSupportMessage } from '@/shared/types/esnad-support'
+import type { altrpSupportMessage } from '@/shared/types/altrp-support'
 import { CurrentUser, TaskApi, TaskAssignee, TaskPriority, TaskStatus } from '@/shared/types/tasks'
 
 type Task = TaskApi & { id: string; date: string }
@@ -265,7 +265,7 @@ export default function AdminTasksPageClient() {
   const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [editingTaskId, setEditingTaskId] = React.useState<string | null>(null)
   const [editSubmitting, setEditSubmitting] = React.useState(false)
-  const [taskMessages, setTaskMessages] = React.useState<EsnadSupportMessage[]>([])
+  const [taskMessages, setTaskMessages] = React.useState<altrpSupportMessage[]>([])
   const [taskMessagesPage, setTaskMessagesPage] = React.useState(1)
   const [taskMessagesHasMore, setTaskMessagesHasMore] = React.useState(true)
   const [loadingTaskMessages, setLoadingTaskMessages] = React.useState(false)
@@ -504,7 +504,7 @@ export default function AdminTasksPageClient() {
           throw new Error(message)
         }
         const data = (payload as any)?.data
-        const messages = (data?.messages as EsnadSupportMessage[]) || []
+        const messages = (data?.messages as altrpSupportMessage[]) || []
         const ordered = [...messages].reverse()
 
         setTaskMessages((prev) => (append ? [...ordered, ...prev] : ordered))
@@ -539,7 +539,7 @@ export default function AdminTasksPageClient() {
       )
       const payload = await response.json().catch(() => null)
       if (!response.ok) return
-      const newMessages = ((payload as any)?.data?.messages || []) as EsnadSupportMessage[]
+      const newMessages = ((payload as any)?.data?.messages || []) as altrpSupportMessage[]
       if (newMessages.length === 0) return
       const ordered = [...newMessages].reverse()
       setTaskMessages((prev) => {

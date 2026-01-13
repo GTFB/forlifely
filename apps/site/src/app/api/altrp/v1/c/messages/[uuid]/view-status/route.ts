@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { parseJson } from '@/shared/repositories/utils'
-import type { EsnadSupportMessageDataIn } from '@/shared/types/esnad-support'
+import type { altrpSupportMessageDataIn } from '@/shared/types/altrp-support'
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
@@ -37,9 +37,9 @@ const handleGet = async (
     }
 
     // Parse dataIn
-    const dataIn = parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+    const dataIn = parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
       (message as any).dataIn,
-      {} as EsnadSupportMessageDataIn
+      {} as altrpSupportMessageDataIn
     )
 
     // Check that message was sent by current user

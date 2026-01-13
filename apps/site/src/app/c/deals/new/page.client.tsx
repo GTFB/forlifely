@@ -3,11 +3,11 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { InstallmentApplicationForm } from '@/components/cabinet/forms/InstallmentApplicationForm'
-import { EsnadHuman } from '@/shared/types/esnad'
+import { altrpHuman } from '@/shared/types/altrp'
 
 export default function NewDealPageClient() {
   const router = useRouter()
-  const [human, setHuman] = React.useState<EsnadHuman | undefined>(undefined)
+  const [human, setHuman] = React.useState<altrpHuman | undefined>(undefined)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -28,7 +28,7 @@ export default function NewDealPageClient() {
 
         const data = (await response.json()) as {
           success: boolean
-          human?: EsnadHuman
+          human?: altrpHuman
         }
 
         if (data.success && data.human) {

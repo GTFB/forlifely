@@ -1,9 +1,9 @@
 import BaseRepository from "./BaseRepositroy";
-import { EsnadUser } from "../types/esnad";
+import { altrpUser } from "../types/altrp";
 import { schema } from "../schema";
 import { eq, inArray } from "drizzle-orm";
 
-export class UsersRepository extends BaseRepository<EsnadUser> {
+export class UsersRepository extends BaseRepository<altrpUser> {
     constructor() {
         super(schema.users);
     }
@@ -12,13 +12,13 @@ export class UsersRepository extends BaseRepository<EsnadUser> {
         return new UsersRepository();
     }
 
-    public async findByEmail(email: string): Promise<EsnadUser | undefined> {
-        const [user] = await this.db.select().from(this.schema).where(eq(this.schema.email, email)).limit(1).execute() as EsnadUser[];
+    public async findByEmail(email: string): Promise<altrpUser | undefined> {
+        const [user] = await this.db.select().from(this.schema).where(eq(this.schema.email, email)).limit(1).execute() as altrpUser[];
         return user;
     }
 
-    public async findByHumanAid(humanAid: string): Promise<EsnadUser | undefined> {
-        const [user] = await this.db.select().from(this.schema).where(eq(this.schema.humanAid, humanAid)).limit(1).execute() as EsnadUser[];
+    public async findByHumanAid(humanAid: string): Promise<altrpUser | undefined> {
+        const [user] = await this.db.select().from(this.schema).where(eq(this.schema.humanAid, humanAid)).limit(1).execute() as altrpUser[];
         return user;
     }
     public async hasRoles(humanAid: string, roleNames: string[]): Promise<boolean> {

@@ -3,7 +3,7 @@ import { schema } from '../schema'
 import type { Message, NewMessage } from '../schema/types'
 import { generateAid } from '../generate-aid'
 import { eq, and, desc, isNull, gt, sql } from 'drizzle-orm'
-import type { EsnadSupportChatDataIn, EsnadSupportMessage, EsnadSupportMessageDataIn } from '../types/esnad-support'
+import type { altrpSupportChatDataIn, altrpSupportMessage, altrpSupportMessageDataIn } from '../types/altrp-support'
 import { parseJson } from './utils'
 import { sendToRoom, sendToUser } from '@/packages/lib/socket'
 import { MessageThreadsRepository } from './message-threads.repository'
@@ -34,7 +34,7 @@ export class MessagesRepository extends BaseRepository<Message> {
     /**
      * Get all messages for a support chat by chat maid
      */
-    public async findByChatMaid(chatMaid: string, limit: number = 100): Promise<EsnadSupportMessage[]> {
+    public async findByChatMaid(chatMaid: string, limit: number = 100): Promise<altrpSupportMessage[]> {
         const messages = await this.db
             .select()
             .from(this.schema)
@@ -48,14 +48,14 @@ export class MessagesRepository extends BaseRepository<Message> {
             .limit(limit)
             .execute()
 
-        return messages as EsnadSupportMessage[]
+        return messages as altrpSupportMessage[]
     }
 
     /**
      * Get paginated messages for a support chat by chat maid
      */
     public async findByChatMaidPaginated(chatMaid: string, page: number = 1, limit: number = 20): Promise<{
-        messages: EsnadSupportMessage[]
+        messages: altrpSupportMessage[]
         total: number
         hasMore: boolean
     }> {
@@ -90,7 +90,7 @@ export class MessagesRepository extends BaseRepository<Message> {
             .execute()
 
         return {
-            messages: messages as EsnadSupportMessage[],
+            messages: messages as altrpSupportMessage[],
             total,
             hasMore: offset + limit < total,
         }
@@ -103,7 +103,7 @@ export class MessagesRepository extends BaseRepository<Message> {
         chatMaid: string,
         afterTimestamp: string,
         limit: number = 50
-    ): Promise<EsnadSupportMessage[]> {
+    ): Promise<altrpSupportMessage[]> {
         // Convert string timestamp to Date object for drizzle-orm comparison
         const afterDate = new Date(afterTimestamp)
 
@@ -121,7 +121,7 @@ export class MessagesRepository extends BaseRepository<Message> {
             .limit(limit)
             .execute()
 
-        return messages as EsnadSupportMessage[]
+        return messages as altrpSupportMessage[]
     }
 
     /**
@@ -140,7 +140,7 @@ export class MessagesRepository extends BaseRepository<Message> {
         if (!chat) {
             throw new Error('Chat not found')
         }
-        const chatDataIn = chat.dataIn as EsnadSupportChatDataIn
+        const chatDataIn = chat.dataIn as altrpSupportChatDataIn
         if (!chatDataIn) {
             throw new Error('Chat dataIn not found')
         }
@@ -159,9 +159,9 @@ export class MessagesRepository extends BaseRepository<Message> {
         let updatedCount = 0
 
         for (const message of messages) {
-            const dataIn = parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+            const dataIn = parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
                 (message as any).dataIn,
-                {} as EsnadSupportMessageDataIn
+                {} as altrpSupportMessageDataIn
             )
             const senderRole = (dataIn as any).sender_role as 'client' | 'admin' | undefined
             if (viewerRole === 'client') {
@@ -175,7 +175,7 @@ export class MessagesRepository extends BaseRepository<Message> {
                 const updatedDataIn = {
                     ...dataIn,
                     client_viewed_at: now,
-                } as EsnadSupportMessageDataIn
+                } as altrpSupportMessageDataIn
                 
                 await this.update((message as any).uuid, { dataIn: updatedDataIn as any })
                 try{
@@ -204,7 +204,7 @@ export class MessagesRepository extends BaseRepository<Message> {
                 const updatedDataIn = {
                     ...dataIn,
                     admin_viewed_at: now,
-                } as EsnadSupportMessageDataIn
+                } as altrpSupportMessageDataIn
                 try{
                     await sendToRoom(`message:${message.uuid}`, 'viewed-message', {})
                     
@@ -290,9 +290,9 @@ export class MessagesRepository extends BaseRepository<Message> {
 
       let updated = 0
       for (const message of messages) {
-        const dataIn = parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+        const dataIn = parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
           (message as any).dataIn,
-          {} as EsnadSupportMessageDataIn
+          {} as altrpSupportMessageDataIn
         )
         const senderHaid = (dataIn as any).humanHaid
         if (senderHaid === viewerHumanHaid) {

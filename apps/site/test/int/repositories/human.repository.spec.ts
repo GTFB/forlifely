@@ -2,7 +2,7 @@ import { describe, it, beforeAll, expect } from "bun:test";
 import { getPlatformProxy } from "wrangler";
 import { faker } from "@faker-js/faker";
 import { HumanRepository } from "@/shared/repositories/human.repository";
-import { Client, ClientStatus } from "@/shared/types/esnad";
+import { Client, ClientStatus } from "@/shared/types/altrp";
 
 describe("HumanRepository", () => {
     let db: D1Database;

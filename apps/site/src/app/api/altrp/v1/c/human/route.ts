@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
-import { EsnadHuman } from '@/shared/types/esnad'
+import { altrpHuman } from '@/shared/types/altrp'
 
 /**
  * GET /api/altrp/v1/c/human
@@ -55,7 +55,7 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
           dataIn: dataIn,
           createdAt: human.createdAt,
           updatedAt: human.updatedAt,
-        } as EsnadHuman,
+        } as altrpHuman,
       },
       { status: 200 }
     )

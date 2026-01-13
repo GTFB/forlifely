@@ -1,7 +1,7 @@
 import UserWalletPageComponent from '@/components/wallets/UserWalletPage'
 import { WalletRepository } from '@/shared/repositories/wallet.repository'
 import { notFound } from 'next/navigation'
-import { EsnadWallet, WalletType } from '@/shared/types/esnad-finance'
+import { altrpWallet, WalletType } from '@/shared/types/altrp-finance'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { TaxonomyRepository } from '@/shared/repositories/taxonomy.repository'
@@ -64,7 +64,7 @@ export default async function UserWalletPage({
 
 
     return <UserWalletPageComponent
-        wallet={wallet as EsnadWallet}
+        wallet={wallet as altrpWallet}
         userUuid={user.uuid}
         walletType={walletType}
         walletTypeOptions={taxOptions.docs.filter(tax => user.roles.some(role => tax.name.toLowerCase() === role.name?.toLowerCase()))} />

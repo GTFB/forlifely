@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportChat } from '@/shared/types/esnad-support'
+import { altrpSupportChat } from '@/shared/types/altrp-support'
 
 const handlePatch = async (
   context: AuthenticatedRequestContext,

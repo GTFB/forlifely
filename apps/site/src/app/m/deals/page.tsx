@@ -33,7 +33,7 @@ import type {
   TaxonomyResponse,
   LoanApplication,
   
- } from '@/shared/types/esnad'
+ } from '@/shared/types/altrp'
  import type { 
     DbPaginatedResult,
     DbPaginationResult,

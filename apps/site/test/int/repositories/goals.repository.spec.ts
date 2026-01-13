@@ -7,10 +7,10 @@ import { UsersRepository } from "@/shared/repositories/users.repository";
 import { HumanRepository } from "@/shared/repositories/human.repository";
 import { DealsRepository } from "@/shared/repositories/deals.repository";
 import { generateAid } from "@/shared/generate-aid";
-import { NewEsnadFinance, EsnadFinance } from "@/shared/types/esnad-finance";
+import { NewaltrpFinance, altrpFinance } from "@/shared/types/altrp-finance";
 import { parseJson } from "@/shared/repositories/utils";
 import type { AdminTaskDataIn } from "@/shared/types/tasks";
-import type { CollectionGoalDataIn } from "@/shared/types/esnad-finance";
+import type { CollectionGoalDataIn } from "@/shared/types/altrp-finance";
 
 describe("GoalsRepository", () => {
     let db: D1Database;
@@ -536,7 +536,7 @@ describe("GoalsRepository", () => {
 
             // Получаем обновленный finance
             const updatedFinance = await financesRepository.findByUuid(finance.uuid);
-            const esnadFinance: EsnadFinance = {
+            const altrpFinance: altrpFinance = {
                 ...updatedFinance!,
                 statusName: updatedFinance!.statusName as "OVERDUE",
                 dataIn: parseJson(updatedFinance!.dataIn, finance.dataIn),
@@ -556,7 +556,7 @@ describe("GoalsRepository", () => {
                 autoCreated: true,
             };
 
-            const goal = await goalsRepository.createCollectionGoalFromFinance(esnadFinance, goalData);
+            const goal = await goalsRepository.createCollectionGoalFromFinance(altrpFinance, goalData);
 
             const dataIn = parseJson<CollectionGoalDataIn>(goal.dataIn, {} as CollectionGoalDataIn);
             expect(dataIn.clientAid).toBe(clientAid);
@@ -564,8 +564,8 @@ describe("GoalsRepository", () => {
     });
 
     // Helper function to create test finance
-    async function createTestFinance(): Promise<EsnadFinance> {
-        const finance: NewEsnadFinance = {
+    async function createTestFinance(): Promise<altrpFinance> {
+        const finance: NewaltrpFinance = {
             uuid: crypto.randomUUID(),
             faid: generateAid("f"),
             fullDaid: "d-test",
@@ -592,7 +592,7 @@ describe("GoalsRepository", () => {
             statusName: created.statusName as "OVERDUE",
             dataIn: parseJson(created.dataIn, finance.dataIn),
             dataOut: parseJson(created.dataOut, null),
-        } as EsnadFinance;
+        } as altrpFinance;
     }
 });
 

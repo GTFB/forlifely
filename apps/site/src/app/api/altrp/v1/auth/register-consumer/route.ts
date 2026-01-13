@@ -5,7 +5,7 @@ import { HumanRepository } from '@/shared/repositories/human.repository'
 import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import type { RequestContext } from '@/shared/types'
-import type { EsnadUser } from '@/shared/types/esnad'
+import type { altrpUser } from '@/shared/types/altrp'
 import { sendVerificationEmail } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { buildRequestEnv } from '@/shared/env'
@@ -162,7 +162,7 @@ export const onRequestPost = async (context: RequestContext): Promise<Response> 
       dataIn,
     })
 
-    let createdUser: EsnadUser
+    let createdUser: altrpUser
 
     // If user exists but email is not verified, update existing user
     if (existingUser && !existingUser.emailVerifiedAt) {

@@ -2,16 +2,16 @@ import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
 import type { MessageThread, NewMessage, NewMessageThread } from '../schema/types'
 import { generateAid } from '../generate-aid'
-import { EsnadHuman } from '../types/esnad'
+import { altrpHuman } from '../types/altrp'
 import { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from '../types/shared'
 import { 
-  EsnadSupportChat, 
-  EsnadSupportMessage, 
-  EsnadSupportMessageDataIn,
-  EsnadSupportMessageType,
-  NewEsnadSupportMessage,
-  EsnadSupportChatDataIn,
-  } from '../types/esnad-support'
+  altrpSupportChat, 
+  altrpSupportMessage, 
+  altrpSupportMessageDataIn,
+  altrpSupportMessageType,
+  NewaltrpSupportMessage,
+  altrpSupportChatDataIn,
+  } from '../types/altrp-support'
 import { MessagesRepository } from './messages.repository'
 import { UsersRepository } from './users.repository'
 import { sql, and, eq, isNull, inArray } from 'drizzle-orm'
@@ -52,7 +52,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
   /**
    * startNewSupportChat
    */
-  public async startNewSupportChat(humanHaid: EsnadHuman['haid'], subject: string, env?: Env) {
+  public async startNewSupportChat(humanHaid: altrpHuman['haid'], subject: string, env?: Env) {
     if(!humanHaid) {
       throw new Error('Human haid is required to start new support chat')
     }
@@ -67,7 +67,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       dataIn: {
         humanHaid: humanHaid,
       },
-    }) as EsnadSupportChat
+    }) as altrpSupportChat
     env = env ?? buildRequestEnv()
     await sendToRoom('admin', 'update-admin', {
       type: 'support-chat-created',
@@ -111,7 +111,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
   /**
    * getFilteredSupportChats
    */
-  public async getFilteredSupportChats( filters: DbFilters, orders: DbOrders, pagination: DbPagination ): Promise<DbPaginatedResult<EsnadSupportChat>> {
+  public async getFilteredSupportChats( filters: DbFilters, orders: DbOrders, pagination: DbPagination ): Promise<DbPaginatedResult<altrpSupportChat>> {
     filters.conditions = filters.conditions ?? []
     
     // Extract managerHaid filter if present
@@ -184,7 +184,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
     
     // Get results
     const resultQuery = query.where(where).orderBy(...order).limit(limit).offset(offset)
-    const result = await resultQuery.execute() as EsnadSupportChat[]
+    const result = await resultQuery.execute() as altrpSupportChat[]
     
     return {
       docs: result,
@@ -207,7 +207,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
     return buildDbOrders(this.schema, orders)
   }
 
-  public async addMessageToSupportChat( chatMaid: MessageThread['maid'], content: string, messageType: EsnadSupportMessageType, humanHaid: EsnadHuman['haid'], senderRole: 'client' | 'admin', mediaUuid?: string ): Promise<EsnadSupportMessage> {
+  public async addMessageToSupportChat( chatMaid: MessageThread['maid'], content: string, messageType: altrpSupportMessageType, humanHaid: altrpHuman['haid'], senderRole: 'client' | 'admin', mediaUuid?: string ): Promise<altrpSupportMessage> {
     if(!humanHaid) {
       throw new Error('Human haid is required to add message to support chat')
     }
@@ -218,7 +218,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       throw new Error('Message type is required to add message to support chat')
     }
     const messageRepository = MessagesRepository.getInstance()
-    const messageData: Partial<NewEsnadSupportMessage> = {
+    const messageData: Partial<NewaltrpSupportMessage> = {
       maid: chatMaid,
       dataIn: {
         content: content,
@@ -243,12 +243,12 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
         // Get client's humanHaid from chat
         const chat = await this.findByMaid(chatMaid)
         if (chat) {
-          let chatDataIn: EsnadSupportChatDataIn | null = null
+          let chatDataIn: altrpSupportChatDataIn | null = null
           if (chat.dataIn) {
             try {
               chatDataIn = typeof chat.dataIn === 'string'
-                ? JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
-                : chat.dataIn as EsnadSupportChatDataIn
+                ? JSON.parse(chat.dataIn) as altrpSupportChatDataIn
+                : chat.dataIn as altrpSupportChatDataIn
             } catch (error) {
               console.error('Failed to parse chat dataIn', error)
             }
@@ -270,17 +270,17 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       console.error('Failed to send socket events:', socketError)
       // Don't fail update if socket notification fails
     }
-    return await messageRepository.create(messageData) as EsnadSupportMessage
+    return await messageRepository.create(messageData) as altrpSupportMessage
   }
 
   public async addMessageToTaskThread(
     taskMaid: MessageThread['maid'],
     content: string,
-    messageType: Exclude<EsnadSupportMessageType, 'voice' | 'document'>,
-    humanHaid: EsnadHuman['haid'],
+    messageType: Exclude<altrpSupportMessageType, 'voice' | 'document'>,
+    humanHaid: altrpHuman['haid'],
     mediaUuid?: string,
     mediaUrl?: string
-  ): Promise<EsnadSupportMessage> {
+  ): Promise<altrpSupportMessage> {
     if (!humanHaid) {
       throw new Error('Human haid is required to add message to task')
     }
@@ -288,7 +288,7 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       throw new Error('Content is required to add message to task')
     }
     const messageRepository = MessagesRepository.getInstance()
-    const messageData: Partial<NewEsnadSupportMessage> = {
+    const messageData: Partial<NewaltrpSupportMessage> = {
       maid: taskMaid,
       dataIn: {
         content,
@@ -306,10 +306,10 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       console.error('Failed to send task socket events:', socketError)
     }
 
-    return (await messageRepository.create(messageData)) as EsnadSupportMessage
+    return (await messageRepository.create(messageData)) as altrpSupportMessage
   }
 
-  public async updateChatStatus(maid: MessageThread['maid'], status: 'OPEN' | 'CLOSED'): Promise<EsnadSupportChat> {
+  public async updateChatStatus(maid: MessageThread['maid'], status: 'OPEN' | 'CLOSED'): Promise<altrpSupportChat> {
     const chat = await this.findByMaid(maid);
     if (!chat) {
       throw new Error('Chat not found');
@@ -318,10 +318,10 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
       throw new Error('Chat is not a support chat');
     }
     const updatedChat = await this.update(chat.uuid, { statusName: status, updatedAt: new Date() });
-    return updatedChat as EsnadSupportChat;
+    return updatedChat as altrpSupportChat;
   }
 
-  public async assignManager(maid: MessageThread['maid'], managerHaid: EsnadHuman['haid'] | null): Promise<EsnadSupportChat> {
+  public async assignManager(maid: MessageThread['maid'], managerHaid: altrpHuman['haid'] | null): Promise<altrpSupportChat> {
     const chat = await this.findByMaid(maid);
     if (!chat) {
       throw new Error('Chat not found');
@@ -331,12 +331,12 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
     }
 
     // Parse existing dataIn
-    let dataIn: Partial<EsnadSupportChatDataIn> = {}
+    let dataIn: Partial<altrpSupportChatDataIn> = {}
     if (chat.dataIn) {
       try {
         const parsed = typeof chat.dataIn === 'string' 
-          ? JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
-          : chat.dataIn as EsnadSupportChatDataIn
+          ? JSON.parse(chat.dataIn) as altrpSupportChatDataIn
+          : chat.dataIn as altrpSupportChatDataIn
         dataIn = { ...parsed }
       } catch (error) {
         console.error('Failed to parse chat dataIn', error)
@@ -356,14 +356,14 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
     }
 
     // Cast to full type (we've ensured humanHaid is present)
-    const fullDataIn: EsnadSupportChatDataIn = dataIn as EsnadSupportChatDataIn
+    const fullDataIn: altrpSupportChatDataIn = dataIn as altrpSupportChatDataIn
 
     // Update chat with new dataIn
     const updatedChat = await this.update(chat.uuid, { 
       dataIn: fullDataIn as any,
       updatedAt: new Date() 
     });
-    return updatedChat as EsnadSupportChat;
+    return updatedChat as altrpSupportChat;
   }
 
   /**

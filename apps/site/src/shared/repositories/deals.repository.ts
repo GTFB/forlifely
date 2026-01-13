@@ -18,7 +18,7 @@ import {
     JournalLoanApplicationSnapshot,
     Client,
     LoanApplicationDecision,
-} from "../types/esnad";
+} from "../types/altrp";
 import { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 import { buildDbFilters, buildDbOrders, withNotDeleted } from "./utils";
 import { eq, sql, or, like, and, isNull, inArray } from "drizzle-orm";
@@ -33,7 +33,7 @@ import {
     PaymentScheduleInput,
     PaymentLimitsConfig,
     IsoDate,
-} from "../types/esnad-finance";
+} from "../types/altrp-finance";
 import { ScoringWeights } from "../types/scoring";
 import { SettingsRepository } from "./settings.repository";
 import { buildAdminNewLoanApplicationEmailHtml } from "../services/email-templates.service";

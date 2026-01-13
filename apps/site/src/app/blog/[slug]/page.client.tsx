@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Facebook, Twitter, Linkedin, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { EsnadText } from "@/shared/types/esnad";
+import { altrpText } from "@/shared/types/altrp";
 
 type BlogPostPageClientProps = {
   slug: string;
-  post: EsnadText;
+  post: altrpText;
   url: string;
 };
 

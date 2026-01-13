@@ -6,7 +6,7 @@ import { UsersRepository } from "@/shared/repositories/users.repository"
 import {
     LoanApplication,
     LoanApplicationDataIn,
-} from "@/shared/types/esnad"
+} from "@/shared/types/altrp"
 import { BadRequestError, loanDecisionCorsHeaders } from "../decision-handler"
 import type { Env } from '@/shared/types'
 import { withAdminGuard } from '@/shared/api-guard'

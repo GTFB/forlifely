@@ -1,5 +1,5 @@
 import { systemSeed } from './system'
-import { esnadSeed } from './esnad'
+import { altrpSeed } from './altrp'
 
 export type SeedMeta = {
   name: string
@@ -26,8 +26,8 @@ export const seeds: SeedDefinition[] = [
     data: systemSeed as unknown as SeedData,
   },
   {
-    id: 'esnad',
-    data: esnadSeed as unknown as SeedData,
+    id: 'altrp',
+    data: altrpSeed as unknown as SeedData,
   },
 ]
 

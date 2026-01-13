@@ -2,11 +2,11 @@ import { eq, and, asc, sql } from 'drizzle-orm'
 import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
 import { Wallet } from '../schema/types'
-import { EsnadWallet, NewEsnadWallet, EsnadFinance, WalletType } from '../types/esnad-finance'
+import { altrpWallet, NewaltrpWallet, altrpFinance, WalletType } from '../types/altrp-finance'
 import { generateAid } from '../generate-aid'
 import { withNotDeleted, createDb } from './utils'
 import { HumanRepository } from './human.repository'
-import { EsnadHuman } from '../types/esnad'
+import { altrpHuman } from '../types/altrp'
 import { FinancesRepository } from './finances.repository'
 import { logUserJournalEvent } from '../services/user-journal.service'
 import type { Env } from '../types'
@@ -21,7 +21,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
     return new WalletRepository()
   }
 
-  protected async beforeCreate(data: Partial<NewEsnadWallet>): Promise<void> {
+  protected async beforeCreate(data: Partial<NewaltrpWallet>): Promise<void> {
     if (!data.waid) {
       data.waid = generateAid('w')
     }
@@ -58,10 +58,10 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @returns Объект кошелька
    * @throws Error если пользователь не найден или email не подтвержден
    */
-  public async getWalletByHumanHaid(haid: string, type: WalletType = 'CLIENT'): Promise<EsnadWallet> {
+  public async getWalletByHumanHaid(haid: string, type: WalletType = 'CLIENT'): Promise<altrpWallet> {
     // Загружаем human из базы данных
     const humanRepo = HumanRepository.getInstance()
-    const human = (await humanRepo.findByHaid(haid)) as EsnadHuman | null
+    const human = (await humanRepo.findByHaid(haid)) as altrpHuman | null
 
     const usersRepo = UsersRepository.getInstance()
     let role
@@ -102,7 +102,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
       return {
         ...existingWallet,
         human: human || undefined,
-      } as EsnadWallet
+      } as altrpWallet
     }
 
     // Перед созданием кошелька проверяем, подтвержден ли email пользователя
@@ -127,7 +127,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
     }
 
     // Email подтвержден - создаем кошелек
-    const newWallet: NewEsnadWallet = {
+    const newWallet: NewaltrpWallet = {
       uuid: crypto.randomUUID(),
       waid: generateAid('w'),
       targetAid: haid,
@@ -143,13 +143,13 @@ export class WalletRepository extends BaseRepository<Wallet> {
     }
 
     // Автоматически сгенерируется fullWaid в beforeCreate
-    const createdWallet = (await this.create(newWallet)) as EsnadWallet
+    const createdWallet = (await this.create(newWallet)) as altrpWallet
 
     // Добавляем human к результату
     return {
       ...createdWallet,
       human: human || undefined,
-    } as EsnadWallet
+    } as altrpWallet
   }
 
   /**
@@ -158,8 +158,8 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @param amountKopecks - Сумма изменения в копейках (положительная для пополнения, отрицательная для списания)
    * @returns Обновленный кошелек
    */
-  public async updateBalance(walletUuid: string, amountKopecks: number): Promise<EsnadWallet> {
-    const wallet = (await this.findByUuid(walletUuid)) as EsnadWallet | null
+  public async updateBalance(walletUuid: string, amountKopecks: number): Promise<altrpWallet> {
+    const wallet = (await this.findByUuid(walletUuid)) as altrpWallet | null
 
     if (!wallet) {
       throw new Error(`Wallet with uuid ${walletUuid} not found`)
@@ -190,7 +190,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
         balance: newBalanceRubles, // Для обратной совместимости
         lastUpdatedAt: new Date().toISOString(),
       },
-    })) as EsnadWallet
+    })) as altrpWallet
 
     return updatedWallet
   }
@@ -201,7 +201,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @returns Текущий баланс в копейках (целое число)
    */
   public async getBalanceKopecks(walletUuid: string): Promise<number> {
-    const wallet = (await this.findByUuid(walletUuid)) as EsnadWallet | null
+    const wallet = (await this.findByUuid(walletUuid)) as altrpWallet | null
 
     if (!wallet) {
       throw new Error(`Wallet with uuid ${walletUuid} not found`)
@@ -235,7 +235,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @param haid - Human AID
    * @returns Массив кошельков
    */
-  public async findAllByHumanHaid(haid: string): Promise<EsnadWallet[]> {
+  public async findAllByHumanHaid(haid: string): Promise<altrpWallet[]> {
     const wallets = await this.db
       .select()
       .from(schema.wallets)
@@ -247,7 +247,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
       )
       .execute()
 
-    return wallets as EsnadWallet[]
+    return wallets as altrpWallet[]
   }
 
   /**
@@ -269,7 +269,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
       throw new Error('Amount must be positive')
     }
 
-    const wallet = (await this.findByUuid(walletUuid)) as EsnadWallet | null
+    const wallet = (await this.findByUuid(walletUuid)) as altrpWallet | null
 
     if (!wallet) {
       throw new Error(`Wallet with uuid ${walletUuid} not found`)
@@ -367,7 +367,7 @@ export class WalletRepository extends BaseRepository<Wallet> {
    * @param env - Environment variables (optional, для логирования событий)
    */
   public async checkAndPayPendingFinances(walletUuid: string, env?: Env): Promise<void> {
-    const wallet = (await this.findByUuid(walletUuid)) as EsnadWallet | null
+    const wallet = (await this.findByUuid(walletUuid)) as altrpWallet | null
 
     if (!wallet) {
       throw new Error(`Wallet with uuid ${walletUuid} not found`)
@@ -396,14 +396,14 @@ export class WalletRepository extends BaseRepository<Wallet> {
       .execute()
 
     // Фильтруем finance по clientAid в dataIn
-    const userFinances: EsnadFinance[] = []
+    const userFinances: altrpFinance[] = []
     for (const finance of pendingFinances) {
       const dataIn = finance.dataIn && typeof finance.dataIn === 'object'
         ? finance.dataIn as any
         : null
       
       if (dataIn?.clientAid === haid) {
-        userFinances.push(finance as EsnadFinance)
+        userFinances.push(finance as altrpFinance)
       }
     }
 

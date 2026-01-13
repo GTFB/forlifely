@@ -13,14 +13,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Link from "next/link";
-import { EsnadText } from "@/shared/types/esnad";
+import { altrpText } from "@/shared/types/altrp";
 
 
 export default function BlogPageComponent({
   blogPosts,
   categories,
 }: {
-  blogPosts: EsnadText[];
+  blogPosts: altrpText[];
   categories: string[];
 }) {
   const [selectedCategory, setSelectedCategory] = React.useState("Все");
@@ -45,7 +45,7 @@ export default function BlogPageComponent({
       <div className="max-w-7xl mx-auto pt-24 py-16 px-6">
         <div className="flex items-end justify-between mb-8">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tighter">
-            Блог Esnad Finance
+            Блог Altrp
           </h1>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger className="w-[180px]">
@@ -85,7 +85,7 @@ export default function BlogPageComponent({
                     <div className="flex items-center gap-2">
                       <div className="size-8 rounded-full bg-muted"></div>
                       <span className="text-muted-foreground font-medium text-sm">
-                        Esnad Finance
+                        Altrp
                       </span>
                     </div>
 

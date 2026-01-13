@@ -6,7 +6,7 @@ import { FileStorageService } from '@/shared/services/file-storage.service'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
-import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
+import type { ClientDataIn, KycDocumentRef } from '@/shared/types/altrp'
 
 /**
  * POST /api/altrp/v1/i/profile/kyc-documents

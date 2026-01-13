@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowLeft, Send, Image as ImageIcon, X, Lock } from 'lucide-react'
-import type { EsnadSupportChat, EsnadSupportMessage } from '@/shared/types/esnad-support'
+import type { altrpSupportChat, altrpSupportMessage } from '@/shared/types/altrp-support'
 import { Input } from '@/components/ui/input'
 import { useConsumerHeader } from '@/components/cabinet/ConsumerHeaderContext'
 import { useRoomSocket } from '@/hooks/use-user-socket'
@@ -16,8 +16,8 @@ import { SupportMessage } from '@/components/support/SupportMessage'
 import Link from 'next/link'
 
 interface ChatDetail {
-  chat: EsnadSupportChat
-  messages: EsnadSupportMessage[]
+  chat: altrpSupportChat
+  messages: altrpSupportMessage[]
 }
 
 export default function SupportChatPageClient() {
@@ -25,8 +25,8 @@ export default function SupportChatPageClient() {
   const router = useRouter()
   const maid = params.maid as string
   const { setTitle, setBreadcrumbItems } = useConsumerHeader()
-  const [chat, setChat] = React.useState<EsnadSupportChat | null>(null)
-  const [messages, setMessages] = React.useState<EsnadSupportMessage[]>([])
+  const [chat, setChat] = React.useState<altrpSupportChat | null>(null)
+  const [messages, setMessages] = React.useState<altrpSupportMessage[]>([])
   const [loading, setLoading] = React.useState(true)
   const [loadingMessages, setLoadingMessages] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -100,7 +100,7 @@ export default function SupportChatPageClient() {
         throw new Error('Failed to load messages')
       }
 
-      const data = await response.json() as { success?: boolean; data?: { messages: EsnadSupportMessage[], pagination: { hasMore: boolean } } }
+      const data = await response.json() as { success?: boolean; data?: { messages: altrpSupportMessage[], pagination: { hasMore: boolean } } }
       if (data.data) {
         // Messages come sorted by createdAt desc (newest first), but we need to reverse for display
         const reversedMessages = [...data.data.messages].reverse()
@@ -229,7 +229,7 @@ export default function SupportChatPageClient() {
         return
       }
 
-      const data = await response.json() as { success?: boolean; data?: { messages: EsnadSupportMessage[] } }
+      const data = await response.json() as { success?: boolean; data?: { messages: altrpSupportMessage[] } }
       if (data.success && data.data?.messages && data.data.messages.length > 0) {
         // Reverse messages to maintain order (newest at bottom)
         const reversedNewMessages = [...data.data.messages].reverse()

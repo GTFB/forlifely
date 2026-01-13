@@ -51,9 +51,9 @@ export default function ContactPage() {
               </p>
               <Link
                 className="font-medium text-primary hover:underline"
-                href="mailto:info@esnadfinance.ru"
+                href="mailto:info@altrpfinance.ru"
               >
-                info@esnadfinance.ru
+                info@altrpfinance.ru
               </Link>
             </div>
 

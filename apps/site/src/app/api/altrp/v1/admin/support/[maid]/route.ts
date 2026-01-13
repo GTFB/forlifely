@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportChat, EsnadSupportChatDataIn } from '@/shared/types/esnad-support'
+import { altrpSupportChat, altrpSupportChatDataIn } from '@/shared/types/altrp-support'
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
@@ -44,18 +44,18 @@ const handleGet = async (
     const messages = await messagesRepository.findByChatMaid(maid)
 
     // Parse dataIn for chat
-    let chatDataIn: EsnadSupportChatDataIn | null = null
+    let chatDataIn: altrpSupportChatDataIn | null = null
     if (chat.dataIn) {
       try {
         chatDataIn = typeof chat.dataIn === 'string'
-          ? JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
-          : chat.dataIn as EsnadSupportChatDataIn
+          ? JSON.parse(chat.dataIn) as altrpSupportChatDataIn
+          : chat.dataIn as altrpSupportChatDataIn
       } catch (error) {
         console.error('Failed to parse chat dataIn', error)
       }
     }
 
-    const parsedChat: EsnadSupportChat = {
+    const parsedChat: altrpSupportChat = {
       ...chat,
       dataIn: chatDataIn || { humanHaid: '' },
       type: 'SUPPORT' as const,

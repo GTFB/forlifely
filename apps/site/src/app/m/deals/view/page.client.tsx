@@ -33,7 +33,7 @@ import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock, Al
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/AdminHeader'
-import { EsnadHuman } from '@/shared/types/esnad'
+import { altrpHuman } from '@/shared/types/altrp'
 import Link from 'next/link'
 import qs from 'qs'
 import {
@@ -43,7 +43,7 @@ import {
 import {
   LoanApplication,
   LoanApplicationDataIn,
-} from '@/shared/types/esnad'
+} from '@/shared/types/altrp'
 
 
 export default function DealDetailPageClient() {
@@ -57,9 +57,9 @@ export default function DealDetailPageClient() {
   const [documentMetadata, setDocumentMetadata] = React.useState<Record<string, { fileName: string }>>({})
   const [humanKycDocuments, setHumanKycDocuments] = React.useState<Array<{ mediaUuid: string; type: string; uploadedAt?: string }>>([])
   const [submitting, setSubmitting] = React.useState(false)
-  const [humanClient, setHumanClient] = React.useState<EsnadHuman | null>(null)
-  const [guarantor1, setGuarantor1] = React.useState<EsnadHuman | null>(null)
-  const [guarantor2, setGuarantor2] = React.useState<EsnadHuman | null>(null)
+  const [humanClient, setHumanClient] = React.useState<altrpHuman | null>(null)
+  const [guarantor1, setGuarantor1] = React.useState<altrpHuman | null>(null)
+  const [guarantor2, setGuarantor2] = React.useState<altrpHuman | null>(null)
   const [loadingGuarantors, setLoadingGuarantors] = React.useState(false)
   const [userInfo, setUserInfo] = React.useState<Record<string, { fullName: string | null; email: string }>>({})
   const [actionError, setActionError] = React.useState<string | null>(null)
@@ -198,7 +198,7 @@ export default function DealDetailPageClient() {
                   const kycDocuments = dataIn?.kycDocuments || []
                   // Use all KYC documents so we can show selfie, selfie_with_passport, passport_registration, income certificates, etc.
                   setHumanKycDocuments(kycDocuments)
-                  setHumanClient(humanData.human as EsnadHuman)
+                  setHumanClient(humanData.human as altrpHuman)
 
                   // Load guarantors if haids are available
                   const guarantor1Haid = dataIn?.guarantor1Haid
@@ -216,7 +216,7 @@ export default function DealDetailPageClient() {
                           })
                             .then(async (res) => {
                               if (res.ok) {
-                                const guarantorData = await res.json() as { success: boolean; human?: EsnadHuman }
+                                const guarantorData = await res.json() as { success: boolean; human?: altrpHuman }
                                 if (guarantorData.success && guarantorData.human) {
                                   setGuarantor1(guarantorData.human)
                                 }
@@ -233,7 +233,7 @@ export default function DealDetailPageClient() {
                           })
                             .then(async (res) => {
                               if (res.ok) {
-                                const guarantorData = await res.json() as { success: boolean; human?: EsnadHuman }
+                                const guarantorData = await res.json() as { success: boolean; human?: altrpHuman }
                                 if (guarantorData.success && guarantorData.human) {
                                   setGuarantor2(guarantorData.human)
                                 }

@@ -1,12 +1,12 @@
 import type { Env } from '@/shared/types'
-import type { EsnadUser, EsnadUserJournalActions, NewEsnadUserJournal } from '@/shared/types/esnad'
+import type { altrpUser, altrpUserJournalActions, NewaltrpUserJournal } from '@/shared/types/altrp'
 import { JournalsRepository } from '@/shared/repositories/journals.repository'
 
-type MinimalUser = Pick<EsnadUser, 'id' | 'uuid' | 'email' | 'humanAid' | 'dataIn'>
+type MinimalUser = Pick<altrpUser, 'id' | 'uuid' | 'email' | 'humanAid' | 'dataIn'>
 
 export const logUserJournalEvent = async (
   env: Env,
-  action: EsnadUserJournalActions,
+  action: altrpUserJournalActions,
   user: MinimalUser,
   extraDetails?: Record<string, unknown>,
 ): Promise<void> => {

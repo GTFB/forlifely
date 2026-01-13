@@ -4,7 +4,7 @@ import { schema } from '@/shared/schema'
 import { createDb } from '@/shared/repositories/utils'
 import { eq, and, desc } from 'drizzle-orm'
 import { withNotDeleted } from '@/shared/repositories/utils'
-import { WalletType } from '@/shared/types/esnad-finance'
+import { WalletType } from '@/shared/types/altrp-finance'
 
 export async function GET(
   request: NextRequest,

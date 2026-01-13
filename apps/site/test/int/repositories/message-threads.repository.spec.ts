@@ -5,7 +5,7 @@ import { MessageThreadsRepository } from "@/shared/repositories/message-threads.
 import { MessagesRepository } from "@/shared/repositories/messages.repository";
 import { UsersRepository } from "@/shared/repositories/users.repository";
 import { HumanRepository } from "@/shared/repositories/human.repository";
-import { EsnadSupportChat, EsnadSupportMessage } from "@/shared/types/esnad-support";
+import { altrpSupportChat, altrpSupportMessage } from "@/shared/types/altrp-support";
 import { generateAid } from "@/shared/generate-aid";
 import { buildRequestEnv } from "@/shared/env";
 

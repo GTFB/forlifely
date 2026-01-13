@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { withAdminGuard, type AuthenticatedRequestContext } from "@/shared/api-guard"
 import { MeRepository } from "@/shared/repositories/me.repository"
 import { HumanRepository } from "@/shared/repositories/human.repository"
-import type { ClientDataIn } from "@/shared/types/esnad"
+import type { ClientDataIn } from "@/shared/types/altrp"
 
 type UpdateAdminProfileRequest = {
   firstName?: string

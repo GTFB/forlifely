@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { DealsRepository } from '@/shared/repositories/deals.repository'
-import type { LoanApplication, LoanApplicationDataIn } from '@/shared/types/esnad'
+import type { LoanApplication, LoanApplicationDataIn } from '@/shared/types/altrp'
 
 interface UpdatePriorityRequest {
   uuid: string

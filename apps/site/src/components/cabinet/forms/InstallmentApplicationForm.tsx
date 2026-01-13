@@ -25,7 +25,7 @@ import {
 import { Loader2, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { useMe } from '@/providers/MeProvider'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
-import { EsnadHuman } from '@/shared/types/esnad'
+import { altrpHuman } from '@/shared/types/altrp'
 import { Progress } from '@/components/ui/progress'
 import dynamic from 'next/dynamic'
 import type { Value as E164Number } from 'react-phone-number-input'
@@ -264,7 +264,7 @@ export function InstallmentApplicationForm({
   submitMethod = 'POST',
   successRedirectUrl = '/c/deals',
 }: {
-  human?: EsnadHuman
+  human?: altrpHuman
   initialValues?: Partial<FormData>
   submitUrl?: string
   submitMethod?: 'POST' | 'PUT' | 'PATCH'

@@ -13,7 +13,7 @@ import {
     LoanApplicationDataIn,
     NewInvestorsFormDeal,
     NewLoanApplication,
-} from "../types/esnad";
+} from "../types/altrp";
 import { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 import { buildDbFilters, buildDbOrders, withNotDeleted } from "./utils";
 import { sql } from "drizzle-orm";

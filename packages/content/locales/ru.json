@@ -280,6 +280,7 @@
     "applyJson": "Применить JSON",
     "selectFile": "Выберите файл",
     "fileNotSelected": "Файл не выбран",
+    "addField": "Добавить поле",
     "width": "Ширина",
     "widthAuto": "Авто",
     "widthReset": "Сбросить",
@@ -295,7 +296,7 @@
         "is_system": "Системная роль",
         "order": "Порядок",
         "suffix": "Суффикс",
-        "xaid": "Проект",
+        "xaid": "Проекты",
         "created_at": "Создано",
         "updated_at": "Обновлено",
         "data_in": "Данные (JSON)"

@@ -4,35 +4,35 @@ import {
     NewMessage,
     NewMessageThread,
  } from '../schema/types'
-import { EsnadHuman } from './esnad'
+import { altrpHuman } from './altrp'
 
-export interface EsnadSupportMessage extends Message {
-    dataIn: EsnadSupportMessageDataIn
+export interface altrpSupportMessage extends Message {
+    dataIn: altrpSupportMessageDataIn
 }
-export interface NewEsnadSupportMessage extends NewMessage {
-    dataIn: EsnadSupportMessageDataIn
+export interface NewaltrpSupportMessage extends NewMessage {
+    dataIn: altrpSupportMessageDataIn
 }
-export interface EsnadSupportMessageDataIn {
-    humanHaid: EsnadHuman['haid']
+export interface altrpSupportMessageDataIn {
+    humanHaid: altrpHuman['haid']
     content: string
-    messageType: EsnadSupportMessageType
+    messageType: altrpSupportMessageType
     mediaUuid?: string // UUID of uploaded media file (for photo/document messages)
     sender_role: 'admin' | 'client'
     admin_viewed_at?: string
     client_viewed_at?: string
 }
-export type EsnadSupportMessageType = 'text' | 'voice' | 'photo' | 'document'
+export type altrpSupportMessageType = 'text' | 'voice' | 'photo' | 'document'
 
-export interface EsnadSupportChat extends MessageThread {
+export interface altrpSupportChat extends MessageThread {
     type: 'SUPPORT'
-    dataIn: EsnadSupportChatDataIn
+    dataIn: altrpSupportChatDataIn
 
 }
-export interface NewEsnadSupportChat extends NewMessageThread {
-    dataIn?: EsnadSupportChatDataIn
+export interface NewaltrpSupportChat extends NewMessageThread {
+    dataIn?: altrpSupportChatDataIn
     type: 'SUPPORT'
 }
-export interface EsnadSupportChatDataIn {
-    humanHaid: EsnadHuman['haid']
-    managerHaid?: EsnadHuman['haid']
+export interface altrpSupportChatDataIn {
+    humanHaid: altrpHuman['haid']
+    managerHaid?: altrpHuman['haid']
 }

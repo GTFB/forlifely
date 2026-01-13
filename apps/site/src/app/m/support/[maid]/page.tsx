@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowLeft, Send, Image as ImageIcon, X, Lock, LockOpen } from 'lucide-react'
-import type { EsnadSupportChat, EsnadSupportMessage } from '@/shared/types/esnad-support'
+import type { altrpSupportChat, altrpSupportMessage } from '@/shared/types/altrp-support'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AdminHeader } from '@/components/admin/AdminHeader'
@@ -23,16 +23,16 @@ import {
 } from '@/components/ui/select'
 
 interface ChatDetail {
-  chat: EsnadSupportChat
-  messages: EsnadSupportMessage[]
+  chat: altrpSupportChat
+  messages: altrpSupportMessage[]
 }
 
 export default function AdminSupportChatPage() {
   const params = useParams()
   const router = useRouter()
   const maid = params.maid as string
-  const [chat, setChat] = React.useState<EsnadSupportChat | null>(null)
-  const [messages, setMessages] = React.useState<EsnadSupportMessage[]>([])
+  const [chat, setChat] = React.useState<altrpSupportChat | null>(null)
+  const [messages, setMessages] = React.useState<altrpSupportMessage[]>([])
   const [loading, setLoading] = React.useState(true)
   const [loadingMessages, setLoadingMessages] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -120,7 +120,7 @@ export default function AdminSupportChatPage() {
         throw new Error('Failed to load messages')
       }
 
-      const data = await response.json() as { success?: boolean; data?: { messages: EsnadSupportMessage[], pagination: { hasMore: boolean } } }
+      const data = await response.json() as { success?: boolean; data?: { messages: altrpSupportMessage[], pagination: { hasMore: boolean } } }
       if (data.data) {
         // Messages come sorted by createdAt desc (newest first), but we need to reverse for display
         const reversedMessages = [...data.data.messages].reverse()
@@ -457,7 +457,7 @@ React.useEffect(() => {
         throw new Error(data.message || data.error || 'Failed to assign manager')
       }
 
-      const data = await response.json() as { success?: boolean; data?: EsnadSupportChat }
+      const data = await response.json() as { success?: boolean; data?: altrpSupportChat }
       if (data.data) {
         setChat(data.data)
       }

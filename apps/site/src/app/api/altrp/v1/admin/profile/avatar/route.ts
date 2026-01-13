@@ -3,7 +3,7 @@ import { withAdminGuard, type AuthenticatedRequestContext } from "@/shared/api-g
 import { MeRepository } from "@/shared/repositories/me.repository"
 import { HumanRepository } from "@/shared/repositories/human.repository"
 import { FileStorageService } from "@/shared/services/file-storage.service"
-import type { ClientDataIn } from "@/shared/types/esnad"
+import type { ClientDataIn } from "@/shared/types/altrp"
 
 function parseHumanDataIn(dataIn: unknown): ClientDataIn & Record<string, any> {
   if (!dataIn) return {}

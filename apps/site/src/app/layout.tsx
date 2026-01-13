@@ -15,8 +15,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://esnad.ru'),
-  title: "Esnad Finance",
+  metadataBase: new URL('https://altrp.ru'),
+  title: "Altrp",
   description: "Financial Solutions and Investment Platform",
   keywords: [
     "finance",
@@ -32,27 +32,27 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    siteName: "Esnad Finance",
+    siteName: "Altrp",
     locale: "ru_RU",
-    url: "https://esnad.ru",
-    title: "Esnad Finance - Financial Solutions and Investment Platform",
+    url: "https://altrp.ru",
+    title: "Altrp - Financial Solutions and Investment Platform",
     description: "Financial Solutions and Investment Platform",
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Esnad Finance",
+        alt: "Altrp",
       },
     ],
   },
   authors: [
     {
-      name: "Esnad Finance",
-      url: "https://esnad.ru",
+      name: "Altrp",
+      url: "https://altrp.ru",
     },
   ],
-  creator: "Esnad Finance",
+  creator: "Altrp",
   icons: [
     {
       rel: "icon",
@@ -88,7 +88,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Esnad Finance" />
+        <meta name="apple-mobile-web-app-title" content="Altrp" />
       </head>
 
       <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>

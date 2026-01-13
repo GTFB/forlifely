@@ -23,7 +23,7 @@ import { Search, Loader2 } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { EsnadSupportChat } from '@/shared/types/esnad-support'
+import { altrpSupportChat } from '@/shared/types/altrp-support'
 import { useAdminSocketEvent } from '@/components/admin/AdminSocketProvider'
 import { cn } from '@/lib/utils'
 import { useNotice } from '@/components/admin/AdminNoticesProvider'
@@ -37,7 +37,7 @@ interface Operator {
 
 export default function AdminSupportPageClient() {
   const router = useRouter()
-  const [tickets, setTickets] = React.useState<EsnadSupportChat[]>([])
+  const [tickets, setTickets] = React.useState<altrpSupportChat[]>([])
   const [operators, setOperators] = React.useState<Operator[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -73,7 +73,7 @@ export default function AdminSupportPageClient() {
         fullName: string | null
       }> }
       
-      const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
+      const ticketsData = await ticketsResponse.json() as { docs: altrpSupportChat[]; pagination: any }
       
       setOperators(operatorsData.docs.map(op => ({
         uuid: op.uuid,
@@ -117,7 +117,7 @@ export default function AdminSupportPageClient() {
         fullName: string | null
       }> }
       
-      const ticketsData = await ticketsResponse.json() as { docs: EsnadSupportChat[]; pagination: any }
+      const ticketsData = await ticketsResponse.json() as { docs: altrpSupportChat[]; pagination: any }
       
       setOperators(operatorsData.docs.map(op => ({
         uuid: op.uuid,

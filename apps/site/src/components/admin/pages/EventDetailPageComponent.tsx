@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { EsnadJournal } from '@/shared/types/esnad'
+import { altrpJournal } from '@/shared/types/altrp'
 
 interface EventDetailPageComponentProps {
-  journal: EsnadJournal
+  journal: altrpJournal
 }
 
 export default function EventDetailPageComponent({ journal }: EventDetailPageComponentProps) {

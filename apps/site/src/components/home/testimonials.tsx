@@ -25,7 +25,7 @@ export default function Testimonials() {
                         <CardContent>
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p className="text-xl font-medium">
-                                    Esnad Finance помог нам предложить нашим клиентам честную рассрочку без переплат. Это значительно увеличило наши продажи и улучшило удовлетворенность клиентов. Прозрачность и этичность - это именно то, чего не хватало на рынке.
+                                    Altrp помог нам предложить нашим клиентам честную рассрочку без переплат. Это значительно увеличило наши продажи и улучшило удовлетворенность клиентов. Прозрачность и этичность - это именно то, чего не хватало на рынке.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] items-center gap-3">
@@ -53,7 +53,7 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p className="text-xl font-medium">
-                                    Инвестирую через Esnad Finance уже полгода. Платформа действительно прозрачная, все операции видны в личном кабинете. Доходность стабильная, а главное - я знаю, что мои деньги работают в реальном бизнесе.
+                                    Инвестирую через Altrp уже полгода. Платформа действительно прозрачная, все операции видны в личном кабинете. Доходность стабильная, а главное - я знаю, что мои деньги работают в реальном бизнесе.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] items-center gap-3">
@@ -80,7 +80,7 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p>
-                                    Купил ноутбук в рассрочку через Esnad Finance. Без скрытых комиссий, без переплат. Все честно и прозрачно. Одобрение получил за час, деньги перевели в магазин в тот же день.
+                                    Купил ноутбук в рассрочку через Altrp. Без скрытых комиссий, без переплат. Все честно и прозрачно. Одобрение получил за час, деньги перевели в магазин в тот же день.
                                 </p>
 
                                 <div className="grid items-center gap-3 [grid-template-columns:auto_1fr]">
@@ -107,7 +107,7 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p>
-                                    Работаем с Esnad Finance как партнеры уже год. Интеграция простая, выплаты стабильные. Клиенты довольны возможностью рассрочки, а мы - ростом среднего чека.
+                                    Работаем с Altrp как партнеры уже год. Интеграция простая, выплаты стабильные. Клиенты довольны возможностью рассрочки, а мы - ростом среднего чека.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] gap-3">

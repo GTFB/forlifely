@@ -1,5 +1,5 @@
 import type { Env } from '@/shared/types'
-import type { EsnadUser, EsnadUserData } from '@/shared/types/esnad'
+import type { altrpUser, altrpUserData } from '@/shared/types/altrp'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { sendEmail } from './email.service'
 
@@ -21,24 +21,24 @@ const hashToken = async (token: string): Promise<string> => {
     .join('')
 }
 
-const parseUserData = (user: EsnadUser): EsnadUserData => {
+const parseUserData = (user: altrpUser): altrpUserData => {
   if (!user.dataIn) return {}
 
   if (typeof user.dataIn === 'string') {
     try {
-      return JSON.parse(user.dataIn) as EsnadUserData
+      return JSON.parse(user.dataIn) as altrpUserData
     } catch {
       return {}
     }
   }
 
-  return user.dataIn as EsnadUserData
+  return user.dataIn as altrpUserData
 }
 
 const buildBaseUrl = (env: Env, request?: Request): string => {
   if (env.PUBLIC_SITE_URL) return env.PUBLIC_SITE_URL
   if (request) return new URL(request.url).origin
-  return 'https://esnad.local'
+  return 'https://altrp.local'
 }
 
 const buildResetLink = (baseUrl: string, email: string, token: string): string => {
@@ -235,7 +235,7 @@ const buildResetEmailHtml = (resetLink: string, locale: string): string => {
 
 export const sendPasswordResetEmail = async (
   env: Env,
-  user: EsnadUser,
+  user: altrpUser,
   options: { request?: Request; force?: boolean; locale?: string } = {},
 ): Promise<{ resendAvailableAt?: string }> => {
   const usersRepository = UsersRepository.getInstance()
@@ -249,7 +249,7 @@ export const sendPasswordResetEmail = async (
   const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
   const hashedToken = await hashToken(token)
 
-  const nextDataIn: EsnadUserData = {
+  const nextDataIn: altrpUserData = {
     ...dataIn,
     passwordReset: {
       tokenHash: hashedToken,
@@ -282,7 +282,7 @@ export const sendPasswordResetEmail = async (
 }
 
 export const verifyPasswordResetToken = async (
-  user: EsnadUser,
+  user: altrpUser,
   token: string,
 ): Promise<void> => {
   const dataIn = parseUserData(user)

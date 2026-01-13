@@ -71,7 +71,7 @@ export default function PartnersPage() {
       <section className="min-h-[60vh] flex items-center justify-center px-6 pt-24 py-16 md:py-32">
         <div className="text-center max-w-3xl">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tighter mb-6">
-            Увеличьте продажи с Esnad Finance
+            Увеличьте продажи с Altrp
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-8">
             Привлекайте новую платежеспособную аудиторию и увеличивайте средний чек

@@ -286,6 +286,7 @@
       "applyJson": "Primeni JSON",
       "selectFile": "Izaberi fajl",
       "fileNotSelected": "Fajl nije izabran",
+      "addField": "Dodaj polje",
       "width": "Širina",
       "widthAuto": "Auto",
       "widthReset": "Resetuj",

@@ -285,6 +285,7 @@
     "applyJson": "Apply JSON",
     "selectFile": "Select file",
     "fileNotSelected": "No file selected",
+    "addField": "Add field",
     "width": "Width",
     "widthAuto": "Auto",
     "widthReset": "Reset",

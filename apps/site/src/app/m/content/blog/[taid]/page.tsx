@@ -26,7 +26,7 @@ import {
 import { Loader2, Save, ArrowLeft, Plus } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { slugify } from '@/lib/slugify'
-import { EsnadText, TaxonomyOption } from '@/shared/types/esnad'
+import { altrpText, TaxonomyOption } from '@/shared/types/altrp'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DateTimePicker } from '@/components/ui/date-time-picker'
 
@@ -137,7 +137,7 @@ export default function AdminBlogEditPage() {
         throw new Error('Failed to fetch blog post')
       }
 
-      const data = await response.json() as { success: boolean; text: EsnadText }
+      const data = await response.json() as { success: boolean; text: altrpText }
       if (data.success && data.text) {
         const text = data.text
         const dataIn = text.dataIn || {}
@@ -204,7 +204,7 @@ export default function AdminBlogEditPage() {
         content: formData.content,
         dataIn: {
           slug: formData.slug.trim(),
-          author: formData.author.trim() || 'Esnad Finance',
+          author: formData.author.trim() || 'Altrp',
           readTime: formData.readTime || 0,
           date: formData.date.toISOString(),
         },
@@ -229,7 +229,7 @@ export default function AdminBlogEditPage() {
         throw new Error(errorData.message || errorData.error || 'Failed to save blog post')
       }
 
-      const data = await response.json() as { success?: boolean; text?: EsnadText; message?: string }
+      const data = await response.json() as { success?: boolean; text?: altrpText; message?: string }
       if (data.success) {
         setSuccess(true)
         setTimeout(() => {

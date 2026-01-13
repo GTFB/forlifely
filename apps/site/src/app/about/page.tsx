@@ -117,14 +117,14 @@ export default function AboutPage() {
       {/* Mission Section */}
       <section className="pt-24 py-16 md:py-32">
         <div className="mx-auto max-w-5xl px-6">
-          <h1 className="text-4xl md:text-5xl font-medium mb-8">О Esnad Finance</h1>
+          <h1 className="text-4xl md:text-5xl font-medium mb-8">О Altrp</h1>
           <div className="grid gap-6 md:grid-cols-2 md:gap-12">
             <blockquote className="text-2xl md:text-3xl font-medium border-l-4 border-primary pl-6">
               Наша миссия — сделать финансовые услуги доступными, прозрачными и этичными для всех.
             </blockquote>
             <div className="space-y-6">
               <p className="text-muted-foreground">
-                Esnad Finance — это финансовая платформа, работающая по принципам исламского финансирования.
+                Altrp — это финансовая платформа, работающая по принципам исламского финансирования.
                 Мы предлагаем рассрочку без процентов и инвестиционные продукты, соответствующие нормам Шариата.
               </p>
               <p className="text-muted-foreground">

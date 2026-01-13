@@ -13,24 +13,24 @@ import {
     Relation,
     NewRelation,
 } from '../schema/types'
-import { EsnadMedia } from './esnad-finance'
+import { altrpMedia } from './altrp-finance'
 
-export interface EsnadHuman extends Human {
-    dataIn: EsnadHumanData
-    user?: EsnadUser
+export interface altrpHuman extends Human {
+    dataIn: altrpHumanData
+    user?: altrpUser
 }
 
-export interface EsnadUser extends User {
-    human?: EsnadHuman
+export interface altrpUser extends User {
+    human?: altrpHuman
 }
 
-export interface NewEsnadHuman extends NewHuman {
-    dataIn: EsnadHumanData
+export interface NewaltrpHuman extends NewHuman {
+    dataIn: altrpHumanData
 }
 
-export interface EsnadHumanData {
+export interface altrpHumanData {
     phone?: string
-    avatarMedia?: Partial<EsnadMedia> | null
+    avatarMedia?: Partial<altrpMedia> | null
     firstName?: string
     lastName?: string
     middleName?: string
@@ -43,11 +43,11 @@ export interface DealDataIn {
 /**
  * пользователь
  */
-export interface EsnadUser extends User {
-    dataIn: EsnadUserData
+export interface altrpUser extends User {
+    dataIn: altrpUserData
 }
-export interface NewEsnadUser extends NewUser {
-    dataIn: EsnadUserData
+export interface NewaltrpUser extends NewUser {
+    dataIn: altrpUserData
 }
 export interface EmailVerificationState {
     tokenHash?: string
@@ -55,27 +55,27 @@ export interface EmailVerificationState {
     lastSentAt?: string
 }
 
-export interface EsnadUserData {
+export interface altrpUserData {
     emailVerification?: EmailVerificationState
     [key: string]: unknown
 }
-export interface EsnadJournal extends Journal {
+export interface altrpJournal extends Journal {
 }
-export interface NewEsnadJournal extends NewJournal {
+export interface NewaltrpJournal extends NewJournal {
 }
-export interface EsnadJournalDataIn {
+export interface altrpJournalDataIn {
     [key: string]: unknown
 }
-export interface EsnadUserJournal extends EsnadJournal {
-    action: EsnadUserJournalActions
-    details: EsnadUserJournalDetails
+export interface altrpUserJournal extends altrpJournal {
+    action: altrpUserJournalActions
+    details: altrpUserJournalDetails
 
 }
-export interface NewEsnadUserJournal extends NewEsnadJournal {
-    action: EsnadUserJournalActions
-    details: EsnadUserJournalDetails
+export interface NewaltrpUserJournal extends NewaltrpJournal {
+    action: altrpUserJournalActions
+    details: altrpUserJournalDetails
 }
-export type EsnadUserJournalActions = 
+export type altrpUserJournalActions = 
     'USER_JOURNAL_REGISTRATION' |
     'USER_JOURNAL_LOGIN' |
     'USER_JOURNAL_LOGOUT' |
@@ -88,7 +88,7 @@ export type EsnadUserJournalActions =
     'USER_JOURNAL_FINANCE_PAID' |
     'USER_JOURNAL_SUPPORT_CHAT_CREATED' |
     'USER_JOURNAL_ADMIN_OCR_OVERRIDE'
-export interface EsnadUserJournalDetails {
+export interface altrpUserJournalDetails {
     user: {
         uuid: string
         email: string
@@ -133,23 +133,23 @@ export interface GuarantorRelationDataIn {
 export interface GuarantorRelation extends Omit<Relation, 'dataIn'> {
     type: 'GUARANTOR'
     sourceEntity: LoanApplication['daid']
-    targetEntity: EsnadHuman['haid']
+    targetEntity: altrpHuman['haid']
     dataIn?: GuarantorRelationDataIn | null
 }
 export interface NewGuarantorRelation extends Omit<NewRelation, 'dataIn'> {
     type: 'GUARANTOR'
     sourceEntity: LoanApplication['daid']
-    targetEntity: EsnadHuman['haid']
+    targetEntity: altrpHuman['haid']
     dataIn?: GuarantorRelationDataIn | null
 }
 
-export interface GuarantorHuman extends EsnadHuman {
+export interface GuarantorHuman extends altrpHuman {
     dataIn: GuarantorHumanDataIn
 }
-export interface NewGuarantorHuman extends NewEsnadHuman {
+export interface NewGuarantorHuman extends NewaltrpHuman {
     dataIn: GuarantorHumanDataIn
 }
-export interface GuarantorHumanDataIn extends EsnadHumanData {
+export interface GuarantorHumanDataIn extends altrpHumanData {
     phone: string
 }
 /**
@@ -175,7 +175,7 @@ export interface NewLoanApplication extends NewDeal {
 
 export interface LoanApplicationDataIn {
     type: 'LOAN_APPLICATION'
-    managerUuid?: EsnadUser['uuid']
+    managerUuid?: altrpUser['uuid']
     firstName: string
     lastName: string
     phone: string
@@ -338,12 +338,12 @@ export interface TaxonomyResponse {
 
 export type ClientStatus = 'PENDING' | 'VERIFIED' | 'REJECTED'
 
-export interface Client extends EsnadHuman {
+export interface Client extends altrpHuman {
     dataIn: ClientDataIn
     statusName: ClientStatus
     type: 'CLIENT'
 }
-export interface NewClient extends NewEsnadHuman {
+export interface NewClient extends NewaltrpHuman {
     dataIn: ClientDataIn
     statusName: ClientStatus
     type: 'CLIENT'
@@ -351,19 +351,19 @@ export interface NewClient extends NewEsnadHuman {
 /**
  * Investor
  */
-export interface Investor extends EsnadHuman {
+export interface Investor extends altrpHuman {
     dataIn: InvestorDataIn
     statusName: InvestorStatus
     type: 'INVESTOR'
     haid: string
 }
-export interface NewInvestor extends NewEsnadHuman {
+export interface NewInvestor extends NewaltrpHuman {
     dataIn: InvestorDataIn
     statusName: InvestorStatus
     type: 'INVESTOR'
     haid: string
 }
-export interface InvestorDataIn extends EsnadHumanData {
+export interface InvestorDataIn extends altrpHumanData {
     kycStatus?: KycStatus
     kycDocuments?: KycDocumentRef[]
 }
@@ -388,7 +388,7 @@ export interface KycDocumentRef {
     }
 }
 
-export interface ClientDataIn extends EsnadHumanData {
+export interface ClientDataIn extends altrpHumanData {
     kycStatus?: KycStatus
     kycDocuments?: KycDocumentRef[]
     guarantor1Haid?: string // HAID первого поручителя
@@ -412,14 +412,14 @@ export interface UpdateProfileKycRequest {
     kycDocuments: KycDocumentRef[]
 }
 
-export interface EsnadText extends Text {
-    dataIn: EsnadTextDataIn
+export interface altrpText extends Text {
+    dataIn: altrpTextDataIn
 }
-export interface NewEsnadText extends Partial<NewText> {
-    dataIn: EsnadTextDataIn
+export interface NewaltrpText extends Partial<NewText> {
+    dataIn: altrpTextDataIn
 }
 
-export interface EsnadTextDataIn {
+export interface altrpTextDataIn {
     slug: string
     date: string
     author: string

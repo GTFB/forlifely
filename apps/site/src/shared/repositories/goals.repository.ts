@@ -7,10 +7,10 @@ import {
   CollectionGoalPriority,
   CollectionGoalType,
   CollectionStage,
-  EsnadFinance,
-  EsnadGoal,
-  NewEsnadGoal,
-} from '../types/esnad-finance'
+  altrpFinance,
+  altrpGoal,
+  NewaltrpGoal,
+} from '../types/altrp-finance'
 import { AdminTaskDataIn } from '../types/tasks'
 import { parseJson, withNotDeleted } from './utils'
 import { desc, eq, inArray } from 'drizzle-orm'
@@ -26,7 +26,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
     return new GoalsRepository()
   }
 
-  protected async beforeCreate(data: Partial<NewEsnadGoal>): Promise<void> {
+  protected async beforeCreate(data: Partial<NewaltrpGoal>): Promise<void> {
     if (!data.gaid) {
       data.gaid = generateAid('g')
     }
@@ -45,7 +45,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
     }
   }
 
-  protected async beforeUpdate(_: string, data: Partial<NewEsnadGoal>): Promise<void> {
+  protected async beforeUpdate(_: string, data: Partial<NewaltrpGoal>): Promise<void> {
     return
   }
 
@@ -120,9 +120,9 @@ export class GoalsRepository extends BaseRepository<Goal> {
   }
 
   public async createCollectionGoalFromFinance(
-    finance: EsnadFinance,
+    finance: altrpFinance,
     data: Partial<CollectionGoalDataIn> & Pick<CollectionGoalDataIn, 'dealAid' | 'financeFaid' | 'overdueDays' | 'deadline'>
-  ): Promise<EsnadGoal> {
+  ): Promise<altrpGoal> {
     const financeDataIn = parseJson<CollectionGoalDataIn | null>(finance.dataIn, null)
 
     const overdueDays = data.overdueDays
@@ -174,7 +174,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
             : 'Юридическое уведомление'
     } по сделке ${goalDataIn.dealAid}. Просрочка: ${overdueDays} дней`
 
-    const newGoal: NewEsnadGoal = {
+    const newGoal: NewaltrpGoal = {
       uuid: crypto.randomUUID(),
       gaid: generateAid('g'),
       fullGaid: generateAid('g'),
@@ -187,7 +187,7 @@ export class GoalsRepository extends BaseRepository<Goal> {
       dataIn: goalDataIn,
     }
 
-    const createdGoal = (await this.create(newGoal)) as EsnadGoal
+    const createdGoal = (await this.create(newGoal)) as altrpGoal
 
     return createdGoal
   }

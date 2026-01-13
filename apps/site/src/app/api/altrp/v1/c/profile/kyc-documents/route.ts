@@ -8,8 +8,8 @@ import { GoogleVisionProvider } from '@/shared/services/recognition/providers/go
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
-import type { ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
-import type { NewEsnadMedia } from '@/shared/types/esnad-finance'
+import type { ClientDataIn, KycDocumentRef } from '@/shared/types/altrp'
+import type { NewaltrpMedia } from '@/shared/types/altrp-finance'
 
 /**
  * POST /api/altrp/v1/c/profile/kyc-documents

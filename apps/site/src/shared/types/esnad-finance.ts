@@ -18,7 +18,7 @@ import {
   Wallet,
   WalletTransaction,
 } from '../schema/types'
-import { EsnadHuman } from './esnad'
+import { altrpHuman } from './altrp'
 
 export type { WalletTransaction }
 
@@ -118,13 +118,13 @@ export interface FinanceDataOut {
   paymentIntents?: PaymentIntent[]
 }
 
-export interface EsnadFinance extends Finance {
+export interface altrpFinance extends Finance {
   statusName: FinanceStatus
   dataIn: FinanceDataIn
   dataOut: FinanceDataOut | null
 }
 
-export interface NewEsnadFinance extends NewFinance {
+export interface NewaltrpFinance extends NewFinance {
   statusName: FinanceStatus
   dataIn: FinanceDataIn
   dataOut?: FinanceDataOut | null
@@ -145,11 +145,11 @@ export interface CollectionGoalDataIn {
   instructions?: string
 }
 
-export interface EsnadGoal extends Goal {
+export interface altrpGoal extends Goal {
   dataIn: CollectionGoalDataIn
 }
 
-export interface NewEsnadGoal extends NewGoal {
+export interface NewaltrpGoal extends NewGoal {
   dataIn: CollectionGoalDataIn
 }
 
@@ -177,22 +177,22 @@ export interface NoticeDataIn {
   retryCount?: number
 }
 
-export interface EsnadNotice extends Notice {
+export interface altrpNotice extends Notice {
   dataIn: NoticeDataIn
 }
 
-export interface EsnadWalletTransaction extends WalletTransaction {
-  dataIn: EsnadWalletTransactionDataIn
+export interface altrpWalletTransaction extends WalletTransaction {
+  dataIn: altrpWalletTransactionDataIn
 }
 
-export interface NewEsnadWalletTransaction extends NewWalletTransaction {
-  dataIn: EsnadWalletTransactionDataIn
+export interface NewaltrpWalletTransaction extends NewWalletTransaction {
+  dataIn: altrpWalletTransactionDataIn
 }
-export interface EsnadWalletTransactionDataIn {
+export interface altrpWalletTransactionDataIn {
   description?: string  | null
   type: string
 }
-export interface NewEsnadNotice extends NewNotice {
+export interface NewaltrpNotice extends NewNotice {
   dataIn: NoticeDataIn
 }
 
@@ -215,11 +215,11 @@ export interface SettingMetadata {
   tags?: string[]
 }
 
-export interface EsnadSetting extends Setting {
+export interface altrpSetting extends Setting {
   dataIn: SettingMetadata
 }
 
-export interface NewEsnadSetting extends NewSetting {
+export interface NewaltrpSetting extends NewSetting {
   dataIn: SettingMetadata
 }
 
@@ -241,11 +241,11 @@ export interface MediaDataIn {
   uploadedByUserUuid?: string
 }
 
-export interface EsnadMedia extends Media {
+export interface altrpMedia extends Media {
   dataIn: MediaDataIn
 }
 
-export interface NewEsnadMedia extends NewMedia {
+export interface NewaltrpMedia extends NewMedia {
   dataIn: MediaDataIn
 }
 
@@ -263,11 +263,11 @@ export interface RelationDataIn {
   notes?: string
 }
 
-export interface EsnadRelation extends Relation {
+export interface altrpRelation extends Relation {
   dataIn: RelationDataIn
 }
 
-export interface NewEsnadRelation extends NewRelation {
+export interface NewaltrpRelation extends NewRelation {
   dataIn: RelationDataIn
 }
 
@@ -307,19 +307,19 @@ export interface PaymentScheduleResult {
   summary: PaymentScheduleSummary
 }
 
-export interface EsnadWallet extends Wallet {
-  dataIn: EsnadWalletDataIn
-  human?: EsnadHuman
+export interface altrpWallet extends Wallet {
+  dataIn: altrpWalletDataIn
+  human?: altrpHuman
 }
-export interface NewEsnadWallet extends NewWallet {
-  dataIn: EsnadWalletDataIn
-  human?: EsnadHuman
+export interface NewaltrpWallet extends NewWallet {
+  dataIn: altrpWalletDataIn
+  human?: altrpHuman
 
 }
 
 export type WalletType = 'CLIENT' | 'INVESTOR'
 
-export interface EsnadWalletDataIn  {
+export interface altrpWalletDataIn  {
   type?: WalletType
   currency?: string
   createdReason?: string

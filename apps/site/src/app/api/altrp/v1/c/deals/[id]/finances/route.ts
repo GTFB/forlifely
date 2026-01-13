@@ -3,7 +3,7 @@ import { DealsRepository } from '@/shared/repositories/deals.repository'
 import { FinancesRepository } from '@/shared/repositories/finances.repository'
 import type { DbFilters, DbOrders } from '@/shared/types/shared'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadFinance } from '@/shared/types/esnad-finance'
+import { altrpFinance } from '@/shared/types/altrp-finance'
 
 /**
  * GET /api/altrp/v1/c/deals/[id]/finances

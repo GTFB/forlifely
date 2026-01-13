@@ -6,7 +6,7 @@ import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
 import { parseJson } from '@/shared/repositories/utils'
 import type { AdminTaskDataIn } from '@/shared/types/tasks'
-import type { EsnadSupportMessageDataIn } from '@/shared/types/esnad-support'
+import type { altrpSupportMessageDataIn } from '@/shared/types/altrp-support'
 
 const jsonHeaders = { 'content-type': 'application/json' }
 
@@ -42,9 +42,9 @@ const handleGet = async (
     const result = await messagesRepository.findByChatMaidPaginated(dataIn.taskThreadMaid, page, limit)
     const parsedMessages = await Promise.all(
       result.messages.map(async (msg) => {
-        const parsed = parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+        const parsed = parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
           (msg as any).dataIn,
-          {} as EsnadSupportMessageDataIn
+          {} as altrpSupportMessageDataIn
         )
         return { ...msg, dataIn: parsed }
       })
@@ -178,9 +178,9 @@ const handlePost = async (
 
     const parsed = {
       ...message,
-      dataIn: parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+      dataIn: parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
         (message as any).dataIn,
-        {} as EsnadSupportMessageDataIn
+        {} as altrpSupportMessageDataIn
       ),
     }
 

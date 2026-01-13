@@ -6,7 +6,7 @@ import { HumanRepository } from '@/shared/repositories/human.repository'
 import { eq, and, isNull, inArray } from 'drizzle-orm'
 import { schema } from '@/shared/schema/schema'
 import { createDb } from '@/shared/repositories/utils'
-import type { GuarantorHuman } from '@/shared/types/esnad'
+import type { GuarantorHuman } from '@/shared/types/altrp'
 
 /**
  * GET /api/altrp/v1/c/guarantors

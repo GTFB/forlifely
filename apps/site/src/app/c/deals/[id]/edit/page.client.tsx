@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { InstallmentApplicationForm } from '@/components/cabinet/forms/InstallmentApplicationForm'
-import type { EsnadHuman } from '@/shared/types/esnad'
+import type { altrpHuman } from '@/shared/types/altrp'
 
 type DealDetailResponse = {
   deal: {
@@ -75,7 +75,7 @@ export default function DealEditPageClient() {
   const params = useParams()
   const dealId = params.id as string
 
-  const [human, setHuman] = React.useState<EsnadHuman | undefined>(undefined)
+  const [human, setHuman] = React.useState<altrpHuman | undefined>(undefined)
   const [deal, setDeal] = React.useState<DealDetailResponse['deal'] | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -106,7 +106,7 @@ export default function DealEditPageClient() {
         }
 
         const dealData = (await dealRes.json()) as DealDetailResponse
-        const humanData = (await humanRes.json()) as { success: boolean; human?: EsnadHuman }
+        const humanData = (await humanRes.json()) as { success: boolean; human?: altrpHuman }
 
         setDeal(dealData.deal)
         setHuman(humanData.human)

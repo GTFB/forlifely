@@ -4,7 +4,7 @@ import { MeRepository } from '@/shared/repositories/me.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { parseQueryParams } from '@/shared/utils/http'
-import type { EsnadUser } from '@/shared/types/esnad'
+import type { altrpUser } from '@/shared/types/altrp'
 import { preparePassword, validatePassword, validatePasswordMatch } from '@/shared/password'
 import { sendVerificationEmail } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
@@ -24,7 +24,7 @@ interface CreateUserRequest {
   emailVerified?: boolean
 }
 
-interface UserWithRoles extends EsnadUser {
+interface UserWithRoles extends altrpUser {
   roles?: Array<{
     uuid: string
     title: string | null
@@ -64,7 +64,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           createdAt: schema.users.createdAt,
           updatedAt: schema.users.updatedAt,
           deletedAt: schema.users.deletedAt,
-          // Add other fields as necessary from EsnadUser type
+          // Add other fields as necessary from altrpUser type
         })
         .from(schema.users)
 
@@ -129,7 +129,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
       const total = countResult?.total || 0
 
       result = {
-        docs: usersResult as EsnadUser[],
+        docs: usersResult as altrpUser[],
         pagination: {
           page,
           limit,

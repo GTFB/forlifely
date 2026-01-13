@@ -59,7 +59,7 @@ import { cn } from '@/lib/utils'
 import { Search, MoreHorizontal, Loader2, Download, Plus, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
-import { EsnadUser } from '@/shared/types/esnad'
+import { altrpUser } from '@/shared/types/altrp'
 import { DbPaginatedResult } from '@/shared/types/shared'
 import debounce from 'lodash/debounce'
 import {
@@ -70,7 +70,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface UserWithRoles extends Omit<EsnadUser, 'human'> {
+interface UserWithRoles extends Omit<altrpUser, 'human'> {
   roles?: Array<{
     uuid: string
     title: string | null
@@ -78,7 +78,7 @@ interface UserWithRoles extends Omit<EsnadUser, 'human'> {
     description: string | null
     isSystem: boolean | null
   }>
-  human?: (EsnadUser['human'] & {
+  human?: (altrpUser['human'] & {
     kycStatus?: string
   }) | null
 }

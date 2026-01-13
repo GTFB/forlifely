@@ -5,8 +5,8 @@ import { NoticesRepository } from "@/shared/repositories/notices.repository";
 import { DealsRepository } from "@/shared/repositories/deals.repository";
 import { HumanRepository } from "@/shared/repositories/human.repository";
 import { FinancesRepository } from "@/shared/repositories/finances.repository";
-import { NoticeDataIn, MediaDataIn } from "@/shared/types/esnad-finance";
-import { LoanApplicationDataIn } from "@/shared/types/esnad";
+import { NoticeDataIn, MediaDataIn } from "@/shared/types/altrp-finance";
+import { LoanApplicationDataIn } from "@/shared/types/altrp";
 
 describe("NoticesRepository", () => {
   let db: D1Database;

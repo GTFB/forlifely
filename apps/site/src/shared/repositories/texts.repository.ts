@@ -4,11 +4,11 @@ import { schema } from '../schema'
 import { NewText, Text } from '../schema/types'
 import { withNotDeleted } from './utils'
 import { generateAid } from '../generate-aid'
-import { EsnadText, EsnadTextDataIn } from '../types/esnad'
-import { NewEsnadText } from '../types/esnad'
+import { altrpText, altrpTextDataIn } from '../types/altrp'
+import { NewaltrpText } from '../types/altrp'
 import { DbFilters, DbOrders, DbPaginatedResult, DbPagination } from '../types/shared'
 
-export class TextsRepository extends BaseRepository<EsnadText> {
+export class TextsRepository extends BaseRepository<altrpText> {
   constructor() {
     super(schema.texts)
   }
@@ -17,7 +17,7 @@ export class TextsRepository extends BaseRepository<EsnadText> {
     return new TextsRepository()
   }
 
-  protected async beforeCreate(data: Partial<NewEsnadText>): Promise<void> {
+  protected async beforeCreate(data: Partial<NewaltrpText>): Promise<void> {
     if (!data.uuid) {
       data.uuid = crypto.randomUUID()
     }
@@ -32,7 +32,7 @@ export class TextsRepository extends BaseRepository<EsnadText> {
     }
   }
 
-  public async findByType(type: string, statusName?: string): Promise<EsnadText[]> {
+  public async findByType(type: string, statusName?: string): Promise<altrpText[]> {
     const condition = withNotDeleted(
       this.schema.deletedAt,
       eq(this.schema.type, type),
@@ -40,17 +40,17 @@ export class TextsRepository extends BaseRepository<EsnadText> {
     )
 
     const rows = await this.db.select().from(this.schema).where(condition).execute()
-    return rows as EsnadText[]
+    return rows as altrpText[]
   }
 
-  public async findPublishedByType(type: string): Promise<EsnadText[]> {
-    return this.findByType(type, 'PUBLISHED') as Promise<EsnadText[]>
+  public async findPublishedByType(type: string): Promise<altrpText[]> {
+    return this.findByType(type, 'PUBLISHED') as Promise<altrpText[]>
   }
 
-  public async updateStatus(uuid: string, statusName: string): Promise<EsnadText> {
+  public async updateStatus(uuid: string, statusName: string): Promise<altrpText> {
     return this.update(uuid, { statusName })
   }
-  public async findBySlug(slug: EsnadTextDataIn['slug']): Promise<EsnadText | null> {
+  public async findBySlug(slug: altrpTextDataIn['slug']): Promise<altrpText | null> {
     const condition = withNotDeleted(
       this.schema.deletedAt,
       sql`${this.schema.dataIn}::jsonb->>'slug' = ${slug}`
@@ -63,10 +63,10 @@ export class TextsRepository extends BaseRepository<EsnadText> {
       .limit(1)
       .execute()
 
-    return (text as EsnadText | undefined) || null
+    return (text as altrpText | undefined) || null
   }
 
-  public async findByTaid(taid: string): Promise<EsnadText | null> {
+  public async findByTaid(taid: string): Promise<altrpText | null> {
     const condition = withNotDeleted(
       this.schema.deletedAt,
       eq(this.schema.taid, taid)
@@ -79,10 +79,10 @@ export class TextsRepository extends BaseRepository<EsnadText> {
       .limit(1)
       .execute()
 
-    return text ? (text as EsnadText) : null
+    return text ? (text as altrpText) : null
   }
 
-  public async getFilteredBlog(filters: DbFilters, orders: DbOrders, pagination: DbPagination): Promise<DbPaginatedResult<EsnadText>> {
+  public async getFilteredBlog(filters: DbFilters, orders: DbOrders, pagination: DbPagination): Promise<DbPaginatedResult<altrpText>> {
     filters.conditions = filters.conditions ?? []
     filters.conditions.push({
       field: 'type',
@@ -104,7 +104,7 @@ export class TextsRepository extends BaseRepository<EsnadText> {
       }]
     }
 
-    return this.getFiltered(filters, orders, pagination) as Promise<DbPaginatedResult<EsnadText>>
+    return this.getFiltered(filters, orders, pagination) as Promise<DbPaginatedResult<altrpText>>
   }
   
 }

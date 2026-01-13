@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, ExternalLink } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
-import { EsnadText } from '@/shared/types/esnad'
+import { altrpText } from '@/shared/types/altrp'
 
 interface BlogPost {
   id: number
@@ -51,7 +51,7 @@ export default function AdminBlogPageClient() {
         throw new Error('Failed to fetch blog posts')
       }
 
-      const data = await response.json() as { docs: EsnadText[]; pagination: any }
+      const data = await response.json() as { docs: altrpText[]; pagination: any }
       const posts: BlogPost[] = data.docs.map((post) => ({
         id: post.id,
         taid: post.taid || '',

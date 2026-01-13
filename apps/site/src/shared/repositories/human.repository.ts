@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { schema } from "../schema";
 import  BaseRepository  from "./BaseRepositroy";
 import { Human } from "../schema/types";
-import { Client, ClientStatus, EsnadHuman } from "../types/esnad";
+import { Client, ClientStatus, altrpHuman } from "../types/altrp";
 import { generateAid } from "../generate-aid";
 
 export class HumanRepository extends BaseRepository<Human>{
@@ -26,7 +26,7 @@ export class HumanRepository extends BaseRepository<Human>{
             .execute()
         return human || null
     }
-    protected async beforeCreate(data: Partial<EsnadHuman>): Promise<void> {
+    protected async beforeCreate(data: Partial<altrpHuman>): Promise<void> {
         if (!data.statusName) {
             data.statusName = 'PENDING'
         }

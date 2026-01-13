@@ -3,7 +3,7 @@ import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { DealsRepository } from '@/shared/repositories/deals.repository'
 import { FinancesRepository } from '@/shared/repositories/finances.repository'
 import { UsersRepository } from '@/shared/repositories/users.repository'
-import { LoanApplication } from '@/shared/types/esnad'
+import { LoanApplication } from '@/shared/types/altrp'
 
 interface DashboardMetrics {
   newApplicationsToday: number

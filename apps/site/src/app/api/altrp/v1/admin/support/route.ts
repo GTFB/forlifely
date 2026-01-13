@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportChat, EsnadSupportChatDataIn, EsnadSupportMessageType } from '@/shared/types/esnad-support'
+import { altrpSupportChat, altrpSupportChatDataIn, altrpSupportMessageType } from '@/shared/types/altrp-support'
 import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { FileStorageService } from '@/shared/services/file-storage.service'
 
@@ -88,13 +88,13 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
     // Parse dataIn for each chat and check for unread messages
     const chatsWithParsedData = await Promise.all(
       result.docs.map(async (chat) => {
-        let parsedDataIn: EsnadSupportChatDataIn | null = null
+        let parsedDataIn: altrpSupportChatDataIn | null = null
         if (chat.dataIn) {
           try {
             if (typeof chat.dataIn === 'string') {
-              parsedDataIn = JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
+              parsedDataIn = JSON.parse(chat.dataIn) as altrpSupportChatDataIn
             } else {
-              parsedDataIn = chat.dataIn as EsnadSupportChatDataIn
+              parsedDataIn = chat.dataIn as altrpSupportChatDataIn
             }
           } catch (error) {
             console.error('Failed to parse dataIn for chat', chat.maid, error)
@@ -109,7 +109,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
           dataIn: parsedDataIn || { humanHaid: '' },
           type: 'SUPPORT' as const,
           hasUnreadMessages,
-        } as EsnadSupportChat & { hasUnreadMessages: boolean }
+        } as altrpSupportChat & { hasUnreadMessages: boolean }
       })
     )
 
@@ -145,7 +145,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     const formData = await request.formData()
     const chatMaid = formData.get('chatMaid') as string | null
     const content = formData.get('content') as string | null
-    const messageType = (formData.get('messageType') as EsnadSupportMessageType | null) || 'text'
+    const messageType = (formData.get('messageType') as altrpSupportMessageType | null) || 'text'
     const file = formData.get('file') as File | null
 
     // Validate required fields
@@ -158,7 +158,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     }
 
     // Validate message type
-    const allowedMessageTypes: EsnadSupportMessageType[] = ['text', 'photo']
+    const allowedMessageTypes: altrpSupportMessageType[] = ['text', 'photo']
     if (!allowedMessageTypes.includes(messageType)) {
       return NextResponse.json({ 
         success: false,

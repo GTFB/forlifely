@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
 import { DealsRepository } from "@/shared/repositories/deals.repository"
-import { LoanApplicationDataIn } from "@/shared/types/esnad"
+import { LoanApplicationDataIn } from "@/shared/types/altrp"
 import type { Env } from '@/shared/types'
 import { buildRequestEnv } from '@/shared/env'
 

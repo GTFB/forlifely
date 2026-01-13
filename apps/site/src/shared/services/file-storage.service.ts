@@ -1,6 +1,6 @@
 import { LocalStorageProvider, DatabaseStorageProvider, IStorageProvider } from './storage.provider'
 import { MediaRepository } from '@/shared/repositories/media.repository'
-import { NewEsnadMedia } from '@/shared/types/esnad-finance'
+import { NewaltrpMedia } from '@/shared/types/altrp-finance'
 
 export class FileStorageService {
   private provider: IStorageProvider
@@ -28,7 +28,7 @@ export class FileStorageService {
     const isPublicValue = isPublic === true
 
     // 3. First create Media record so that any FK (e.g. in files table) can safely reference it
-    const initialMediaData: Partial<NewEsnadMedia> = {
+    const initialMediaData: Partial<NewaltrpMedia> = {
       uuid: mediaUuid,
       fileName: filename,
       mimeType: file.type,
@@ -59,7 +59,7 @@ export class FileStorageService {
       url: fileUrl,
       type: savedFile.mimeType.split('/')[0],
       isPublic: isPublicValue, // Preserve isPublic value (explicitly set)
-    } as Partial<NewEsnadMedia>)
+    } as Partial<NewaltrpMedia>)
 
     return updatedMedia
   }

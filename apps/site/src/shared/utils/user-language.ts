@@ -1,4 +1,4 @@
-import type { EsnadUser } from "@/shared/types/esnad"
+import type { altrpUser } from "@/shared/types/altrp"
 import { MeRepository } from "@/shared/repositories/me.repository"
 import { PROJECT_SETTINGS } from "@/settings"
 
@@ -7,7 +7,7 @@ import { PROJECT_SETTINGS } from "@/settings"
  * Checks human.dataIn.language first, then user.dataIn.language
  * Falls back to default language from settings.ts
  */
-export async function getUserLanguage(user: EsnadUser): Promise<string> {
+export async function getUserLanguage(user: altrpUser): Promise<string> {
   try {
     // Try to get user with human data
     const meRepo = MeRepository.getInstance()

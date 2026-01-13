@@ -3,11 +3,11 @@ import { schema } from '../schema'
 import { NewNotice, Notice } from '../schema/types'
 import { generateAid } from '../generate-aid'
 import {
-  EsnadNotice,
-  NewEsnadNotice,
+  altrpNotice,
+  NewaltrpNotice,
   NoticeDataIn,
   PaymentReminderChannel,
-} from '../types/esnad-finance'
+} from '../types/altrp-finance'
 import { HumanRepository } from './human.repository'
 import { sendEmail } from '../services/email.service'
 import { buildRequestEnv } from '../env'
@@ -22,7 +22,7 @@ export class NoticesRepository extends BaseRepository<Notice> {
     return new NoticesRepository()
   }
 
-  protected async beforeCreate(data: Partial<NewEsnadNotice>): Promise<void> {
+  protected async beforeCreate(data: Partial<NewaltrpNotice>): Promise<void> {
     if (!data.naid) {
       data.naid = generateAid('n')
     }
@@ -31,11 +31,11 @@ export class NoticesRepository extends BaseRepository<Notice> {
     }
   }
 
-  protected async beforeUpdate(_: string, data: Partial<NewEsnadNotice>): Promise<void> {
+  protected async beforeUpdate(_: string, data: Partial<NewaltrpNotice>): Promise<void> {
     return
   }
 
-  public async queuePaymentNotice(data: NoticeDataIn): Promise<EsnadNotice> {
+  public async queuePaymentNotice(data: NoticeDataIn): Promise<altrpNotice> {
     let typeName = data.triggerReason
     let title = 'Уведомление'
 
@@ -80,7 +80,7 @@ export class NoticesRepository extends BaseRepository<Notice> {
       typeName,
       order: '0',
       dataIn: data,
-    })) as EsnadNotice
+    })) as altrpNotice
 
     return createdNotice
   }
@@ -93,7 +93,7 @@ export class NoticesRepository extends BaseRepository<Notice> {
     amount: number,
     paymentDate: string,
     daysBefore: number
-  ): Promise<EsnadNotice> {
+  ): Promise<altrpNotice> {
     return this.queuePaymentNotice({
       channel,
       templateKey: `payment_reminder_${daysBefore}_days`,
@@ -119,7 +119,7 @@ export class NoticesRepository extends BaseRepository<Notice> {
     financeFaid: string,
     amount: number,
     overdueDays: number
-  ): Promise<EsnadNotice> {
+  ): Promise<altrpNotice> {
     return this.queuePaymentNotice({
       channel,
       templateKey: 'payment_overdue',

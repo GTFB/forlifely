@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { TextsRepository } from '@/shared/repositories/texts.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadText, NewEsnadText, EsnadTextDataIn } from '@/shared/types/esnad'
+import { altrpText, NewaltrpText, altrpTextDataIn } from '@/shared/types/altrp'
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
@@ -17,13 +17,13 @@ const handleGet = async (
     }
 
     // Parse dataIn for response
-    let parsedDataIn: EsnadTextDataIn | null = null
+    let parsedDataIn: altrpTextDataIn | null = null
     if (text.dataIn) {
       try {
         if (typeof text.dataIn === 'string') {
-          parsedDataIn = JSON.parse(text.dataIn) as EsnadTextDataIn
+          parsedDataIn = JSON.parse(text.dataIn) as altrpTextDataIn
         } else {
-          parsedDataIn = text.dataIn as EsnadTextDataIn
+          parsedDataIn = text.dataIn as altrpTextDataIn
         }
       } catch (error) {
         console.error('Failed to parse dataIn for text', text.taid, error)
@@ -35,7 +35,7 @@ const handleGet = async (
       text: {
         ...text,
         dataIn: parsedDataIn,
-      } as EsnadText,
+      } as altrpText,
     })
   } catch (error) {
     console.error('Failed to fetch blog post', error)
@@ -62,7 +62,7 @@ const handlePut = async (
       return NextResponse.json({ error: 'Blog post not found' }, { status: 404 })
     }
 
-    const body = await request.json() as Partial<NewEsnadText & { content?: string; dataIn?: EsnadTextDataIn }>
+    const body = await request.json() as Partial<NewaltrpText & { content?: string; dataIn?: altrpTextDataIn }>
     const { title, statusName, category, dataIn, isPublic, content } = body
 
     const updateData: any = {}
@@ -127,13 +127,13 @@ const handlePut = async (
     }
 
     // Parse dataIn for response
-    let parsedDataIn: EsnadTextDataIn | null = null
+    let parsedDataIn: altrpTextDataIn | null = null
     if (updatedText.dataIn) {
       try {
         if (typeof updatedText.dataIn === 'string') {
-          parsedDataIn = JSON.parse(updatedText.dataIn) as EsnadTextDataIn
+          parsedDataIn = JSON.parse(updatedText.dataIn) as altrpTextDataIn
         } else {
-          parsedDataIn = updatedText.dataIn as EsnadTextDataIn
+          parsedDataIn = updatedText.dataIn as altrpTextDataIn
         }
       } catch (error) {
         console.error('Failed to parse dataIn for updated text', updatedText.taid, error)
@@ -145,7 +145,7 @@ const handlePut = async (
       text: {
         ...updatedText,
         dataIn: parsedDataIn,
-      } as EsnadText,
+      } as altrpText,
     })
   } catch (error) {
     console.error('Failed to update blog post', error)

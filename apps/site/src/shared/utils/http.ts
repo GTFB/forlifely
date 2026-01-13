@@ -1,4 +1,4 @@
-import { EsnadJournal } from "../types/esnad";
+import { altrpJournal } from "../types/altrp";
 import { DbFilters, DbOrders, DbPagination } from "../types/shared";
 import { MeRepository } from "../repositories/me.repository";
 import { JOURNAL_ACTION_NAMES } from '../constants/journal-actions'
@@ -71,7 +71,7 @@ const formatCurrency = (amount: number): string => {
   }).format(amount)
 }
 
-export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean = true): Promise<EsnadJournal[]> => {
+export const parseJournals = async (journals: altrpJournal[], forAdmin: boolean = true): Promise<altrpJournal[]> => {
   // Use shared action names mapping
   const actionNames = JOURNAL_ACTION_NAMES
 
@@ -480,7 +480,7 @@ export const parseJournals = async (journals: EsnadJournal[], forAdmin: boolean 
         xaid: journal.xaid || null,
         createdAt: journal.createdAt,
         updatedAt: journal.updatedAt,
-      } as EsnadJournal
+      } as altrpJournal
     })
   }
 

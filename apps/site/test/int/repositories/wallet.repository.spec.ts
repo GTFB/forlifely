@@ -9,8 +9,8 @@ import { DealsRepository } from "@/shared/repositories/deals.repository";
 import { FinancesRepository } from "@/shared/repositories/finances.repository";
 import { schema } from "@/shared/schema";
 import { createDb, withNotDeleted } from "@/shared/repositories/utils";
-import { LoanApplicationDataIn } from "@/shared/types/esnad";
-import { EsnadFinance } from "@/shared/types/esnad-finance";
+import { LoanApplicationDataIn } from "@/shared/types/altrp";
+import { altrpFinance } from "@/shared/types/altrp-finance";
 import { parseJson } from "@/shared/repositories/utils";
 
 describe("WalletRepository - Finance Payment Tests", () => {
@@ -48,7 +48,7 @@ describe("WalletRepository - Finance Payment Tests", () => {
         )
         .execute();
 
-      const unpaidFinances: EsnadFinance[] = [];
+      const unpaidFinances: altrpFinance[] = [];
 
       for (const finance of allFinances) {
         const dataIn = parseJson<any>(finance.dataIn, null);
@@ -71,7 +71,7 @@ describe("WalletRepository - Finance Payment Tests", () => {
           .execute();
 
         if (user && user.emailVerifiedAt) {
-          unpaidFinances.push(finance as EsnadFinance);
+          unpaidFinances.push(finance as altrpFinance);
         }
       }
 
@@ -171,7 +171,7 @@ describe("WalletRepository - Finance Payment Tests", () => {
         expect(createdFinances.length).toBeGreaterThan(0);
 
         // 6. Для неоплаченных finance делаем платеж новым методом
-        const firstFinance = createdFinances[0] as EsnadFinance;
+        const firstFinance = createdFinances[0] as altrpFinance;
         const firstFinanceAmount = parseFloat(firstFinance.sum || "0");
         const firstFinanceAmountKopecks = Math.floor(firstFinanceAmount * 100);
 
@@ -190,7 +190,7 @@ describe("WalletRepository - Finance Payment Tests", () => {
         // 7. Проверяем, что статус finance изменился на PAID
         const updatedFinance = (await financesRepository.findByUuid(
           firstFinance.uuid
-        )) as EsnadFinance;
+        )) as altrpFinance;
 
         expect(updatedFinance).toBeDefined();
         expect(updatedFinance.statusName).toBe("PAID");
@@ -246,7 +246,7 @@ describe("WalletRepository - Finance Payment Tests", () => {
           // Проверяем, что статус изменился
           const updatedFinance = (await financesRepository.findByUuid(
             firstUnpaidFinance.uuid
-          )) as EsnadFinance;
+          )) as altrpFinance;
 
           expect(updatedFinance.statusName).toBe("PAID");
         }

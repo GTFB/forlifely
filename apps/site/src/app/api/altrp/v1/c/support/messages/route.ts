@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportMessageType } from '@/shared/types/esnad-support'
+import { altrpSupportMessageType } from '@/shared/types/altrp-support'
 import { FileStorageService } from '@/shared/services/file-storage.service'
 
 const handlePost = async (context: AuthenticatedRequestContext) => {
@@ -21,7 +21,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     const formData = await request.formData()
     const chatMaid = formData.get('chatMaid') as string | null
     const content = formData.get('content') as string | null
-    const messageType = (formData.get('messageType') as EsnadSupportMessageType | null) || 'text'
+    const messageType = (formData.get('messageType') as altrpSupportMessageType | null) || 'text'
     const file = formData.get('file') as File | null
 
     // Validate required fields
@@ -34,7 +34,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     }
 
     // Validate message type
-    const allowedMessageTypes: EsnadSupportMessageType[] = ['text', 'photo']
+    const allowedMessageTypes: altrpSupportMessageType[] = ['text', 'photo']
     if (!allowedMessageTypes.includes(messageType)) {
       return NextResponse.json({
         success: false,

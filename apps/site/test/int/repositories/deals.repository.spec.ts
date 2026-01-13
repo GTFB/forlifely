@@ -10,9 +10,9 @@ import { HumanRepository } from "@/shared/repositories/human.repository";
 import { FinancesRepository } from "@/shared/repositories/finances.repository";
 import {
     LoanApplicationDataIn,
-} from "@/shared/types/esnad";
+} from "@/shared/types/altrp";
 import { generateAid } from "@/shared/generate-aid";
-import { NewEsnadFinance } from "@/shared/types/esnad-finance";
+import { NewaltrpFinance } from "@/shared/types/altrp-finance";
 
 describe("DealsRepository", () => {
     let db: D1Database;
@@ -498,7 +498,7 @@ describe("DealsRepository", () => {
             const client = firstResult.client;
 
             // Step 2: Create an overdue Finance record for this client
-            const overdueFinance: NewEsnadFinance = {
+            const overdueFinance: NewaltrpFinance = {
                 uuid: crypto.randomUUID(),
                 faid: generateAid('f'),
                 fullDaid: firstDeal.daid,

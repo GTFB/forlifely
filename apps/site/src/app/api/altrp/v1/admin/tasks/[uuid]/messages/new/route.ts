@@ -4,7 +4,7 @@ import { GoalsRepository } from '@/shared/repositories/goals.repository'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { parseJson } from '@/shared/repositories/utils'
 import type { AdminTaskDataIn } from '@/shared/types/tasks'
-import type { EsnadSupportMessageDataIn } from '@/shared/types/esnad-support'
+import type { altrpSupportMessageDataIn } from '@/shared/types/altrp-support'
 
 const jsonHeaders = { 'content-type': 'application/json' }
 
@@ -50,9 +50,9 @@ const handleGet = async (
 
     const parsed = messages.map((msg) => ({
       ...msg,
-      dataIn: parseJson<EsnadSupportMessageDataIn | Record<string, unknown>>(
+      dataIn: parseJson<altrpSupportMessageDataIn | Record<string, unknown>>(
         (msg as any).dataIn,
-        {} as EsnadSupportMessageDataIn
+        {} as altrpSupportMessageDataIn
       ),
     }))
 

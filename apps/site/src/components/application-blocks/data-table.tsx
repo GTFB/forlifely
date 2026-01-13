@@ -466,8 +466,11 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
   {
     id: "select",
     enableResizing: false,
+    size: 40,
+    minSize: 40,
+    maxSize: 40,
     header: ({ table }) => (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center p-0">
         <Checkbox
           checked={
             table.getIsAllPageRowsSelected() ||
@@ -479,7 +482,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       </div>
     ),
     cell: ({ row }) => (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center p-0">
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
@@ -495,6 +498,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       enableSorting: true,
       enableResizing: true,
       size: columnSizing?.[col.name] || undefined,
+      minSize: 100,
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
@@ -523,7 +527,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             <div className={`flex items-center gap-1 ${headerAlignClass}`}>
               <span>{col.title || col.name}</span>
               {col.primary && (
-                <Badge variant="outline" className="text-[10px] px-1 py-0">
+                <Badge variant="outline" className="text-[10px] px-0 py-0">
                   PK
                 </Badge>
               )}
@@ -537,7 +541,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                       <IconArrowDown className="h-3 w-3" />
                       )}
                       {sortedIndex >= 0 && hasMultipleSorts && (
-                        <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
+                        <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
                           {sortedIndex + 1}
                         </Badge>
                       )}
@@ -786,7 +790,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                       <IconArrowDown className="h-3 w-3" />
                     )}
                     {sortedIndex >= 0 && hasMultipleSorts && (
-                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
+                      <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
                         {sortedIndex + 1}
                       </Badge>
                     )}
@@ -933,7 +937,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                       <IconArrowDown className="h-3 w-3" />
                     )}
                     {sortedIndex >= 0 && hasMultipleSorts && (
-                      <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
+                      <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
                         {sortedIndex + 1}
                       </Badge>
                     )}
@@ -1182,7 +1186,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                             <IconArrowDown className="h-3 w-3" />
                           )}
                           {sortedIndex >= 0 && hasMultipleSorts && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
+                            <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
                               {sortedIndex + 1}
                             </Badge>
                           )}
@@ -1209,31 +1213,36 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
   {
     id: "actions",
     enableResizing: false,
+    size: 40,
+    minSize: 40,
+    maxSize: 40,
     cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-            size="icon"
-          >
-            <IconDotsVertical />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => onEditRequest(row)}>{translations?.actions?.edit || "Edit"}</DropdownMenuItem>
-            {onDuplicateRequest && (
-              <DropdownMenuItem onClick={() => onDuplicateRequest(row)}>
-                {translations?.actions?.duplicate || "Duplicate"}
+      <div className="flex items-center justify-center p-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+              size="icon"
+            >
+              <IconDotsVertical />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => onEditRequest(row)}>{translations?.actions?.edit || "Edit"}</DropdownMenuItem>
+              {onDuplicateRequest && (
+                <DropdownMenuItem onClick={() => onDuplicateRequest(row)}>
+                  {translations?.actions?.duplicate || "Duplicate"}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive" onClick={() => onDeleteRequest(row)}>
+                {translations?.delete?.delete || "Delete"}
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={() => onDeleteRequest(row)}>
-              {translations?.delete?.delete || "Delete"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-      </DropdownMenu>
+            </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     ),
   },
 ]
@@ -1708,6 +1717,7 @@ export function DataTable() {
       applyJson: "Apply JSON",
       selectFile: "Select file",
       fileNotSelected: "No file selected",
+      addField: "Add field",
       width: "Width",
       widthAuto: "Auto",
       widthReset: "Reset",
@@ -3027,9 +3037,13 @@ export function DataTable() {
   const reorderedColumns = React.useMemo(() => {
     if (!isMobile) return columns
     
+    const selectColumn = columns.find(col => col.id === 'select')
     const actionsColumn = columns.find(col => col.id === 'actions')
-    const otherColumns = columns.filter(col => col.id !== 'actions')
-    return actionsColumn ? [actionsColumn, ...otherColumns] : columns
+    const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
+    const result = []
+    if (actionsColumn) result.push(actionsColumn)
+    if (selectColumn) result.push(selectColumn)
+    return [...result, ...otherColumns]
   }, [columns, isMobile])
 
   // Save column sizes to localStorage
@@ -3588,9 +3602,9 @@ export function DataTable() {
       defaultValue="outline"
       className="w-full flex-col justify-start gap-6"
     >
-      <div className="flex items-center gap-2 px-1 lg:px-2">
+      <div className="flex items-center gap-2 px-0">
         {/* Search Field */}
-        <div className="relative w-full lg:max-w-sm">
+        <div className="relative w-full lg:max-w-2xl">
           <div className="relative flex items-center gap-1 h-9 rounded-md border bg-primary-foreground px-3 shadow-xs">
             <IconSearch className="size-4 shrink-0 text-muted-foreground" />
             <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
@@ -3674,7 +3688,6 @@ export function DataTable() {
             >
               <IconTrash />
               <span className="hidden lg:inline">{t.delete?.selected || "Delete Selected"}</span>
-              <span className="lg:hidden">{t.delete?.delete || "Delete"}</span>
             </Button>
           )}
           <div className="hidden lg:block">
@@ -4195,7 +4208,7 @@ export function DataTable() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" className="bg-primary-foreground" onClick={() => setCreateOpen(true)}>
+          <Button variant="outline" size="sm" className="bg-primary-foreground h-9" onClick={() => setCreateOpen(true)}>
             <IconPlus />
             <span className="hidden lg:inline">{t.add}</span>
           </Button>
@@ -4203,10 +4216,10 @@ export function DataTable() {
       </div>
       <TabsContent
         value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-1 lg:px-2"
+        className="relative flex flex-col gap-4 overflow-auto px-0"
       >
         {loading && (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center py-4">
             <IconLoader className="size-6 animate-spin text-muted-foreground" />
             <span className="ml-2 text-sm text-muted-foreground">
               {t.loading ? t.loading.replace("{collection}", collectionLabel) : `Loading ${collectionLabel}...`}
@@ -4214,13 +4227,13 @@ export function DataTable() {
           </div>
         )}
         {error && (
-          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-1 text-sm text-destructive">
             Error: {error}
           </div>
         )}
         {!loading && !error && (
           <>
-        <div className="overflow-hidden rounded-lg border bg-primary-foreground">
+        <div className="overflow-x-auto rounded-lg border bg-primary-foreground">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -4232,8 +4245,12 @@ export function DataTable() {
                         <TableHead 
                           key={header.id} 
                           colSpan={header.colSpan} 
-                          className={header.column.id === 'actions' ? 'pr-1' : header.column.id === 'select' ? 'pl-1' : ''}
-                          style={{ width: header.getSize(), position: 'relative' }}
+                          className={header.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 top-0 z-20 bg-muted' : header.column.id === 'select' ? 'p-0 pl-0' : ''}
+                          style={{ 
+                            width: header.getSize(), 
+                            position: header.column.id === 'actions' ? 'sticky' : 'relative',
+                            left: header.column.id === 'actions' ? 0 : undefined
+                          }}
                         >
                           {header.isPlaceholder
                             ? null
@@ -4265,10 +4282,10 @@ export function DataTable() {
                       {headerGroup.headers.map((header) => {
                         const columnId = header.column.id
                         
-                        // Skip filter for row selection column
-                        if (columnId === 'select') {
+                        // Skip filter for row selection and actions columns
+                        if (columnId === 'select' || columnId === 'actions') {
                           return (
-                            <TableHead key={`filter-${header.id}`} className="p-1">
+                            <TableHead key={`filter-${header.id}`} className="p-0">
                               {header.isPlaceholder ? null : <div />}
                             </TableHead>
                           )
@@ -4397,8 +4414,12 @@ export function DataTable() {
                         {row.getVisibleCells().map((cell) => (
                           <TableCell 
                             key={cell.id} 
-                            className={cell.column.id === 'actions' ? 'pr-1' : cell.column.id === 'select' ? 'pl-1' : ''}
-                            style={{ width: cell.column.getSize() }}
+                            className={cell.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full' : cell.column.id === 'select' ? 'p-0 pl-0' : ''}
+                            style={{ 
+                              width: cell.column.getSize(), 
+                              position: cell.column.id === 'actions' ? 'sticky' : undefined,
+                              left: cell.column.id === 'actions' ? 0 : undefined
+                            }}
                           >
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </TableCell>
@@ -4418,7 +4439,7 @@ export function DataTable() {
               </TableBody>
             </Table>
         </div>
-        <div className="flex items-center justify-between px-1 lg:px-2">
+        <div className="flex items-center justify-between px-0">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                 {t.selectedRecords.replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{total}', String(total))}
           </div>
@@ -4501,7 +4522,7 @@ export function DataTable() {
       </TabsContent>
 
       <ResponsiveDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <ResponsiveDialogContent className="p-5">
+        <ResponsiveDialogContent className="p-6">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t.delete?.deleteRecord?.title || "Delete record?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
@@ -4517,7 +4538,7 @@ export function DataTable() {
       </ResponsiveDialog>
 
       <ResponsiveDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
-        <ResponsiveDialogContent className="p-5">
+        <ResponsiveDialogContent className="p-6">
           <ResponsiveDialogHeader>
             <ResponsiveDialogTitle>{t.delete?.deleteSelected?.title || "Delete selected records?"}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
@@ -4571,7 +4592,7 @@ export function DataTable() {
       >
         <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
           <div className="flex h-full flex-col">
-            <div className="border-b px-3 py-2">
+            <div className="border-b px-6 py-4">
               <ResponsiveDialogHeader>
                 <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
                 <ResponsiveDialogDescription>
@@ -4580,7 +4601,7 @@ export function DataTable() {
               </ResponsiveDialogHeader>
             </div>
             <form onSubmit={handleCreateSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                 <Tabs value={createFormTab} onValueChange={(v) => setCreateFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
@@ -4931,7 +4952,7 @@ export function DataTable() {
                             }}
                         >
                           <IconPlus className="mr-2 h-4 w-4" />
-                          Добавить поле
+                          {t.addField || "Add field"}
                         </Button>
                       </div>
                       <div className="grid gap-3">
@@ -5169,7 +5190,7 @@ export function DataTable() {
                   </div>
                 )}
               </div>
-              <div className="border-t px-3 py-2">
+              <div className="border-t px-6 py-4">
                 <ResponsiveDialogFooter className="m-0">
                   <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                     {t.form?.cancel || "Cancel"}
@@ -5215,7 +5236,7 @@ export function DataTable() {
       >
         <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
           <div className="flex h-full flex-col">
-            <div className="border-b px-3 py-2">
+            <div className="border-b px-6 py-4">
               <ResponsiveDialogHeader>
                 <ResponsiveDialogTitle>
                   {isDuplicate 
@@ -5232,7 +5253,7 @@ export function DataTable() {
               </ResponsiveDialogHeader>
             </div>
             <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                 <Tabs value={editFormTab} onValueChange={(v) => setEditFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
@@ -5568,7 +5589,7 @@ export function DataTable() {
                             }}
                         >
                           <IconPlus className="mr-2 h-4 w-4" />
-                          Добавить поле
+                          {t.addField || "Add field"}
                         </Button>
                       </div>
                       <div className="grid gap-3">
@@ -5806,7 +5827,7 @@ export function DataTable() {
                   </div>
                 )}
               </div>
-              <div className="border-t px-3 py-2">
+              <div className="border-t px-6 py-4">
                 <ResponsiveDialogFooter className="m-0 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {!isDuplicate && (
@@ -5856,13 +5877,13 @@ export function DataTable() {
       {/* Export Dialog */}
       <ResponsiveDialog open={exportOpen} onOpenChange={setExportOpen}>
         <ResponsiveDialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-          <ResponsiveDialogHeader className="px-3 pt-3 pb-2">
+          <ResponsiveDialogHeader className="px-6 pt-6 pb-4">
             <ResponsiveDialogTitle>{t.exportData}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
               {(t.exportedRecords || "Exported {count} records in {format} format").replace('{count}', String(table.getFilteredRowModel().rows.length)).replace('{format}', exportFormat.toUpperCase())}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <div className="flex-1 overflow-auto min-h-0 px-3 pb-2">
+          <div className="flex-1 overflow-auto min-h-0 px-6 py-4">
             <Textarea
               value={exportData}
               readOnly
@@ -5870,7 +5891,7 @@ export function DataTable() {
               style={{ whiteSpace: exportFormat === 'json' ? 'pre' : 'pre-wrap' }}
             />
           </div>
-          <ResponsiveDialogFooter className="flex-shrink-0 px-3 py-2">
+          <ResponsiveDialogFooter className="flex-shrink-0 px-6 py-4">
             <Button variant="outline" onClick={() => setExportOpen(false)}>
               {t.close}
             </Button>
@@ -5890,13 +5911,13 @@ export function DataTable() {
       {/* Import Dialog */}
       <ResponsiveDialog open={importOpen} onOpenChange={handleImportDialogChange}>
         <ResponsiveDialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-          <ResponsiveDialogHeader className="px-3 pt-3 pb-2">
+          <ResponsiveDialogHeader className="px-6 pt-6 pb-4">
             <ResponsiveDialogTitle>{t.importData}</ResponsiveDialogTitle>
             <ResponsiveDialogDescription>
               {(t.importDescription || "Load a file or paste data to import into {collection} collection").replace('{collection}', state.collection)}
             </ResponsiveDialogDescription>
           </ResponsiveDialogHeader>
-          <div className="flex-1 overflow-auto min-h-0 px-6 pb-4 space-y-4">
+          <div className="flex-1 overflow-auto min-h-0 px-6 py-4 space-y-4">
             <div className="space-y-2">
               <Label>{t.fileFormat}</Label>
               <Select value={importFormat} onValueChange={(value) => {
@@ -6012,7 +6033,7 @@ export function DataTable() {
               </div>
             )}
           </div>
-          <ResponsiveDialogFooter className="flex-shrink-0 px-3 py-2">
+          <ResponsiveDialogFooter className="flex-shrink-0 px-6 py-4">
             <Button variant="outline" onClick={handleImportClose} disabled={importing}>
               {importResult ? t.close : t.form?.cancel}
             </Button>

@@ -36,7 +36,7 @@
 1. **APIs & Services** → **Credentials** 
 2. **+ CREATE CREDENTIALS** → **Service account**
 3. Заполните форму:
-   - Service account name: `esnad-vision-service`
+   - Service account name: `altrp-vision-service`
    - Role: **Cloud Vision API User**
 4. Нажмите **Create key** → выберите **JSON**
 5. Сохраните JSON файл

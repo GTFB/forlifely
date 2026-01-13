@@ -36,10 +36,10 @@ import { AdminHeader } from '@/components/admin/AdminHeader'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { EsnadWallet, EsnadWalletTransaction } from '@/shared/types/esnad-finance'
-import { EsnadUser } from '@/shared/types/esnad'
+import { altrpWallet, altrpWalletTransaction } from '@/shared/types/altrp-finance'
+import { altrpUser } from '@/shared/types/altrp'
 import { useMe } from '@/providers/MeProvider'
-import { WalletType } from '@/shared/types/esnad-finance'
+import { WalletType } from '@/shared/types/altrp-finance'
 import {
   Taxonomy,
 } from '@/shared/schema/types'
@@ -49,7 +49,7 @@ export default function UserWalletPage({
     walletTypeOptions,
     userUuid,
   }:
-  { wallet: EsnadWallet, walletType: WalletType, walletTypeOptions: Taxonomy[], userUuid: string }) {
+  { wallet: altrpWallet, walletType: WalletType, walletTypeOptions: Taxonomy[], userUuid: string }) {
   const router = useRouter()
   const params = useParams()
   const haid = params.haid as string
@@ -58,8 +58,8 @@ export default function UserWalletPage({
   const [loading, setLoading] = React.useState(true)
   const { user: meUser } = useMe()
 
-  const [wallet, setWallet] = React.useState<EsnadWallet | null>(initialWallet)
-  const [transactions, setTransactions] = React.useState<EsnadWalletTransaction[]>([])
+  const [wallet, setWallet] = React.useState<altrpWallet | null>(initialWallet)
+  const [transactions, setTransactions] = React.useState<altrpWalletTransaction[]>([])
   const [error, setError] = React.useState<string | null>(null)
 
   const [dialogOpen, setDialogOpen] = React.useState(false)
@@ -93,7 +93,7 @@ export default function UserWalletPage({
 
         const result = (await response.json()) as {
           success: boolean
-          transactions?: EsnadWalletTransaction[]
+          transactions?: altrpWalletTransaction[]
         }
 
         if (result.success && result.transactions) {
@@ -168,7 +168,7 @@ export default function UserWalletPage({
           if (transactionsResponse.ok) {
             const transactionsResult = (await transactionsResponse.json()) as {
               success: boolean
-              transactions?: EsnadWalletTransaction[]
+              transactions?: altrpWalletTransaction[]
             }
             if (transactionsResult.success && transactionsResult.transactions) {
               setTransactions(transactionsResult.transactions)

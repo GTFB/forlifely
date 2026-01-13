@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { EsnadSupportChatDataIn } from '@/shared/types/esnad-support'
+import { altrpSupportChatDataIn } from '@/shared/types/altrp-support'
 
 const handleGet = async (
   context: AuthenticatedRequestContext,
@@ -48,12 +48,12 @@ const handleGet = async (
     }
 
     // Verify chat belongs to the current client
-    let chatDataIn: EsnadSupportChatDataIn | null = null
+    let chatDataIn: altrpSupportChatDataIn | null = null
     if (chat.dataIn) {
       try {
         chatDataIn = typeof chat.dataIn === 'string'
-          ? JSON.parse(chat.dataIn) as EsnadSupportChatDataIn
-          : chat.dataIn as EsnadSupportChatDataIn
+          ? JSON.parse(chat.dataIn) as altrpSupportChatDataIn
+          : chat.dataIn as altrpSupportChatDataIn
       } catch (error) {
         console.error('Failed to parse chat dataIn', error)
       }

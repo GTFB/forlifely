@@ -5,7 +5,7 @@ import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import type { AuthenticatedRequestContext } from '@/shared/api-guard'
 import { parseJournals } from '@/shared/utils/http'
 import { withInvestorGuard } from '@/shared/api-guard'
-import { Investor } from '@/shared/types/esnad'
+import { Investor } from '@/shared/types/altrp'
 import { MeRepository } from '@/shared/repositories/me.repository'
 
 const corsHeaders = {

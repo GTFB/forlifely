@@ -2,7 +2,7 @@ import { FileStorageService } from '../file-storage.service'
 import { HumanRepository } from '../../repositories/human.repository'
 import { DocumentRecognitionService } from './document-recognition.service'
 import type { IFaceRecognitionProvider, IOcrProvider, FaceComparisonResult } from './providers'
-import type { NewEsnadMedia } from '../../types/esnad-finance'
+import type { NewaltrpMedia } from '../../types/altrp-finance'
 import { logUserJournalEvent } from '../user-journal.service'
 import { createDb } from '../../repositories/utils'
 import { schema } from '../../schema'
@@ -48,7 +48,7 @@ export interface PassportSelfieVerificationResult {
     highRisk?: boolean // Flag for admin if suspicious
   }
   reasons?: string[]
-  avatarMedia?: Partial<NewEsnadMedia>
+  avatarMedia?: Partial<NewaltrpMedia>
 }
 
 /**
@@ -651,7 +651,7 @@ export class PassportSelfieVerificationService {
     selfieMediaUuid: string,
     humanUuid: string,
     uploaderAid: string
-  ): Promise<Partial<NewEsnadMedia> | null> {
+  ): Promise<Partial<NewaltrpMedia> | null> {
     try {
       // 1. Get selfie image from storage
       const selfieBlob = await this.fileStorageService.getFileContent(selfieMediaUuid)

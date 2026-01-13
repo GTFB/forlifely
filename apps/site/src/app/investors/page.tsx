@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Calendar, HandCoins, TrendingUp, Shield } from "lucide-react";
 import Link from "next/link";
-import {InvestorsFormData} from '@/shared/types/esnad'
+import {InvestorsFormData} from '@/shared/types/altrp'
 import dynamic from "next/dynamic";
 import type { Value as E164Number } from "react-phone-number-input";
 

@@ -6,7 +6,7 @@ import { FileStorageService } from '@/shared/services/file-storage.service'
 import { createDb } from '@/shared/repositories/utils'
 import { schema } from '@/shared/schema'
 import { eq } from 'drizzle-orm'
-import type { UpdateProfileKycRequest, ClientDataIn, KycDocumentRef } from '@/shared/types/esnad'
+import type { UpdateProfileKycRequest, ClientDataIn, KycDocumentRef } from '@/shared/types/altrp'
 
 const handleGet = async (context: AuthenticatedRequestContext): Promise<Response> => {
   const { user } = context

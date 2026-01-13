@@ -5,7 +5,7 @@ import {
     LoanApplicationDecision,
     LoanApplicationStatus,
     JournalLoanApplicationSnapshot,
-} from "@/shared/types/esnad"
+} from "@/shared/types/altrp"
 
 import type { Env } from '@/shared/types'
 

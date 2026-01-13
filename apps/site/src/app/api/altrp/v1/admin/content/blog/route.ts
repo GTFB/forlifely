@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { TextsRepository } from '@/shared/repositories/texts.repository'
 import { parseQueryParams } from '@/shared/utils/http'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { NewEsnadText, EsnadText, EsnadTextDataIn } from '@/shared/types/esnad'
+import { NewaltrpText, altrpText, altrpTextDataIn } from '@/shared/types/altrp'
 
 const handleGet = async (context: AuthenticatedRequestContext) => {
   const { request } = context
@@ -23,13 +23,13 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
 
     // Parse dataIn for each text
     const textsWithParsedData = result.docs.map((text) => {
-      let parsedDataIn: EsnadTextDataIn | null = null
+      let parsedDataIn: altrpTextDataIn | null = null
       if (text.dataIn) {
         try {
           if (typeof text.dataIn === 'string') {
-            parsedDataIn = JSON.parse(text.dataIn) as EsnadTextDataIn
+            parsedDataIn = JSON.parse(text.dataIn) as altrpTextDataIn
           } else {
-            parsedDataIn = text.dataIn as EsnadTextDataIn
+            parsedDataIn = text.dataIn as altrpTextDataIn
           }
         } catch (error) {
           console.error('Failed to parse dataIn for text', text.taid, error)
@@ -39,7 +39,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
       return {
         ...text,
         dataIn: parsedDataIn,
-      } as EsnadText
+      } as altrpText
     })
 
     return NextResponse.json({
@@ -61,7 +61,7 @@ const handleGet = async (context: AuthenticatedRequestContext) => {
 const handlePost = async (context: AuthenticatedRequestContext) => {
   const { request } = context
   try {
-    const body = await request.json() as Partial<NewEsnadText & { content?: string; dataIn?: EsnadTextDataIn }>
+    const body = await request.json() as Partial<NewaltrpText & { content?: string; dataIn?: altrpTextDataIn }>
     const { title, type, statusName, category, dataIn, isPublic, content } = body
 
     // Validate required fields
@@ -80,7 +80,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     // Ensure dataIn has date field
     const dataInWithDate = dataIn 
       ? { ...dataIn, date: dataIn.date || new Date().toISOString() }
-      : { slug: '', date: new Date().toISOString(), author: 'Esnad Finance', readTime: 0 }
+      : { slug: '', date: new Date().toISOString(), author: 'Altrp', readTime: 0 }
 
     const textData: any = {
       title,
@@ -95,13 +95,13 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     const createdText = await textsRepository.create(textData)
 
     // Parse dataIn for response
-    let parsedDataIn: EsnadTextDataIn | null = null
+    let parsedDataIn: altrpTextDataIn | null = null
     if (createdText.dataIn) {
       try {
         if (typeof createdText.dataIn === 'string') {
-          parsedDataIn = JSON.parse(createdText.dataIn) as EsnadTextDataIn
+          parsedDataIn = JSON.parse(createdText.dataIn) as altrpTextDataIn
         } else {
-          parsedDataIn = createdText.dataIn as EsnadTextDataIn
+          parsedDataIn = createdText.dataIn as altrpTextDataIn
         }
       } catch (error) {
         console.error('Failed to parse dataIn for created text', createdText.taid, error)
@@ -113,7 +113,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
       text: {
         ...createdText,
         dataIn: parsedDataIn,
-      } as EsnadText,
+      } as altrpText,
     }, { status: 201 })
   } catch (error) {
     console.error('Failed to create blog post', error)

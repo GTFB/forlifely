@@ -84,7 +84,7 @@ const buildEmailBase = (content: string): string => {
           <tr>
             <td style="padding: 20px 20px 0 20px; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} Esnad Finance. Все права защищены.
+                © ${new Date().getFullYear()} Altrp. Все права защищены.
               </p>
             </td>
           </tr>
@@ -113,7 +113,7 @@ export function buildPaymentReminderEmailHtml(data: PaymentReminderEmailData): s
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Altrp</div>
               <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Платформа финансовых решений</div>
             </td>
           </tr>
@@ -225,7 +225,7 @@ export function buildPaymentReminderEmailHtml(data: PaymentReminderEmailData): s
               </div>
               
               <p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                С уважением,<br><strong>Команда Esnad Finance</strong>
+                С уважением,<br><strong>Команда Altrp</strong>
               </p>
             </td>
           </tr>
@@ -324,7 +324,7 @@ export function buildPaymentOverdueEmailHtml(data: PaymentOverdueEmailData): str
           <!-- Header -->
           <tr>
             <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e7eb; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
-              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Esnad Finance</div>
+              <div style="font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 8px;">Altrp</div>
               <div style="font-size: 14px; color: #6b7280; margin-top: 4px;">Платформа финансовых решений</div>
             </td>
           </tr>
@@ -446,7 +446,7 @@ export function buildPaymentOverdueEmailHtml(data: PaymentOverdueEmailData): str
               </div>
               
               <p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-                С уважением,<br><strong>Команда Esnad Finance</strong>
+                С уважением,<br><strong>Команда Altrp</strong>
               </p>
             </td>
           </tr>

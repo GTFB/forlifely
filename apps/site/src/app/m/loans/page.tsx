@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 import { useNotice } from '@/components/admin/AdminNoticesProvider'
 import type { 
   LoanApplication,
-} from '@/shared/types/esnad'
+} from '@/shared/types/altrp'
 import type { 
   DbPaginatedResult,
   DbPaginationResult,

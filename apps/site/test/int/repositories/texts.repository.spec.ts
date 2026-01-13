@@ -1,6 +1,6 @@
 import { describe, it, beforeAll, expect, afterAll } from "bun:test";
 import { TextsRepository } from "@/shared/repositories/texts.repository";
-import { EsnadTextDataIn } from "@/shared/types/esnad";
+import { altrpTextDataIn } from "@/shared/types/altrp";
 
 describe("TextsRepository", () => {
   let textsRepository: TextsRepository;
@@ -27,7 +27,7 @@ describe("TextsRepository", () => {
 
   describe("create blog post", () => {
     it("создает новую запись в блоге", async () => {
-      const dataIn: EsnadTextDataIn = {
+      const dataIn: altrpTextDataIn = {
         slug: testSlug,
         date: new Date().toISOString(),
         author: "Test Author",
@@ -102,11 +102,11 @@ describe("TextsRepository", () => {
 
         // Проверяем, что dataIn содержит правильный slug
         if (found.dataIn) {
-          let parsedDataIn: EsnadTextDataIn | null = null;
+          let parsedDataIn: altrpTextDataIn | null = null;
           if (typeof found.dataIn === "string") {
-            parsedDataIn = JSON.parse(found.dataIn) as EsnadTextDataIn;
+            parsedDataIn = JSON.parse(found.dataIn) as altrpTextDataIn;
           } else {
-            parsedDataIn = found.dataIn as EsnadTextDataIn;
+            parsedDataIn = found.dataIn as altrpTextDataIn;
           }
           expect(parsedDataIn?.slug).toBe(testSlug);
         }
@@ -164,7 +164,7 @@ describe("TextsRepository", () => {
     it("получает список записей блога с фильтрацией", async () => {
       // Создаем еще одну запись для теста
       const secondSlug = `test-slug-2-${Date.now()}`;
-      const secondDataIn: EsnadTextDataIn = {
+      const secondDataIn: altrpTextDataIn = {
         slug: secondSlug,
         date: new Date().toISOString(),
         author: "Test Author 2",

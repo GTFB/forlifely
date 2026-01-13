@@ -45,7 +45,7 @@ export default function FeaturesSection() {
                             Поддержка, которая всегда на связи
                         </span>
 
-                        <p className="my-8 text-2xl font-semibold">Мы ценим каждого участника нашей экосистемы. Наша команда готова ответить на ваши вопросы и помочь на любом этапе вашего пути с Esnad Finance.</p>
+                        <p className="my-8 text-2xl font-semibold">Мы ценим каждого участника нашей экосистемы. Наша команда готова ответить на ваши вопросы и помочь на любом этапе вашего пути с Altrp.</p>
                     </div>
                     <div
                         aria-hidden

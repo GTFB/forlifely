@@ -1,12 +1,12 @@
 import { taxonomy } from "../schema";
 
-export const esnadSeed = {
+export const altrpSeed = {
   __meta__: {
-    name: 'Esnad Finance Settings (Test Data)',
+    name: 'Altrp Settings (Test Data)',
     versions: [
       {
         version: '1.0.0',
-        description: 'Initial test settings for Esnad Finance payment logic',
+        description: 'Initial test settings for Altrp payment logic',
         created_at: '2025-11-21 12:00',
       },
     ],
@@ -175,8 +175,8 @@ export const esnadSeed = {
   taxonomy: [
     {
       entity: "blog.category",
-      name: "esnad",
-      title: "Esnad Blog Categor",
+      name: "altrp",
+      title: "altrp Blog Categor",
       sortOrder: 10,
     }
   ]
