@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { withRoleGuard, AuthenticatedRequestContext, withClientGuard } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { altrpHuman } from '@/shared/types/altrp'
 
@@ -74,5 +74,5 @@ const handleGet = async (context: AuthenticatedRequestContext): Promise<Response
   }
 }
 
-export const GET = withRoleGuard(handleGet, ['client'])
+export const GET = withClientGuard(handleGet)
 

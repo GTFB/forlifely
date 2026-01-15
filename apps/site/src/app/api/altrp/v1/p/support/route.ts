@@ -1,4 +1,4 @@
-import { withRoleGuard } from '@/shared/api-guard'
+import { withAllowedRoleGuard, withRoleGuard } from '@/shared/api-guard'
 import type { RequestContext } from '@/shared/types'
 
 const PARTNER_ROLES = ['partner', 'Partner', 'Партнер']
@@ -96,8 +96,8 @@ async function handlePost(context: RequestContext): Promise<Response> {
   )
 }
 
-export const GET = withRoleGuard(handleGet, PARTNER_ROLES)
-export const POST = withRoleGuard(handlePost, PARTNER_ROLES)
+export const GET = withAllowedRoleGuard(handleGet, PARTNER_ROLES)
+export const POST = withAllowedRoleGuard(handlePost, PARTNER_ROLES)
 
 export async function OPTIONS() {
   return new Response(null, {

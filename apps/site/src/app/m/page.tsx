@@ -1,43 +1,39 @@
-"use client"
+import type { Metadata } from 'next/types'
+import React from 'react'
+import Link from 'next/link'
+import { sidebarNavItems } from './nav'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 
-import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense } from "react"
-import { DataTable } from "@/components/application-blocks/data-table"
-import { AdminHeader } from "@/components/admin/AdminHeader"
+export default function Page() {
+  return (
+    <div className="">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {sidebarNavItems.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} className="group">
+            <Card className="transition-colors hover:border-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <Icon className="size-5 text-muted-foreground group-hover:text-primary" />
+                  <span>{label}</span>
+                </CardTitle>
+                <CardDescription>
+                  Перейти в раздел
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">/</div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-function AdminContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-
-  // Redirect to dashboard if no collection parameter
-  React.useEffect(() => {
-    const collection = searchParams.get("c")
-    if (!collection) {
-      router.replace("/m/dashboard")
-    }
-  }, [searchParams, router])
-
-  // Don't render if redirecting to dashboard
-  const collection = searchParams.get("c")
-  if (!collection) {
-    return null
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Главная',
   }
-
-  return (
-    <>
-      <AdminHeader />
-      <main className="flex-1 overflow-y-auto p-4">
-        <DataTable/>
-      </main>
-    </>
-  )
 }
 
-export default function AdminPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AdminContent />
-    </Suspense>
-  )
-}

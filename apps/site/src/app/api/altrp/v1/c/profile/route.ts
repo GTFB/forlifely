@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { withRoleGuard, AuthenticatedRequestContext, withClientGuard } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { FileStorageService } from '@/shared/services/file-storage.service'
@@ -417,5 +417,5 @@ const handlePut = async (context: AuthenticatedRequestContext): Promise<Response
   }
 }
 
-export const GET = withRoleGuard(handleGet, ['client'])
-export const PUT = withRoleGuard(handlePut, ['client'])
+export const GET = withClientGuard(handleGet, )
+export const PUT = withClientGuard(handlePut, )

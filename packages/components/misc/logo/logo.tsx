@@ -6,7 +6,9 @@ import Image from "next/image";
 import { useTheme } from "@/packages/hooks/use-theme";
 
 interface LogoProps {
-  className?: string;
+  className?: string
+  collapsed?: boolean
+  size?: "small" | "large"
 }
 
 export function Logo({ className }: LogoProps) {

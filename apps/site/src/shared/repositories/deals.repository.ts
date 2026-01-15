@@ -33,6 +33,7 @@ import {
     PaymentScheduleInput,
     PaymentLimitsConfig,
     IsoDate,
+    FinanceDataIn,
 } from "../types/altrp-finance";
 import { ScoringWeights } from "../types/scoring";
 import { SettingsRepository } from "./settings.repository";
@@ -828,7 +829,7 @@ export class DealsRepository extends BaseRepository<Deal>{
             ? (JSON.parse(updatedDeal.dataIn) as Record<string, unknown>)
             : (updatedDeal.dataIn as Record<string, unknown>) || {};
         
-        const paymentSchedule = scheduleResult.items.map((item, index) => ({
+        const paymentSchedule = scheduleResult.items.map((item: FinanceDataIn, index: number) => ({
             number: index + 1,
             date: item.paymentDate,
             amount: item.totalAmount,
@@ -1142,4 +1143,58 @@ export class DealsRepository extends BaseRepository<Deal>{
 
         return updatedDeal;
     }
+    
+  async confirm(params: { fullDaid?: string; daid?: string }): Promise<Deal | null> {
+    const { fullDaid, daid } = params;
+
+    const deal = fullDaid
+      ? await this.findByFullDaid(fullDaid)
+      : daid
+      ? await this.findByDaid(daid)
+      : undefined;
+
+    if (!deal) {
+      return null;
+    }
+
+    const nextStatus = 'IN_PROGRESS';
+    const updatedAt = new Date().toISOString();
+
+    await this.db
+      .update(schema.deals)
+      .set({ statusName: nextStatus, updatedAt })
+      .where(eq(schema.deals.id, deal.id));
+
+    return {
+      ...deal,
+      statusName: nextStatus,
+      updatedAt,
+    };
+  }
+
+  async findByFullDaid(fullDaid: string): Promise<Deal | undefined> {
+    const [deal] = await this.db
+      .select()
+      .from(schema.deals)
+      .where(withNotDeleted(
+        schema.deals.deletedAt,
+        eq(schema.deals.fullDaid, fullDaid)
+      ))
+      .limit(1);
+
+    return deal;
+  }
+
+  async findByDaid(daid: string): Promise<Deal | undefined> {
+    const [deal] = await this.db
+      .select()
+      .from(schema.deals)
+      .where(withNotDeleted(
+        schema.deals.deletedAt,
+        eq(schema.deals.daid, daid)
+      ))
+      .limit(1);
+
+    return deal;
+  }
 }

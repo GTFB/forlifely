@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { withRoleGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
+import { withRoleGuard, AuthenticatedRequestContext, withClientGuard } from '@/shared/api-guard'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { verifyPassword, preparePassword, validatePassword } from '@/shared/password'
 
@@ -114,5 +114,5 @@ const handlePost = async (context: AuthenticatedRequestContext): Promise<Respons
   }
 }
 
-export const POST = withRoleGuard(handlePost, ['client'])
+export const POST = withClientGuard(handlePost)
 

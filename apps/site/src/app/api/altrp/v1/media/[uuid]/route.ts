@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withRoleGuard, type AuthenticatedRequestContext } from '@/shared/api-guard'
+import { withAllowedRoleGuard, withRoleGuard, type AuthenticatedRequestContext } from '@/shared/api-guard'
 import { FileStorageService } from '@/shared/services/file-storage.service'
 
 /**
@@ -109,7 +109,7 @@ export async function GET(
   context: { params: Promise<{ uuid: string }> },
 ) {
   const params = await context.params
-  return withRoleGuard(
+  return withAllowedRoleGuard(
     async (ctx: AuthenticatedRequestContext) => {
       return handleGet(ctx, params.uuid)
     },

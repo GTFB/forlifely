@@ -7,7 +7,6 @@ import { DealsRepository } from '@/shared/repositories/deals.repository'
 import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
 import { buildRequestEnv } from '@/shared/env'
 import { withClientGuard } from '@/shared/api-guard'
-import {  LoanApplicationDeal } from '@/shared/types/altrp'
 import { LoanApplication } from '@/shared/types/altrp'
 
 /**

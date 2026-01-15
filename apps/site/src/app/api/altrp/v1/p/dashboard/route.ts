@@ -1,4 +1,4 @@
-import { withRoleGuard } from '@/shared/api-guard'
+import { withAllowedRoleGuard, withRoleGuard } from '@/shared/api-guard'
 
 const PARTNER_ROLES = ['partner', 'Partner', 'Партнер']
 
@@ -71,7 +71,7 @@ async function handleGet(): Promise<Response> {
   )
 }
 
-export const GET = withRoleGuard(handleGet, PARTNER_ROLES)
+export const GET = withAllowedRoleGuard(handleGet, PARTNER_ROLES)
 
 export async function OPTIONS() {
   return new Response(null, {

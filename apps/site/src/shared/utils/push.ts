@@ -423,13 +423,195 @@ const buildPushRequest = async (params: {
   return { headers, body: bodyBytes }
 }
 
-export const sendPushNotification = async (
+// export const sendPushNotification = async (
+//   subscription: ServerPushSubscription,
+//   title: string,
+//   body: string,
+//   env?: Env,
+//   log?: PushLogger,
+//   url?: string
+// ) => {
+//   await log?.('vapid_config_start', {
+//     status: 'info',
+//     message: 'Resolving VAPID config',
+//   })
+
+//   const vapidDetails = getVapidConfig(env)
+
+//   await log?.('vapid_config_loaded', {
+//     status: 'success',
+//     message: 'VAPID config resolved',
+//   })
+
+//   const payload = JSON.stringify({ title, body, url })
+
+//   await log?.('payload_prepared', {
+//     status: 'info',
+//     message: 'Payload prepared',
+//     payload: { title, bodyLength: payload.length },
+//   })
+
+//   const { headers, body: requestBody } = await buildPushRequest({
+//     subscription,
+//     payload,
+//     vapid: vapidDetails,
+//     log,
+//   })
+
+//   await log?.('request_dispatch', {
+//     status: 'info',
+//     message: 'Sending push request',
+//     payload: { endpoint: subscription.endpoint },
+//   })
+
+//   const response = await fetch(subscription.endpoint, {
+//     method: 'POST',
+//     headers,
+//     body: viewToArrayBuffer(requestBody),
+//   })
+
+//   if (!response.ok) {
+//     const errorBody = await response.text().catch(() => 'Unknown error')
+//     await log?.('response_error', {
+//       status: 'error',
+//       message: 'Push request failed',
+//       payload: {
+//         endpoint: subscription.endpoint,
+//         status: response.status,
+//         statusText: response.statusText,
+//       },
+//       error: errorBody,
+//     })
+//     throw new Error(
+//       `Failed to deliver push notification: ${response.status} ${response.statusText} - ${errorBody}`
+//     )
+//   }
+
+//   await log?.('response_success', {
+//     status: 'success',
+//     message: 'Push request succeeded',
+//     payload: { endpoint: subscription.endpoint },
+//   })
+// }
+
+// export const sendPushNoti
+
+export const sendPushNotificationToHuman = async ({
+  haid,
+  title,
+  body,
+  url = '',
+  context,
+}: {
+
+  haid: string,
+  title: string,
+  body: string,
+  url?: string,
+  context: { env: Env }
+}
+
+) => {
+  const { env } = context
+  const humanRepository = HumanRepository.getInstance()
+  const journalsRepository = JournalsRepository.getInstance()
+
+  const log: PushLogger = async (step, entry) => {
+    try {
+      await journalsRepository.log({
+        context: `push:${haid}`,
+        step,
+        status: entry?.status,
+        message: entry?.message,
+        payload: entry?.payload,
+        error: entry?.error,
+      })
+    } catch (logError) {
+      console.error('Failed to write push journal', logError)
+    }
+  }
+
+  await log('start', {
+    status: 'info',
+    message: 'Preparing to send push notification',
+    payload: { haid, title },
+  })
+
+  const human = (await humanRepository.findByHaid(haid)) as any
+  if (!human) {
+    await log('human_missing', {
+      status: 'error',
+      message: 'Human not found',
+      payload: { haid },
+    })
+    return
+  }
+
+  await log('human_loaded', {
+    status: 'success',
+    message: 'Human loaded',
+    payload: { humanUuid: human.uuid },
+  })
+
+  const subscription = human.data_in?.push_subscription as ServerPushSubscription | undefined
+  if (!subscription) {
+    await log('subscription_missing', {
+      status: 'error',
+      message: 'Push subscription not found',
+      payload: { haid, humanUuid: human.uuid },
+    })
+    return
+  }
+
+  await log('subscription_loaded', {
+    status: 'success',
+    message: 'Subscription retrieved',
+    payload: { endpoint: subscription.endpoint },
+  })
+
+  try {
+    await sendPushNotification({
+      subscription,
+      title,
+      body,
+      env,
+      url,
+      log
+    })
+
+    await log('completed', {
+      status: 'success',
+      message: 'Push notification sent successfully',
+      payload: { endpoint: subscription.endpoint },
+    })
+  } catch (error) {
+    await log('failed', {
+      status: 'error',
+      message: 'Push notification failed',
+      payload: { endpoint: subscription.endpoint },
+      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    })
+    throw error
+  }
+}
+
+
+export const sendPushNotification = async ({
+  subscription,
+  title,
+  url = '',
+  body,
+  env,
+  log
+}: {
   subscription: ServerPushSubscription,
   title: string,
   body: string,
+  url?: string,
   env?: Env,
-  log?: PushLogger,
-  url?: string
+  log?: PushLogger
+}
+
 ) => {
   await log?.('vapid_config_start', {
     status: 'info',
@@ -443,7 +625,14 @@ export const sendPushNotification = async (
     message: 'VAPID config resolved',
   })
 
-  const payload = JSON.stringify({ title, body, url })
+  const payload = JSON.stringify({ 
+    title, 
+    body,
+    url,
+    icon: '/images/favicon_150.png', 
+    badge: '/images/favicon_150.png'   
+   })
+
 
   await log?.('payload_prepared', {
     status: 'info',
@@ -492,86 +681,4 @@ export const sendPushNotification = async (
     message: 'Push request succeeded',
     payload: { endpoint: subscription.endpoint },
   })
-}
-
-export const sendPushNotificationToHuman = async (
-  haid: string,
-  title: string,
-  body: string,
-  context: { env: Env },
-  url?: string
-) => {
-  const { env } = context
-  const humanRepository = HumanRepository.getInstance()
-  const journalsRepository = JournalsRepository.getInstance()
-
-  const log: PushLogger = async (step, entry) => {
-    try {
-      await journalsRepository.log({
-        context: `push:${haid}`,
-        step,
-        status: entry?.status,
-        message: entry?.message,
-        payload: entry?.payload,
-        error: entry?.error,
-      })
-    } catch (logError) {
-      console.error('Failed to write push journal', logError)
-    }
-  }
-
-  await log('start', {
-    status: 'info',
-    message: 'Preparing to send push notification',
-    payload: { haid, title },
-  })
-
-  const human = (await humanRepository.findByHaid(haid)) as any
-  if (!human) {
-    await log('human_missing', {
-      status: 'error',
-      message: 'Human not found',
-      payload: { haid },
-    })
-    return
-  }
-
-  await log('human_loaded', {
-    status: 'success',
-    message: 'Human loaded',
-    payload: { humanUuid: human.uuid },
-  })
-
-  const subscription = (human.dataIn ?? human.data_in)?.push_subscription as ServerPushSubscription | undefined
-  if (!subscription) {
-    await log('subscription_missing', {
-      status: 'error',
-      message: 'Push subscription not found',
-      payload: { haid, humanUuid: human.uuid },
-    })
-    return
-  }
-
-  await log('subscription_loaded', {
-    status: 'success',
-    message: 'Subscription retrieved',
-    payload: { endpoint: subscription.endpoint },
-  })
-
-  try {
-    await sendPushNotification(subscription, title, body, env, log, url)
-    await log('completed', {
-      status: 'success',
-      message: 'Push notification sent successfully',
-      payload: { endpoint: subscription.endpoint },
-    })
-  } catch (error) {
-    await log('failed', {
-      status: 'error',
-      message: 'Push notification failed',
-      payload: { endpoint: subscription.endpoint },
-      error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
-    })
-    throw error
-  }
 }

@@ -36,6 +36,7 @@ export type BaseColumnOptions = {
     required?: boolean;
     readOnly?: boolean;
     unique?: boolean;
+    fieldType?: 'text' | 'number' | 'email' | 'phone' | 'password' | 'boolean' | 'date' | 'time' | 'datetime' | 'json' | 'array' | 'object' | 'price' | 'enum' | 'image' | 'images' | 'tiptap';
     prepare?: (value: any, column: BaseColumn) => any;
     virtual?: boolean;  // Virtual field, computed on backend
     value?: (instance: any) => Promise<any> | any;  // Required if virtual = true

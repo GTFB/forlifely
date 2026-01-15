@@ -193,7 +193,13 @@ export class NoticesRepository extends BaseRepository<Notice> {
     let pushResult: any = null
 
     try {
-      pushResult = await sendPushNotificationToHuman(haid, title, body, { env: buildRequestEnv() }, url)
+      pushResult = await sendPushNotificationToHuman({
+        haid,
+        title,
+        body,
+        url,
+        context: { env: buildRequestEnv() },
+      })
       pushSent = true
     } catch (error) {
       pushError = error instanceof Error ? error.message : String(error)
