@@ -3,11 +3,60 @@ import { SiteDb, buildDbFilters, buildDbOrders, createDb } from "./utils";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
 import { isPostgres } from "../utils/db";
-import type { D1Database } from "@cloudflare/workers-types";
 
 
 export default class BaseRepository<T> {
     protected db: SiteDb;
+
+    private static readonly _jsonFieldKeys = new Set([
+        // canonical jsonb-ish columns in this project
+        "dataIn",
+        "data_in",
+    ]);
+
+    private static normalizePossiblyDoubleJsonString(value: unknown): unknown {
+        if (value == null) return value;
+        if (typeof value !== "string") return value;
+
+        const s = value.trim();
+        if (!s) return value;
+
+        // First parse attempt: handles normal JSON objects/arrays, numbers, booleans, null, or JSON-strings
+        try {
+            const parsed = JSON.parse(s);
+
+            // If someone double-stringified a JSON object, parsed is a string like: {"a":1}
+            if (typeof parsed === "string") {
+                const inner = parsed.trim();
+                if (inner && (inner.startsWith("{") || inner.startsWith("["))) {
+                    try {
+                        return JSON.parse(inner);
+                    } catch {
+                        return parsed;
+                    }
+                }
+                return parsed;
+            }
+
+            return parsed;
+        } catch {
+            // Not JSON at all, keep as-is
+            return value;
+        }
+    }
+
+    private static normalizeJsonFields(data: Record<string, unknown>): Record<string, unknown> {
+        // Only needed for Postgres jsonb columns: Postgres will happily store a JSON string
+        // (e.g. "\"{\\\"a\\\":1}\"") as jsonb string, which is not what we want.
+        if (!isPostgres()) return data;
+
+        for (const key of Object.keys(data)) {
+            if (!BaseRepository._jsonFieldKeys.has(key)) continue;
+            data[key] = BaseRepository.normalizePossiblyDoubleJsonString(data[key]);
+        }
+
+        return data;
+    }
 
     constructor(public schema: any) {
         this.db = createDb();
@@ -38,6 +87,9 @@ export default class BaseRepository<T> {
         return rows as T[];
     }
     async create(data: any): Promise<T> {
+        if (data && typeof data === "object") {
+            BaseRepository.normalizeJsonFields(data as Record<string, unknown>);
+        }
         if (!data.uuid) {
             data.uuid = crypto.randomUUID();
         }
@@ -65,6 +117,10 @@ export default class BaseRepository<T> {
 
         if (!collection) {
             collection = new BaseCollection();
+        }
+
+        if (data && typeof data === "object") {
+            BaseRepository.normalizeJsonFields(data as Record<string, unknown>);
         }
 
         if (!isPostgres()) {
