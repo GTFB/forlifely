@@ -198,6 +198,7 @@
       "selectPlaceholder": "Выбрать...",
       "selected": "выбрано",
       "noResults": "Результаты не найдены.",
+      "noOptionsAvailable": "Нет доступных опций",
       "cancel": "Отмена",
       "create": "Создать",
       "save": "Сохранить",
@@ -222,6 +223,27 @@
         "deleteAll": "Удалить все"
       }
     },
+    "dateFilter": {
+      "filter": "Фильтр по дате",
+      "filterBy": "Фильтровать по",
+      "created": "Создано",
+      "updated": "Обновлено",
+      "today": "Сегодня",
+      "yesterday": "Вчера",
+      "last7days": "Последние 7 дней",
+      "last30days": "Последние 30 дней",
+      "last90days": "Последние 90 дней",
+      "thisMonth": "Этот месяц",
+      "lastMonth": "Прошлый месяц",
+      "thisYear": "Этот год",
+      "lastYear": "Прошлый год",
+      "clear": "Очистить фильтр",
+      "selectDate": "Выбрать дату",
+      "dateRange": "Диапазон дат",
+      "from": "От",
+      "to": "До",
+      "apply": "Применить"
+    },
     "editRecord": {
       "title": "Редактировать запись в {collection}",
       "description": "Измените поля ниже. Автоматически генерируемые поля не редактируются и скрыты."
@@ -229,10 +251,16 @@
     "loading": "Загрузка {collection}...",
     "dataInFields": "Дополнительно",
     "showFilters": "Показать фильтры",
+    "cardView": "Режим карточек",
+    "cardViewMobile": "Режим карточек (мобильный)",
+    "cardViewDesktop": "Режим карточек (десктоп)",
+    "cardsPerRow": "Карточек в ряд",
     "searchHint": "Enter для добавления, \"фраза\" для точного поиска, AND/OR для операторов",
+    "editMode": "Режим редактирования",
+    "save": "Сохранить",
     "export": "Экспорт",
     "import": "Импорт",
-    "configureTable": "Настроить таблицу",
+    "configureTable": "Настройки",
     "exportData": "Экспорт данных",
     "importData": "Импорт данных",
     "exportedRecords": "Экспортировано {count} записей в формате {format}",
@@ -299,7 +327,8 @@
         "xaid": "Проекты",
         "created_at": "Создано",
         "updated_at": "Обновлено",
-        "data_in": "Данные (JSON)"
+        "data_in": "Данные (JSON)",
+        "main": "Главное!"
       }
     }
   },

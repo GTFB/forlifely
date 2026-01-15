@@ -200,6 +200,7 @@
         "selectPlaceholder": "Izaberi...",
         "selected": "izabrano",
         "noResults": "Nema rezultata.",
+        "noOptionsAvailable": "Nema dostupnih opcija",
         "cancel": "Otkaži",
         "create": "Kreiraj",
         "save": "Sačuvaj",
@@ -224,6 +225,27 @@
           "deleteAll": "Obriši sve"
         }
       },
+      "dateFilter": {
+        "filter": "Filter po datumu",
+        "filterBy": "Filtriraj po",
+        "created": "Kreirano",
+        "updated": "Ažurirano",
+        "today": "Danas",
+        "yesterday": "Juče",
+        "last7days": "Poslednjih 7 dana",
+        "last30days": "Poslednjih 30 dana",
+        "last90days": "Poslednjih 90 dana",
+        "thisMonth": "Ovaj mesec",
+        "lastMonth": "Prošli mesec",
+        "thisYear": "Ova godina",
+        "lastYear": "Prošla godina",
+        "clear": "Obriši filter",
+        "selectDate": "Izaberi datum",
+        "dateRange": "Opseg datuma",
+        "from": "Od",
+        "to": "Do",
+        "apply": "Primeni"
+      },
       "editRecord": {
         "title": "Uredi zapis u {collection}",
         "description": "Promenite polja ispod. Automatski generisana polja se ne mogu menjati i sakrivena su."
@@ -235,10 +257,16 @@
       "loading": "Učitavanje {collection}...",
       "dataInFields": "Dodatno",
       "showFilters": "Prikaži filtere",
+      "cardView": "Prikaz kartica",
+      "cardViewMobile": "Prikaz kartica (Mobilni)",
+      "cardViewDesktop": "Prikaz kartica (Desktop)",
+      "cardsPerRow": "Kartica u redu",
       "searchHint": "Enter za dodavanje, \"fraza\" za tačnu pretragu, AND/OR za operatore",
+      "editMode": "Režim uređivanja",
+      "save": "Sačuvaj",
       "export": "Eksport",
       "import": "Import",
-      "configureTable": "Podesi tabelu",
+      "configureTable": "Podešavanja",
       "exportData": "Eksport podataka",
       "importData": "Import podataka",
       "exportedRecords": "Eksportovano {count} zapisa u {format} formatu",
@@ -305,7 +333,8 @@
           "xaid": "Projekti",
           "created_at": "Kreirano",
           "updated_at": "Ažurirano",
-          "data_in": "Podaci (JSON)"
+          "data_in": "Podaci (JSON)",
+          "main": "Glavno!"
         }
       }
     },
