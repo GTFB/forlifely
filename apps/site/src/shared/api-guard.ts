@@ -45,20 +45,7 @@ export function withRoleGuard<T extends Context>(handler: RouteHandler<T>, check
       )
     }
 
-    // Ensure DB is available
-    if (!env.DB) {
-         return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'INTERNAL_SERVER_ERROR', 
-          message: 'Database not configured' 
-        }),
-        { 
-          status: 500, 
-          headers: { 'content-type': 'application/json' } 
-        }
-      )
-    }
+    
 
     const meRepo = MeRepository.getInstance()
     const user = await meRepo.findByIdWithRoles(Number(sessionUser.id))

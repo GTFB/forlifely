@@ -3,7 +3,7 @@ import type { AuthenticatedRequestContext } from '@/shared/api-guard'
 import { withManagerGuard } from '@/shared/api-guard'
 import { MeRepository } from '@/shared/repositories/me.repository'
 import { BaseMovesRepository } from '@/shared/repositories/base-moves.repository'
-import { type SiteDbPostgres } from '@/shared/repositories/utils' 
+import { createDb, type SiteDbPostgres } from '@/shared/repositories/utils' 
 
 const toKopecks = (value: unknown): number | undefined => {
   if (value === null || value === undefined) {
@@ -91,7 +91,7 @@ async function handlePost(context: AuthenticatedRequestContext) {
       if (locationLaid) {
         const locationsRepo = await import('@/shared/repositories/locations.repository')
         const LocationsRepository = locationsRepo.LocationsRepository
-        const locRepo = LocationsRepository.getInstance(env.DB as SiteDbPostgres)
+        const locRepo = LocationsRepository.getInstance(createDb())
         const loc = await locRepo.findByLaid(locationLaid)
         if (loc) {
           location = {

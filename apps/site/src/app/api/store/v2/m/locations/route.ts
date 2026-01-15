@@ -2,7 +2,7 @@
 import type { AuthenticatedRequestContext } from '@/shared/api-guard'
 import { withManagerGuard } from '@/shared/api-guard'
 import { LocationsRepository } from '@/shared/repositories/locations.repository'
-import { SiteDbPostgres } from '@/shared/repositories/utils'
+import { createDb, SiteDbPostgres } from '@/shared/repositories/utils'
 
 /**
  * GET /api/store/v2/m/locations
@@ -13,7 +13,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
 
   try {
     // Use repository to fetch all public locations
-    const repository = LocationsRepository.getInstance(env.DB as SiteDbPostgres)
+    const repository = LocationsRepository.getInstance(createDb())
     const locations = await repository.getPublicLocations(100)
 
     // Map locations to simpler format

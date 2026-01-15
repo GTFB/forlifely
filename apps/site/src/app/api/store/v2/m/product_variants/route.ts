@@ -3,7 +3,7 @@
 import type { AuthenticatedRequestContext } from '@/shared/api-guard'
 import { withManagerGuard } from '@/shared/api-guard'
 import { ProductVariantsRepository } from '@/shared/repositories/product-variants.repository'
-import { SiteDbPostgres } from '@/shared/repositories/utils'
+import { createDb, SiteDbPostgres } from '@/shared/repositories/utils'
 
 /**
  * GET /api/store/v2/s/product_variants
@@ -19,7 +19,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
     const locationLaid = url.searchParams.get('location_laid')
 
     // Use repository to fetch data
-    const repository = ProductVariantsRepository.getInstance(env.DB as SiteDbPostgres)
+    const repository = ProductVariantsRepository.getInstance(createDb())
     
     // If location_laid is provided, filter by location using relations
     const result = locationLaid

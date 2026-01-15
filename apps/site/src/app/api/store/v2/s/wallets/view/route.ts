@@ -4,7 +4,7 @@ import type { AuthenticatedRequestContext } from '@/shared/api-guard'
 import { withStorekeeperGuard } from '@/shared/api-guard'
 import { WalletsRepository } from '@/shared/repositories/wallets.repository'
 import { WalletTransactionsRepository } from '@/shared/repositories/wallet-transactions.repository'
-import { SiteDbPostgres } from '@/shared/repositories/utils';
+import { createDb, SiteDbPostgres } from '@/shared/repositories/utils';
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) {
@@ -46,7 +46,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
     }
 
     const walletsRepository = WalletsRepository.getInstance();
-    const transactionsRepository = WalletTransactionsRepository.getInstance(env.DB as SiteDbPostgres);
+    const transactionsRepository = WalletTransactionsRepository.getInstance(createDb());
 
     const summary = await walletsRepository.getSummary(waid);
 
