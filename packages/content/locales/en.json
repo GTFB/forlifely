@@ -199,6 +199,7 @@
       "selectPlaceholder": "Select...",
       "selected": "selected",
       "noResults": "No results found.",
+      "noOptionsAvailable": "No options available",
       "cancel": "Cancel",
       "create": "Create",
       "save": "Save",
@@ -223,6 +224,27 @@
         "deleteAll": "Delete All"
       }
     },
+    "dateFilter": {
+      "filter": "Date Filter",
+      "filterBy": "Filter by",
+      "created": "Created",
+      "updated": "Updated",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7days": "Last 7 days",
+      "last30days": "Last 30 days",
+      "last90days": "Last 90 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "thisYear": "This year",
+      "lastYear": "Last year",
+      "clear": "Clear filter",
+      "selectDate": "Select date",
+      "dateRange": "Date range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
+    },
     "editRecord": {
       "title": "Edit record in {collection}",
       "description": "Change fields below. Auto-generated fields are not editable and hidden."
@@ -234,10 +256,16 @@
     "loading": "Loading {collection}...",
     "dataInFields": "Additional",
     "showFilters": "Show Filters",
+      "cardView": "Card View",
+      "cardViewMobile": "Card View (Mobile)",
+      "cardViewDesktop": "Card View (Desktop)",
+      "cardsPerRow": "Cards per row",
     "searchHint": "Enter to add, \"phrase\" for exact search, AND/OR for operators",
+    "editMode": "Edit Mode",
+    "save": "Save",
     "export": "Export",
     "import": "Import",
-    "configureTable": "Configure Table",
+    "configureTable": "Settings",
     "exportData": "Export Data",
     "importData": "Import Data",
     "exportedRecords": "Exported {count} records in {format} format",
@@ -304,7 +332,8 @@
         "xaid": "Expanse",
         "created_at": "Created",
         "updated_at": "Updated",
-        "data_in": "Data (JSON)"
+        "data_in": "Data (JSON)",
+        "main": "Main!"
       }
     }
   },

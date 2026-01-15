@@ -9,6 +9,7 @@ import {
   IconChevronsRight,
   IconDotsVertical,
   IconLayoutColumns,
+  IconLayoutGrid,
   IconLoader,
   IconPlus,
   IconCheck,
@@ -25,6 +26,10 @@ import {
   IconFilter,
   IconDownload,
   IconUpload,
+  IconCalendar,
+  IconGripVertical,
+  IconEdit,
+  IconDeviceFloppy,
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
@@ -32,6 +37,9 @@ import { parseSearchQuery, matchesSearchQuery, type ParsedSearchQuery, type Sear
 import { exportTable, getFileExtension, getMimeType, addBOM, type ExportFormat } from "@/shared/utils/table-export"
 import { parseImportFile, importRows, type ImportFormat } from "@/shared/utils/table-import"
 import { DateTimePicker } from "@/packages/components/ui/date-time-picker"
+import { DayPicker, DateRange } from "react-day-picker"
+import { ru, enUS, sr } from "date-fns/locale"
+import "react-day-picker/dist/style.css"
 import { PhoneInput } from "@/packages/components/ui/phone-input"
 import qs from "qs"
 import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
@@ -56,10 +64,28 @@ import {
   VisibilityState,
   HeaderContext,
 } from "@tanstack/react-table"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -441,13 +467,28 @@ function RelationSelect({
   }, [relation, search])
 
   return (
-    <Select value={value ? String(value) : ""} onValueChange={onChange} disabled={disabled || loading} required={required}>
+    <Select value={value ? String(value) : ""} onValueChange={(val) => {
+      // Convert string back to original value type if needed
+      // For relation fields, we want to preserve the original value type (could be string or number)
+      const originalValue = options.find(opt => String(opt.value) === val)?.value
+      // Always use the original value from options if found, otherwise use the string value
+      // This ensures we pass the actual ID, not a string representation
+      const finalValue = originalValue !== undefined ? originalValue : val
+      // Ensure we never pass an object - only primitives (string, number, null)
+      if (typeof finalValue === 'object' && finalValue !== null) {
+        console.warn('[RelationSelect] Attempted to pass object value, using null instead:', finalValue)
+        onChange(null)
+      } else {
+        console.log(`[RelationSelect] ${relation.collection} onChange:`, { val, originalValue, finalValue, type: typeof finalValue })
+        onChange(finalValue)
+      }
+    }} disabled={disabled || loading} required={required}>
       <SelectTrigger>
         <SelectValue placeholder={loading ? (translations?.form?.loading || "Loading...") : (translations?.form?.selectPlaceholder || "Select...")} />
       </SelectTrigger>
       <SelectContent className="max-h-[300px] z-[10002]" position="popper" sideOffset={5}>
         {options.length === 0 && !loading ? (
-          <div className="p-2 text-sm text-muted-foreground">No options available</div>
+          <div className="p-2 text-sm text-muted-foreground">{(translations as any)?.form?.noOptionsAvailable || "No options available"}</div>
         ) : (
           options.map((opt) => (
             <SelectItem key={opt.value} value={String(opt.value)}>
@@ -460,8 +501,63 @@ function RelationSelect({
   )
 }
 
+// Helper function to get data_in field label
+function getDataInFieldLabel(
+  baseKey: string,
+  rowData: CollectionData | null,
+  locale: string,
+  translations: any,
+  collection: string
+): string | null {
+  let fieldTitle: string | null = null
+  
+  // Try to get title from data_in structure in current row
+  if (rowData?.data_in) {
+    try {
+      let parsed: any = rowData.data_in
+      if (typeof rowData.data_in === 'string') {
+        try {
+          parsed = JSON.parse(rowData.data_in)
+        } catch (e) {
+          // Not JSON, ignore
+        }
+      }
+      
+      if (parsed && typeof parsed === 'object') {
+        // Find the key (case-insensitive, with or without language suffix)
+        const foundKey = Object.keys(parsed).find(key => {
+          const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+          if (langMatch && langMatch[1].toLowerCase() === baseKey.toLowerCase()) {
+            return true
+          }
+          return key.toLowerCase() === baseKey.toLowerCase()
+        })
+        
+        if (foundKey && parsed[foundKey] !== undefined) {
+          const value = parsed[foundKey]
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            // Try current locale first, then fallback to other locales
+            const localeValue = value[locale] || value.en || value.ru || value.rs || null
+            if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
+              fieldTitle = localeValue.title || null
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
+  }
+  
+  // Try to get translation from translations object
+  const fieldTranslation = translations?.dataTable?.fields?.[collection]?.[baseKey]
+  
+  // Return fieldTitle or fieldTranslation, but not baseKey directly
+  return fieldTitle || fieldTranslation || null
+}
+
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>): ColumnDef<CollectionData>[] {
+function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>, editMode: boolean = false, handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void, fullSchema?: ColumnSchemaExtended[], editedCells?: Map<string, Record<string, any>>): ColumnDef<CollectionData>[] {
   return [
   {
     id: "select",
@@ -494,6 +590,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
     enableHiding: false,
   },
     ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
+      id: col.name, // Explicitly set id to match accessorKey
       accessorKey: col.name,
       enableSorting: true,
       enableResizing: true,
@@ -525,7 +622,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             title={column.getCanSort() ? (hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort") : undefined}
           >
             <div className={`flex items-center gap-1 ${headerAlignClass}`}>
-              <span>{col.title || col.name}</span>
+              <span>{(translations as any)?.fields?.[collection || '']?.[col.name] || col.title || col.name}</span>
               {col.primary && (
                 <Badge variant="outline" className="text-[10px] px-0 py-0">
                   PK
@@ -556,11 +653,163 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         )
       },
       cell: ({ row }: { row: Row<CollectionData> }) => {
-        const value = row.original[col.name]
+        // Get row ID for updates
+        const primaryKey = (fullSchema || schema).find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
+        const rowId = row.original[primaryKey]
+        const rowIdStr = String(rowId)
+        
+        // Get value - check editedCells first, then original value
+        const editedValue = editedCells?.get(rowIdStr)?.[col.name]
+        const value = editedValue !== undefined ? editedValue : row.original[col.name]
+        
         // Get alignment for this column
         const alignment = columnAlignment?.[col.name] || (col.name === 'is_system' || col.name === 'order' ? 'center' : 'left')
         const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
         
+        // Edit mode: return editable components
+        if (editMode && handleCellUpdate && !col.primary && !col.hidden && col.name !== 'id' && col.name !== 'uuid' && col.name !== 'created_at' && col.name !== 'updated_at') {
+          // Boolean fields - Checkbox
+          if (col.fieldType === 'boolean') {
+            const boolValue = value === 1 || value === true || value === '1' || value === 'true'
+            return (
+              <div className="flex items-center justify-center">
+                <Checkbox
+                  checked={boolValue}
+                  onCheckedChange={(checked) => {
+                    void handleCellUpdate(rowId, col.name, checked)
+                  }}
+                />
+              </div>
+            )
+          }
+          
+          // Select fields
+          if (col.fieldType === 'select' && col.selectOptions) {
+            return (
+              <Select
+                value={value ? String(value) : ""}
+                onValueChange={(val) => {
+                  void handleCellUpdate(rowId, col.name, val)
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {col.selectOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
+          }
+          
+          // Enum fields
+          if (col.fieldType === 'enum' && col.enum) {
+            return (
+              <Select
+                value={value ? String(value) : ""}
+                onValueChange={(val) => {
+                  void handleCellUpdate(rowId, col.name, val)
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {col.enum.values.map((val, idx) => (
+                    <SelectItem key={val} value={String(val)}>
+                      {col.enum!.labels[idx]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
+          }
+          
+          // Relation fields
+          if (col.relation) {
+            return (
+              <RelationSelect
+                relation={col.relation}
+                value={value}
+                onChange={(val) => {
+                  void handleCellUpdate(rowId, col.name, val)
+                }}
+                translations={translations}
+              />
+            )
+          }
+          
+          // Price fields
+          if (col.fieldType === 'price') {
+            const cents = value === null || value === undefined || value === '' ? NaN : Number(value)
+            const amount = isFinite(cents) ? (cents / 100).toFixed(2) : ''
+            return (
+              <Input
+                type="number"
+                step="0.01"
+                value={amount}
+                onChange={(e) => {
+                  const numValue = parseFloat(e.target.value)
+                  if (!isNaN(numValue)) {
+                    void handleCellUpdate(rowId, col.name, Math.round(numValue * 100))
+                  }
+                }}
+                className="h-8 text-xs"
+              />
+            )
+          }
+          
+          // Number fields
+          if (col.fieldType === 'number') {
+            return (
+              <Input
+                type="number"
+                value={value ?? ''}
+                onChange={(e) => {
+                  const numValue = parseFloat(e.target.value)
+                  if (!isNaN(numValue)) {
+                    void handleCellUpdate(rowId, col.name, numValue)
+                  } else if (e.target.value === '') {
+                    void handleCellUpdate(rowId, col.name, null)
+                  }
+                }}
+                className="h-8 text-xs"
+              />
+            )
+          }
+          
+          // Textarea fields
+          if (col.textarea) {
+            return (
+              <Textarea
+                value={value ?? ''}
+                onChange={(e) => {
+                  void handleCellUpdate(rowId, col.name, e.target.value)
+                }}
+                className="h-8 text-xs min-h-[32px]"
+                rows={1}
+              />
+            )
+          }
+          
+          // Default: text input
+          return (
+            <Input
+              type="text"
+              value={value ?? ''}
+              onChange={(e) => {
+                void handleCellUpdate(rowId, col.name, e.target.value)
+              }}
+              className="h-8 text-xs"
+            />
+          )
+        }
+        
+        // Non-edit mode: return display components
         if (col.name === 'id') {
           return <div className={`font-mono tabular-nums ${alignmentClass}`}>{value ?? "-"}</div>
         }
@@ -585,7 +834,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 }}
               >
                 <IconCopy className="h-4 w-4" />
-                <span className="sr-only">Copy</span>
+                <span className="sr-only">{translations?.copy || "Copy"}</span>
               </Button>
             </div>
           )
@@ -673,14 +922,16 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             }
           }
           if (jsonValue && typeof jsonValue === 'object') {
-            const localizedValue =
-              jsonValue[locale] ||
-              jsonValue.en ||
-              jsonValue.ru ||
-              jsonValue.rs ||
-              value ||
-              "-"
-            return <div className={alignmentClass}>{localizedValue}</div>
+            const localeValue = jsonValue[locale] || jsonValue.en || jsonValue.ru || jsonValue.rs || null
+            // If localeValue is an object with title and value structure, use the value for table/card body
+            if (localeValue && typeof localeValue === 'object' && 'value' in localeValue) {
+              const displayValue = localeValue.value != null ? String(localeValue.value) : "-"
+              return <div className={alignmentClass}>{displayValue}</div>
+            } else if (localeValue !== null && localeValue !== undefined) {
+              // If it's a simple value (string, number, etc.)
+              return <div className={alignmentClass}>{String(localeValue)}</div>
+            }
+            return <div className={alignmentClass}>-</div>
           }
         }
         
@@ -709,302 +960,6 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         )
       },
     })),
-    // Add virtual suffix column for roles collection
-    ...(collection === 'roles' ? [{
-      accessorKey: 'suffix',
-      enableSorting: true,
-      enableResizing: true,
-      size: columnSizing?.['suffix'] || undefined,
-      header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
-        const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
-        const isSorted = column.getIsSorted()
-        const hasMultipleSorts = table.getState().sorting.length > 1
-        
-        // Try to get title from data_in in first record
-        let suffixTitle: string | null = null
-        if (data && data.length > 0) {
-          for (const row of data) {
-            const dataIn = row.data_in
-            if (dataIn) {
-              try {
-                let parsed: any = dataIn
-                if (typeof dataIn === 'string') {
-                  try {
-                    parsed = JSON.parse(dataIn)
-                  } catch (e) {
-                    continue
-                  }
-                }
-                if (parsed && typeof parsed === 'object') {
-                  const suffixKey = Object.keys(parsed).find(key => key.toLowerCase() === 'suffix')
-                  if (suffixKey && parsed[suffixKey] !== undefined) {
-                    const suffix = parsed[suffixKey]
-                    if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
-                      const localeValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
-                      if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
-                        suffixTitle = localeValue.title || null
-                        if (suffixTitle) break
-                      }
-                    }
-                  }
-                }
-              } catch (e) {
-                continue
-              }
-            }
-          }
-        }
-        // Fallback to translation or default
-        const suffixTranslation = (translations as any)?.dataTable?.fields?.roles?.suffix
-        const columnTitle = suffixTitle || suffixTranslation || 'Suffix'
-        
-        // Get alignment for suffix column
-        const alignment = columnAlignment?.['suffix'] || 'left'
-        const isCentered = alignment === 'center'
-        const isRight = alignment === 'right'
-        const headerAlignClass = isCentered ? 'justify-center' : isRight ? 'justify-end' : 'justify-start'
-        
-        return (
-          <Button
-            variant="ghost"
-            className={`h-auto p-0 hover:bg-transparent font-semibold ${headerAlignClass}`}
-            onClick={(e) => {
-              if (e.shiftKey) {
-                // Shift + click: add to multi-sort
-                column.toggleSorting(isSorted === "asc", true)
-              } else {
-                // Regular click: toggle sort (replaces existing sorts)
-                column.toggleSorting(isSorted === "asc")
-              }
-            }}
-            title={hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort"}
-          >
-            <div className={`flex items-center gap-1 ${headerAlignClass}`}>
-              <span>{columnTitle}</span>
-              <span className="ml-1 flex items-center gap-0.5">
-                {isSorted ? (
-                  <>
-                    {isSorted === "asc" ? (
-                      <IconArrowUp className="h-3 w-3" />
-                    ) : (
-                      <IconArrowDown className="h-3 w-3" />
-                    )}
-                    {sortedIndex >= 0 && hasMultipleSorts && (
-                      <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
-                        {sortedIndex + 1}
-                      </Badge>
-                    )}
-                  </>
-                ) : (
-                  <IconArrowsSort className="h-3 w-3 opacity-30" />
-                )}
-              </span>
-            </div>
-          </Button>
-        )
-      },
-      cell: ({ row }: { row: Row<CollectionData> }) => {
-        const dataIn = row.original.data_in
-        let suffixValue: string | null = null
-        
-        if (dataIn) {
-          try {
-            // Parse data_in if it's a string
-            let parsed: any = dataIn
-            if (typeof dataIn === 'string') {
-              try {
-                parsed = JSON.parse(dataIn)
-              } catch (e) {
-                // If parsing fails, treat as plain string
-                parsed = null
-              }
-            }
-            
-            // Extract suffix value (case-insensitive search)
-            if (parsed && typeof parsed === 'object') {
-              const suffixKey = Object.keys(parsed).find(key => key.toLowerCase() === 'suffix')
-              if (suffixKey && parsed[suffixKey] !== undefined) {
-                const suffix = parsed[suffixKey]
-                
-                // If suffix is an object with language keys
-                if (typeof suffix === 'object' && suffix !== null && !Array.isArray(suffix)) {
-                  // Try current locale first, then fallback to en, ru, rs
-                  const localeValue = suffix[locale] || suffix.en || suffix.ru || suffix.rs || null
-                  if (localeValue !== null && localeValue !== undefined) {
-                    // Check if localeValue is an object with title and value structure
-                    if (typeof localeValue === 'object' && 'value' in localeValue) {
-                      suffixValue = localeValue.value != null ? String(localeValue.value) : null
-                    } else {
-                      // If it's a simple value (string, number, etc.)
-                      suffixValue = String(localeValue)
-                    }
-                  }
-                } else if (suffix !== null && suffix !== undefined) {
-                  // If suffix is a simple value (string, number, etc.)
-                  suffixValue = String(suffix)
-                }
-              }
-            }
-          } catch (e) {
-            // Ignore parse errors
-            console.warn('Failed to parse suffix from data_in:', e)
-          }
-        }
-        
-        // Get alignment for suffix column
-        const alignment = columnAlignment?.['suffix'] || 'left'
-        const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
-        
-        return <div className={alignmentClass}>{suffixValue || '-'}</div>
-      },
-    }, {
-      accessorKey: 'main',
-      enableSorting: true,
-      enableResizing: true,
-      size: columnSizing?.['main'] || undefined,
-      header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
-        const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
-        const isSorted = column.getIsSorted()
-        const hasMultipleSorts = table.getState().sorting.length > 1
-        
-        // Try to get title from data_in in first record
-        let mainTitle: string | null = null
-        if (data && data.length > 0) {
-          for (const row of data) {
-            const dataIn = row.data_in
-            if (dataIn) {
-              try {
-                let parsed: any = dataIn
-                if (typeof dataIn === 'string') {
-                  try {
-                    parsed = JSON.parse(dataIn)
-                  } catch (e) {
-                    continue
-                  }
-                }
-                if (parsed && typeof parsed === 'object') {
-                  const mainKey = Object.keys(parsed).find(key => key.toLowerCase() === 'main')
-                  if (mainKey && parsed[mainKey] !== undefined) {
-                    const main = parsed[mainKey]
-                    if (typeof main === 'object' && main !== null && !Array.isArray(main)) {
-                      const localeValue = main[locale] || main.en || main.ru || main.rs || null
-                      if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
-                        mainTitle = localeValue.title || null
-                        if (mainTitle) break
-                      }
-                    }
-                  }
-                }
-              } catch (e) {
-                continue
-              }
-            }
-          }
-        }
-        // Fallback to translation or default
-        const mainTranslation = (translations as any)?.dataTable?.fields?.[collection]?.main
-        const columnTitle = mainTitle || mainTranslation || (translations as any)?.dataTable?.main || 'Main'
-        
-        // Get alignment for main column
-        const alignment = columnAlignment?.['main'] || 'left'
-        const isCentered = alignment === 'center'
-        const isRight = alignment === 'right'
-        const headerAlignClass = isCentered ? 'justify-center' : isRight ? 'justify-end' : 'justify-start'
-        
-        return (
-          <Button
-            variant="ghost"
-            className={`h-auto p-0 hover:bg-transparent font-semibold ${headerAlignClass}`}
-            onClick={(e) => {
-              if (e.shiftKey) {
-                // Shift + click: add to multi-sort
-                column.toggleSorting(isSorted === "asc", true)
-              } else {
-                // Regular click: toggle sort (replaces existing sorts)
-                column.toggleSorting(isSorted === "asc")
-              }
-            }}
-            title={hasMultipleSorts ? (translations as any)?.dataTable?.sortTooltipMultiple || "Click: change sort | Shift+Click: add to sort" : (translations as any)?.dataTable?.sortTooltipSingle || "Click: sort | Shift+Click: add to sort"}
-          >
-            <div className={`flex items-center gap-1 ${headerAlignClass}`}>
-              <span>{columnTitle}</span>
-              <span className="ml-1 flex items-center gap-0.5">
-                {isSorted ? (
-                  <>
-                    {isSorted === "asc" ? (
-                      <IconArrowUp className="h-3 w-3" />
-                    ) : (
-                      <IconArrowDown className="h-3 w-3" />
-                    )}
-                    {sortedIndex >= 0 && hasMultipleSorts && (
-                      <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
-                        {sortedIndex + 1}
-                      </Badge>
-                    )}
-                  </>
-                ) : (
-                  <IconArrowsSort className="h-3 w-3 opacity-30" />
-                )}
-              </span>
-            </div>
-          </Button>
-        )
-      },
-      cell: ({ row }: { row: Row<CollectionData> }) => {
-        const dataIn = row.original.data_in
-        let mainValue: string | null = null
-        
-        if (dataIn) {
-          try {
-            // Parse data_in if it's a string
-            let parsed: any = dataIn
-            if (typeof dataIn === 'string') {
-              try {
-                parsed = JSON.parse(dataIn)
-              } catch (e) {
-                // If parsing fails, treat as plain string
-                parsed = null
-              }
-            }
-            
-            // Extract main value (case-insensitive search)
-            if (parsed && typeof parsed === 'object') {
-              const mainKey = Object.keys(parsed).find(key => key.toLowerCase() === 'main')
-              if (mainKey && parsed[mainKey] !== undefined) {
-                const main = parsed[mainKey]
-                
-                // If main is an object with language keys
-                if (typeof main === 'object' && main !== null && !Array.isArray(main)) {
-                  // Try current locale first, then fallback to en, ru, rs
-                  const localeValue = main[locale] || main.en || main.ru || main.rs || null
-                  if (localeValue !== null && localeValue !== undefined) {
-                    // Check if localeValue is an object with title and value structure
-                    if (typeof localeValue === 'object' && 'value' in localeValue) {
-                      mainValue = localeValue.value != null ? String(localeValue.value) : null
-                    } else {
-                      // If it's a simple value (string, number, etc.)
-                      mainValue = String(localeValue)
-                    }
-                  }
-                } else if (main !== null && main !== undefined) {
-                  // If main is a simple value (string, number, etc.)
-                  mainValue = String(main)
-                }
-              }
-            }
-          } catch (e) {
-            // Ignore parse errors
-            console.warn('Failed to parse main from data_in:', e)
-          }
-        }
-        
-        // Get alignment for main column
-        const alignment = columnAlignment?.['main'] || 'left'
-        const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
-        
-        return <div className={alignmentClass}>{mainValue || '-'}</div>
-      },
-    }] : []),
     // Dynamic columns from data_in
     ...(data && columnVisibility ? (() => {
       // Get all unique base keys from data_in in all records
@@ -1039,18 +994,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
       })
       
       // Create columns only for visible data_in fields
-      // Exclude 'suffix' for roles collection as it has a virtual column
-      // Exclude 'main' as it's a duplicate/virtual field
       return Array.from(allDataInKeys)
         .filter((baseKey) => {
-          // Skip suffix for roles as it's handled by virtual column
-          if (collection === 'roles' && baseKey.toLowerCase() === 'suffix') {
-            return false
-          }
-          // Skip main as it's a duplicate/virtual field
-          if (baseKey.toLowerCase() === 'main') {
-            return false
-          }
           const columnId = `data_in.${baseKey}`
           return columnVisibility[columnId] !== false
         })
@@ -1097,6 +1042,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             }
           }
           // Fallback to translation or baseKey
+          // Use correct path to translations: translations.dataTable.fields
           const fieldTranslation = (translations as any)?.dataTable?.fields?.[collection || '']?.[baseKey]
           const columnTitle = fieldTitle || fieldTranslation || baseKey
           
@@ -1199,12 +1145,183 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 </Button>
               )
             },
-            cell: ({ getValue }: { getValue: () => any }) => {
-              const value = getValue()
+            cell: ({ getValue, row }: { getValue: () => any; row: Row<CollectionData> }) => {
+              // Get row ID for updates
+              const primaryKey = fullSchema?.find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
+              const rowId = row.original[primaryKey]
+              const rowIdStr = String(rowId)
+              
+              // Check editedCells first for data_in
+              const editedDataIn = editedCells?.get(rowIdStr)?.['data_in']
+              let value = getValue()
+              
+              // If data_in was edited, extract value from edited data_in
+              if (editedDataIn !== undefined) {
+                try {
+                  let parsed: any = editedDataIn
+                  if (typeof editedDataIn === 'string') {
+                    parsed = JSON.parse(editedDataIn)
+                  }
+                  
+                  if (parsed && typeof parsed === 'object') {
+                    const foundKey = Object.keys(parsed).find(key => {
+                      const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+                      if (langMatch && langMatch[1].toLowerCase() === baseKey.toLowerCase()) {
+                        return true
+                      }
+                      return key.toLowerCase() === baseKey.toLowerCase()
+                    })
+                    
+                    if (foundKey && parsed[foundKey] !== undefined) {
+                      const fieldValue = parsed[foundKey]
+                      if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
+                        const localeValue = fieldValue[locale] || fieldValue.en || fieldValue.ru || fieldValue.rs || null
+                        if (localeValue !== null && localeValue !== undefined) {
+                          if (typeof localeValue === 'object' && 'value' in localeValue) {
+                            value = localeValue.value != null ? String(localeValue.value) : null
+                          } else {
+                            value = String(localeValue)
+                          }
+                        } else {
+                          value = null
+                        }
+                      } else {
+                        value = String(fieldValue)
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Ignore parse errors, use original value
+                }
+              }
+              
+              // If value is still an object or JSON string, try to parse it
+              // This can happen if data_in was already parsed as object but value wasn't extracted
+              if (value && typeof value === 'object' && !Array.isArray(value)) {
+                // Value is an object, try to extract locale value
+                const localeValue = value[locale] || value.en || value.ru || value.rs || null
+                if (localeValue !== null && localeValue !== undefined) {
+                  if (typeof localeValue === 'object' && 'value' in localeValue) {
+                    value = localeValue.value != null ? String(localeValue.value) : null
+                  } else {
+                    value = String(localeValue)
+                  }
+                } else {
+                  value = null
+                }
+              } else if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                // Value is a JSON string, try to parse it
+                try {
+                  const parsed = JSON.parse(value)
+                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    const localeValue = parsed[locale] || parsed.en || parsed.ru || parsed.rs || null
+                    if (localeValue !== null && localeValue !== undefined) {
+                      if (typeof localeValue === 'object' && 'value' in localeValue) {
+                        value = localeValue.value != null ? String(localeValue.value) : null
+                      } else {
+                        value = String(localeValue)
+                      }
+                    } else {
+                      value = null
+                    }
+                  }
+                } catch (e) {
+                  // Not valid JSON, use as is
+                }
+              }
+              
               // Get alignment for this data_in column
               const columnId = `data_in.${baseKey}`
               const alignment = columnAlignment?.[columnId] || 'left'
               const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
+              
+              // Edit mode: return editable input for data_in fields
+              if (editMode && handleCellUpdate && fullSchema) {
+                const primaryKey = fullSchema.find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
+                const rowId = row.original[primaryKey]
+                const rowIdStr = String(rowId)
+                
+                // Get current data_in from editedCells or original
+                const editedDataIn = editedCells?.get(rowIdStr)?.['data_in']
+                const currentDataIn = editedDataIn !== undefined ? editedDataIn : row.original.data_in
+                
+                return (
+                  <Input
+                    type="text"
+                    value={value ?? ''}
+                    onChange={(e) => {
+                      // Update data_in field - need to update entire data_in structure
+                      let parsed: any = {}
+                      
+                      if (currentDataIn) {
+                        try {
+                          parsed = typeof currentDataIn === 'string' ? JSON.parse(currentDataIn) : currentDataIn
+                        } catch (e) {
+                          // Ignore
+                        }
+                      }
+                      
+                      // Update the value in the structure
+                      // Try to find existing key (with or without language suffix)
+                      const foundKey = Object.keys(parsed).find(key => {
+                        const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+                        if (langMatch && langMatch[1].toLowerCase() === baseKey.toLowerCase()) {
+                          return true
+                        }
+                        return key.toLowerCase() === baseKey.toLowerCase()
+                      })
+                      
+                      if (foundKey) {
+                        // Update existing key
+                        const existingValue = parsed[foundKey]
+                        if (typeof existingValue === 'object' && existingValue !== null && !Array.isArray(existingValue)) {
+                          // Update value in locale structure
+                          const langMatch = foundKey.match(/^(.+)_([a-z]{2})$/i)
+                          if (langMatch) {
+                            // Key has language suffix, update that locale
+                            const lang = langMatch[2].toLowerCase()
+                            if (!existingValue[lang]) {
+                              existingValue[lang] = {}
+                            }
+                            if (typeof existingValue[lang] === 'object' && 'value' in existingValue[lang]) {
+                              existingValue[lang].value = e.target.value
+                            } else {
+                              existingValue[lang] = { value: e.target.value }
+                            }
+                          } else {
+                            // No language suffix, update all locales
+                            for (const lang of ['en', 'ru', 'rs']) {
+                              if (!existingValue[lang]) {
+                                existingValue[lang] = {}
+                              }
+                              if (typeof existingValue[lang] === 'object' && 'value' in existingValue[lang]) {
+                                existingValue[lang].value = e.target.value
+                              } else {
+                                existingValue[lang] = { value: e.target.value }
+                              }
+                            }
+                          }
+                        } else {
+                          // Simple value, update directly
+                          parsed[foundKey] = e.target.value
+                        }
+                      } else {
+                        // Create new key with locale structure
+                        const langObject: Record<string, { value: string }> = {}
+                        for (const lang of ['en', 'ru', 'rs']) {
+                          langObject[lang] = { value: e.target.value }
+                        }
+                        parsed[baseKey] = langObject
+                      }
+                      
+                      // Update entire data_in in local state
+                      handleCellUpdate(rowId, 'data_in', parsed)
+                    }}
+                    className="h-8 text-xs"
+                  />
+                )
+              }
+              
               return <div className={alignmentClass}>{value || '-'}</div>
             },
           }
@@ -1699,6 +1816,10 @@ export function DataTable() {
       right: "Right",
       dataInFields: "Additional",
       showFilters: "Show Filters",
+      cardView: "Card View",
+      cardViewMobile: "Card View (Mobile)",
+      cardViewDesktop: "Card View (Desktop)",
+      cardsPerRow: "Cards per row",
       sortTooltipMultiple: "Click: change sort | Shift+Click: add to sort",
       sortTooltipSingle: "Click: sort | Shift+Click: add to sort",
       filterPlaceholder: "Filter...",
@@ -1724,7 +1845,7 @@ export function DataTable() {
       widthPixels: "pixels"
     }
     return dataTableTranslations || defaultT
-  }, [translations?.dataTable])
+  }, [translations])
 
   const collectionToEntityKey = React.useCallback((collection: string): string => {
     const normalized = (collection || "").toLowerCase()
@@ -1843,7 +1964,7 @@ export function DataTable() {
         }
         
         // Hide system fields in table (data_in should be visible/editable via separate tab)
-        const isSystemField = ['created_at', 'updated_at', 'deleted_at', 'uuid'].includes(col.name)
+        const isSystemField = ['deleted_at', 'uuid'].includes(col.name)
         
         // Extract select options if field is select type
         let selectOptions: SelectOption[] | undefined
@@ -1875,10 +1996,23 @@ export function DataTable() {
           fieldTitle = taxonomyFields[fieldKey]
         }
 
+        // translations parameter is already the dataTable object, not the full translations object
         const dataTableFieldTitle =
-          (translations as any)?.dataTable?.fields?.[state.collection]?.[col.name] as string | undefined
+          (translations as any)?.fields?.[state.collection]?.[col.name] as string | undefined
         if (dataTableFieldTitle) {
           fieldTitle = dataTableFieldTitle
+        }
+        
+        // Explicit fallback for xaid in roles collection
+        if (!fieldTitle && state.collection === 'roles' && col.name === 'xaid') {
+          if (locale === 'ru') {
+            fieldTitle = 'Проекты'
+          } else if (locale === 'rs') {
+            fieldTitle = 'Projekti'
+          } else {
+            fieldTitle = 'Expanse'
+          }
+          console.warn('[DataTable] Using hardcoded fallback for roles.xaid, translations available:', !!translations?.fields?.roles)
         }
         
         // Capitalize first letter and replace underscores with spaces
@@ -1901,7 +2035,7 @@ export function DataTable() {
               }
             : undefined
 
-        const isSystemFieldByName = ['created_at', 'updated_at', 'deleted_at', 'uuid'].includes(col.name)
+        const isSystemFieldByName = ['deleted_at', 'uuid'].includes(col.name)
 
         return {
           ...col,
@@ -2236,11 +2370,44 @@ export function DataTable() {
     []
   )
   
-  // Column alignment settings (left, center, right)
+  // Date filter state
+  const [dateFilter, setDateFilter] = React.useState<{
+    type: 'created_at' | 'updated_at' | null
+    range: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'last90days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom' | 'single' | null
+    customStart?: Date
+    customEnd?: Date
+    singleDate?: Date
+  }>({ type: null, range: null })
+  
+  const [tempSingleDate, setTempSingleDate] = React.useState<{
+    created: Date | null
+    updated: Date | null
+  }>({ created: null, updated: null })
+  
+  const [tempDateRange, setTempDateRange] = React.useState<{
+    created: DateRange | undefined
+    updated: DateRange | undefined
+  }>({
+    created: undefined,
+    updated: undefined
+  })
+  
+  // Get locale for date-fns
+  const dateFnsLocale = React.useMemo(() => {
+    if (locale === 'ru') return ru
+    if (locale === 'rs') return sr
+    return enUS
+  }, [locale])
+  
+  // Column sizing settings - separate for mobile and desktop
   const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {}
     try {
-      const saved = localStorage.getItem(`column-sizes-${state.collection}`)
+      const isMobileDevice = window.innerWidth < 1024
+      const key = isMobileDevice 
+        ? `column-sizes-mobile-${state.collection}` 
+        : `column-sizes-desktop-${state.collection}`
+      const saved = localStorage.getItem(key)
       if (saved) {
         return JSON.parse(saved)
       }
@@ -2265,6 +2432,24 @@ export function DataTable() {
       }
     }
     return {}
+  })
+  
+  // Column order state
+  const [columnOrder, setColumnOrder] = React.useState<string[]>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`column-order-${state.collection}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed)) {
+            return parsed
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore column order from localStorage:', e)
+      }
+    }
+    return []
   })
   
   // Column filter values (stored separately from columnFilters state)
@@ -2319,6 +2504,86 @@ export function DataTable() {
     }
   }, [columnAlignment, state.collection])
   
+  // Function to calculate date range
+  const getDateRange = React.useCallback((range: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'last90days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear'): { start: Date; end: Date } => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    switch (range) {
+      case 'today':
+        return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+      case 'yesterday':
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+        return { start: yesterday, end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1) }
+      case 'last7days':
+        return { start: new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000), end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+      case 'last30days':
+        return { start: new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000), end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+      case 'last90days':
+        return { start: new Date(today.getTime() - 89 * 24 * 60 * 60 * 1000), end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+      case 'thisMonth':
+        return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999) }
+      case 'lastMonth':
+        return { start: new Date(now.getFullYear(), now.getMonth() - 1, 1), end: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999) }
+      case 'thisYear':
+        return { start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999) }
+      case 'lastYear':
+        return { start: new Date(now.getFullYear() - 1, 0, 1), end: new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999) }
+      default:
+        return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
+    }
+  }, [])
+  
+  // Apply date filter
+  const applyDateFilter = React.useCallback((type: 'created_at' | 'updated_at', range: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'last90days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom' | 'single', customStart?: Date, customEnd?: Date, singleDate?: Date) => {
+    if (range === 'custom' && (!customStart || !customEnd)) {
+      return
+    }
+    if (range === 'single' && !singleDate) {
+      return
+    }
+    
+    let dateRange: { start: Date; end: Date }
+    if (range === 'single' && singleDate) {
+      // For single date, filter for the entire day
+      const start = new Date(singleDate.getFullYear(), singleDate.getMonth(), singleDate.getDate())
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1)
+      dateRange = { start, end }
+    } else if (range === 'custom' && customStart && customEnd) {
+      dateRange = { start: customStart, end: customEnd }
+    } else {
+      dateRange = getDateRange(range as any)
+    }
+    
+    setDateFilter({ type, range, customStart, customEnd, singleDate })
+    
+    // Apply filter to columnFilters
+    setColumnFilters((prev) => {
+      const filtered = prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at')
+      return [
+        ...filtered,
+        {
+          id: type,
+          value: {
+            start: dateRange.start.toISOString(),
+            end: dateRange.end.toISOString(),
+          }
+        }
+      ]
+    })
+  }, [getDateRange])
+  
+  // Clear date filter
+  const clearDateFilter = React.useCallback(() => {
+    setDateFilter({ type: null, range: null })
+    setTempSingleDate({ created: null, updated: null })
+    setTempDateRange({
+      created: undefined,
+      updated: undefined
+    })
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at'))
+  }, [])
+  
   // Restore column filter values when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -2365,6 +2630,72 @@ export function DataTable() {
     }
     return false // Default: hidden
   })
+
+  const [cardViewModeMobile, setCardViewModeMobile] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`card-view-mode-mobile-${state.collection}`)
+        if (saved !== null) {
+          return JSON.parse(saved) === true
+        }
+      } catch (e) {
+        console.warn('Failed to restore card view mode mobile from localStorage:', e)
+      }
+    }
+    return false // Default: table view
+  })
+
+  // Edit mode state
+  const [editMode, setEditMode] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`edit-mode-${state.collection}`)
+        if (saved !== null) {
+          return JSON.parse(saved)
+        }
+      } catch (e) {
+        // Ignore
+      }
+    }
+    return false
+  })
+  
+  // Store edited cells locally (rowId -> fieldName -> value)
+  const [editedCells, setEditedCells] = React.useState<Map<string, Record<string, any>>>(() => new Map())
+  
+  // Track if there are unsaved changes
+  const hasUnsavedChanges = editedCells.size > 0
+  
+  const [cardViewModeDesktop, setCardViewModeDesktop] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`card-view-mode-desktop-${state.collection}`)
+        if (saved !== null) {
+          return JSON.parse(saved) === true
+        }
+      } catch (e) {
+        console.warn('Failed to restore card view mode desktop from localStorage:', e)
+      }
+    }
+    return false // Default: table view
+  })
+
+  const [cardsPerRow, setCardsPerRow] = React.useState<number>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`cards-per-row-${state.collection}`)
+        if (saved !== null) {
+          const value = parseInt(saved, 10)
+          if (value >= 1 && value <= 6) {
+            return value
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore cards per row from localStorage:', e)
+      }
+    }
+    return 3 // Default: 3 cards per row on desktop
+  })
   
   // Restore show filter row when collection changes
   React.useEffect(() => {
@@ -2392,6 +2723,124 @@ export function DataTable() {
       }
     }
   }, [showFilterRow, state.collection])
+
+  // Restore card view mode mobile when collection changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(`card-view-mode-mobile-${state.collection}`)
+      if (saved !== null) {
+        setCardViewModeMobile(JSON.parse(saved) === true)
+      } else {
+        setCardViewModeMobile(false)
+      }
+    } catch (e) {
+      console.warn('Failed to restore card view mode mobile:', e)
+      setCardViewModeMobile(false)
+    }
+  }, [state.collection])
+
+  // Save card view mode mobile to localStorage when it changes
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`card-view-mode-mobile-${state.collection}`, JSON.stringify(cardViewModeMobile))
+      } catch (e) {
+        console.warn('Failed to save card view mode mobile to localStorage:', e)
+      }
+    }
+  }, [cardViewModeMobile, state.collection])
+
+  // Restore card view mode desktop when collection changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(`card-view-mode-desktop-${state.collection}`)
+      if (saved !== null) {
+        setCardViewModeDesktop(JSON.parse(saved) === true)
+      } else {
+        setCardViewModeDesktop(false)
+      }
+    } catch (e) {
+      console.warn('Failed to restore card view mode desktop:', e)
+      setCardViewModeDesktop(false)
+    }
+  }, [state.collection])
+
+  // Save card view mode desktop to localStorage when it changes
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`card-view-mode-desktop-${state.collection}`, JSON.stringify(cardViewModeDesktop))
+      } catch (e) {
+        console.warn('Failed to save card view mode desktop to localStorage:', e)
+      }
+    }
+  }, [cardViewModeDesktop, state.collection])
+
+  // Restore cards per row when collection changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(`cards-per-row-${state.collection}`)
+      if (saved !== null) {
+        const value = parseInt(saved, 10)
+        if (value >= 1 && value <= 6) {
+          setCardsPerRow(value)
+        } else {
+          setCardsPerRow(3)
+        }
+      } else {
+        setCardsPerRow(3)
+      }
+    } catch (e) {
+      console.warn('Failed to restore cards per row:', e)
+      setCardsPerRow(3)
+    }
+  }, [state.collection])
+
+  // Save cards per row to localStorage when it changes
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`cards-per-row-${state.collection}`, String(cardsPerRow))
+      } catch (e) {
+        console.warn('Failed to save cards per row to localStorage:', e)
+      }
+    }
+  }, [cardsPerRow, state.collection])
+
+  // Restore cards per row when collection changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(`cards-per-row-${state.collection}`)
+      if (saved !== null) {
+        const value = parseInt(saved, 10)
+        if (value >= 1 && value <= 6) {
+          setCardsPerRow(value)
+        } else {
+          setCardsPerRow(3)
+        }
+      } else {
+        setCardsPerRow(3)
+      }
+    } catch (e) {
+      console.warn('Failed to restore cards per row:', e)
+      setCardsPerRow(3)
+    }
+  }, [state.collection])
+
+  // Save cards per row to localStorage when it changes
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`cards-per-row-${state.collection}`, String(cardsPerRow))
+      } catch (e) {
+        console.warn('Failed to save cards per row to localStorage:', e)
+      }
+    }
+  }, [cardsPerRow, state.collection])
   
   // Restore column visibility when collection changes
   // Priority: global role settings > localStorage > default (all visible)
@@ -2404,7 +2853,15 @@ export function DataTable() {
         if (primaryRole) {
           const globalVisibility = await getTableColumnVisibility(state.collection, primaryRole)
           if (globalVisibility && Object.keys(globalVisibility).length > 0) {
-            setColumnVisibility(globalVisibility)
+            // Ensure created_at and updated_at are hidden by default if not explicitly set
+            const visibility = { ...globalVisibility }
+            if (visibility.created_at === undefined) {
+              visibility.created_at = false
+            }
+            if (visibility.updated_at === undefined) {
+              visibility.updated_at = false
+            }
+            setColumnVisibility(visibility)
             return
           }
         }
@@ -2414,13 +2871,24 @@ export function DataTable() {
         if (saved) {
           const parsed = JSON.parse(saved)
           if (parsed && typeof parsed === 'object') {
-            setColumnVisibility(parsed as VisibilityState)
+            // Ensure created_at and updated_at are hidden by default if not explicitly set
+            const visibility = parsed as VisibilityState
+            if (visibility.created_at === undefined) {
+              visibility.created_at = false
+            }
+            if (visibility.updated_at === undefined) {
+              visibility.updated_at = false
+            }
+            setColumnVisibility(visibility)
             return
           }
         }
         
-        // Default: all visible
-        setColumnVisibility({})
+        // Default: all visible, except created_at and updated_at (hidden by default)
+        setColumnVisibility({
+          created_at: false,
+          updated_at: false,
+        })
       } catch (e) {
         console.warn('Failed to restore column visibility:', e)
         setColumnVisibility({})
@@ -2936,6 +3404,21 @@ export function DataTable() {
             } else {
               initial[col.name] = {}
             }
+          } else if (col.relation) {
+            // For relation fields, extract only the ID value, not the entire object
+            const relationValue = duplicatedRecord[col.name]
+            if (relationValue != null) {
+              if (typeof relationValue === 'object' && !Array.isArray(relationValue)) {
+                // If it's an object, extract the ID field
+                const idValue = (relationValue as any)[col.relation.valueField] || (relationValue as any).id || (relationValue as any)[primaryKey]
+                initial[col.name] = idValue != null ? String(idValue) : ''
+              } else {
+                // If it's already a primitive (ID), use it as-is
+                initial[col.name] = String(relationValue)
+              }
+            } else {
+              initial[col.name] = ''
+            }
           } else {
             initial[col.name] = duplicatedRecord[col.name] != null ? String(duplicatedRecord[col.name]) : ''
           }
@@ -2957,14 +3440,110 @@ export function DataTable() {
   }, [schema, isAutoGeneratedField, state.collection, locale, enabledLanguageCodes, getI18nJsonFieldsForCollection])
 
   const handleEditFieldChange = React.useCallback((fieldName: string, value: string | boolean | Date | number | null) => {
+    // Log relation field changes to debug project creation issue
+    const field = schema.find((f) => f.name === fieldName)
+    if (field?.relation) {
+      console.log(`[handleEditFieldChange] Relation field ${fieldName}:`, { value, type: typeof value, isObject: typeof value === 'object' && value !== null })
+    }
     setEditData((prev) => ({ ...prev, [fieldName]: value }))
-  }, [])
+  }, [schema])
 
   // Create dialog keep after
   // Generate columns dynamically
+  // Function to handle inline cell updates (stores changes locally, doesn't save)
+  const handleCellUpdate = React.useCallback((rowId: string | number, fieldName: string, value: any) => {
+    const rowIdStr = String(rowId)
+    setEditedCells(prev => {
+      const newMap = new Map(prev)
+      const rowChanges = newMap.get(rowIdStr) || {}
+      
+      // Prepare value based on field type
+      const field = schema.find(f => f.name === fieldName)
+      let processedValue = value
+      
+      if (field) {
+        if (field.fieldType === 'price' && typeof value === 'number') {
+          processedValue = value
+        } else if (field.fieldType === 'boolean') {
+          processedValue = value === true || value === 'true' || value === 1 || value === '1'
+        } else if (value instanceof Date) {
+          processedValue = value.toISOString()
+        } else if (field.fieldType === 'json' && value != null && typeof value === 'object') {
+          processedValue = value
+        } else {
+          processedValue = value
+        }
+      }
+      
+      rowChanges[fieldName] = processedValue
+      newMap.set(rowIdStr, rowChanges)
+      return newMap
+    })
+  }, [schema])
+  
+  // Function to save all changes at once
+  const handleSaveAllChanges = React.useCallback(async () => {
+    if (editedCells.size === 0) return
+    
+    try {
+      const primaryKey = schema.find(f => f.primary)?.name || 'id'
+      
+      // Save all changes in parallel
+      const promises = Array.from(editedCells.entries()).map(async ([rowIdStr, changes]) => {
+        const rowId = rowIdStr
+        const payload: Record<string, any> = {}
+        
+        // Process each field change
+        for (const [fieldName, value] of Object.entries(changes)) {
+          if (fieldName === 'data_in') {
+            payload.data_in = value
+          } else {
+            const field = schema.find(f => f.name === fieldName)
+            if (field) {
+              if (field.fieldType === 'price' && typeof value === 'number') {
+                payload[fieldName] = value
+              } else if (field.fieldType === 'boolean') {
+                payload[fieldName] = value === true || value === 'true' || value === 1 || value === '1'
+              } else if (value instanceof Date) {
+                payload[fieldName] = value.toISOString()
+              } else if (field.fieldType === 'json' && value != null && typeof value === 'object') {
+                payload[fieldName] = value
+              } else {
+                payload[fieldName] = value
+              }
+            } else {
+              payload[fieldName] = value
+            }
+          }
+        }
+        
+        const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(rowId))}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        })
+        
+        if (!res.ok) {
+          const json = await res.json() as { error?: string }
+          throw new Error(json.error || `Update failed for row ${rowId}: ${res.status}`)
+        }
+      })
+      
+      await Promise.all(promises)
+      
+      // Clear edited cells and refresh data
+      setEditedCells(new Map())
+      await fetchData()
+    } catch (e) {
+      console.error('Failed to save changes:', e)
+      throw e
+    }
+  }, [editedCells, schema, state.collection, fetchData])
+  
   const columns = React.useMemo(
-    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing) : []),
-    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing]
+    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, schema) : []),
+    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate]
   )
 
   // Parse search query for client-side filtering with operators
@@ -2982,12 +3561,29 @@ export function DataTable() {
 
   // Filter data client-side if search has operators (server doesn't support them)
   const filteredData = React.useMemo(() => {
+    let result = data
+    
+    // Apply date filters
+    if (dateFilter.type && dateFilter.range) {
+      const filterType = dateFilter.type
+      const dateRange = dateFilter.range === 'custom' && dateFilter.customStart && dateFilter.customEnd
+        ? { start: dateFilter.customStart, end: dateFilter.customEnd }
+        : getDateRange(dateFilter.range as any)
+      
+      result = result.filter((row) => {
+        const cellValue = row[filterType] as string | null | undefined
+        if (!cellValue) return false
+        const cellDate = new Date(cellValue)
+        return cellDate >= dateRange.start && cellDate <= dateRange.end
+      })
+    }
+    
     if (!needsClientSideFilter || !parsedSearchQuery) {
-      return data
+      return result
     }
 
     // Has operators - filter client-side
-    const filtered = data.filter((row) => {
+    const filtered = result.filter((row) => {
       // Search across all text fields in the row
       const searchableText = Object.values(row)
         .filter(v => v != null)
@@ -3035,33 +3631,200 @@ export function DataTable() {
   }, [])
 
   const reorderedColumns = React.useMemo(() => {
-    if (!isMobile) return columns
+    // Always start with all columns
+    const allColumnsMap = new Map(columns.map(col => [col.id, col]))
     
-    const selectColumn = columns.find(col => col.id === 'select')
-    const actionsColumn = columns.find(col => col.id === 'actions')
-    const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
-    const result = []
-    if (actionsColumn) result.push(actionsColumn)
-    if (selectColumn) result.push(selectColumn)
-    return [...result, ...otherColumns]
-  }, [columns, isMobile])
-
-  // Save column sizes to localStorage
+    // Apply saved column order if available
+    if (columnOrder.length > 0) {
+      const orderedColumns: ColumnDef<CollectionData>[] = []
+      const unorderedColumns: ColumnDef<CollectionData>[] = []
+      const processedIds = new Set<string>()
+      
+      // Add columns in saved order (only if they exist in current columns)
+      for (const columnId of columnOrder) {
+        const col = allColumnsMap.get(columnId)
+        if (col && col.id) {
+          // Skip select and actions columns - they have fixed positions
+          if (col.id !== 'select' && col.id !== 'actions') {
+            orderedColumns.push(col)
+            processedIds.add(col.id)
+          }
+        }
+      }
+      
+      // Add remaining columns that weren't in the saved order
+      allColumnsMap.forEach((col) => {
+        const colId = col.id
+        if (colId && colId !== 'select' && colId !== 'actions' && !processedIds.has(colId)) {
+          unorderedColumns.push(col)
+        }
+      })
+      
+      // For mobile, keep actions and select at the beginning
+      if (isMobile) {
+        const selectColumn = allColumnsMap.get('select')
+        const actionsColumn = allColumnsMap.get('actions')
+        const result: ColumnDef<CollectionData>[] = []
+        if (actionsColumn) result.push(actionsColumn)
+        if (selectColumn) result.push(selectColumn)
+        result.push(...orderedColumns, ...unorderedColumns)
+        return result
+      } else {
+        // For desktop, keep select at the beginning, actions at the end
+        const selectColumn = allColumnsMap.get('select')
+        const actionsColumn = allColumnsMap.get('actions')
+        const result: ColumnDef<CollectionData>[] = []
+        if (selectColumn) result.push(selectColumn)
+        result.push(...orderedColumns, ...unorderedColumns)
+        if (actionsColumn) result.push(actionsColumn)
+        return result
+      }
+    } else {
+      // No saved order - use default reordering
+      if (isMobile) {
+        const selectColumn = allColumnsMap.get('select')
+        const actionsColumn = allColumnsMap.get('actions')
+        const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
+        const result: ColumnDef<CollectionData>[] = []
+        if (actionsColumn) result.push(actionsColumn)
+        if (selectColumn) result.push(selectColumn)
+        result.push(...otherColumns)
+        return result
+      } else {
+        // Desktop: select first, actions last
+        const selectColumn = allColumnsMap.get('select')
+        const actionsColumn = allColumnsMap.get('actions')
+        const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
+        const result: ColumnDef<CollectionData>[] = []
+        if (selectColumn) result.push(selectColumn)
+        result.push(...otherColumns)
+        if (actionsColumn) result.push(actionsColumn)
+        return result
+      }
+    }
+  }, [columns, isMobile, columnOrder])
+  
+  // Save column order to localStorage
   React.useEffect(() => {
-    if (Object.keys(columnSizing).length > 0) {
+    if (state.collection && typeof window !== 'undefined' && columnOrder.length > 0) {
       try {
-        localStorage.setItem(`column-sizes-${state.collection}`, JSON.stringify(columnSizing))
+        localStorage.setItem(`column-order-${state.collection}`, JSON.stringify(columnOrder))
+      } catch (e) {
+        console.warn('Failed to save column order to localStorage:', e)
+      }
+    }
+  }, [columnOrder, state.collection])
+  
+  // Sensors for drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+  
+  // Sortable column item component
+  function SortableColumnItem({ id, children }: { id: string; children: React.ReactNode }) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id })
+    
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+    
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        <div className="flex items-center gap-1">
+          <div
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
+          >
+            <IconGripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  // Restore column sizing when collection or device type changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const isMobileDevice = window.innerWidth < 1024
+      const key = isMobileDevice 
+        ? `column-sizes-mobile-${state.collection}` 
+        : `column-sizes-desktop-${state.collection}`
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          setColumnSizing(parsed)
+        } else {
+          setColumnSizing({})
+        }
+      } else {
+        setColumnSizing({})
+      }
+    } catch (e) {
+      console.warn('Failed to restore column sizing:', e)
+      setColumnSizing({})
+    }
+  }, [state.collection, isMobile])
+
+  // Save column sizes to localStorage - separate for mobile and desktop
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined' && Object.keys(columnSizing).length > 0) {
+      try {
+        const isMobileDevice = window.innerWidth < 1024
+        const key = isMobileDevice 
+          ? `column-sizes-mobile-${state.collection}` 
+          : `column-sizes-desktop-${state.collection}`
+        localStorage.setItem(key, JSON.stringify(columnSizing))
       } catch (e) {
         console.error('Failed to save column sizes:', e)
       }
     }
-  }, [columnSizing, state.collection])
+  }, [columnSizing, state.collection, isMobile])
+
+  // Filter out non-existent columns from sorting and defaultSorting
+  const validSorting = React.useMemo(() => {
+    const columnIds = new Set(reorderedColumns.map(col => col.id).filter((id): id is string => !!id))
+    return sorting.filter(s => columnIds.has(s.id))
+  }, [sorting, reorderedColumns])
+  
+  const validDefaultSorting = React.useMemo(() => {
+    const columnIds = new Set(reorderedColumns.map(col => col.id).filter((id): id is string => !!id))
+    return defaultSorting.filter(s => columnIds.has(s.id))
+  }, [defaultSorting, reorderedColumns])
+  
+  // Update sorting if it was filtered
+  React.useEffect(() => {
+    if (validSorting.length !== sorting.length) {
+      setSorting(validSorting)
+    }
+  }, [validSorting, sorting.length])
+  
+  // Update defaultSorting if it was filtered
+  React.useEffect(() => {
+    if (validDefaultSorting.length !== defaultSorting.length) {
+      setDefaultSorting(validDefaultSorting)
+    }
+  }, [validDefaultSorting, defaultSorting.length])
 
   const table = useReactTable({
     data: filteredData,
     columns: reorderedColumns,
     state: {
-      sorting,
+      sorting: validSorting,
       columnVisibility,
       rowSelection,
       columnFilters,
@@ -3188,7 +3951,32 @@ export function DataTable() {
 
         const field = schema.find((f) => f.name === key)
 
-        if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
+        // For relation fields, ensure we pass the value as-is (ID, not creating new record)
+        if (field?.relation) {
+          // RelationSelect returns the value, but we need to ensure it's a primitive (ID), not an object
+          // If value is empty string, convert to null for nullable fields
+          if (value === '' && field.nullable) {
+            acc[key] = null
+          } else if (value !== '' && value != null) {
+            // Ensure we only pass primitive values (string, number), not objects
+            // If value is an object, extract the ID field
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+              // This shouldn't happen, but if it does, try to extract the ID
+              console.warn(`[handleCreateSubmit] Relation field ${key} has object value, extracting ID:`, value)
+              const idValue = (value as any)[field.relation.valueField] || (value as any).id || (value as any)[primaryKey]
+              acc[key] = idValue != null ? idValue : null
+            } else {
+              // Pass primitive value as-is (this should be the ID of the existing record)
+              console.log(`[handleCreateSubmit] Relation field ${key} value:`, value, typeof value)
+              acc[key] = value
+            }
+          } else if (!field.nullable && value === '') {
+            // Skip required fields that are empty (will be validated on server)
+            return acc
+          } else {
+            acc[key] = value
+          }
+        } else if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
           acc[key] = value // Keep as object, server will stringify
         } else if (field?.fieldType === 'price') {
           if (value != null && typeof value === 'number') {
@@ -3210,6 +3998,9 @@ export function DataTable() {
       
       // Always add data_in to payload (even if empty, to allow clearing it)
       payload.data_in = processedDataIn
+      
+      // Log payload to debug relation field issues
+      console.log('[handleCreateSubmit] Payload before sending:', JSON.stringify(payload, null, 2))
       
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
         method: "POST",
@@ -3275,7 +4066,32 @@ export function DataTable() {
 
         const field = schema.find((f) => f.name === key)
 
-        if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
+        // For relation fields, ensure we pass the value as-is (ID, not creating new record)
+        if (field?.relation) {
+          // RelationSelect returns the value, but we need to ensure it's a primitive (ID), not an object
+          // If value is empty string, convert to null for nullable fields
+          if (value === '' && field.nullable) {
+            acc[key] = null
+          } else if (value !== '' && value != null) {
+            // Ensure we only pass primitive values (string, number), not objects
+            // If value is an object, extract the ID field
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+              // This shouldn't happen, but if it does, try to extract the ID
+              console.warn(`[handleCreateSubmit] Relation field ${key} has object value, extracting ID:`, value)
+              const idValue = (value as any)[field.relation.valueField] || (value as any).id || (value as any)[primaryKey]
+              acc[key] = idValue != null ? idValue : null
+            } else {
+              // Pass primitive value as-is (this should be the ID of the existing record)
+              console.log(`[handleCreateSubmit] Relation field ${key} value:`, value, typeof value)
+              acc[key] = value
+            }
+          } else if (!field.nullable && value === '') {
+            // Skip required fields that are empty (will be validated on server)
+            return acc
+          } else {
+            acc[key] = value
+          }
+        } else if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
           acc[key] = value // Keep as object, server will stringify
         } else if (field?.fieldType === 'price') {
           if (value != null && typeof value === 'number') {
@@ -3337,6 +4153,9 @@ export function DataTable() {
         
         // Always add data_in to payload (even if empty, to allow clearing it)
         payload.data_in = processedDataIn
+        
+        // Log payload to debug relation field issues
+        console.log('[handleEditSubmit] Duplicate payload before sending:', JSON.stringify(payload, null, 2))
         
         const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
           method: "POST",
@@ -3417,6 +4236,9 @@ export function DataTable() {
       
       // Always add data_in to payload (even if empty, to allow clearing it)
       payload.data_in = processedDataIn
+      
+      // Log payload to debug relation field issues
+      console.log('[handleEditSubmit] Payload before sending:', JSON.stringify(payload, null, 2))
       
       const idValue = recordToEdit[primaryKey]
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(idValue))}`, {
@@ -3603,6 +4425,221 @@ export function DataTable() {
       className="w-full flex-col justify-start gap-6"
     >
       <div className="flex items-center gap-2 px-0">
+        {/* Date Filter Button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
+              <IconCalendar className="h-4 w-4" />
+              <span className="hidden lg:inline">{dateFilter.type && dateFilter.range ? (dateFilter.type === 'created_at' ? (t.dateFilter?.created || 'Created') : (t.dateFilter?.updated || 'Updated')) : (t.dateFilter?.filter || 'Date Filter')}</span>
+              {dateFilter.type && dateFilter.range && (
+                <IconX 
+                  className="h-3 w-3 ml-1" 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    clearDateFilter()
+                  }}
+                />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>{t.dateFilter?.filterBy || 'Filter by'}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                {t.dateFilter?.created || 'Created'}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-auto min-w-[280px]">
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'today')}>
+                  {t.dateFilter?.today || 'Today'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'yesterday')}>
+                  {t.dateFilter?.yesterday || 'Yesterday'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'last7days')}>
+                  {t.dateFilter?.last7days || 'Last 7 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'last30days')}>
+                  {t.dateFilter?.last30days || 'Last 30 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'last90days')}>
+                  {t.dateFilter?.last90days || 'Last 90 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'thisMonth')}>
+                  {t.dateFilter?.thisMonth || 'This month'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'lastMonth')}>
+                  {t.dateFilter?.lastMonth || 'Last month'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'thisYear')}>
+                  {t.dateFilter?.thisYear || 'This year'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('created_at', 'lastYear')}>
+                  {t.dateFilter?.lastYear || 'Last year'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t.dateFilter?.selectDate || 'Select date'}</DropdownMenuLabel>
+                <div className="px-2 py-1.5">
+                  <DateTimePicker
+                    mode="date"
+                    value={tempSingleDate.created || undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        setTempSingleDate(prev => ({ ...prev, created: date }))
+                        applyDateFilter('created_at', 'single', undefined, undefined, date)
+                      }
+                    }}
+                  />
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t.dateFilter?.dateRange || 'Date range'}</DropdownMenuLabel>
+                <div className="px-2 py-1.5">
+                  <DayPicker
+                    mode="range"
+                    selected={tempDateRange.created}
+                    onSelect={(range) => {
+                      setTempDateRange(prev => ({
+                        ...prev,
+                        created: range
+                      }))
+                      if (range?.from && range.to) {
+                        applyDateFilter('created_at', 'custom', range.from, range.to)
+                      }
+                    }}
+                    locale={dateFnsLocale}
+                    numberOfMonths={2}
+                    classNames={{
+                      months: "flex flex-col sm:flex-row space-y-2 sm:space-x-2 sm:space-y-0",
+                      month: "space-y-2",
+                      caption: "flex justify-center pt-1 relative items-center mb-1",
+                      caption_label: "text-xs font-medium",
+                      nav: "space-x-1 flex items-center",
+                      nav_button: "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100",
+                      nav_button_previous: "absolute left-1",
+                      nav_button_next: "absolute right-1",
+                      table: "w-full border-collapse space-y-0.5",
+                      head_row: "flex",
+                      head_cell: "text-muted-foreground rounded-md w-7 font-normal text-[0.7rem]",
+                      row: "flex w-full mt-1",
+                      cell: "h-7 w-7 text-center text-xs p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                      day: "h-7 w-7 p-0 font-normal aria-selected:opacity-100 text-xs",
+                      day_range_end: "day-range-end",
+                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                      day_today: "bg-accent text-accent-foreground",
+                      day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                      day_disabled: "text-muted-foreground opacity-50",
+                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                      day_hidden: "invisible",
+                      range_end: "day-range-end",
+                      range_start: "day-range-start"
+                    }}
+                  />
+                </div>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                {t.dateFilter?.updated || 'Updated'}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-auto min-w-[280px]">
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'today')}>
+                  {t.dateFilter?.today || 'Today'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'yesterday')}>
+                  {t.dateFilter?.yesterday || 'Yesterday'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'last7days')}>
+                  {t.dateFilter?.last7days || 'Last 7 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'last30days')}>
+                  {t.dateFilter?.last30days || 'Last 30 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'last90days')}>
+                  {t.dateFilter?.last90days || 'Last 90 days'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'thisMonth')}>
+                  {t.dateFilter?.thisMonth || 'This month'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'lastMonth')}>
+                  {t.dateFilter?.lastMonth || 'Last month'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'thisYear')}>
+                  {t.dateFilter?.thisYear || 'This year'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyDateFilter('updated_at', 'lastYear')}>
+                  {t.dateFilter?.lastYear || 'Last year'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t.dateFilter?.selectDate || 'Select date'}</DropdownMenuLabel>
+                <div className="px-2 py-1.5">
+                  <DateTimePicker
+                    mode="date"
+                    value={tempSingleDate.updated || undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        setTempSingleDate(prev => ({ ...prev, updated: date }))
+                        applyDateFilter('updated_at', 'single', undefined, undefined, date)
+                      }
+                    }}
+                  />
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{t.dateFilter?.dateRange || 'Date range'}</DropdownMenuLabel>
+                <div className="px-2 py-1.5">
+                  <DayPicker
+                    mode="range"
+                    selected={tempDateRange.updated}
+                    onSelect={(range) => {
+                      setTempDateRange(prev => ({
+                        ...prev,
+                        updated: range
+                      }))
+                      if (range?.from && range.to) {
+                        applyDateFilter('updated_at', 'custom', range.from, range.to)
+                      }
+                    }}
+                    locale={dateFnsLocale}
+                    numberOfMonths={2}
+                    classNames={{
+                      months: "flex flex-col sm:flex-row space-y-2 sm:space-x-2 sm:space-y-0",
+                      month: "space-y-2",
+                      caption: "flex justify-center pt-1 relative items-center mb-1",
+                      caption_label: "text-xs font-medium",
+                      nav: "space-x-1 flex items-center",
+                      nav_button: "h-6 w-6 bg-transparent p-0 opacity-50 hover:opacity-100",
+                      nav_button_previous: "absolute left-1",
+                      nav_button_next: "absolute right-1",
+                      table: "w-full border-collapse space-y-0.5",
+                      head_row: "flex",
+                      head_cell: "text-muted-foreground rounded-md w-7 font-normal text-[0.7rem]",
+                      row: "flex w-full mt-1",
+                      cell: "h-7 w-7 text-center text-xs p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                      day: "h-7 w-7 p-0 font-normal aria-selected:opacity-100 text-xs",
+                      day_range_end: "day-range-end",
+                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                      day_today: "bg-accent text-accent-foreground",
+                      day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                      day_disabled: "text-muted-foreground opacity-50",
+                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                      day_hidden: "invisible",
+                      range_end: "day-range-end",
+                      range_start: "day-range-start"
+                    }}
+                  />
+                </div>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            {dateFilter.type && dateFilter.range && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={clearDateFilter}>
+                  {t.dateFilter?.clear || 'Clear filter'}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
         {/* Search Field */}
         <div className="relative w-full lg:max-w-2xl">
           <div className="relative flex items-center gap-1 h-9 rounded-md border bg-primary-foreground px-3 shadow-xs">
@@ -3719,6 +4756,24 @@ export function DataTable() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {/* Save button - only show in edit mode */}
+            {editMode && hasUnsavedChanges && (
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="bg-primary-foreground h-9 ml-2" 
+                onClick={async () => {
+                  try {
+                    await handleSaveAllChanges()
+                  } catch (e) {
+                    console.error('Failed to save changes:', e)
+                  }
+                }}
+              >
+                <IconDeviceFloppy className="h-4 w-4" />
+                <span className="hidden lg:inline">{t.save || "Save"}</span>
+              </Button>
+            )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -3729,168 +4784,25 @@ export function DataTable() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 max-h-[80vh] lg:max-h-[400px] overflow-y-auto">
-              {/* Schema fields */}
-              {table
-                .getAllColumns()
-                .filter(
-                  (column) =>
-                    typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide() &&
-                    column.id !== 'suffix' && // suffix will be handled separately
-                    column.id !== 'main' // main will be handled separately in "Additional" section
-                )
-                .map((column) => {
-                  // Find column schema to get translated title
-                  const columnSchema = schema.find((col) => col.name === column.id)
-                  const columnTitle = columnSchema?.title || column.id
-                  const canSort = column.getCanSort()
-                  const defaultSortForColumn = defaultSorting.find(s => s.id === column.id)
-                  const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
-                  
-                  return (
-                    <DropdownMenuSub key={column.id}>
-                      <DropdownMenuSubTrigger>
-                        <div className="flex items-center justify-between w-full">
-                          <span>{columnTitle}</span>
-                          <div className="flex items-center gap-1 ml-2">
-                            {column.getIsVisible() && (
-                              <IconCheck className="h-3 w-3" />
-                            )}
-                            {defaultSortForColumn && (
-                              defaultSortForColumn.desc ? (
-                                <IconArrowDown className="h-3 w-3 opacity-50" />
-                              ) : (
-                                <IconArrowUp className="h-3 w-3 opacity-50" />
-                              )
-                            )}
-                          </div>
-                        </div>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                          {t.showColumn}
-                    </DropdownMenuCheckboxItem>
-                        {canSort && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
-                            <DropdownMenuRadioGroup
-                              value={sortValue}
-                              onValueChange={(value) => {
-                                if (value === 'none') {
-                                  // Remove from default sorting
-                                  const newDefaultSorting = defaultSorting.filter(s => s.id !== column.id)
-                                  setDefaultSorting(newDefaultSorting)
-                                  // Also update current sorting if it matches
-                                  if (sorting.find(s => s.id === column.id)) {
-                                    const newSorting = sorting.filter(s => s.id !== column.id)
-                                    setSorting(newSorting)
-                                  }
-                                } else {
-                                  // Add or update default sorting
-                                  const newSort = { id: column.id, desc: value === 'desc' }
-                                  const newDefaultSorting = defaultSorting.filter(s => s.id !== column.id)
-                                  newDefaultSorting.push(newSort)
-                                  setDefaultSorting(newDefaultSorting)
-                                  // Also update current sorting
-                                  const newSorting = sorting.filter(s => s.id !== column.id)
-                                  newSorting.push(newSort)
-                                  setSorting(newSorting)
-                                }
-                              }}
-                            >
-                              <DropdownMenuRadioItem value="none">
-                                <IconArrowsSort className="h-4 w-4 mr-2" />
-                                {t.none}
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="asc">
-                                <IconArrowUp className="h-4 w-4 mr-2" />
-                                {t.asc}
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="desc">
-                                <IconArrowDown className="h-4 w-4 mr-2" />
-                                {t.desc}
-                              </DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                          </>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
-                        <div className="px-2 py-1.5 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              min="50"
-                              max="1000"
-                              value={columnSizing?.[column.id] || ''}
-                              onChange={(e) => {
-                                const value = e.target.value ? parseInt(e.target.value, 10) : undefined
-                                if (value && value >= 50) {
-                                  setColumnSizing(prev => ({ ...prev, [column.id]: value }))
-                                } else if (!value) {
-                                  setColumnSizing(prev => {
-                                    const next = { ...prev }
-                                    delete next[column.id]
-                                    return next
-                                  })
-                                }
-                              }}
-                              placeholder={t.widthAuto || "Auto"}
-                              className="h-8 text-xs"
-                            />
-                            <span className="text-xs text-muted-foreground">{t.widthPixels || "px"}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-full text-xs"
-                            onClick={() => {
-                              setColumnSizing(prev => {
-                                const next = { ...prev }
-                                delete next[column.id]
-                                return next
-                              })
-                            }}
-                          >
-                            {t.widthReset || "Reset"}
-                          </Button>
-                        </div>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
-                        <DropdownMenuRadioGroup
-                          value={columnAlignment[column.id] || 'left'}
-                          onValueChange={(value) => {
-                            setColumnAlignment(prev => ({
-                              ...prev,
-                              [column.id]: value as 'left' | 'center' | 'right'
-                            }))
-                          }}
-                        >
-                          <DropdownMenuRadioItem value="left">
-                            <IconAlignLeft className="h-4 w-4 mr-2" />
-                            {t.left}
-                          </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="center">
-                            <IconAlignCenter className="h-4 w-4 mr-2" />
-                            {t.center}
-                          </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value="right">
-                            <IconAlignRight className="h-4 w-4 mr-2" />
-                            {t.right}
-                          </DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )
-                })}
-              {/* Data_in fields */}
               {(() => {
-                // Get all unique base keys from data_in in all records
+                // Get all columns (schema + data_in) for drag-and-drop
+                const allTableColumns = table.getAllColumns()
+                const schemaColumns = allTableColumns.filter(
+                  (column) => {
+                    // Must have an id
+                    if (!column.id) return false
+                    // Exclude system columns
+                    if (column.id === 'select' || column.id === 'actions') return false
+                    // Exclude data_in columns (they are handled separately)
+                    if (column.id.startsWith('data_in.')) return false
+                    // Must have either accessorFn or accessorKey (data columns)
+                    const hasAccessor = typeof column.accessorFn !== "undefined" || 'accessorKey' in column
+                    // Include all columns with accessors (don't check canHide as it might exclude valid columns)
+                    return hasAccessor
+                  }
+                )
+                
+                // Get data_in columns
                 const allDataInKeys = new Set<string>()
                 data.forEach((row) => {
                   const dataIn = row.data_in
@@ -3906,7 +4818,6 @@ export function DataTable() {
                       }
                       if (parsed && typeof parsed === 'object') {
                         Object.keys(parsed).forEach((key) => {
-                          // Remove language suffix if present
                           const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
                           if (langMatch && supportedLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
                             allDataInKeys.add(langMatch[1])
@@ -3916,244 +4827,475 @@ export function DataTable() {
                         })
                       }
                     } catch (e) {
-                      // Ignore parse errors
+                      // Ignore
                     }
                   }
                 })
                 
-                // Exclude 'suffix' and 'main' for roles (will be added separately as virtual columns)
-                const filteredKeys = Array.from(allDataInKeys).filter((baseKey) => {
-                  const lowerKey = baseKey.toLowerCase()
-                  // Exclude suffix for roles (will be added separately in this section)
-                  if (state.collection === 'roles' && lowerKey === 'suffix') {
-                    return false
-                  }
-                  // Exclude main for roles (will be added separately as virtual column)
-                  if (state.collection === 'roles' && lowerKey === 'main') {
-                    return false
-                  }
-                  return true
-                }).sort()
+                const dataInColumnIds = Array.from(allDataInKeys).map(baseKey => `data_in.${baseKey}`)
                 
-                // For roles collection, add suffix and main to the beginning of the list
-                if (state.collection === 'roles') {
-                  filteredKeys.unshift('suffix', 'main')
-                }
+                // Combine all column IDs
+                // Get all schema column IDs (use id if available, otherwise use accessorKey or accessorFn result)
+                const schemaColumnIds = schemaColumns
+                  .map(col => {
+                    if (col.id) return col.id
+                    // TanStack Table uses accessorKey as id if id is not set
+                    if ('accessorKey' in col && col.accessorKey) return col.accessorKey as string
+                    return null
+                  })
+                  .filter((id): id is string => !!id)
                 
-                if (filteredKeys.length === 0) {
-                  return null
+                const allColumnIds = [
+                  ...schemaColumnIds,
+                  ...dataInColumnIds
+                ]
+                
+                // Apply saved order or use default
+                const orderedColumnIds = columnOrder.length > 0
+                  ? (() => {
+                      const ordered: string[] = []
+                      const unordered: string[] = []
+                      const orderSet = new Set(columnOrder)
+                      
+                      // Add columns in saved order
+                      columnOrder.forEach(id => {
+                        if (allColumnIds.includes(id)) {
+                          ordered.push(id)
+                        }
+                      })
+                      
+                      // Add remaining columns
+                      allColumnIds.forEach(id => {
+                        if (!orderSet.has(id)) {
+                          unordered.push(id)
+                        }
+                      })
+                      
+                      return [...ordered, ...unordered]
+                    })()
+                  : allColumnIds
+                
+                const handleDragEnd = (event: DragEndEvent) => {
+                  const { active, over } = event
+                  
+                  if (over && active.id !== over.id) {
+                    const oldIndex = orderedColumnIds.indexOf(active.id as string)
+                    const newIndex = orderedColumnIds.indexOf(over.id as string)
+                    
+                    if (oldIndex !== -1 && newIndex !== -1) {
+                      // Move the dragged column in the ordered list
+                      const newOrderedIds = arrayMove(orderedColumnIds, oldIndex, newIndex)
+                      
+                      // Merge with existing columnOrder to preserve columns not in the drag list
+                      // This ensures we don't lose columns that might not be in orderedColumnIds
+                      const existingOrderSet = new Set(columnOrder)
+                      const newOrderSet = new Set(newOrderedIds)
+                      
+                      // Start with the new order
+                      const finalOrder = [...newOrderedIds]
+                      
+                      // Add any columns from existing order that aren't in the new order
+                      columnOrder.forEach(id => {
+                        if (!newOrderSet.has(id) && allColumnIds.includes(id)) {
+                          finalOrder.push(id)
+                        }
+                      })
+                      
+                      // Add any columns from allColumnIds that aren't in either order
+                      allColumnIds.forEach(id => {
+                        if (!existingOrderSet.has(id) && !newOrderSet.has(id)) {
+                          finalOrder.push(id)
+                        }
+                      })
+                      
+                      setColumnOrder(finalOrder)
+                    }
+                  }
                 }
                 
                 return (
-                  <>
-                    <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                      {t.dataInFields}
-                    </div>
-                    {filteredKeys.map((baseKey) => {
-                      // For suffix and main in roles, use virtual column ids, otherwise use data_in.baseKey
-                      const isSuffix = state.collection === 'roles' && baseKey.toLowerCase() === 'suffix'
-                      const isMain = state.collection === 'roles' && baseKey.toLowerCase() === 'main'
-                      const columnId = isSuffix ? 'suffix' : isMain ? 'main' : `data_in.${baseKey}`
-                      const virtualColumn = (isSuffix || isMain) ? table.getAllColumns().find(col => col.id === columnId) : null
-                      const isVisible = (isSuffix || isMain)
-                        ? (virtualColumn?.getIsVisible() ?? false)
-                        : (columnVisibility[columnId] !== false)
-                      // Try to get title from data_in in first record that has this field
-                      let fieldTitle: string | null = null
-                      if (data && data.length > 0) {
-                        for (const row of data) {
-                          const dataIn = row.data_in
-                          if (dataIn) {
-                            try {
-                              let parsed: any = dataIn
-                              if (typeof dataIn === 'string') {
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={orderedColumnIds}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {orderedColumnIds.map((columnId) => {
+                        const isDataIn = columnId.startsWith('data_in.')
+                        // Try to find column - first in schemaColumns, then in all table columns
+                        let column = isDataIn
+                          ? table.getAllColumns().find(col => col.id === columnId)
+                          : schemaColumns.find(col => col.id === columnId)
+                        
+                        // If not found in schemaColumns, try all table columns
+                        if (!column && !isDataIn) {
+                          column = table.getAllColumns().find(col => col.id === columnId)
+                        }
+                        
+                        if (!column && !isDataIn) {
+                          console.warn(`[Column Settings] Column ${columnId} not found in schemaColumns or table columns`)
+                          return null
+                        }
+                        
+                        if (isDataIn) {
+                          // Data_in column
+                          const baseKey = columnId.replace('data_in.', '')
+                          let fieldTitle: string | null = null
+                          if (data && data.length > 0) {
+                            for (const row of data) {
+                              const dataIn = row.data_in
+                              if (dataIn) {
                                 try {
-                                  parsed = JSON.parse(dataIn)
+                                  let parsed: any = dataIn
+                                  if (typeof dataIn === 'string') {
+                                    try {
+                                      parsed = JSON.parse(dataIn)
+                                    } catch (e) {
+                                      continue
+                                    }
+                                  }
+                                  if (parsed && typeof parsed === 'object') {
+                                    const foundKey = Object.keys(parsed).find(key => {
+                                      const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
+                                      if (langMatch && langMatch[1].toLowerCase() === baseKey.toLowerCase()) {
+                                        return true
+                                      }
+                                      return key.toLowerCase() === baseKey.toLowerCase()
+                                    })
+                                    if (foundKey && parsed[foundKey] !== undefined) {
+                                      const value = parsed[foundKey]
+                                      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                                        const localeValue = value[locale] || value.en || value.ru || value.rs || null
+                                        if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
+                                          fieldTitle = localeValue.title || null
+                                          if (fieldTitle) break
+                                        }
+                                      }
+                                    }
+                                  }
                                 } catch (e) {
                                   continue
                                 }
                               }
-                              if (parsed && typeof parsed === 'object') {
-                                // Find the key (case-insensitive)
-                                const foundKey = Object.keys(parsed).find(key => {
-                                  const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
-                                  if (langMatch && langMatch[1].toLowerCase() === baseKey.toLowerCase()) {
-                                    return true
-                                  }
-                                  return key.toLowerCase() === baseKey.toLowerCase()
-                                })
-                                if (foundKey && parsed[foundKey] !== undefined) {
-                                  const value = parsed[foundKey]
-                                  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                                    const localeValue = value[locale] || value.en || value.ru || value.rs || null
-                                    if (localeValue !== null && localeValue !== undefined && typeof localeValue === 'object' && 'title' in localeValue) {
-                                      fieldTitle = localeValue.title || null
-                                      if (fieldTitle) break
-                                    }
-                                  }
-                                }
-                              }
-                            } catch (e) {
-                              continue
                             }
                           }
+                          const fieldTranslation = (translations as any)?.dataTable?.fields?.[state.collection]?.[baseKey]
+                          const columnTitle = fieldTitle || fieldTranslation || baseKey
+                          const isVisible = columnVisibility[columnId] !== false
+                          const dataInColumn = table.getAllColumns().find(col => col.id === columnId)
+                          const canSort = dataInColumn?.getCanSort() ?? false
+                          const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
+                          const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
+                          
+                          return (
+                            <SortableColumnItem key={columnId} id={columnId}>
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger className="flex-1">
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{columnTitle}</span>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      {isVisible && (
+                                        <IconCheck className="h-3 w-3" />
+                                      )}
+                                      {defaultSortForColumn && (
+                                        defaultSortForColumn.desc ? (
+                                          <IconArrowDown className="h-3 w-3 opacity-50" />
+                                        ) : (
+                                          <IconArrowUp className="h-3 w-3 opacity-50" />
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuCheckboxItem
+                                    checked={isVisible}
+                                    onCheckedChange={(value) => {
+                                      setColumnVisibility((prev) => ({
+                                        ...prev,
+                                        [columnId]: !!value
+                                      }))
+                                    }}
+                                  >
+                                    {t.showColumn}
+                                  </DropdownMenuCheckboxItem>
+                                  {canSort && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
+                                      <DropdownMenuRadioGroup
+                                        value={sortValue}
+                                        onValueChange={(value) => {
+                                          if (value === 'none') {
+                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            setDefaultSorting(newDefaultSorting)
+                                            if (sorting.find(s => s.id === columnId)) {
+                                              const newSorting = sorting.filter(s => s.id !== columnId)
+                                              setSorting(newSorting)
+                                            }
+                                          } else {
+                                            const newSort = { id: columnId, desc: value === 'desc' }
+                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            newDefaultSorting.push(newSort)
+                                            setDefaultSorting(newDefaultSorting)
+                                            const newSorting = sorting.filter(s => s.id !== columnId)
+                                            newSorting.push(newSort)
+                                            setSorting(newSorting)
+                                          }
+                                        }}
+                                      >
+                                        <DropdownMenuRadioItem value="none">
+                                          <IconArrowsSort className="h-4 w-4 mr-2" />
+                                          {t.none}
+                                        </DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="asc">
+                                          <IconArrowUp className="h-4 w-4 mr-2" />
+                                          {t.asc}
+                                        </DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="desc">
+                                          <IconArrowDown className="h-4 w-4 mr-2" />
+                                          {t.desc}
+                                        </DropdownMenuRadioItem>
+                                      </DropdownMenuRadioGroup>
+                                    </>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
+                                  <div className="px-2 py-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="number"
+                                        min="50"
+                                        max="1000"
+                                        value={columnSizing?.[columnId] || ''}
+                                        onChange={(e) => {
+                                          const value = e.target.value ? parseInt(e.target.value, 10) : undefined
+                                          if (value && value >= 50) {
+                                            setColumnSizing(prev => ({ ...prev, [columnId]: value }))
+                                          } else if (!value) {
+                                            setColumnSizing(prev => {
+                                              const next = { ...prev }
+                                              delete next[columnId]
+                                              return next
+                                            })
+                                          }
+                                        }}
+                                        placeholder={t.widthAuto || "Auto"}
+                                        className="h-8 text-xs"
+                                      />
+                                      {columnSizing?.[columnId] && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0"
+                                          onClick={() => {
+                                            setColumnSizing(prev => {
+                                              const next = { ...prev }
+                                              delete next[columnId]
+                                              return next
+                                            })
+                                          }}
+                                          title={t.widthReset || "Reset"}
+                                        >
+                                          <IconX className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
+                                  <DropdownMenuRadioGroup
+                                    value={columnAlignment?.[columnId] || 'left'}
+                                    onValueChange={(value) => {
+                                      setColumnAlignment(prev => ({
+                                        ...prev,
+                                        [columnId]: value as 'left' | 'center' | 'right'
+                                      }))
+                                    }}
+                                  >
+                                    <DropdownMenuRadioItem value="left">
+                                      <IconAlignLeft className="h-4 w-4 mr-2" />
+                                      {t.left}
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="center">
+                                      <IconAlignCenter className="h-4 w-4 mr-2" />
+                                      {t.center}
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="right">
+                                      <IconAlignRight className="h-4 w-4 mr-2" />
+                                      {t.right}
+                                    </DropdownMenuRadioItem>
+                                  </DropdownMenuRadioGroup>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            </SortableColumnItem>
+                          )
+                        } else {
+                          // Schema column
+                          const columnSchema = schema.find((col) => col.name === columnId)
+                          let columnTitle = columnSchema?.title || columnId
+                          if (translations && state.collection) {
+                            const dataTableFieldTitle = (translations as any)?.dataTable?.fields?.[state.collection]?.[columnId] as string | undefined
+                            if (dataTableFieldTitle) {
+                              columnTitle = dataTableFieldTitle
+                            } else {
+                              const directFieldTitle = (translations as any)?.fields?.[state.collection]?.[columnId] as string | undefined
+                              if (directFieldTitle) {
+                                columnTitle = directFieldTitle
+                              }
+                            }
+                          }
+                          const canSort = column?.getCanSort() ?? false
+                          const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
+                          const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
+                          
+                          return (
+                            <SortableColumnItem key={columnId} id={columnId}>
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger className="flex-1">
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{columnTitle}</span>
+                                    <div className="flex items-center gap-1 ml-2">
+                                      {column?.getIsVisible() && (
+                                        <IconCheck className="h-3 w-3" />
+                                      )}
+                                      {defaultSortForColumn && (
+                                        defaultSortForColumn.desc ? (
+                                          <IconArrowDown className="h-3 w-3 opacity-50" />
+                                        ) : (
+                                          <IconArrowUp className="h-3 w-3 opacity-50" />
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuCheckboxItem
+                                    checked={column?.getIsVisible() ?? false}
+                                    onCheckedChange={(value) =>
+                                      column?.toggleVisibility(!!value)
+                                    }
+                                  >
+                                    {t.showColumn}
+                                  </DropdownMenuCheckboxItem>
+                                  {canSort && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
+                                      <DropdownMenuRadioGroup
+                                        value={sortValue}
+                                        onValueChange={(value) => {
+                                          if (value === 'none') {
+                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            setDefaultSorting(newDefaultSorting)
+                                            if (sorting.find(s => s.id === columnId)) {
+                                              const newSorting = sorting.filter(s => s.id !== columnId)
+                                              setSorting(newSorting)
+                                            }
+                                          } else {
+                                            const newSort = { id: columnId, desc: value === 'desc' }
+                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            newDefaultSorting.push(newSort)
+                                            setDefaultSorting(newDefaultSorting)
+                                            const newSorting = sorting.filter(s => s.id !== columnId)
+                                            newSorting.push(newSort)
+                                            setSorting(newSorting)
+                                          }
+                                        }}
+                                      >
+                                        <DropdownMenuRadioItem value="none">
+                                          <IconArrowsSort className="h-4 w-4 mr-2" />
+                                          {t.none}
+                                        </DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="asc">
+                                          <IconArrowUp className="h-4 w-4 mr-2" />
+                                          {t.asc}
+                                        </DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="desc">
+                                          <IconArrowDown className="h-4 w-4 mr-2" />
+                                          {t.desc}
+                                        </DropdownMenuRadioItem>
+                                      </DropdownMenuRadioGroup>
+                                    </>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
+                                  <div className="px-2 py-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="number"
+                                        min="50"
+                                        max="1000"
+                                        value={columnSizing?.[columnId] || ''}
+                                        onChange={(e) => {
+                                          const value = e.target.value ? parseInt(e.target.value, 10) : undefined
+                                          if (value && value >= 50) {
+                                            setColumnSizing(prev => ({ ...prev, [columnId]: value }))
+                                          } else if (!value) {
+                                            setColumnSizing(prev => {
+                                              const next = { ...prev }
+                                              delete next[columnId]
+                                              return next
+                                            })
+                                          }
+                                        }}
+                                        placeholder={t.widthAuto || "Auto"}
+                                        className="h-8 text-xs"
+                                      />
+                                      {columnSizing?.[columnId] && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0"
+                                          onClick={() => {
+                                            setColumnSizing(prev => {
+                                              const next = { ...prev }
+                                              delete next[columnId]
+                                              return next
+                                            })
+                                          }}
+                                          title={t.widthReset || "Reset"}
+                                        >
+                                          <IconX className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
+                                  <DropdownMenuRadioGroup
+                                    value={columnAlignment?.[columnId] || 'left'}
+                                    onValueChange={(value) => {
+                                      setColumnAlignment(prev => ({
+                                        ...prev,
+                                        [columnId]: value as 'left' | 'center' | 'right'
+                                      }))
+                                    }}
+                                  >
+                                    <DropdownMenuRadioItem value="left">
+                                      <IconAlignLeft className="h-4 w-4 mr-2" />
+                                      {t.left}
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="center">
+                                      <IconAlignCenter className="h-4 w-4 mr-2" />
+                                      {t.center}
+                                    </DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="right">
+                                      <IconAlignRight className="h-4 w-4 mr-2" />
+                                      {t.right}
+                                    </DropdownMenuRadioItem>
+                                  </DropdownMenuRadioGroup>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            </SortableColumnItem>
+                          )
                         }
-                      }
-                      // Fallback to translation or baseKey
-                      const fieldTranslation = (t as any)?.dataTable?.fields?.[state.collection]?.[baseKey]
-                      const columnTitle = fieldTitle || fieldTranslation || baseKey
-                      const dataInColumn = (isSuffix || isMain) ? virtualColumn : table.getAllColumns().find(col => col.id === columnId)
-                      const canSort = dataInColumn?.getCanSort() ?? false
-                      const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
-                      const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
-                      
-                      return (
-                        <DropdownMenuSub key={columnId}>
-                          <DropdownMenuSubTrigger>
-                            <div className="flex items-center justify-between w-full">
-                              <span>{columnTitle}</span>
-                              <div className="flex items-center gap-1 ml-2">
-                                {isVisible && (
-                                  <IconCheck className="h-3 w-3" />
-                                )}
-                                {defaultSortForColumn && (
-                                  defaultSortForColumn.desc ? (
-                                    <IconArrowDown className="h-3 w-3 opacity-50" />
-                                  ) : (
-                                    <IconArrowUp className="h-3 w-3 opacity-50" />
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuCheckboxItem
-                              checked={isVisible}
-                              onCheckedChange={(value) => {
-                                if ((isSuffix || isMain) && virtualColumn) {
-                                  // For suffix and main, use table column visibility
-                                  virtualColumn.toggleVisibility(!!value)
-                                } else {
-                                  setColumnVisibility((prev) => ({
-                                    ...prev,
-                                    [columnId]: !!value
-                                  }))
-                                }
-                              }}
-                            >
-                              {t.showColumn}
-                            </DropdownMenuCheckboxItem>
-                            {canSort && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel>{t.defaultSorting}</DropdownMenuLabel>
-                                <DropdownMenuRadioGroup
-                                  value={sortValue}
-                                  onValueChange={(value) => {
-                                    if (value === 'none') {
-                                      const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
-                                      setDefaultSorting(newDefaultSorting)
-                                      if (sorting.find(s => s.id === columnId)) {
-                                        const newSorting = sorting.filter(s => s.id !== columnId)
-                                        setSorting(newSorting)
-                                      }
-                                    } else {
-                                      const newSort = { id: columnId, desc: value === 'desc' }
-                                      const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
-                                      newDefaultSorting.push(newSort)
-                                      setDefaultSorting(newDefaultSorting)
-                                      const newSorting = sorting.filter(s => s.id !== columnId)
-                                      newSorting.push(newSort)
-                                      setSorting(newSorting)
-                                    }
-                                  }}
-                                >
-                                  <DropdownMenuRadioItem value="none">
-                                    <IconArrowsSort className="h-4 w-4 mr-2" />
-                                    Нет
-                                  </DropdownMenuRadioItem>
-                                  <DropdownMenuRadioItem value="asc">
-                                    <IconArrowUp className="h-4 w-4 mr-2" />
-                                    A-Z
-                                  </DropdownMenuRadioItem>
-                                  <DropdownMenuRadioItem value="desc">
-                                    <IconArrowDown className="h-4 w-4 mr-2" />
-                                    Z-A
-                                  </DropdownMenuRadioItem>
-                                </DropdownMenuRadioGroup>
-                              </>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>{t.width || "Width"}</DropdownMenuLabel>
-                            <div className="px-2 py-1.5 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="number"
-                                  min="50"
-                                  max="1000"
-                                  value={columnSizing?.[columnId] || ''}
-                                  onChange={(e) => {
-                                    const value = e.target.value ? parseInt(e.target.value, 10) : undefined
-                                    if (value && value >= 50) {
-                                      setColumnSizing(prev => ({ ...prev, [columnId]: value }))
-                                    } else if (!value) {
-                                      setColumnSizing(prev => {
-                                        const next = { ...prev }
-                                        delete next[columnId]
-                                        return next
-                                      })
-                                    }
-                                  }}
-                                  placeholder={t.widthAuto || "Auto"}
-                                  className="h-8 text-xs"
-                                />
-                                <span className="text-xs text-muted-foreground">{t.widthPixels || "px"}</span>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-full text-xs"
-                                onClick={() => {
-                                  setColumnSizing(prev => {
-                                    const next = { ...prev }
-                                    delete next[columnId]
-                                    return next
-                                  })
-                                }}
-                              >
-                                {t.widthReset || "Reset"}
-                              </Button>
-                            </div>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuLabel>{t.alignment}</DropdownMenuLabel>
-                        <DropdownMenuRadioGroup
-                          value={columnAlignment[columnId] || 'left'}
-                          onValueChange={(value) => {
-                            setColumnAlignment(prev => ({
-                              ...prev,
-                              [columnId]: value as 'left' | 'center' | 'right'
-                            }))
-                          }}
-                        >
-                              <DropdownMenuRadioItem value="left">
-                                <IconAlignLeft className="h-4 w-4 mr-2" />
-                                Слева
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="center">
-                                <IconAlignCenter className="h-4 w-4 mr-2" />
-                                По центру
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="right">
-                                <IconAlignRight className="h-4 w-4 mr-2" />
-                                Справа
-                              </DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )
-                    })}
-                  </>
+                      })}
+                    </SortableContext>
+                  </DndContext>
                 )
               })()}
               {/* Page size setting */}
@@ -4165,7 +5307,7 @@ export function DataTable() {
                     <span className="text-muted-foreground text-sm ml-2">{defaultPageSize}</span>
                   </div>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
+                <DropdownMenuSubContent sideOffset={4}>
                   <DropdownMenuLabel>{t.rowsPerPage}</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={String(defaultPageSize)}
@@ -4189,6 +5331,107 @@ export function DataTable() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              {/* Edit mode */}
+              <DropdownMenuSeparator />
+              <div className="flex items-center justify-between gap-4 px-2 py-1.5">
+                <div className="flex items-center">
+                  <IconEdit className="h-4 w-4 mr-2" />
+                  <Label htmlFor="edit-mode-switch" className="text-sm font-medium cursor-pointer">
+                    {t.editMode || "Edit Mode"}
+                  </Label>
+                </div>
+                <Switch
+                  id="edit-mode-switch"
+                  checked={editMode}
+                  onCheckedChange={(checked) => {
+                    setEditMode(checked)
+                    if (typeof window !== 'undefined' && state.collection) {
+                      try {
+                        localStorage.setItem(`edit-mode-${state.collection}`, JSON.stringify(checked))
+                      } catch (e) {
+                        // Ignore
+                      }
+                    }
+                  }}
+                />
+              </div>
+              {/* Card view mode */}
+              <DropdownMenuSeparator />
+              {isMobile && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <IconLayoutGrid className="h-4 w-4 mr-2" />
+                        <span>{t.cardView || "Card View"}</span>
+                      </div>
+                      {cardViewModeMobile && (
+                        <IconCheck className="h-4 w-4" />
+                      )}
+                    </div>
+                  </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <div className="flex items-center justify-between gap-4 px-2 py-1.5">
+                    <Label htmlFor="card-view-mobile-switch" className="text-sm font-medium cursor-pointer">
+                      {t.cardView || "Card View"}
+                    </Label>
+                    <Switch
+                      id="card-view-mobile-switch"
+                      checked={cardViewModeMobile}
+                      onCheckedChange={setCardViewModeMobile}
+                    />
+                  </div>
+                </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              {!isMobile && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <IconLayoutGrid className="h-4 w-4 mr-2" />
+                        <span>{t.cardView || "Card View"}</span>
+                      </div>
+                      {cardViewModeDesktop && (
+                        <IconCheck className="h-4 w-4" />
+                      )}
+                    </div>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <div className="flex items-center justify-between gap-4 px-2 py-1.5">
+                      <Label htmlFor="card-view-desktop-switch" className="text-sm font-medium cursor-pointer">
+                        {t.cardView || "Card View"}
+                      </Label>
+                      <Switch
+                        id="card-view-desktop-switch"
+                        checked={cardViewModeDesktop}
+                        onCheckedChange={setCardViewModeDesktop}
+                      />
+                    </div>
+                    {cardViewModeDesktop && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>{t.cardsPerRow || "Cards per row"}</DropdownMenuLabel>
+                        <DropdownMenuRadioGroup
+                          value={String(cardsPerRow)}
+                          onValueChange={(value) => {
+                            const numValue = parseInt(value, 10)
+                            if (numValue >= 1 && numValue <= 6) {
+                              setCardsPerRow(numValue)
+                            }
+                          }}
+                        >
+                          {[1, 2, 3, 4, 5, 6].map((num) => (
+                            <DropdownMenuRadioItem key={num} value={String(num)}>
+                              {num}
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
               {/* Show/hide filter row */}
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -4233,6 +5476,135 @@ export function DataTable() {
         )}
         {!loading && !error && (
           <>
+        {(isMobile ? cardViewModeMobile : cardViewModeDesktop) ? (
+          // Card View
+          <div 
+            className={cn(
+              "grid gap-4",
+              isMobile ? "grid-cols-1" : ""
+            )}
+            style={!isMobile ? { gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` } : undefined}
+          >
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => {
+                const allVisibleCells = row.getVisibleCells().filter(cell => 
+                  cell.column.id !== 'select' && cell.column.id !== 'actions'
+                )
+                // Separate title cell for header - prioritize title, fallback to name only if title is not available
+                const titleCell = allVisibleCells.find(cell => cell.column.id === 'title')
+                const nameCell = allVisibleCells.find(cell => cell.column.id === 'name')
+                // Use title if available, otherwise don't use name (user wants title, not name)
+                const headerCell = titleCell || null
+                // Filter out title from body cells (title goes to header), but keep name in body
+                const visibleCells = allVisibleCells.filter(cell => 
+                  cell.column.id !== 'title'
+                )
+                const actionsCell = row.getVisibleCells().find(cell => cell.column.id === 'actions')
+                const selectCell = row.getVisibleCells().find(cell => cell.column.id === 'select')
+                
+                return (
+                  <div
+                    key={row.id}
+                    className="rounded-lg border bg-primary-foreground p-3 space-y-2"
+                    onDoubleClick={() => onEditRequest(row)}
+                  >
+                    {/* Header with checkbox, title and actions */}
+                    <div className="flex items-center justify-between pb-2 border-b gap-2">
+                      {selectCell && (
+                        <div className="flex items-center">
+                          {flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}
+                        </div>
+                      )}
+                      {headerCell && (() => {
+                        // For card header, if title is JSON field with title/value structure, use title
+                        const rowData = row.original
+                        const titleValue = rowData?.title
+                        let displayTitle: React.ReactNode = null
+                        
+                        if (titleValue && typeof titleValue === 'string') {
+                          try {
+                            const parsed = JSON.parse(titleValue)
+                            if (parsed && typeof parsed === 'object') {
+                              const localeValue = parsed[locale] || parsed.en || parsed.ru || parsed.rs || null
+                              if (localeValue && typeof localeValue === 'object' && 'title' in localeValue) {
+                                // Use title for card header
+                                displayTitle = localeValue.title != null ? String(localeValue.title) : null
+                              }
+                            }
+                          } catch (e) {
+                            // Not JSON, use as is
+                          }
+                        }
+                        
+                        // If we didn't extract title from JSON, use normal cell render
+                        if (displayTitle === null) {
+                          displayTitle = flexRender(headerCell.column.columnDef.cell, headerCell.getContext())
+                        }
+                        
+                        return (
+                          <div className="flex-1 font-semibold text-base truncate">
+                            {displayTitle}
+                          </div>
+                        )
+                      })()}
+                      {actionsCell && (
+                        <div className="ml-auto">
+                          {flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
+                        </div>
+                      )}
+                    </div>
+                    {/* Card content - fields on left, values on right */}
+                    <div className="space-y-2">
+                      {visibleCells.map((cell) => {
+                        // Extract baseKey for data_in fields
+                        const isDataInField = cell.column.id.startsWith('data_in.')
+                        const baseKey = isDataInField ? cell.column.id.replace('data_in.', '') : null
+                        
+                        const columnSchema = schema.find((col) => {
+                          if (isDataInField) {
+                            return false
+                          }
+                          return col.name === cell.column.id
+                        })
+                        
+                        // For data_in fields, use unified function to get label
+                        let fieldLabel: string
+                        if (isDataInField && baseKey) {
+                          // Use unified function to get field label
+                          const rowData = row.original
+                          const dataInLabel = getDataInFieldLabel(baseKey, rowData, locale, translations, state.collection)
+                          // Use label from function, or fallback to baseKey only if absolutely necessary
+                          fieldLabel = dataInLabel || baseKey
+                        } else {
+                          // For regular fields
+                          const columnTitle = columnSchema?.title || cell.column.id
+                          const dataTableFieldTitle = (translations as any)?.dataTable?.fields?.[state.collection]?.[cell.column.id]
+                          fieldLabel = dataTableFieldTitle || columnTitle
+                        }
+                        
+                        return (
+                          <div key={cell.id} className="flex items-center gap-2 text-sm">
+                            <div className="font-medium text-muted-foreground min-w-[120px] flex-shrink-0 text-left">
+                              {fieldLabel}:
+                            </div>
+                            <div className="flex-1 text-left">
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="rounded-lg border bg-primary-foreground p-6 text-center text-muted-foreground">
+                {t.noDataFound.replace("{collection}", collectionLabel)}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Table View
         <div className="overflow-x-auto rounded-lg border bg-primary-foreground">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
@@ -4439,6 +5811,7 @@ export function DataTable() {
               </TableBody>
             </Table>
         </div>
+        )}
         <div className="flex items-center justify-between px-0">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                 {t.selectedRecords.replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{total}', String(total))}
@@ -4613,8 +5986,8 @@ export function DataTable() {
                       {editableFields.filter((f) => {
                         if (f.name === "data_in") return false
                         if (state.collection === 'roles') {
-                          // For roles, show: title, name, description, is_system, xaid
-                          return ['title', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                          // For roles, show: title, name, description, is_system, order, xaid
+                          return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
                         }
                         return true
                       }).map((field) => (
@@ -4627,13 +6000,13 @@ export function DataTable() {
                       onCheckedChange={(checked) => handleFieldChange(field.name, checked === true)}
                     />
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium cursor-pointer">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                     </Label>
                   </div>
                 ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <DateTimePicker
@@ -4646,7 +6019,7 @@ export function DataTable() {
                 ) : field.fieldType === 'phone' ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <PhoneInput
@@ -4658,7 +6031,7 @@ export function DataTable() {
                 ) : field.fieldType === 'password' ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -4691,7 +6064,7 @@ export function DataTable() {
                   <>
                     <div className="flex items-center justify-between">
                       <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                        {field.title || field.name}
+                        {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                         {!field.nullable && <span className="text-destructive ml-1">*</span>}
                       </Label>
                       <Tabs
@@ -4733,7 +6106,7 @@ export function DataTable() {
                 ) : (field as any).fieldType === 'price' ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -4781,7 +6154,7 @@ export function DataTable() {
                 ) : field.fieldType === 'select' && field.selectOptions ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <ComboboxSelect
@@ -4798,7 +6171,7 @@ export function DataTable() {
                 ) : field.fieldType === 'enum' && field.enum ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Select
@@ -4821,7 +6194,7 @@ export function DataTable() {
                 ) : field.relation ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <RelationSelect
@@ -4836,7 +6209,7 @@ export function DataTable() {
                 ) : field.textarea ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Textarea
@@ -4851,7 +6224,7 @@ export function DataTable() {
                 ) : field.name === 'description' ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Textarea
@@ -4866,7 +6239,7 @@ export function DataTable() {
                 ) : (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -4892,7 +6265,7 @@ export function DataTable() {
                           return (
                             <div key={field.name} className="flex flex-col gap-2">
                               <Label className="text-sm font-medium select-text">
-                                {field.title || field.name}
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                               </Label>
                               <div className="text-sm select-text">
                                 {field.name === 'created_at' || field.name === 'updated_at' ? (
@@ -5151,7 +6524,7 @@ export function DataTable() {
                             }}
                           >
                             <IconCopy className="mr-2 h-4 w-4" />
-                            Copy
+                            {t.copy || "Копировать"}
                           </Button>
                         </div>
                         <Textarea
@@ -5265,8 +6638,8 @@ export function DataTable() {
                       {schema.filter((f) => {
                         if (!isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden && f.name !== "data_in") {
                           if (state.collection === 'roles') {
-                            // For roles, show: title, name, description, is_system, xaid
-                            return ['title', 'name', 'description', 'is_system', 'xaid'].includes(f.name)
+                            // For roles, show: title, name, description, is_system, order, xaid
+                            return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
                           }
                           return true
                         }
@@ -5282,13 +6655,13 @@ export function DataTable() {
                       disabled={field.readOnly}
                     />
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium cursor-pointer">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                     </Label>
                   </div>
                 ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <DateTimePicker
@@ -5302,7 +6675,7 @@ export function DataTable() {
                 ) : field.fieldType === 'phone' ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <PhoneInput
@@ -5346,7 +6719,7 @@ export function DataTable() {
                   <>
                     <div className="flex items-center justify-between">
                       <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                        {field.title || field.name}
+                        {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                         {!field.nullable && <span className="text-destructive ml-1">*</span>}
                       </Label>
                       <Tabs
@@ -5389,7 +6762,7 @@ export function DataTable() {
                 ) : (field as any).fieldType === 'price' ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -5438,7 +6811,7 @@ export function DataTable() {
                 ) : field.fieldType === 'select' && field.selectOptions ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <ComboboxSelect
@@ -5455,7 +6828,7 @@ export function DataTable() {
                 ) : field.relation ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <RelationSelect
@@ -5471,7 +6844,7 @@ export function DataTable() {
                 ) : field.textarea ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Textarea
@@ -5486,7 +6859,7 @@ export function DataTable() {
                 ) : field.name === 'description' ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Textarea
@@ -5502,7 +6875,7 @@ export function DataTable() {
                 ) : (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name}
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                       {!field.nullable && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Input
@@ -5529,7 +6902,7 @@ export function DataTable() {
                           return (
                             <div key={field.name} className="flex flex-col gap-2">
                               <Label className="text-sm font-medium select-text">
-                                {field.title || field.name}
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
                               </Label>
                               <div className="text-sm select-text">
                                 {field.name === 'created_at' || field.name === 'updated_at' ? (
@@ -5750,29 +7123,29 @@ export function DataTable() {
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                    onClick={(e) => {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      // Remove all entries for this base key
-                                      setEditDataInEntries((prev) => {
-                                        return prev.filter(entry => {
-                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
-                                          if (langMatch && langMatch[1] === baseKey) {
-                                            return false
-                                          }
-                                          return entry.key !== baseKey
-                                        })
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    // Remove all entries for this base key
+                                    setEditDataInEntries((prev) => {
+                                      return prev.filter(entry => {
+                                        const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                        if (langMatch && langMatch[1] === baseKey) {
+                                          return false
+                                        }
+                                        return entry.key !== baseKey
                                       })
-                                    }}
-                                  >
-                                    <IconX className="h-4 w-4" />
+                                    })
+                                  }}
+                                >
+                                  <IconX className="h-4 w-4" />
                                   <span className="sr-only">Remove</span>
                                 </Button>
                               </div>
                               )
                             })
                           })()}
-                            </div>
+                      </div>
                       </div>
                       
                       {/* Raw JSON */}
@@ -5788,7 +7161,7 @@ export function DataTable() {
                             }}
                           >
                             <IconCopy className="mr-2 h-4 w-4" />
-                            Copy
+                            {t.copy || "Copy"}
                           </Button>
                         </div>
                         <Textarea
