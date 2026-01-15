@@ -12,6 +12,171 @@ import { convertSqliteToPostgres } from './convert-sqlite-to-postgres.mjs';
 
 const { Client } = pg;
 
+/**
+ * Split SQL into executable statements.
+ *
+ * This migration runner originally used a naive `sql.split(';')`, which breaks
+ * for PostgreSQL constructs that legitimately contain semicolons, e.g.
+ * `CREATE FUNCTION ... $$ ... $$` and `DO $$ ... $$`.
+ *
+ * This splitter understands:
+ * - single-quoted strings: '...'
+ * - double-quoted identifiers: "..."
+ * - line comments: -- ...
+ * - block comments: /* ... *\/
+ * - dollar-quoted strings: $tag$ ... $tag$
+ */
+function splitSqlStatements(sql) {
+  const statements = [];
+  let buf = '';
+
+  let inSingle = false;
+  let inDouble = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+  let dollarTag = null; // e.g. $$ or $func$
+
+  const isDollarTagChar = (ch) =>
+    (ch >= 'a' && ch <= 'z') ||
+    (ch >= 'A' && ch <= 'Z') ||
+    (ch >= '0' && ch <= '9') ||
+    ch === '_';
+
+  const tryReadDollarTag = (s, startIdx) => {
+    if (s[startIdx] !== '$') return null;
+    let j = startIdx + 1;
+    while (j < s.length && isDollarTagChar(s[j])) j++;
+    if (j < s.length && s[j] === '$') {
+      return s.slice(startIdx, j + 1); // includes both '$'
+    }
+    return null;
+  };
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = i + 1 < sql.length ? sql[i + 1] : '';
+
+    // Exit line comment
+    if (inLineComment) {
+      buf += ch;
+      if (ch === '\n') {
+        inLineComment = false;
+      }
+      continue;
+    }
+
+    // Exit block comment
+    if (inBlockComment) {
+      buf += ch;
+      if (ch === '*' && next === '/') {
+        buf += next;
+        i++;
+        inBlockComment = false;
+      }
+      continue;
+    }
+
+    // Inside dollar-quoted string: only look for the closing tag
+    if (dollarTag) {
+      const maybeClose = tryReadDollarTag(sql, i);
+      if (maybeClose && maybeClose === dollarTag) {
+        buf += maybeClose;
+        i += maybeClose.length - 1;
+        dollarTag = null;
+        continue;
+      }
+      buf += ch;
+      continue;
+    }
+
+    // Inside single-quoted string
+    if (inSingle) {
+      buf += ch;
+      if (ch === "'") {
+        // Handle escaped quote by doubling: ''
+        if (next === "'") {
+          buf += next;
+          i++;
+        } else {
+          inSingle = false;
+        }
+      }
+      continue;
+    }
+
+    // Inside double-quoted identifier
+    if (inDouble) {
+      buf += ch;
+      if (ch === '"') {
+        // Escaped double quote in identifier: ""
+        if (next === '"') {
+          buf += next;
+          i++;
+        } else {
+          inDouble = false;
+        }
+      }
+      continue;
+    }
+
+    // Enter comments (only when not in quotes)
+    if (ch === '-' && next === '-') {
+      buf += ch + next;
+      i++;
+      inLineComment = true;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      buf += ch + next;
+      i++;
+      inBlockComment = true;
+      continue;
+    }
+
+    // Enter strings/identifiers
+    if (ch === "'") {
+      buf += ch;
+      inSingle = true;
+      continue;
+    }
+    if (ch === '"') {
+      buf += ch;
+      inDouble = true;
+      continue;
+    }
+
+    // Enter dollar-quoted string
+    if (ch === '$') {
+      const tag = tryReadDollarTag(sql, i);
+      if (tag) {
+        buf += tag;
+        i += tag.length - 1;
+        dollarTag = tag;
+        continue;
+      }
+    }
+
+    // Statement separator
+    if (ch === ';') {
+      const trimmed = buf.trim();
+      if (trimmed.length > 0) {
+        statements.push(trimmed);
+      }
+      buf = '';
+      continue;
+    }
+
+    buf += ch;
+  }
+
+  const tail = buf.trim();
+  if (tail.length > 0) {
+    statements.push(tail);
+  }
+
+  return statements;
+}
+
 // Determine migrations directory based on execution context
 // In Docker: /app/migrations (from Dockerfile, copied from migrations/site)
 // In development: ../../migrations/site (from project root)
@@ -99,12 +264,8 @@ async function executeMigration(client, sqlPath) {
   const sqliteSql = await readFile(sqlPath, 'utf8');
   const postgresSql = convertSqliteToPostgres(sqliteSql);
 
-  // Split by semicolons and execute each statement
-  // PostgreSQL requires statements to be executed separately
-  const statements = postgresSql
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--'));
+  // Split into statements while respecting $$ blocks, strings and comments
+  const statements = splitSqlStatements(postgresSql);
 
   try {
     for (const statement of statements) {
