@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? post.content.replace(/<[^>]*>/g, '').substring(0, 160).trim() + '...'
     : 'Читайте статью в блоге Altrp'
   const author = post.dataIn?.author || 'Altrp'
-  const publishedTime = post.dataIn?.date || post.createdAt
+  const publishedTime = post.dataIn?.date || post.createdAt?.toLocaleDateString()
 
   return {
     title: `${title} | Altrp`,

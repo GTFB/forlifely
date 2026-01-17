@@ -30,8 +30,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, FileText, User, CheckCircle, XCircle, MessageSquare, Clock, AlertTriangle, Save } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { altrpHuman } from '@/shared/types/altrp'
 import Link from 'next/link'
@@ -44,6 +42,7 @@ import {
   LoanApplication,
   LoanApplicationDataIn,
 } from '@/shared/types/altrp'
+import { formatDate } from '@/shared/utils/date-format'
 
 
 export default function DealDetailPageClient() {
@@ -583,15 +582,6 @@ export default function DealDetailPageClient() {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(date)
-  }
 
   const formatPercent = (value: number) => {
     if (Number.isNaN(value) || !Number.isFinite(value)) return 'не указано'

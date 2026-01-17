@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, boolean, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, numeric, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const texts = pgTable('texts', {
@@ -12,13 +12,13 @@ export const texts = pgTable('texts', {
   isPublic: boolean('is_public').default(true),
   order: numeric('order').default('0'),
   xaid: text('xaid'),
-  createdAt: text('created_at')
+  createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
-  updatedAt: text('updated_at')
+  updatedAt: timestamp('updated_at')
     .notNull()
     .default(sql`now()`),
-  deletedAt: text('deleted_at'),
+  deletedAt: timestamp('deleted_at'),
   gin: jsonb('gin'),
   fts: jsonb('fts'),
   dataIn: jsonb('data_in'),

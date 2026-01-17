@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, serial, numeric, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const dealProducts = pgTable('deal_products', {
@@ -9,8 +9,8 @@ export const dealProducts = pgTable('deal_products', {
 	quantity: numeric('quantity').notNull().default('1'),
 	statusName: text('status_name'),
 	order: numeric('order').default('0'),
-	updatedAt: text('updated_at').notNull().default(sql`now()`),
-	createdAt: text('created_at').notNull().default(sql`now()`),
+	updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+	createdAt: timestamp('created_at').notNull().default(sql`now()`),
 	dataIn: jsonb('data_in'),
 });
 

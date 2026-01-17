@@ -1158,7 +1158,7 @@ export class DealsRepository extends BaseRepository<Deal>{
     }
 
     const nextStatus = 'IN_PROGRESS';
-    const updatedAt = new Date().toISOString();
+    const updatedAt = new Date();
 
     await this.db
       .update(schema.deals)

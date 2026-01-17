@@ -43,6 +43,7 @@ import { WalletType } from '@/shared/types/altrp-finance'
 import {
   Taxonomy,
 } from '@/shared/schema/types'
+import { formatDate } from '@/shared/utils/date-format'
 export default function UserWalletPage({ 
   wallet: initialWallet,
    walletType,
@@ -203,16 +204,6 @@ export default function UserWalletPage({
       currency: 'RUB',
       minimumFractionDigits: 0,
     }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(dateString))
   }
 
   const getTransactionTypeLabel = (type: string) => {

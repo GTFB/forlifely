@@ -67,8 +67,8 @@ const mapGoalToTask = (goal: Goal): TaskResponse => {
       name: dataIn?.assigneeName || 'Не назначен',
       avatar: dataIn?.assigneeAvatar ?? null,
     },
-    createdAt: goal.createdAt || null,
-    updatedAt: goal.updatedAt || null,
+    createdAt: goal.createdAt ? (goal.createdAt instanceof Date ? goal.createdAt.toISOString() : String(goal.createdAt)) : null,
+    updatedAt: goal.updatedAt ? (goal.updatedAt instanceof Date ? goal.updatedAt.toISOString() : String(goal.updatedAt)) : null,
   }
 }
 

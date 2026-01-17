@@ -16,6 +16,7 @@ import { Loader2, Plus, ExternalLink } from 'lucide-react'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { useRouter } from 'next/navigation'
 import { altrpText } from '@/shared/types/altrp'
+import { formatDate } from '@/shared/utils/date-format'
 
 interface BlogPost {
   id: number
@@ -23,8 +24,8 @@ interface BlogPost {
   title: string | null
   statusName: string | null
   category: string | null
-  createdAt: string | null
-  updatedAt: string | null
+  createdAt: Date | null
+  updatedAt: Date | null
   dataIn: { slug: string } | null
 }
 
@@ -70,16 +71,6 @@ export default function AdminBlogPageClient() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(date)
   }
 
   const handleAddNew = () => {

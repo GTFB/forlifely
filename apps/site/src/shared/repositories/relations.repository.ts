@@ -205,7 +205,7 @@ export class RelationsRepository extends BaseRepository<Relation> {
         .update(schema.relations)
         .set({
           dataIn: mergedDataIn,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(schema.relations.id, existing.id));
 
@@ -216,7 +216,7 @@ export class RelationsRepository extends BaseRepository<Relation> {
     }
 
     // Create new relation
-    const now = new Date().toISOString();
+    const now = new Date();
     const [created] = await this.db
       .insert(schema.relations)
       .values({
@@ -277,8 +277,8 @@ export class RelationsRepository extends BaseRepository<Relation> {
     await this.db
       .update(schema.relations)
       .set({
-        deletedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        deletedAt: new Date(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.relations.id, id));
   }
@@ -288,7 +288,7 @@ export class RelationsRepository extends BaseRepository<Relation> {
    * Deletes all relations where targetEntity matches the fullBaid
    */
   async softDeleteAllForBaseMove(fullBaid: string): Promise<void> {
-    const now = new Date().toISOString();
+    const now = new Date();
     
     await this.db
       .update(schema.relations)
@@ -362,7 +362,7 @@ export class RelationsRepository extends BaseRepository<Relation> {
           .update(schema.relations)
           .set({
             dataIn: dataIn,
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date(),
           })
           .where(eq(schema.relations.id, relation.id));
       }

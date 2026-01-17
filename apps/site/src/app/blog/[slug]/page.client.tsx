@@ -8,6 +8,7 @@ import { Facebook, Twitter, Linkedin, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { altrpText } from "@/shared/types/altrp";
+import { formatDate } from "@/shared/utils/date-format";
 
 type BlogPostPageClientProps = {
   slug: string;
@@ -51,14 +52,6 @@ export default function BlogPostPageClient({ slug, post, url }: BlogPostPageClie
     );
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
-  };
 
   return (
     <div className="flex-1">

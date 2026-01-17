@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 
@@ -10,11 +10,11 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   salt: text('salt').notNull(),
   isActive: boolean('is_active').default(true),
-  lastLoginAt: text('last_login_at'),
-  emailVerifiedAt: text('email_verified_at'),
-  createdAt: text('created_at').notNull().default(sql`now()`),
-  updatedAt: text('updated_at').notNull().default(sql`now()`),
-  deletedAt: text('deleted_at'),
+  lastLoginAt: timestamp('last_login_at'),
+  emailVerifiedAt: timestamp('email_verified_at'),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
+  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+  deletedAt: timestamp('deleted_at'),
   dataIn: jsonb('data_in'),
 })
 

@@ -55,3 +55,18 @@ export function formatLocalDateTime(isoString: string | null | undefined, locale
 
 
 
+
+export const formatDate = (dateString: string | Date) => {
+  let date
+  if(dateString instanceof Date){
+    date = dateString
+  } else {
+    date = new Date(dateString);
+
+  }
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};

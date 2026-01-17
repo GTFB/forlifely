@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import Link from "next/link";
 import { altrpText } from "@/shared/types/altrp";
+import { formatDate } from "@/shared/utils/date-format";
 
 
 export default function BlogPageComponent({
@@ -29,15 +30,6 @@ export default function BlogPageComponent({
     selectedCategory === "Все"
       ? blogPosts
       : blogPosts.filter((post) => post.category === selectedCategory);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
-  };
 
   return (
     <div className="flex-1">

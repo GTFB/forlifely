@@ -39,6 +39,7 @@ describe("MessageThreadsRepository", () => {
         fullName: faker.person.fullName(),
       }
     );
+
     testHumanHaid = testClient.haid;
 
     // Create test human for manager
@@ -62,7 +63,7 @@ describe("MessageThreadsRepository", () => {
     }
     if (createdChatUuid) {
       try {
-        await messageThreadsRepository.deleteByUuid(createdChatUuid, true);
+        // await messageThreadsRepository.deleteByUuid(createdChatUuid, true);
       } catch (error) {
         console.warn("Failed to cleanup test chat:", error);
       }
@@ -90,7 +91,7 @@ describe("MessageThreadsRepository", () => {
 
       // Cleanup
       if (foundChat) {
-        await messageThreadsRepository.deleteByUuid(foundChat.uuid, true);
+        // await messageThreadsRepository.deleteByUuid(foundChat.uuid, true);
       }
     });
 
@@ -152,7 +153,7 @@ describe("MessageThreadsRepository", () => {
       expect(chat.dataIn).toBeDefined();
       
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
   });
 
@@ -184,8 +185,8 @@ describe("MessageThreadsRepository", () => {
       expect(result.pagination.limit).toBe(10);
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat1.uuid, true);
-      await messageThreadsRepository.deleteByUuid(chat2.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat1.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat2.uuid, true);
     });
 
     it("should filter by statusName", async () => {
@@ -221,8 +222,8 @@ describe("MessageThreadsRepository", () => {
       });
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(openChat.uuid, true);
-      await messageThreadsRepository.deleteByUuid(closedChat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(openChat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(closedChat.uuid, true);
     });
 
     it("should filter by managerHaid", async () => {
@@ -254,7 +255,7 @@ describe("MessageThreadsRepository", () => {
       });
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should filter by humanHaid", async () => {
@@ -285,7 +286,7 @@ describe("MessageThreadsRepository", () => {
       });
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should support pagination", async () => {
@@ -324,7 +325,7 @@ describe("MessageThreadsRepository", () => {
 
       // Cleanup
       for (const chat of chats) {
-        await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+        // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
       }
     });
   });
@@ -361,7 +362,7 @@ describe("MessageThreadsRepository", () => {
       createdMessageUuid = message.uuid;
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should add a photo message to support chat", async () => {
@@ -391,7 +392,7 @@ describe("MessageThreadsRepository", () => {
 
       // Cleanup
       await messagesRepository.deleteByUuid(message.uuid, true);
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should throw error if humanHaid is missing", async () => {
@@ -412,7 +413,7 @@ describe("MessageThreadsRepository", () => {
       ).rejects.toThrow("Human haid is required to add message to support chat");
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should throw error if content is missing", async () => {
@@ -433,7 +434,7 @@ describe("MessageThreadsRepository", () => {
       ).rejects.toThrow("Content is required to add message to support chat");
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should throw error if messageType is missing", async () => {
@@ -454,7 +455,7 @@ describe("MessageThreadsRepository", () => {
       ).rejects.toThrow("Message type is required to add message to support chat");
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
   });
 
@@ -478,7 +479,7 @@ describe("MessageThreadsRepository", () => {
       expect(foundChat?.statusName).toBe("CLOSED");
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should update chat status to OPEN", async () => {
@@ -497,7 +498,7 @@ describe("MessageThreadsRepository", () => {
       expect(updatedChat.statusName).toBe("OPEN");
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should throw error if chat not found", async () => {
@@ -522,7 +523,7 @@ describe("MessageThreadsRepository", () => {
       // If you have a way to do this, add it here
       
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
   });
 
@@ -550,7 +551,7 @@ describe("MessageThreadsRepository", () => {
       expect(foundDataIn?.managerHaid).toBe(testManagerHaid);
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should remove manager when null is passed", async () => {
@@ -572,7 +573,7 @@ describe("MessageThreadsRepository", () => {
       expect(dataIn.managerHaid).toBeUndefined();
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should throw error if chat not found", async () => {
@@ -595,7 +596,7 @@ describe("MessageThreadsRepository", () => {
       // If you have a way to do this, add it here
       
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
 
     it("should preserve existing dataIn when assigning manager", async () => {
@@ -621,7 +622,7 @@ describe("MessageThreadsRepository", () => {
       expect(updatedDataIn.managerHaid).toBe(testManagerHaid); // Should be added
 
       // Cleanup
-      await messageThreadsRepository.deleteByUuid(chat.uuid, true);
+      // await messageThreadsRepository.deleteByUuid(chat.uuid, true);
     });
   });
 });

@@ -69,6 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { formatDate } from '@/shared/utils/date-format'
 
 interface UserWithRoles extends Omit<altrpUser, 'human'> {
   roles?: Array<{
@@ -250,16 +251,6 @@ export default function AdminUsersPage() {
       fetchUsers.cancel()
     }
   }, [fetchUsers])
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(date)
-  }
 
   // Extract KYC status from human (prefer kycStatus field, fallback to dataIn)
   const getKycStatus = (user: UserWithRoles): string | undefined => {

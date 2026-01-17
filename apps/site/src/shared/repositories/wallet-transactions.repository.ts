@@ -109,8 +109,8 @@ export class WalletTransactionsRepository {
     const payload = {
       ...rest,
       amount: String(-amountCents),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     } satisfies typeof schema.walletTransactions.$inferInsert;
     
     return this.createTransaction(payload);
