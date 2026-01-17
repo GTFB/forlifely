@@ -1,5 +1,6 @@
 import BaseColumn from "../columns/BaseColumn";
 import BaseCollection from "./BaseCollection";
+import { SortingState } from "@tanstack/react-table";
 
 export default class Products extends BaseCollection {
     __title = 'Products';
@@ -106,6 +107,8 @@ export default class Products extends BaseCollection {
         title: 'Название',
 
     });
+    override __defaultSort: SortingState = [{ id: 'title', desc: false }, { id: 'type', desc: true }, ] as SortingState
+
     'data_in.sku' = new BaseColumn({
         title: 'SKU',
         type: 'text',

@@ -47,7 +47,6 @@ import { useMe } from "@/providers/MeProvider"
 import {
   getTableDataInFields,
   getTableColumnVisibility,
-  type DataInField,
 } from "@/shared/utils/table-settings"
 import {
   ColumnDef,
@@ -149,6 +148,8 @@ import {
   ResponsiveDialogDescription,
   ResponsiveDialogClose,
 } from "@/packages/components/ui/revola"
+
+import{useLocalStorage} from '@uidotdev/usehooks'
 
 type ColumnSchema = {
   name: string
@@ -1682,7 +1683,6 @@ export function DataTable() {
         if (cached) {
           try {
             const cachedTranslations = JSON.parse(cached)
-            console.log('[DataTable] Using cached translations for locale:', locale, cachedTranslations?.dataTable)
             setTranslations(cachedTranslations)
             // Continue to fetch fresh translations in background to ensure we have latest
             // Don't return here, let it fetch fresh data
@@ -1697,7 +1697,7 @@ export function DataTable() {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
         const translationsData = await response.json() as any
-        console.log('[DataTable] Translations loaded for locale:', locale, translationsData?.dataTable)
+
         setTranslations(translationsData)
         
         // Cache translations
@@ -1728,121 +1728,6 @@ export function DataTable() {
     const dataTableTranslations = (translations as any)?.dataTable
     if (!dataTableTranslations) {
       console.warn('[DataTable] Using fallback translations, translations not loaded yet')
-    }
-    const defaultT = {
-      search: "Search...",
-      customizeColumns: "Customize Columns",
-      columns: "Columns",
-      add: "Add",
-      noDataFound: "No data found in {collection}.",
-      selectedRecords: "{count} selected · {total} total records",
-      rowsPerPage: "Rows per page",
-      page: "Page {page} of {total}",
-      addRecord: {
-        title: "Add new record to {collection}",
-        description: "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
-      },
-      form: {
-        select: "Select {field}",
-        enter: "Enter {field}",
-        confirm: "Confirm {field}",
-        confirmNew: "Confirm new {field}",
-        enterNew: "Enter new {field}",
-        loading: "Loading...",
-        selectPlaceholder: "Select...",
-        cancel: "Cancel",
-        create: "Create",
-        save: "Save",
-        passwordsDoNotMatch: "Passwords do not match"
-      },
-      editRecord: {
-        title: "Edit record in {collection}",
-        description: "Change fields below. Auto-generated fields are not editable and hidden."
-      },
-      createRecord: {
-        title: "Create record in {collection}",
-        description: "Fill in the fields below. Auto-generated fields are not editable and hidden."
-      },
-      loading: "Loading {collection}...",
-      actions: {
-        view: "View",
-        edit: "Edit"
-      },
-      delete: {
-        selected: "Delete Selected",
-        delete: "Delete",
-        deleteRecord: {
-          title: "Delete record?",
-          description: "This action cannot be undone. You are about to delete one record from \"{collection}\"."
-        },
-        deleteSelected: {
-          title: "Delete selected records?",
-          description: "This action cannot be undone. You are about to delete {count} records from \"{collection}\".",
-          deleting: "Deleting...",
-          deleteAll: "Delete All"
-        }
-      },
-      export: "Export",
-      import: "Import",
-      configureTable: "Configure Table",
-      exportData: "Export Data",
-      importData: "Import Data",
-      exportedRecords: "Exported {count} records in {format} format",
-      importDescription: "Load a file or paste data to import into {collection} collection",
-      fileFormat: "File Format",
-      importMode: "Import Mode",
-      loadFile: "Load File",
-      pasteText: "Paste Text",
-      file: "File",
-      pasteData: "Paste Data",
-      importing: "Importing...",
-      importedRecords: "Imported: {count} records",
-      importButton: "Import",
-      close: "Close",
-      selectedFile: "Selected file: {name} ({size} KB)",
-      pasteDataPlaceholder: "Paste data in {format} format...",
-      errors: "Errors:",
-      copy: "Copy",
-      copied: "Copied!",
-      downloadFile: "Download File",
-      showColumn: "Show Column",
-      defaultSorting: "Default Sorting",
-      alignment: "Alignment",
-      none: "None",
-      asc: "A-Z",
-      desc: "Z-A",
-      left: "Left",
-      center: "Center",
-      right: "Right",
-      dataInFields: "Additional",
-      showFilters: "Show Filters",
-      cardView: "Card View",
-      cardViewMobile: "Card View (Mobile)",
-      cardViewDesktop: "Card View (Desktop)",
-      cardsPerRow: "Cards per row",
-      sortTooltipMultiple: "Click: change sort | Shift+Click: add to sort",
-      sortTooltipSingle: "Click: sort | Shift+Click: add to sort",
-      filterPlaceholder: "Filter...",
-      valuePlaceholder: "Value (string or JSON)",
-      previousRecord: "Previous record",
-      nextRecord: "Next record",
-      importNoData: "File contains no data to import",
-      importError: "Error importing file",
-      main: "Main",
-      tabs: {
-        main: "Main",
-        info: "Info",
-        details: "Details"
-      },
-      editLanguage: "Language for editing",
-      applyJson: "Apply JSON",
-      selectFile: "Select file",
-      fileNotSelected: "No file selected",
-      addField: "Add field",
-      width: "Width",
-      widthAuto: "Auto",
-      widthReset: "Reset",
-      widthPixels: "pixels"
     }
     return dataTableTranslations || defaultT
   }, [translations])
@@ -1883,9 +1768,7 @@ export function DataTable() {
     return entityOptions[key] || state.collection
   }, [state.collection, translations, collectionToEntityKey])
   
-  React.useEffect(() => {
-    console.log('[DataTable] Current translations:', { locale, hasTranslations: !!translations, dataTable: translations?.dataTable, t })
-  }, [locale, translations, t])
+  
 
   const primaryKey = React.useMemo(() => schema.find((c) => c.primary)?.name || "id", [schema])
 
@@ -2204,13 +2087,13 @@ export function DataTable() {
   React.useEffect(() => {
     // Don't fetch if collection is not set
     if (!state.collection) {
-      console.log('[DataTable] Skipping fetch: no collection')
+      //console.log('[DataTable] Skipping fetch: no collection')
       return
     }
     
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
-      console.log('[DataTable] Skipping fetch: already fetching')
+      //console.log('[DataTable] Skipping fetch: already fetching')
       return
     }
     
@@ -2223,18 +2106,16 @@ export function DataTable() {
     
     // Skip if parameters haven't changed
     if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
-      console.log('[DataTable] Skipping fetch: parameters unchanged', { fetchKey, lastFetch: lastFetchParamsRef.current })
+      //console.log('[DataTable] Skipping fetch: parameters unchanged', { fetchKey, lastFetch: lastFetchParamsRef.current })
       return
     }
     
-    console.log('[DataTable] Starting fetch', { fetchKey, collection: state.collection, page: state.page, pageSize: state.pageSize, lastFetch: lastFetchParamsRef.current })
     lastFetchParamsRef.current = fetchKey
     isFetchingRef.current = true
     
     // Use ref to avoid dependency on fetchData
     fetchDataRef.current(controller.signal, isMounted)
       .then(() => {
-        console.log('[DataTable] Fetch succeeded')
       })
       .catch((e) => {
         // Silently ignore AbortError
@@ -2248,7 +2129,6 @@ export function DataTable() {
       })
       .finally(() => {
         isFetchingRef.current = false
-        console.log('[DataTable] Fetch completed')
       })
     
     return () => {
@@ -2909,78 +2789,24 @@ export function DataTable() {
     }
   }, [searchConditions])
   
+  // Get collection config early to access defaultSort
+  const collectionConfig = React.useMemo(() => {
+    return state.collection ? getCollection(state.collection) : null
+  }, [state.collection])
+
   // Default sorting state (stored in localStorage)
-  const [defaultSorting, setDefaultSorting] = React.useState<SortingState>(() => {
-    if (typeof window !== 'undefined' && state.collection) {
-      try {
-        const saved = localStorage.getItem(`default-sorting-${state.collection}`)
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (parsed && Array.isArray(parsed)) {
-            return parsed as SortingState
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to restore default sorting from localStorage:', e)
-      }
-    }
-    return []
-  })
-  
-  const [sorting, setSorting] = React.useState<SortingState>(() => {
-    // Initialize with default sorting if available
-    if (typeof window !== 'undefined' && state.collection) {
-      try {
-        const saved = localStorage.getItem(`default-sorting-${state.collection}`)
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (parsed && Array.isArray(parsed)) {
-            return parsed as SortingState
-          }
-        }
-      } catch (e) {
-        // Ignore
-      }
-    }
-    return []
-  })
-  
-  // Restore default sorting when collection changes
-  React.useEffect(() => {
-    if (!state.collection || typeof window === 'undefined') return
-    
-    try {
-      const saved = localStorage.getItem(`default-sorting-${state.collection}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed && Array.isArray(parsed)) {
-          setDefaultSorting(parsed as SortingState)
-          setSorting(parsed as SortingState)
-        } else {
-          setDefaultSorting([])
-          setSorting([])
-        }
-      } else {
-        setDefaultSorting([])
-        setSorting([])
-      }
-    } catch (e) {
-      console.warn('Failed to restore default sorting:', e)
-      setDefaultSorting([])
-      setSorting([])
-    }
+  const defaultSorting = React.useMemo<SortingState>(() => {
+    const collection = getCollection(state.collection)
+    return [...collection.__defaultSort] as SortingState
   }, [state.collection])
   
-  // Save default sorting to localStorage when it changes
-  React.useEffect(() => {
-    if (state.collection && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(`default-sorting-${state.collection}`, JSON.stringify(defaultSorting))
-      } catch (e) {
-        console.warn('Failed to save default sorting to localStorage:', e)
-      }
-    }
-  }, [defaultSorting, state.collection])
+  const defaultSortingKey = React.useMemo<string>(()=>{
+    return `default-sorting-${state.collection}`
+  }, [state.collection])
+
+  const [sorting, setSorting] = useLocalStorage(defaultSortingKey, defaultSorting)
+
+  
   
   // Save column visibility to localStorage when it changes
   React.useEffect(() => {
@@ -3795,36 +3621,14 @@ export function DataTable() {
     }
   }, [columnSizing, state.collection, isMobile])
 
-  // Filter out non-existent columns from sorting and defaultSorting
-  const validSorting = React.useMemo(() => {
-    const columnIds = new Set(reorderedColumns.map(col => col.id).filter((id): id is string => !!id))
-    return sorting.filter(s => columnIds.has(s.id))
-  }, [sorting, reorderedColumns])
   
-  const validDefaultSorting = React.useMemo(() => {
-    const columnIds = new Set(reorderedColumns.map(col => col.id).filter((id): id is string => !!id))
-    return defaultSorting.filter(s => columnIds.has(s.id))
-  }, [defaultSorting, reorderedColumns])
   
-  // Update sorting if it was filtered
-  React.useEffect(() => {
-    if (validSorting.length !== sorting.length) {
-      setSorting(validSorting)
-    }
-  }, [validSorting, sorting.length])
-  
-  // Update defaultSorting if it was filtered
-  React.useEffect(() => {
-    if (validDefaultSorting.length !== defaultSorting.length) {
-      setDefaultSorting(validDefaultSorting)
-    }
-  }, [validDefaultSorting, defaultSorting.length])
 
   const table = useReactTable({
     data: filteredData,
     columns: reorderedColumns,
     state: {
-      sorting: validSorting,
+      sorting,
       columnVisibility,
       rowSelection,
       columnFilters,
@@ -5030,8 +4834,6 @@ export function DataTable() {
                                         value={sortValue}
                                         onValueChange={(value) => {
                                           if (value === 'none') {
-                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
-                                            setDefaultSorting(newDefaultSorting)
                                             if (sorting.find(s => s.id === columnId)) {
                                               const newSorting = sorting.filter(s => s.id !== columnId)
                                               setSorting(newSorting)
@@ -5040,7 +4842,6 @@ export function DataTable() {
                                             const newSort = { id: columnId, desc: value === 'desc' }
                                             const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
                                             newDefaultSorting.push(newSort)
-                                            setDefaultSorting(newDefaultSorting)
                                             const newSorting = sorting.filter(s => s.id !== columnId)
                                             newSorting.push(newSort)
                                             setSorting(newSorting)
@@ -5189,8 +4990,6 @@ export function DataTable() {
                                         value={sortValue}
                                         onValueChange={(value) => {
                                           if (value === 'none') {
-                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
-                                            setDefaultSorting(newDefaultSorting)
                                             if (sorting.find(s => s.id === columnId)) {
                                               const newSorting = sorting.filter(s => s.id !== columnId)
                                               setSorting(newSorting)
@@ -5199,7 +4998,6 @@ export function DataTable() {
                                             const newSort = { id: columnId, desc: value === 'desc' }
                                             const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
                                             newDefaultSorting.push(newSort)
-                                            setDefaultSorting(newDefaultSorting)
                                             const newSorting = sorting.filter(s => s.id !== columnId)
                                             newSorting.push(newSort)
                                             setSorting(newSorting)
@@ -7431,3 +7229,119 @@ export function DataTable() {
   )
 }
 
+
+const defaultT = {
+  search: "Search...",
+  customizeColumns: "Customize Columns",
+  columns: "Columns",
+  add: "Add",
+  noDataFound: "No data found in {collection}.",
+  selectedRecords: "{count} selected · {total} total records",
+  rowsPerPage: "Rows per page",
+  page: "Page {page} of {total}",
+  addRecord: {
+    title: "Add new record to {collection}",
+    description: "Fill in the fields below. Auto-generated fields (id, uuid, aid/raid/haid, created_at, updated_at, deleted_at) are hidden and will be created automatically."
+  },
+  form: {
+    select: "Select {field}",
+    enter: "Enter {field}",
+    confirm: "Confirm {field}",
+    confirmNew: "Confirm new {field}",
+    enterNew: "Enter new {field}",
+    loading: "Loading...",
+    selectPlaceholder: "Select...",
+    cancel: "Cancel",
+    create: "Create",
+    save: "Save",
+    passwordsDoNotMatch: "Passwords do not match"
+  },
+  editRecord: {
+    title: "Edit record in {collection}",
+    description: "Change fields below. Auto-generated fields are not editable and hidden."
+  },
+  createRecord: {
+    title: "Create record in {collection}",
+    description: "Fill in the fields below. Auto-generated fields are not editable and hidden."
+  },
+  loading: "Loading {collection}...",
+  actions: {
+    view: "View",
+    edit: "Edit"
+  },
+  delete: {
+    selected: "Delete Selected",
+    delete: "Delete",
+    deleteRecord: {
+      title: "Delete record?",
+      description: "This action cannot be undone. You are about to delete one record from \"{collection}\"."
+    },
+    deleteSelected: {
+      title: "Delete selected records?",
+      description: "This action cannot be undone. You are about to delete {count} records from \"{collection}\".",
+      deleting: "Deleting...",
+      deleteAll: "Delete All"
+    }
+  },
+  export: "Export",
+  import: "Import",
+  configureTable: "Configure Table",
+  exportData: "Export Data",
+  importData: "Import Data",
+  exportedRecords: "Exported {count} records in {format} format",
+  importDescription: "Load a file or paste data to import into {collection} collection",
+  fileFormat: "File Format",
+  importMode: "Import Mode",
+  loadFile: "Load File",
+  pasteText: "Paste Text",
+  file: "File",
+  pasteData: "Paste Data",
+  importing: "Importing...",
+  importedRecords: "Imported: {count} records",
+  importButton: "Import",
+  close: "Close",
+  selectedFile: "Selected file: {name} ({size} KB)",
+  pasteDataPlaceholder: "Paste data in {format} format...",
+  errors: "Errors:",
+  copy: "Copy",
+  copied: "Copied!",
+  downloadFile: "Download File",
+  showColumn: "Show Column",
+  defaultSorting: "Default Sorting",
+  alignment: "Alignment",
+  none: "None",
+  asc: "A-Z",
+  desc: "Z-A",
+  left: "Left",
+  center: "Center",
+  right: "Right",
+  dataInFields: "Additional",
+  showFilters: "Show Filters",
+  cardView: "Card View",
+  cardViewMobile: "Card View (Mobile)",
+  cardViewDesktop: "Card View (Desktop)",
+  cardsPerRow: "Cards per row",
+  sortTooltipMultiple: "Click: change sort | Shift+Click: add to sort",
+  sortTooltipSingle: "Click: sort | Shift+Click: add to sort",
+  filterPlaceholder: "Filter...",
+  valuePlaceholder: "Value (string or JSON)",
+  previousRecord: "Previous record",
+  nextRecord: "Next record",
+  importNoData: "File contains no data to import",
+  importError: "Error importing file",
+  main: "Main",
+  tabs: {
+    main: "Main",
+    info: "Info",
+    details: "Details"
+  },
+  editLanguage: "Language for editing",
+  applyJson: "Apply JSON",
+  selectFile: "Select file",
+  fileNotSelected: "No file selected",
+  addField: "Add field",
+  width: "Width",
+  widthAuto: "Auto",
+  widthReset: "Reset",
+  widthPixels: "pixels"
+}

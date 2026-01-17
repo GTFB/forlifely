@@ -1,4 +1,5 @@
 import  BaseColumn  from "@/shared/columns/BaseColumn";
+import type { SortingState } from "@tanstack/react-table";
 
 export default class BaseCollection {
     created_at = new BaseColumn({ hidden: true });
@@ -10,6 +11,14 @@ export default class BaseCollection {
     id = new BaseColumn({ hidden: true });
     xaid = new BaseColumn({ hidden: true });
     order = new BaseColumn({ hidden: true });
+    
+    /**
+     * Default sorting configuration for the collection.
+     * Applied when no sorting is saved in localStorage.
+     * Format: [{ id: 'columnName', desc: false }] for ASC, or [{ id: 'columnName', desc: true }] for DESC
+     */
+    __defaultSort: SortingState = [{ id: 'id', desc: true }];
+    
     constructor(public name: string = 'base') {}
 
     /**
