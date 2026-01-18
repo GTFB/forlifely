@@ -151,6 +151,7 @@ import {
 
 import { useLocalStorage } from '@uidotdev/usehooks'
 import { getInitialLocale } from "@/lib/getInitialLocale"
+import { useDeviceType } from "@/hooks/use-device-type"
 
 type ColumnSchema = {
   name: string
@@ -1370,6 +1371,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
 export function DataTable() {
   const { state, setState } = useAdminState()
   const { user } = useMe()
+  const deviceType = useDeviceType()
   type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
   const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
@@ -2369,24 +2371,11 @@ export function DataTable() {
   }, [state.page, state.pageSize])
 
   const [rowSelection, setRowSelection] = React.useState({})
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>(() => {
-      // Restore column visibility from localStorage
-      if (typeof window !== 'undefined' && state.collection) {
-        try {
-          const saved = localStorage.getItem(`column-visibility-${state.collection}`)
-          if (saved) {
-            const parsed = JSON.parse(saved)
-            if (parsed && typeof parsed === 'object') {
-              return parsed as VisibilityState
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to restore column visibility from localStorage:', e)
-        }
-      }
-      return {}
-    })
+
+  const columnVisibiliteStateKey = `column-visibility-${deviceType}-${state.collection}`
+
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(columnVisibiliteStateKey , {})
+
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
@@ -2888,7 +2877,7 @@ export function DataTable() {
         }
 
         // Fallback to localStorage
-        const saved = localStorage.getItem(`column-visibility-${state.collection}`)
+        const saved = localStorage.getItem(columnVisibiliteStateKey)
         if (saved) {
           const parsed = JSON.parse(saved)
           if (parsed && typeof parsed === 'object') {
@@ -2917,7 +2906,7 @@ export function DataTable() {
     }
 
     loadColumnVisibility()
-  }, [state.collection, primaryRole])
+  }, [state.collection, primaryRole, deviceType])
 
   // Reload data when search conditions with operators change (need all data for client-side filtering)
   React.useEffect(() => {
