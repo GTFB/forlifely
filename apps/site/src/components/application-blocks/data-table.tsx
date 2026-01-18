@@ -5775,7 +5775,7 @@ export function DataTable() {
                         <TableRow
                           key={`loading`}
                           className="cursor-pointer bg-primary-foreground"
-                        > <TableCell
+                        ><TableCell
                           className={'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full'}
                           colSpan={100}
                         >
