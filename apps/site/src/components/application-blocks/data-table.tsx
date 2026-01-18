@@ -149,7 +149,7 @@ import {
   ResponsiveDialogClose,
 } from "@/packages/components/ui/revola"
 
-import{useLocalStorage} from '@uidotdev/usehooks'
+import { useLocalStorage } from '@uidotdev/usehooks'
 
 type ColumnSchema = {
   name: string
@@ -295,7 +295,7 @@ function ComboboxSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10002]" align="start">
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0 z-10002" align="start">
         <Command>
           <CommandInput placeholder={placeholder || "Search..."} />
           <CommandList>
@@ -364,7 +364,7 @@ function ColumnFilterMultiselect({
           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 z-[10002]" align="start">
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0 z-10002" align="start">
         <Command>
           <CommandInput placeholder={t?.search || "Search..."} className="h-8" />
           <CommandList>
@@ -487,7 +487,7 @@ function RelationSelect({
       <SelectTrigger>
         <SelectValue placeholder={loading ? (translations?.form?.loading || "Loading...") : (translations?.form?.selectPlaceholder || "Select...")} />
       </SelectTrigger>
-      <SelectContent className="max-h-[300px] z-[10002]" position="popper" sideOffset={5}>
+      <SelectContent className="max-h-[300px] z-10002" position="popper" sideOffset={5}>
         {options.length === 0 && !loading ? (
           <div className="p-2 text-sm text-muted-foreground">{(translations as any)?.form?.noOptionsAvailable || "No options available"}</div>
         ) : (
@@ -4965,15 +4965,15 @@ export function DataTable() {
                                         value={sortValue}
                                         onValueChange={(value) => {
                                           if (value === 'none') {
-                                            if (sorting.find(s => s.id === columnId)) {
-                                              const newSorting = sorting.filter(s => s.id !== columnId)
+                                            if (sorting.find((s: { id: string; desc: boolean }) => s.id === columnId)) {
+                                              const newSorting = sorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                               setSorting(newSorting)
                                             }
                                           } else {
                                             const newSort = { id: columnId, desc: value === 'desc' }
-                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            const newDefaultSorting = defaultSorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                             newDefaultSorting.push(newSort)
-                                            const newSorting = sorting.filter(s => s.id !== columnId)
+                                            const newSorting = sorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                             newSorting.push(newSort)
                                             setSorting(newSorting)
                                           }
@@ -5121,15 +5121,15 @@ export function DataTable() {
                                         value={sortValue}
                                         onValueChange={(value) => {
                                           if (value === 'none') {
-                                            if (sorting.find(s => s.id === columnId)) {
-                                              const newSorting = sorting.filter(s => s.id !== columnId)
+                                            if (sorting.find((s: { id: string; desc: boolean }) => s.id === columnId)) {
+                                              const newSorting = sorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                               setSorting(newSorting)
                                             }
                                           } else {
                                             const newSort = { id: columnId, desc: value === 'desc' }
-                                            const newDefaultSorting = defaultSorting.filter(s => s.id !== columnId)
+                                            const newDefaultSorting = defaultSorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                             newDefaultSorting.push(newSort)
-                                            const newSorting = sorting.filter(s => s.id !== columnId)
+                                            const newSorting = sorting.filter((s: { id: string; desc: boolean }) => s.id !== columnId)
                                             newSorting.push(newSort)
                                             setSorting(newSorting)
                                           }
@@ -5513,7 +5513,7 @@ export function DataTable() {
                         
                         return (
                           <div key={cell.id} className="flex items-center gap-2 text-sm">
-                            <div className="font-medium text-muted-foreground min-w-[120px] flex-shrink-0 text-left">
+                            <div className="font-medium text-muted-foreground min-w-[120px] shrink-0 text-left">
                               {fieldLabel}:
                             </div>
                             <div className="flex-1 text-left">
@@ -6115,7 +6115,7 @@ export function DataTable() {
                       <SelectTrigger>
                         <SelectValue placeholder={`Select ${field.title || field.name}`} />
                       </SelectTrigger>
-                      <SelectContent className="max-h-[300px] z-[9999]" position="popper" sideOffset={5}>
+                      <SelectContent className="max-h-[300px] z-9999" position="popper" sideOffset={5}>
                         {field.enum.values.map((val, index) => (
                           <SelectItem key={val} value={val}>
                             {field.enum!.labels[index] || val}
@@ -7197,7 +7197,7 @@ export function DataTable() {
               style={{ whiteSpace: exportFormat === 'json' ? 'pre' : 'pre-wrap' }}
             />
           </div>
-          <ResponsiveDialogFooter className="flex-shrink-0 px-6 py-4">
+          <ResponsiveDialogFooter className="shrink-0 px-6 py-4">
             <Button variant="outline" onClick={() => setExportOpen(false)}>
               {t.close}
             </Button>
@@ -7339,7 +7339,7 @@ export function DataTable() {
               </div>
             )}
           </div>
-          <ResponsiveDialogFooter className="flex-shrink-0 px-6 py-4">
+          <ResponsiveDialogFooter className="shrink-0 px-6 py-4">
             <Button variant="outline" onClick={handleImportClose} disabled={importing}>
               {importResult ? t.close : t.form?.cancel}
             </Button>

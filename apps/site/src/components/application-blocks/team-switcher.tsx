@@ -154,7 +154,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                     size="lg"
                     className={cn(
                       "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
-                      isCollapsed && "!rounded-none"
+                      isCollapsed && "rounded-none!"
                     )}
                   >
                     {typeof activeTeam.logo === 'function' ? (
