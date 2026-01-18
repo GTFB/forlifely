@@ -150,6 +150,7 @@ import {
 } from "@/packages/components/ui/revola"
 
 import { useLocalStorage } from '@uidotdev/usehooks'
+import { getInitialLocale } from "@/lib/getInitialLocale"
 
 type ColumnSchema = {
   name: string
@@ -1370,6 +1371,10 @@ export function DataTable() {
   const { state, setState } = useAdminState()
   const { user } = useMe()
   type LanguageCode = (typeof LANGUAGES)[number]["code"]
+
+  const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
+
+
   const supportedLanguageCodes = React.useMemo(
     () => LANGUAGES.map((l) => l.code),
     []
@@ -1382,19 +1387,6 @@ export function DataTable() {
     return user.roles[0]?.name || null
   }, [user])
 
-  const [locale, setLocale] = React.useState<LanguageCode>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sidebar-locale")
-      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
-        return saved as LanguageCode
-      }
-    }
-    const defaultLang = PROJECT_SETTINGS.defaultLanguage
-    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
-      return defaultLang as LanguageCode
-    }
-    return LANGUAGES[0]?.code || ("en" as LanguageCode)
-  })
 
   const [data, setData] = React.useState<CollectionData[]>([])
   const [schema, setSchema] = React.useState<ColumnSchemaExtended[]>([])
@@ -1917,6 +1909,7 @@ export function DataTable() {
         c: state.collection,
         p: serverPage,
         ps: serverPageSize,
+        locale,
         ...(serverSearch && { s: serverSearch }),
         ...(state.filters.length > 0 && { filters: state.filters }),
         ...(currentSorting && { sorting: currentSorting }),
@@ -2204,8 +2197,16 @@ export function DataTable() {
         setLoading(false)
       }
     }
-  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations, segmentStatuses])
-
+  }, [state.collection, 
+    state.page, 
+    state.pageSize, 
+    state.search, 
+    filtersString, 
+    setState, 
+    taxonomyConfig, 
+    translations, 
+    segmentStatuses,
+    locale])
   // Track last fetch parameters to prevent unnecessary refetches
   const lastFetchParamsRef = React.useRef<string>('')
   const fetchDataRef = React.useRef(fetchData)
@@ -2242,7 +2243,7 @@ export function DataTable() {
     const currentSortingString = sortingRef.current.length > 0
       ? sortingRef.current.map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',')
       : ''
-    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}`
+    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}-${locale}`
 
     // Skip if parameters haven't changed
     if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
@@ -2277,7 +2278,7 @@ export function DataTable() {
       // Results will be ignored due to isMounted check
       // This prevents AbortError from being thrown
     }
-  }, [state.collection, state.page, state.pageSize, state.search, filtersString])
+  }, [state.collection, state.page, state.pageSize, state.search, filtersString, locale])
 
   // Sync searchInput with state.search when collection changes
   React.useEffect(() => {
@@ -2977,7 +2978,7 @@ export function DataTable() {
     const currentSortingString = sorting.length > 0
       ? sorting.map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',')
       : ''
-    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}`
+    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}-${locale}`
 
     // Skip if parameters haven't changed
     if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
@@ -3008,7 +3009,7 @@ export function DataTable() {
     return () => {
       isMounted.current = false
     }
-  }, [sortingString, state.collection, state.page, state.pageSize, state.search, filtersString])
+  }, [sortingString, state.collection, state.page, state.pageSize, state.search, filtersString, locale])
 
   // Save column visibility to localStorage when it changes
   React.useEffect(() => {

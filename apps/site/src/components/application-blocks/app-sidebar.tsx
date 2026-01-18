@@ -39,6 +39,8 @@ import {
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { useMe } from "@/providers/MeProvider"
+import { useLocalStorage } from "@uidotdev/usehooks"
+import { getInitialLocale, LanguageCode } from "@/lib/getInitialLocale"
 
 type CollectionsResponse = {
   success: boolean
@@ -132,25 +134,14 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  type LanguageCode = (typeof LANGUAGES)[number]['code']
   const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
   
-  const [locale, setLocale] = React.useState<LanguageCode>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar-locale')
-      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
-        return saved as LanguageCode
-      }
-    }
-    // Use PROJECT_SETTINGS.defaultLanguage, but ensure it's in LANGUAGES
-    const defaultLang = PROJECT_SETTINGS.defaultLanguage
-    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
-      return defaultLang as LanguageCode
-    }
-    // Fallback to first available language
-    return LANGUAGES[0]?.code || 'en'
-  })
+  // Compute initial value
+  
+  const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
 
+
+  
   // Use global ref to preserve translations across component remounts
   const translationsRef = globalTranslationsRef
   const localeRef = React.useRef(locale)
@@ -303,7 +294,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       },
     }
   }, [locale, translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
-
   const handleLocaleChange = React.useCallback((newLocale: LanguageCode) => {
     // Validate that the locale is in supported languages
     if (!supportedLanguageCodes.includes(newLocale)) {
@@ -312,7 +302,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     }
     setLocale(newLocale)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar-locale', newLocale)
       // Dispatch custom event to notify other components about locale change
       window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
     }

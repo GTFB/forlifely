@@ -3,6 +3,9 @@ import { getCollection } from "@/shared/collections/getCollection"
 import qs from "qs"
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
+import { type SortingState, type ColumnSort } from "@tanstack/react-table"
+import { getInitialLocale, LanguageCode } from "@/lib/getInitialLocale"
+
 
 interface AdminFilter {
   field: string
@@ -16,6 +19,8 @@ interface AdminState {
   pageSize: number
   filters: AdminFilter[]
   search: string
+  sorting: SortingState
+  locale: LanguageCode
 }
 
 interface ColumnInfo {
@@ -33,6 +38,8 @@ const DEFAULT_STATE: AdminState = {
   pageSize: 10,
   filters: [],
   search: "",
+  sorting: [],
+  locale: getInitialLocale()
 }
 
 function q(name: string): string {
@@ -53,13 +60,23 @@ function parseStateFromUrl(url: URL): AdminState {
   const page = Math.max(1, Number(parsed.p) || DEFAULT_STATE.page)
   const pageSize = Math.max(1, Number(parsed.ps) || DEFAULT_STATE.pageSize)
   const search = (parsed.s as string) || DEFAULT_STATE.search
+  const locale = (parsed.locale as LanguageCode) || DEFAULT_STATE.locale
   
+  // Parse sorting from string format "field1:asc,field2:desc" to SortingState
+  let sorting: SortingState | undefined = (parsed.sorting as Array<any> || []).filter(sortItem=>sortItem.id).map((sortItem ) => {
+    return {
+      id: sortItem.id,
+      desc: sortItem.desc === 'true'
+    }
+  }) 
+  
+
   let filters: AdminFilter[] = []
   if (parsed.filters && Array.isArray(parsed.filters)) {
     filters = parsed.filters.filter((item: any) => item && typeof item.field === "string") as unknown as AdminFilter[]
   }
   
-  return { collection, page, pageSize, filters, search }
+  return { collection, page, pageSize, filters, search, sorting, locale }
 }
 
 const onRequestGet = async (context: AuthenticatedRequestContext) => {
@@ -105,6 +122,13 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
   
       // Get collection config for virtual fields
       const collectionConfig = getCollection(state.collection)
+
+      const defaultSorting = collectionConfig.__defaultSort
+
+      const locale = state.locale
+
+      const sorting: SortingState = state.sorting || defaultSorting
+      console.log(sorting,locale)
       
       const columns = schemaResult.map((col: ColumnInfo) => ({
         name: col.column_name,
@@ -112,6 +136,7 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
         nullable: col.is_nullable === 'YES',
         primary: false, // Will be determined separately if needed
       }))
+
       
       // Add virtual fields to schema
       const virtualFields: any[] = []
@@ -254,6 +279,34 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
       
       const where = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : ''
   
+      // Build ORDER BY clause from sorting
+      const orderByParts: string[] = []
+      if (sorting && sorting.length > 0) {
+        // Get real column names (exclude virtual fields)
+        const realColumnNames = new Set(columns.map((c: { name: string }) => c.name))
+        
+        for (const sortItem of sorting) {
+          // Only allow sorting by real database columns
+          if (sortItem.id && realColumnNames.has(sortItem.id)) {
+            const direction = sortItem.desc ? 'DESC' : 'ASC'
+            
+            // Check if column has i18n: true in collection config
+            const fieldConfig = (collectionConfig as any)[sortItem.id]
+            const isI18nField = fieldConfig?.options?.i18n === true
+            
+            // For i18n fields, extract value from JSON by locale
+            // PostgreSQL JSON operator: column->>'locale' extracts text value
+            if (isI18nField) {
+              orderByParts.push(`${q(sortItem.id)}->>'${locale}' ${direction}`)
+            } else {
+              orderByParts.push(`${q(sortItem.id)} ${direction}`)
+            }
+          }
+        }
+      }
+      const orderBy = orderByParts.length > 0 ? `ORDER BY ${orderByParts.join(', ')}` : ''
+      console.log(orderBy)
+      console.log(orderByParts)
       // Get total count
       const countQuery = `SELECT COUNT(*) as total FROM ${q(state.collection)} ${where}`
       const countResult = await executeRawQuery<{ total: string | number }>(
@@ -264,9 +317,9 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
   
       const total = Number(countResult[0]?.total) || 0
   
-      // Get data with pagination
+      // Get data with pagination and sorting
       const offset = (state.page - 1) * state.pageSize
-      const dataQuery = `SELECT * FROM ${q(state.collection)} ${where} LIMIT $${bindings.length + 1} OFFSET $${bindings.length + 2}`
+      const dataQuery = `SELECT * FROM ${q(state.collection)} ${where} ${orderBy} LIMIT $${bindings.length + 1} OFFSET $${bindings.length + 2}`
       const dataResult = await executeRawQuery(
         client,
         dataQuery,
