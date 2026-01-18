@@ -15,7 +15,9 @@ export default class BaseColumn {
         return value
     }
 
-
+    public getOption<T extends keyof BaseColumnOptions>(optionName: T): BaseColumnOptions[T] | undefined {
+        return this.options?.[optionName]
+    }
 }
 
 export type RelationConfig = {

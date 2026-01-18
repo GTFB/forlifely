@@ -152,6 +152,8 @@ import {
 import { useLocalStorage } from '@uidotdev/usehooks'
 import { getInitialLocale } from "@/lib/getInitialLocale"
 import { useDeviceType } from "@/hooks/use-device-type"
+import { SmartSearch } from "./smart-search"
+import BaseColumn from "@/shared/columns/BaseColumn"
 
 type ColumnSchema = {
   name: string
@@ -457,7 +459,7 @@ function RelationSelect({
             : String(item[relation.labelField] || "-"),
         }))
 
-        console.log(`[RelationSelect] Loaded ${opts.length} options for ${relation.collection}:`, opts)
+
         setOptions(opts)
       } catch (e) {
         console.error(`[RelationSelect] Failed to load options for ${relation.collection}:`, e)
@@ -482,7 +484,6 @@ function RelationSelect({
         console.warn('[RelationSelect] Attempted to pass object value, using null instead:', finalValue)
         onChange(null)
       } else {
-        console.log(`[RelationSelect] ${relation.collection} onChange:`, { val, originalValue, finalValue, type: typeof finalValue })
         onChange(finalValue)
       }
     }} disabled={disabled || loading} required={required}>
@@ -560,7 +561,21 @@ function getDataInFieldLabel(
 }
 
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>, editMode: boolean = false, handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void, fullSchema?: ColumnSchemaExtended[], editedCells?: Map<string, Record<string, any>>, segmentStatuses?: SelectOption[]): ColumnDef<CollectionData>[] {
+function generateColumns(
+  schema: ColumnSchemaExtended[],
+  onDeleteRequest: (row: Row<CollectionData>) => void,
+   onEditRequest: (row: Row<CollectionData>) => void,
+    onDuplicateRequest?: (row: Row<CollectionData>) => void, 
+    locale: string = 'en', 
+    relationData: Record<string, Record<any, string>> = {}, translations?: any, 
+    collection?: string, 
+    data?: CollectionData[], 
+    columnVisibility?: VisibilityState,
+  columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>,
+  editMode: boolean = false,
+  handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void,
+  fullSchema?: ColumnSchemaExtended[],
+  editedCells?: Map<string, Record<string, any>>, segmentStatuses?: SelectOption[]): ColumnDef<CollectionData>[] {
   return [
     {
       id: "select",
@@ -660,14 +675,21 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         const primaryKey = (fullSchema || schema).find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
         const rowId = row.original[primaryKey]
         const rowIdStr = String(rowId)
+        const collectionConfig = getCollection(collection as string)
 
         // Get value - check editedCells first, then original value
         const editedValue = editedCells?.get(rowIdStr)?.[col.name]
-        const value = editedValue !== undefined ? editedValue : row.original[col.name]
+        let value: any = editedValue !== undefined ? editedValue : row.original[col.name]
 
         // Get alignment for this column
         const alignment = columnAlignment?.[col.name] || (col.name === 'is_system' || col.name === 'order' ? 'center' : 'left')
         const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
+        const collectionField = (collectionConfig as unknown as Record<string, unknown>)[col.name] as BaseColumn
+        if (collectionField && collectionField.getOption('i18n')) {
+          if(typeof value ==='object'){
+            value = value[locale] || ''
+          }
+        }
 
         // Edit mode: return editable components
         if (editMode && handleCellUpdate && !col.primary && !col.hidden && col.name !== 'id' && col.name !== 'uuid' && col.name !== 'created_at' && col.name !== 'updated_at') {
@@ -1177,6 +1199,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
 
                     if (foundKey && parsed[foundKey] !== undefined) {
                       const fieldValue = parsed[foundKey]
+
                       if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
                         const localeValue = fieldValue[locale] || fieldValue.en || fieldValue.ru || fieldValue.rs || null
                         if (localeValue !== null && localeValue !== undefined) {
@@ -1247,7 +1270,6 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 // Get current data_in from editedCells or original
                 const editedDataIn = editedCells?.get(rowIdStr)?.['data_in']
                 const currentDataIn = editedDataIn !== undefined ? editedDataIn : row.original.data_in
-
                 return (
                   <Input
                     type="text"
@@ -1372,7 +1394,7 @@ export function DataTable() {
   const { state, setState } = useAdminState()
   const { user } = useMe()
   const deviceType = useDeviceType()
-  const columnSizesKey = React.useMemo(()=> `column-sizes-${deviceType}-${state.collection}`, [deviceType, state.collection])
+  const columnSizesKey = React.useMemo(() => `column-sizes-${deviceType}-${state.collection}`, [deviceType, state.collection])
   const columnVisibiliteStateKey = `column-visibility-${deviceType}-${state.collection}`
 
   type LanguageCode = (typeof LANGUAGES)[number]["code"]
@@ -2202,14 +2224,14 @@ export function DataTable() {
         setLoading(false)
       }
     }
-  }, [state.collection, 
-    state.page, 
-    state.pageSize, 
-    state.search, 
-    filtersString, 
-    setState, 
-    taxonomyConfig, 
-    translations, 
+  }, [state.collection,
+  state.page,
+  state.pageSize,
+  state.search,
+    filtersString,
+    setState,
+    taxonomyConfig,
+    translations,
     segmentStatuses,
     locale])
   // Track last fetch parameters to prevent unnecessary refetches
@@ -2376,7 +2398,7 @@ export function DataTable() {
   const [rowSelection, setRowSelection] = React.useState({})
 
 
-  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(columnVisibiliteStateKey , {})
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(columnVisibiliteStateKey, {})
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -3030,7 +3052,6 @@ export function DataTable() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [formData, setFormData] = React.useState<Record<string, any>>({})
   const [createError, setCreateError] = React.useState<string | null>(null)
-  // Language selector for i18n JSON fields (e.g., title)
   const [jsonFieldLanguage, setJsonFieldLanguage] = React.useState<Record<string, LanguageCode>>({})
 
   // Clear form data when collection changes
@@ -4583,76 +4604,14 @@ export function DataTable() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Search Field */}
-        <div className="relative w-full lg:max-w-2xl">
-          <div className="relative flex items-center gap-1 h-9 rounded-md border bg-primary-foreground px-3 shadow-xs">
-            <IconSearch className="size-4 shrink-0 text-muted-foreground" />
-            <div className="flex flex-wrap items-center gap-1 flex-1 min-w-0">
-              {searchConditions.map((condition, idx) => (
-                <Badge
-                  key={idx}
-                  variant="secondary"
-                  className="text-xs px-2 py-0.5 h-6 flex items-center gap-1 shrink-0"
-                >
-                  <span>
-                    {condition.type === 'exact' ? `"${condition.value}"` : condition.value}
-                    {condition.operator && ` ${condition.operator}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const newConditions = searchConditions.filter((_, i) => i !== idx)
-                      setSearchConditions(newConditions)
-                      // Update global search state
-                      const searchString = newConditions.map(c =>
-                        c.type === 'exact' ? `"${c.value}"` : c.value
-                      ).join(' ')
-                      setState(prev => ({ ...prev, search: searchString, page: 1 }))
-                      // Reload data if operators are still present
-                      if (newConditions.some(c => c.operator)) {
-                        void fetchData()
-                      } else if (newConditions.length === 0) {
-                        // No conditions left - reload without search
-                        void fetchData()
-                      }
-                    }}
-                    className="ml-1 hover:bg-muted rounded-full p-0.5 -mr-1"
-                  >
-                    <IconX className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              <Input
-                type="text"
-                placeholder={searchConditions.length === 0 ? (t.search + (t.searchHint ? ` (${t.searchHint})` : '')) : ''}
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchInput.trim()) {
-                    e.preventDefault()
-                    const parsed = parseSearchQuery(searchInput.trim())
-                    if (parsed.conditions.length > 0) {
-                      const newConditions = [...searchConditions, ...parsed.conditions]
-                      setSearchConditions(newConditions)
-                      setSearchInput('')
-                      // Update global search state with combined conditions
-                      const searchString = newConditions.map(c =>
-                        c.type === 'exact' ? `"${c.value}"` : c.value
-                      ).join(' ')
-                      setState(prev => ({ ...prev, search: searchString, page: 1 }))
-                      // Reload data if operators are present (to get all data for client-side filtering)
-                      if (newConditions.some(c => c.operator)) {
-                        void fetchData()
-                      }
-                    }
-                  }
-                }}
-                className="border-0 p-0 h-9 flex-1 min-w-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none bg-transparent"
-              />
-            </div>
-          </div>
-        </div>
+
+        <SmartSearch
+          value={state.search}
+          onChange={(searchString) => {
+            setState((prev) => ({ ...prev, search: searchString, page: 1 }))
+          }}
+          placeholder={t.search}
+        />
 
         <Label htmlFor="view-selector" className="sr-only">
           View
