@@ -127,8 +127,7 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
 
       const locale = state.locale
 
-      const sorting: SortingState = state.sorting || defaultSorting
-      console.log(sorting,locale)
+      const sorting: SortingState = state.sorting || defaultSorting        
       
       const columns = schemaResult.map((col: ColumnInfo) => ({
         name: col.column_name,
@@ -305,8 +304,6 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
         }
       }
       const orderBy = orderByParts.length > 0 ? `ORDER BY ${orderByParts.join(', ')}` : ''
-      console.log(orderBy)
-      console.log(orderByParts)
       // Get total count
       const countQuery = `SELECT COUNT(*) as total FROM ${q(state.collection)} ${where}`
       const countResult = await executeRawQuery<{ total: string | number }>(

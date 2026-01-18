@@ -1372,6 +1372,9 @@ export function DataTable() {
   const { state, setState } = useAdminState()
   const { user } = useMe()
   const deviceType = useDeviceType()
+  const columnSizesKey = React.useMemo(()=> `column-sizes-${deviceType}-${state.collection}`, [deviceType, state.collection])
+  const columnVisibiliteStateKey = `column-visibility-${deviceType}-${state.collection}`
+
   type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
   const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
@@ -2372,7 +2375,6 @@ export function DataTable() {
 
   const [rowSelection, setRowSelection] = React.useState({})
 
-  const columnVisibiliteStateKey = `column-visibility-${deviceType}-${state.collection}`
 
   const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(columnVisibiliteStateKey , {})
 
@@ -2410,22 +2412,7 @@ export function DataTable() {
   }, [locale])
 
   // Column sizing settings - separate for mobile and desktop
-  const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>(() => {
-    if (typeof window === 'undefined') return {}
-    try {
-      const isMobileDevice = window.innerWidth < 1024
-      const key = isMobileDevice
-        ? `column-sizes-mobile-${state.collection}`
-        : `column-sizes-desktop-${state.collection}`
-      const saved = localStorage.getItem(key)
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    } catch (e) {
-      console.error('Failed to load column sizes:', e)
-    }
-    return {}
-  })
+  const [columnSizing, setColumnSizing] = useLocalStorage<Record<string, number>>(columnSizesKey, {})
 
   const [columnAlignment, setColumnAlignment] = React.useState<Record<string, 'left' | 'center' | 'right'>>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -3775,13 +3762,11 @@ export function DataTable() {
   }
 
   // Restore column sizing when collection or device type changes
+
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
     try {
-      const isMobileDevice = window.innerWidth < 1024
-      const key = isMobileDevice
-        ? `column-sizes-mobile-${state.collection}`
-        : `column-sizes-desktop-${state.collection}`
+      const key = columnSizesKey
       const saved = localStorage.getItem(key)
       if (saved) {
         const parsed = JSON.parse(saved)
@@ -3797,7 +3782,7 @@ export function DataTable() {
       console.warn('Failed to restore column sizing:', e)
       setColumnSizing({})
     }
-  }, [state.collection, isMobile])
+  }, [state.collection, columnSizesKey])
 
   // Save column sizes to localStorage - separate for mobile and desktop
   React.useEffect(() => {
