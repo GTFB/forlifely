@@ -445,16 +445,16 @@ function RelationSelect({
           credentials: "include",
         })
         if (!res.ok) throw new Error(`Failed to load: ${res.status}`)
-        
+
         const json: StateResponse = await res.json()
-        
+
         const opts = json.data.map((item) => ({
           value: item[relation.valueField],
           label: relation.labelFields
             ? relation.labelFields.map(f => item[f]).filter(Boolean).join(" ")
             : String(item[relation.labelField] || "-"),
         }))
-        
+
         console.log(`[RelationSelect] Loaded ${opts.length} options for ${relation.collection}:`, opts)
         setOptions(opts)
       } catch (e) {
@@ -511,7 +511,7 @@ function getDataInFieldLabel(
   collection: string
 ): string | null {
   let fieldTitle: string | null = null
-  
+
   // Try to get title from data_in structure in current row
   if (rowData?.data_in) {
     try {
@@ -523,7 +523,7 @@ function getDataInFieldLabel(
           // Not JSON, ignore
         }
       }
-      
+
       if (parsed && typeof parsed === 'object') {
         // Find the key (case-insensitive, with or without language suffix)
         const foundKey = Object.keys(parsed).find(key => {
@@ -533,7 +533,7 @@ function getDataInFieldLabel(
           }
           return key.toLowerCase() === baseKey.toLowerCase()
         })
-        
+
         if (foundKey && parsed[foundKey] !== undefined) {
           const value = parsed[foundKey]
           if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -549,10 +549,10 @@ function getDataInFieldLabel(
       // Ignore parse errors
     }
   }
-  
+
   // Try to get translation from translations object
   const fieldTranslation = translations?.dataTable?.fields?.[collection]?.[baseKey]
-  
+
   // Return fieldTitle or fieldTranslation, but not baseKey directly
   return fieldTitle || fieldTranslation || null
 }
@@ -560,36 +560,36 @@ function getDataInFieldLabel(
 // Dynamic column generator
 function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>, editMode: boolean = false, handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void, fullSchema?: ColumnSchemaExtended[], editedCells?: Map<string, Record<string, any>>, segmentStatuses?: SelectOption[]): ColumnDef<CollectionData>[] {
   return [
-  {
-    id: "select",
-    enableResizing: false,
-    size: 40,
-    minSize: 40,
-    maxSize: 40,
-    header: ({ table }) => (
-      <div className="flex items-center justify-center p-0">
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      </div>
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center p-0">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
+    {
+      id: "select",
+      enableResizing: false,
+      size: 40,
+      minSize: 40,
+      maxSize: 40,
+      header: ({ table }) => (
+        <div className="flex items-center justify-center p-0">
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center p-0">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+          />
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
     ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
       id: col.name, // Explicitly set id to match accessorKey
       accessorKey: col.name,
@@ -606,7 +606,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         const isRight = alignment === 'right'
         const hasMultipleSorts = table.getState().sorting.length > 1
         const headerAlignClass = isCentered ? 'justify-center' : isRight ? 'justify-end' : 'justify-start'
-        
+
         return (
           <Button
             variant="ghost"
@@ -634,9 +634,9 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   {isSorted ? (
                     <>
                       {isSorted === "asc" ? (
-                      <IconArrowUp className="h-3 w-3" />
-                  ) : (
-                      <IconArrowDown className="h-3 w-3" />
+                        <IconArrowUp className="h-3 w-3" />
+                      ) : (
+                        <IconArrowDown className="h-3 w-3" />
                       )}
                       {sortedIndex >= 0 && hasMultipleSorts && (
                         <Badge variant="secondary" className="text-[9px] px-0 py-0 h-4 min-w-4 flex items-center justify-center font-semibold">
@@ -658,15 +658,15 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         const primaryKey = (fullSchema || schema).find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
         const rowId = row.original[primaryKey]
         const rowIdStr = String(rowId)
-        
+
         // Get value - check editedCells first, then original value
         const editedValue = editedCells?.get(rowIdStr)?.[col.name]
         const value = editedValue !== undefined ? editedValue : row.original[col.name]
-        
+
         // Get alignment for this column
         const alignment = columnAlignment?.[col.name] || (col.name === 'is_system' || col.name === 'order' ? 'center' : 'left')
         const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
-        
+
         // Edit mode: return editable components
         if (editMode && handleCellUpdate && !col.primary && !col.hidden && col.name !== 'id' && col.name !== 'uuid' && col.name !== 'created_at' && col.name !== 'updated_at') {
           // Boolean fields - Checkbox
@@ -683,7 +683,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               </div>
             )
           }
-          
+
           // Select fields
           if (col.fieldType === 'select' && col.selectOptions) {
             return (
@@ -706,7 +706,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               </Select>
             )
           }
-          
+
           // Enum fields
           if (col.fieldType === 'enum' && col.enum) {
             return (
@@ -729,7 +729,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               </Select>
             )
           }
-          
+
           // Relation fields
           if (col.relation) {
             return (
@@ -743,7 +743,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               />
             )
           }
-          
+
           // Price fields
           if (col.fieldType === 'price') {
             const cents = value === null || value === undefined || value === '' ? NaN : Number(value)
@@ -763,7 +763,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               />
             )
           }
-          
+
           // Number fields
           if (col.fieldType === 'number') {
             return (
@@ -782,7 +782,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               />
             )
           }
-          
+
           // Textarea fields
           if (col.textarea) {
             return (
@@ -796,7 +796,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               />
             )
           }
-          
+
           // Default: text input
           return (
             <Input
@@ -809,7 +809,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             />
           )
         }
-        
+
         // Non-edit mode: return display components
         if (col.name === 'id') {
           return <div className={`font-mono tabular-nums ${alignmentClass}`}>{value ?? "-"}</div>
@@ -881,7 +881,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           const label = relationData[col.name][value] || value || "-"
           return <div className={alignmentClass}>{label}</div>
         }
-        
+
         // For select fields, show label instead of value
         if (col.fieldType === 'select' && col.selectOptions) {
           // Normalize comparison: compare both as strings, case-insensitive
@@ -893,12 +893,12 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           const displayValue = option ? option.label : value || "-"
           return <div className={alignmentClass}>{displayValue}</div>
         }
-        
+
         // For JSON fields in taxonomy collection (title and category fields), extract translation by locale
         // Also handle title field in roles and expanses collections
         if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title'))) {
           let jsonValue = value
-          
+
           // If category is empty, try to extract it from data_in
           if (col.name === 'category' && (!jsonValue || jsonValue === '' || jsonValue === null)) {
             const rowData = row.original
@@ -914,7 +914,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               }
             }
           }
-          
+
           if (typeof jsonValue === 'string') {
             try {
               jsonValue = JSON.parse(jsonValue)
@@ -935,15 +935,15 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             return <div className={alignmentClass}>-</div>
           }
         }
-        
+
         // Use defaultCell if value is empty/null/undefined
         const isEmpty = value === null || value === undefined || value === ''
         const displayValue = isEmpty && col.defaultCell !== undefined
           ? col.defaultCell
-          : col.format 
-            ? col.format(value, locale) 
+          : col.format
+            ? col.format(value, locale)
             : formatCellValue(value)
-        
+
         // For textarea fields, truncate text in table
         if (col.textarea) {
           const textValue = typeof displayValue === 'string' ? displayValue : String(displayValue || '')
@@ -953,7 +953,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             </div>
           )
         }
-        
+
         return (
           <div className={`${col.primary ? "font-mono font-medium" : ""}`}>
             {displayValue}
@@ -993,7 +993,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           }
         }
       })
-      
+
       // Create columns only for visible data_in fields
       return Array.from(allDataInKeys)
         .filter((baseKey) => {
@@ -1046,7 +1046,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           // Use correct path to translations: translations.dataTable.fields
           const fieldTranslation = (translations as any)?.dataTable?.fields?.[collection || '']?.[baseKey]
           const columnTitle = fieldTitle || fieldTranslation || baseKey
-          
+
           return {
             id: `data_in.${baseKey}`,
             accessorFn: (row: CollectionData) => {
@@ -1099,14 +1099,14 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
               const isSorted = column.getIsSorted()
               const hasMultipleSorts = table.getState().sorting.length > 1
-              
+
               // Get alignment for this data_in column
               const columnId = `data_in.${baseKey}`
               const alignment = columnAlignment?.[columnId] || 'left'
               const isCentered = alignment === 'center'
               const isRight = alignment === 'right'
               const headerAlignClass = isCentered ? 'justify-center' : isRight ? 'justify-end' : 'justify-start'
-              
+
               return (
                 <Button
                   variant="ghost"
@@ -1151,11 +1151,11 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
               const primaryKey = fullSchema?.find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
               const rowId = row.original[primaryKey]
               const rowIdStr = String(rowId)
-              
+
               // Check editedCells first for data_in
               const editedDataIn = editedCells?.get(rowIdStr)?.['data_in']
               let value = getValue()
-              
+
               // If data_in was edited, extract value from edited data_in
               if (editedDataIn !== undefined) {
                 try {
@@ -1163,7 +1163,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   if (typeof editedDataIn === 'string') {
                     parsed = JSON.parse(editedDataIn)
                   }
-                  
+
                   if (parsed && typeof parsed === 'object') {
                     const foundKey = Object.keys(parsed).find(key => {
                       const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
@@ -1172,7 +1172,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                       }
                       return key.toLowerCase() === baseKey.toLowerCase()
                     })
-                    
+
                     if (foundKey && parsed[foundKey] !== undefined) {
                       const fieldValue = parsed[foundKey]
                       if (typeof fieldValue === 'object' && fieldValue !== null && !Array.isArray(fieldValue)) {
@@ -1195,7 +1195,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   // Ignore parse errors, use original value
                 }
               }
-              
+
               // If value is still an object or JSON string, try to parse it
               // This can happen if data_in was already parsed as object but value wasn't extracted
               if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -1230,22 +1230,22 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   // Not valid JSON, use as is
                 }
               }
-              
+
               // Get alignment for this data_in column
               const columnId = `data_in.${baseKey}`
               const alignment = columnAlignment?.[columnId] || 'left'
               const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
-              
+
               // Edit mode: return editable input for data_in fields
               if (editMode && handleCellUpdate && fullSchema) {
                 const primaryKey = fullSchema.find((f: ColumnSchemaExtended) => f.primary)?.name || 'id'
                 const rowId = row.original[primaryKey]
                 const rowIdStr = String(rowId)
-                
+
                 // Get current data_in from editedCells or original
                 const editedDataIn = editedCells?.get(rowIdStr)?.['data_in']
                 const currentDataIn = editedDataIn !== undefined ? editedDataIn : row.original.data_in
-                
+
                 return (
                   <Input
                     type="text"
@@ -1253,7 +1253,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                     onChange={(e) => {
                       // Update data_in field - need to update entire data_in structure
                       let parsed: any = {}
-                      
+
                       if (currentDataIn) {
                         try {
                           parsed = typeof currentDataIn === 'string' ? JSON.parse(currentDataIn) : currentDataIn
@@ -1261,7 +1261,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                           // Ignore
                         }
                       }
-                      
+
                       // Update the value in the structure
                       // Try to find existing key (with or without language suffix)
                       const foundKey = Object.keys(parsed).find(key => {
@@ -1271,7 +1271,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                         }
                         return key.toLowerCase() === baseKey.toLowerCase()
                       })
-                      
+
                       if (foundKey) {
                         // Update existing key
                         const existingValue = parsed[foundKey]
@@ -1314,7 +1314,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                         }
                         parsed[baseKey] = langObject
                       }
-                      
+
                       // Update entire data_in in local state
                       handleCellUpdate(rowId, 'data_in', parsed)
                     }}
@@ -1322,31 +1322,31 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   />
                 )
               }
-              
+
               return <div className={alignmentClass}>{value || '-'}</div>
             },
           }
         })
     })() : []),
-  {
-    id: "actions",
-    enableResizing: false,
-    size: 40,
-    minSize: 40,
-    maxSize: 40,
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center p-0">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-              size="icon"
-            >
-              <IconDotsVertical />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
+    {
+      id: "actions",
+      enableResizing: false,
+      size: 40,
+      minSize: 40,
+      maxSize: 40,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center p-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                size="icon"
+              >
+                <IconDotsVertical />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
               <DropdownMenuItem onClick={() => onEditRequest(row)}>{translations?.actions?.edit || "Edit"}</DropdownMenuItem>
               {onDuplicateRequest && (
@@ -1359,11 +1359,11 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                 {translations?.delete?.delete || "Delete"}
               </DropdownMenuItem>
             </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    ),
-  },
-]
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ]
 }
 
 export function DataTable() {
@@ -1374,7 +1374,7 @@ export function DataTable() {
     () => LANGUAGES.map((l) => l.code),
     []
   )
-  
+
   // Get primary role from user
   const primaryRole = React.useMemo(() => {
     if (!user?.roles || user.roles.length === 0) return null
@@ -1406,12 +1406,12 @@ export function DataTable() {
   const [translations, setTranslations] = React.useState<any>(null)
   const [taxonomyConfig, setTaxonomyConfig] = React.useState<any>(null)
   const [segmentStatuses, setSegmentStatuses] = React.useState<SelectOption[]>([])
-  
+
   // Local search state for input (debounced before updating global state)
   const [searchInput, setSearchInput] = React.useState(state.search)
   // Parsed search conditions with badges (only created on Enter press)
   const [searchConditions, setSearchConditions] = React.useState<SearchCondition[]>([])
-  
+
   // Local state for price inputs to allow free input without formatting interference
   const [priceInputs, setPriceInputs] = React.useState<Record<string, string>>({})
 
@@ -1432,7 +1432,7 @@ export function DataTable() {
   const [editValueInputs, setEditValueInputs] = React.useState<Record<string, string>>({})
   // Column visibility state for columns tab
   const [visibleColumns, setVisibleColumns] = React.useState<Set<string>>(new Set())
-  
+
   // Sync visibleColumns with columnVisibility when changed
   React.useEffect(() => {
     if (visibleColumns.size > 0) {
@@ -1500,7 +1500,7 @@ export function DataTable() {
     const obj: Record<string, any> = {}
     const languageFields: Record<string, Record<string, { title: string; value: any }>> = {}
     const plainFields: Record<string, any> = {}
-    
+
     for (const entry of entries) {
       const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
       if (langMatch && supportedLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
@@ -1517,24 +1517,24 @@ export function DataTable() {
         plainFields[entry.key] = parseLooseJson(entry.value)
       }
     }
-    
+
     // Add language fields as objects with title and value structure
     for (const [fieldName, langValues] of Object.entries(languageFields)) {
       obj[fieldName] = langValues
     }
-    
+
     // Add plain fields (without language suffix)
     for (const [key, value] of Object.entries(plainFields)) {
       obj[key] = value
     }
-    
+
     return obj
   }, [parseLooseJson, supportedLanguageCodes])
 
   const objectToEntries = React.useCallback((obj: any) => {
     if (!obj || typeof obj !== "object") return [] as Array<{ key: string; title: string; value: string }>
     const entries: Array<{ key: string; title: string; value: string }> = []
-    
+
     for (const [k, v] of Object.entries(obj)) {
       // Check if value is an object with language keys (en, ru, rs)
       if (v && typeof v === 'object' && !Array.isArray(v)) {
@@ -1565,15 +1565,15 @@ export function DataTable() {
           continue
         }
       }
-      
+
       // Regular entry (not a language object)
       entries.push({
-      key: k,
+        key: k,
         title: '',
-      value: typeof v === "string" ? v : JSON.stringify(v),
+        value: typeof v === "string" ? v : JSON.stringify(v),
       })
     }
-    
+
     return entries
   }, [])
 
@@ -1604,7 +1604,7 @@ export function DataTable() {
   // Helper function to update title and value for a specific language in entries
   const updateTitleAndValueForLanguage = React.useCallback((entries: Array<{ key: string; title: string; value: string }>, baseKey: string, lang: LanguageCode, title: string, value: string, duplicateToAll: boolean = false): Array<{ key: string; title: string; value: string }> => {
     const langKey = `${baseKey}_${lang}`
-    
+
     if (duplicateToAll) {
       // Remove existing entries for this base key and add entries for all languages
       const filtered = entries.filter(e => {
@@ -1614,7 +1614,7 @@ export function DataTable() {
         }
         return e.key !== baseKey
       })
-      
+
       // Add entries for all languages with the same title and value
       const newEntries = supportedLanguageCodes.map((l) => ({
         key: `${baseKey}_${l}`,
@@ -1630,13 +1630,13 @@ export function DataTable() {
         }
         return e
       })
-      
+
       // If entry doesn't exist, add it
       const exists = result.some(e => e.key === langKey)
       if (!exists) {
         result.push({ key: langKey, title: title, value: value })
       }
-      
+
       return result
     }
   }, [supportedLanguageCodes])
@@ -1680,7 +1680,7 @@ export function DataTable() {
       try {
         const cacheKey = `sidebar-translations-${locale}`
         const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
-        
+
         if (cached) {
           try {
             const cachedTranslations = JSON.parse(cached)
@@ -1692,7 +1692,7 @@ export function DataTable() {
             // If parsing fails, proceed with fetch
           }
         }
-        
+
         const response = await fetch(`/api/locales/${locale}`)
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
@@ -1700,7 +1700,7 @@ export function DataTable() {
         const translationsData = await response.json() as any
 
         setTranslations(translationsData)
-        
+
         // Cache translations
         if (typeof window !== 'undefined') {
           sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
@@ -1721,7 +1721,7 @@ export function DataTable() {
         }
       }
     }
-    
+
     loadTranslations()
   }, [locale])
 
@@ -1768,19 +1768,22 @@ export function DataTable() {
     const key = collectionToEntityKey(state.collection)
     return entityOptions[key] || state.collection
   }, [state.collection, translations, collectionToEntityKey])
-  
-  
+
+
 
   const primaryKey = React.useMemo(() => schema.find((c) => c.primary)?.name || "id", [schema])
 
   // Memoize filters string to prevent unnecessary re-renders
   const filtersString = React.useMemo(() => JSON.stringify(state.filters), [state.filters])
-  
+
   // Use ref for searchConditions to avoid dependency issues
   const searchConditionsRef = React.useRef(searchConditions)
   React.useEffect(() => {
     searchConditionsRef.current = searchConditions
   }, [searchConditions])
+
+  // Use ref for sorting to avoid dependency issues (sorting is declared later)
+  const sortingRef = React.useRef<SortingState>([])
 
   // Track fetching state to prevent concurrent requests
   const isFetchingRef = React.useRef(false)
@@ -1805,7 +1808,7 @@ export function DataTable() {
       params.append('filters', JSON.stringify(filters))
       params.append('orders', JSON.stringify(orders))
       params.append('limit', '1000')
-      
+
       const response = await fetch(`/api/admin/taxonomies?${params.toString()}`, {
         credentials: 'include',
       })
@@ -1814,14 +1817,14 @@ export function DataTable() {
         console.error('[DataTable] Failed to load segment statuses:', response.status, errorText)
         throw new Error(`Failed to load statuses: ${response.status}`)
       }
-      
+
       const data = await response.json() as { docs?: Array<{ name?: string; title?: string | Record<string, string>; sortOrder?: number }> }
       const options: SelectOption[] = (data.docs || []).map((status: any) => {
         // Extract localized label from title
         let label = status.name || ''
         if (status.title) {
-          const title = typeof status.title === 'string' 
-            ? JSON.parse(status.title) 
+          const title = typeof status.title === 'string'
+            ? JSON.parse(status.title)
             : status.title
           label = title[locale] || title.en || title.ru || title.rs || status.name
         }
@@ -1849,22 +1852,22 @@ export function DataTable() {
 
   // Update schema when segmentStatuses change for expanses (to update selectOptions and fieldType)
   const segmentStatusesStrRef = React.useRef<string>('')
-  
+
   React.useEffect(() => {
     if (state.collection === 'expanses') {
       const currentStatusesStr = JSON.stringify(segmentStatuses)
-      
+
       // Check if segmentStatuses actually changed
       if (currentStatusesStr === segmentStatusesStrRef.current) {
         return // No change, skip update
       }
-      
+
       segmentStatusesStrRef.current = currentStatusesStr
-      
+
       // Update schema with new selectOptions for status_name and ensure title is json
       setSchema((prevSchema) => {
         if (prevSchema.length === 0) return prevSchema
-        
+
         const updatedSchema = prevSchema.map((col) => {
           if (col.name === 'status_name' && segmentStatuses.length > 0) {
             return {
@@ -1882,14 +1885,14 @@ export function DataTable() {
           }
           return col
         })
-        
+
         // Only update if something changed
         const hasChanges = updatedSchema.some((col, index) => {
           const oldCol = prevSchema[index]
-          return col.fieldType !== oldCol.fieldType || 
-                 JSON.stringify(col.selectOptions) !== JSON.stringify(oldCol.selectOptions)
+          return col.fieldType !== oldCol.fieldType ||
+            JSON.stringify(col.selectOptions) !== JSON.stringify(oldCol.selectOptions)
         })
-        
+
         return hasChanges ? updatedSchema : prevSchema
       })
     }
@@ -1907,22 +1910,26 @@ export function DataTable() {
       const serverPageSize = hasSearchOperators ? 10000 : state.pageSize
       const serverPage = hasSearchOperators ? 1 : state.page
 
+      // Convert sorting to query parameter format: "field1:asc,field2:desc"
+      const currentSorting = sortingRef.current
+
       const queryParams = qs.stringify({
         c: state.collection,
         p: serverPage,
         ps: serverPageSize,
         ...(serverSearch && { s: serverSearch }),
         ...(state.filters.length > 0 && { filters: state.filters }),
+        ...(currentSorting && { sorting: currentSorting }),
       })
 
       const res = await fetch(`/api/admin/state?${queryParams}`, {
         signal: abortSignal,
         credentials: "include",
       })
-      
+
 
       if (isMountedRef && !isMountedRef.current) return
-      
+
       if (!res.ok) {
         const errorText = await res.text()
         console.error('[DataTable] Fetch error details:', {
@@ -1935,10 +1942,10 @@ export function DataTable() {
         throw new Error(`Failed to load: ${res.status}`)
       }
       const json: StateResponse = await res.json()
-      
+
 
       if (isMountedRef && !isMountedRef.current) return
-      
+
       // Get collection config and apply column settings
       const collection = getCollection(state.collection)
 
@@ -1954,20 +1961,20 @@ export function DataTable() {
         if (t === "NUMERIC" || t === "DECIMAL" || t === "REAL" || t === "DOUBLE PRECISION") return "number"
         return "text"
       }
-      
+
       const extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
         const columnConfig = (collection as any)?.fields?.find((f: any) => f.name === col.name)
         const options = columnConfig?.options || {}
-        
+
         // For taxonomy collection, get config from Taxonomy export
         let fieldConfig: any = null
         if (state.collection === 'taxonomy' && taxonomyConfig?.fields) {
           fieldConfig = taxonomyConfig.fields.find((f: any) => f.name === col.name)
         }
-        
+
         // Hide system fields in table (data_in should be visible/editable via separate tab)
         const isSystemField = ['deleted_at', 'uuid'].includes(col.name)
-        
+
         // Extract select options if field is select type
         let selectOptions: SelectOption[] | undefined
         if (fieldConfig?.type === 'select' && fieldConfig?.options?.length) {
@@ -1987,12 +1994,12 @@ export function DataTable() {
             value: opt.value || opt,
           }))
         }
-        
+
         // For expanses.status_name, load statuses from taxonomy (entity='Segment')
         if (state.collection === 'expanses' && col.name === 'status_name' && segmentStatuses && segmentStatuses.length > 0) {
           selectOptions = segmentStatuses
         }
-        
+
         // Get translated field title
         let fieldTitle: string | undefined
         if (state.collection === 'taxonomy' && (translations as any)?.taxonomy?.fields) {
@@ -2009,7 +2016,7 @@ export function DataTable() {
         if (dataTableFieldTitle) {
           fieldTitle = dataTableFieldTitle
         }
-        
+
         // Explicit fallback for xaid in roles collection
         if (!fieldTitle && state.collection === 'roles' && col.name === 'xaid') {
           if (locale === 'ru') {
@@ -2021,10 +2028,10 @@ export function DataTable() {
           }
           console.warn('[DataTable] Using hardcoded fallback for roles.xaid, translations available:', !!translations?.fields?.roles)
         }
-        
+
         // Capitalize first letter and replace underscores with spaces
         const defaultTitle = col.name.charAt(0).toUpperCase() + col.name.slice(1).replace(/_/g, ' ')
-        
+
         const inferredDbFieldType = inferFieldTypeFromDbType((col as any).type)
         const forcedFieldType =
           col.name === "data_in"
@@ -2037,10 +2044,10 @@ export function DataTable() {
         const forcedRelation: RelationConfig | undefined =
           col.name === "xaid" && state.collection !== "expanses"
             ? {
-                collection: "expanses",
-                valueField: "xaid",
-                labelField: "title",
-              }
+              collection: "expanses",
+              valueField: "xaid",
+              labelField: "title",
+            }
             : undefined
 
         const isSystemFieldByName = ['deleted_at', 'uuid'].includes(col.name)
@@ -2060,26 +2067,26 @@ export function DataTable() {
             shouldBeSelect
               ? 'select'
               : forcedFieldType ||
-                options.type ||
-                fieldConfig?.type ||
-                (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
-                inferredDbFieldType,
+              options.type ||
+              fieldConfig?.type ||
+              (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
+              inferredDbFieldType,
           textarea: options.textarea || false,
           enum: options.enum,
           relation: forcedRelation || options.relation,
           selectOptions,
         }
       })
-      
+
       // Load relation data for display
       const relationsToLoad = extendedColumns.filter(col => col.relation)
       const relationDataMap: Record<string, Record<any, string>> = {}
-      
+
       for (const col of relationsToLoad) {
         if (!col.relation) continue
         if (isMountedRef && !isMountedRef.current) break
 
-        
+
         try {
           // Limit relation fetch to only values actually used in current page data
           const valuesInUse = Array.from(
@@ -2106,18 +2113,18 @@ export function DataTable() {
             ...(col.relation.inheritSearch && state.search && { s: state.search }),
             ...(relationFilters.length > 0 && { filters: relationFilters }),
           })
-          
+
           const relRes = await fetch(`/api/admin/state?${queryParams}`, {
             signal: abortSignal,
             credentials: "include",
           })
-          
+
           if (isMountedRef && !isMountedRef.current) break
-          
+
           if (relRes.ok) {
             const relJson: StateResponse = await relRes.json()
             const map: Record<any, string> = {}
-            
+
             relJson.data.forEach((item) => {
               const value = item[col.relation!.valueField]
               const label = col.relation!.labelFields
@@ -2125,7 +2132,7 @@ export function DataTable() {
                 : String(item[col.relation!.labelField] || "-")
               map[value] = label
             })
-            
+
             relationDataMap[col.name] = map
           }
         } catch (e) {
@@ -2135,35 +2142,35 @@ export function DataTable() {
           }
         }
       }
-      
+
       // Final mount check before state updates
 
       if (isMountedRef && !isMountedRef.current) return
-      
+
       setRelationData(relationDataMap)
-      
+
       // Update local state - only update collection and filters from API
       // NEVER update pageSize, page, or search from API response to prevent infinite loops
       // These values are controlled by UI state and should not be overwritten
       setState((prev) => {
         const newState: Partial<typeof prev> = {}
         let hasChanges = false
-        
+
         // Only update collection if it changed
         if (json.state.collection !== prev.collection) {
           newState.collection = json.state.collection
           hasChanges = true
         }
-        
+
         // Only update filters if they changed
         if (JSON.stringify(json.state.filters) !== JSON.stringify(prev.filters)) {
           newState.filters = json.state.filters
           hasChanges = true
         }
-        
+
         // DO NOT update pageSize, page, or search from API
         // They are controlled by UI and updating them causes infinite loops
-        
+
         if (!hasChanges) {
           return prev // Return same reference if nothing changed
         }
@@ -2172,8 +2179,8 @@ export function DataTable() {
       setSchema(extendedColumns)
       // When filtering client-side, total will be updated after filtering
       if (!hasSearchOperators) {
-      setTotal(json.schema.total)
-      setTotalPages(json.schema.totalPages)
+        setTotal(json.schema.total)
+        setTotalPages(json.schema.totalPages)
       }
       setData(json.data)
     } catch (e) {
@@ -2202,47 +2209,50 @@ export function DataTable() {
   // Track last fetch parameters to prevent unnecessary refetches
   const lastFetchParamsRef = React.useRef<string>('')
   const fetchDataRef = React.useRef(fetchData)
-  
+
   // Keep fetchDataRef in sync
   React.useEffect(() => {
     fetchDataRef.current = fetchData
   }, [fetchData])
-  
+
   // Reset fetching state on collection change to prevent stuck state
   React.useEffect(() => {
     isFetchingRef.current = false
     lastFetchParamsRef.current = ''
   }, [state.collection])
-  
+
   React.useEffect(() => {
     // Don't fetch if collection is not set
     if (!state.collection) {
       //console.log('[DataTable] Skipping fetch: no collection')
       return
     }
-    
+
     // Prevent concurrent fetches
     if (isFetchingRef.current) {
       //console.log('[DataTable] Skipping fetch: already fetching')
       return
     }
-    
+
     const controller = new AbortController()
     const isMounted = { current: true }
-    
+
     // Create a key for current fetch parameters
     const hasSearchOperators = searchConditionsRef.current.some(c => c.operator)
-    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}`
-    
+    const currentSortingString = sortingRef.current.length > 0
+      ? sortingRef.current.map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',')
+      : ''
+    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}`
+
     // Skip if parameters haven't changed
     if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
       //console.log('[DataTable] Skipping fetch: parameters unchanged', { fetchKey, lastFetch: lastFetchParamsRef.current })
       return
     }
-    
+
     lastFetchParamsRef.current = fetchKey
     isFetchingRef.current = true
-    
+
     // Use ref to avoid dependency on fetchData
     fetchDataRef.current(controller.signal, isMounted)
       .then(() => {
@@ -2260,7 +2270,7 @@ export function DataTable() {
       .finally(() => {
         isFetchingRef.current = false
       })
-    
+
     return () => {
       isMounted.current = false
       // Don't call abort() - let requests complete naturally
@@ -2312,11 +2322,11 @@ export function DataTable() {
     pageIndex: Math.max(0, state.page - 1),
     pageSize: defaultPageSize,
   })
-  
+
   // Restore default page size when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
-    
+
     try {
       const saved = localStorage.getItem(`default-page-size-${state.collection}`)
       if (saved) {
@@ -2331,7 +2341,7 @@ export function DataTable() {
       console.warn('Failed to restore default page size:', e)
     }
   }, [state.collection, setState])
-  
+
   // Save default page size to localStorage when it changes
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -2379,7 +2389,7 @@ export function DataTable() {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
-  
+
   // Date filter state
   const [dateFilter, setDateFilter] = React.useState<{
     type: 'created_at' | 'updated_at' | null
@@ -2388,12 +2398,12 @@ export function DataTable() {
     customEnd?: Date
     singleDate?: Date
   }>({ type: null, range: null })
-  
+
   const [tempSingleDate, setTempSingleDate] = React.useState<{
     created: Date | null
     updated: Date | null
   }>({ created: null, updated: null })
-  
+
   const [tempDateRange, setTempDateRange] = React.useState<{
     created: DateRange | undefined
     updated: DateRange | undefined
@@ -2401,21 +2411,21 @@ export function DataTable() {
     created: undefined,
     updated: undefined
   })
-  
+
   // Get locale for date-fns
   const dateFnsLocale = React.useMemo(() => {
     if (locale === 'ru') return ru
     if (locale === 'rs') return sr
     return enUS
   }, [locale])
-  
+
   // Column sizing settings - separate for mobile and desktop
   const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {}
     try {
       const isMobileDevice = window.innerWidth < 1024
-      const key = isMobileDevice 
-        ? `column-sizes-mobile-${state.collection}` 
+      const key = isMobileDevice
+        ? `column-sizes-mobile-${state.collection}`
         : `column-sizes-desktop-${state.collection}`
       const saved = localStorage.getItem(key)
       if (saved) {
@@ -2443,7 +2453,7 @@ export function DataTable() {
     }
     return {}
   })
-  
+
   // Column order state
   const [columnOrder, setColumnOrder] = React.useState<string[]>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -2461,7 +2471,7 @@ export function DataTable() {
     }
     return []
   })
-  
+
   // Column filter values (stored separately from columnFilters state)
   // Column filter values (stored separately from columnFilters state)
   // Can be string for text filters or string[] for multiselect filters
@@ -2481,7 +2491,7 @@ export function DataTable() {
     }
     return {}
   })
-  
+
   // Restore column alignment when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -2502,7 +2512,7 @@ export function DataTable() {
       setColumnAlignment({})
     }
   }, [state.collection])
-  
+
   // Save column alignment to localStorage when it changes
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -2513,12 +2523,12 @@ export function DataTable() {
       }
     }
   }, [columnAlignment, state.collection])
-  
+
   // Function to calculate date range
   const getDateRange = React.useCallback((range: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'last90days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear'): { start: Date; end: Date } => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    
+
     switch (range) {
       case 'today':
         return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
@@ -2543,7 +2553,7 @@ export function DataTable() {
         return { start: today, end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) }
     }
   }, [])
-  
+
   // Apply date filter
   const applyDateFilter = React.useCallback((type: 'created_at' | 'updated_at', range: 'today' | 'yesterday' | 'last7days' | 'last30days' | 'last90days' | 'thisMonth' | 'lastMonth' | 'thisYear' | 'lastYear' | 'custom' | 'single', customStart?: Date, customEnd?: Date, singleDate?: Date) => {
     if (range === 'custom' && (!customStart || !customEnd)) {
@@ -2552,7 +2562,7 @@ export function DataTable() {
     if (range === 'single' && !singleDate) {
       return
     }
-    
+
     let dateRange: { start: Date; end: Date }
     if (range === 'single' && singleDate) {
       // For single date, filter for the entire day
@@ -2564,9 +2574,9 @@ export function DataTable() {
     } else {
       dateRange = getDateRange(range as any)
     }
-    
+
     setDateFilter({ type, range, customStart, customEnd, singleDate })
-    
+
     // Apply filter to columnFilters
     setColumnFilters((prev) => {
       const filtered = prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at')
@@ -2582,7 +2592,7 @@ export function DataTable() {
       ]
     })
   }, [getDateRange])
-  
+
   // Clear date filter
   const clearDateFilter = React.useCallback(() => {
     setDateFilter({ type: null, range: null })
@@ -2593,7 +2603,7 @@ export function DataTable() {
     })
     setColumnFilters((prev) => prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at'))
   }, [])
-  
+
   // Restore column filter values when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -2614,7 +2624,7 @@ export function DataTable() {
       setColumnFilterValues({})
     }
   }, [state.collection])
-  
+
   // Save column filter values to localStorage when they change
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -2625,7 +2635,7 @@ export function DataTable() {
       }
     }
   }, [columnFilterValues, state.collection])
-  
+
   // Show/hide filter row under headers
   const [showFilterRow, setShowFilterRow] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -2669,13 +2679,13 @@ export function DataTable() {
     }
     return false
   })
-  
+
   // Store edited cells locally (rowId -> fieldName -> value)
   const [editedCells, setEditedCells] = React.useState<Map<string, Record<string, any>>>(() => new Map())
-  
+
   // Track if there are unsaved changes
   const hasUnsavedChanges = editedCells.size > 0
-  
+
   const [cardViewModeDesktop, setCardViewModeDesktop] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined' && state.collection) {
       try {
@@ -2706,7 +2716,7 @@ export function DataTable() {
     }
     return 3 // Default: 3 cards per row on desktop
   })
-  
+
   // Restore show filter row when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -2722,7 +2732,7 @@ export function DataTable() {
       setShowFilterRow(false)
     }
   }, [state.collection])
-  
+
   // Save show filter row to localStorage when it changes
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -2851,12 +2861,12 @@ export function DataTable() {
       }
     }
   }, [cardsPerRow, state.collection])
-  
+
   // Restore column visibility when collection changes
   // Priority: global role settings > localStorage > default (all visible)
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
-    
+
     const loadColumnVisibility = async () => {
       try {
         // First, try to load global settings for role
@@ -2875,7 +2885,7 @@ export function DataTable() {
             return
           }
         }
-        
+
         // Fallback to localStorage
         const saved = localStorage.getItem(`column-visibility-${state.collection}`)
         if (saved) {
@@ -2893,7 +2903,7 @@ export function DataTable() {
             return
           }
         }
-        
+
         // Default: all visible, except created_at and updated_at (hidden by default)
         setColumnVisibility({
           created_at: false,
@@ -2904,10 +2914,10 @@ export function DataTable() {
         setColumnVisibility({})
       }
     }
-    
+
     loadColumnVisibility()
   }, [state.collection, primaryRole])
-  
+
   // Reload data when search conditions with operators change (need all data for client-side filtering)
   React.useEffect(() => {
     const hasOperators = searchConditions.some(c => c.operator)
@@ -2918,26 +2928,88 @@ export function DataTable() {
       void fetchDataRef.current(controller.signal, isMounted)
     }
   }, [searchConditions])
-  
+
   // Get collection config early to access defaultSort
   const collectionConfig = React.useMemo(() => {
     return state.collection ? getCollection(state.collection) : null
   }, [state.collection])
 
-  // Default sorting state (stored in localStorage)
+
   const defaultSorting = React.useMemo<SortingState>(() => {
     const collection = getCollection(state.collection)
     return [...collection.__defaultSort] as SortingState
   }, [state.collection])
-  
-  const defaultSortingKey = React.useMemo<string>(()=>{
-    return `default-sorting-${state.collection}`
+
+  const sortingKey = React.useMemo<string>(() => {
+    return `sorting-${state.collection}`
   }, [state.collection])
 
-  const [sorting, setSorting] = useLocalStorage(defaultSortingKey, defaultSorting)
+  const [sorting, setSorting] = useLocalStorage(sortingKey, defaultSorting)
 
-  
-  
+  // Update sortingRef when sorting changes
+  React.useEffect(() => {
+    sortingRef.current = sorting
+  }, [sorting])
+
+  // Create string representation of sorting for fetchKey
+  const sortingString = React.useMemo(() => {
+    if (!sorting || sorting.length === 0) return ''
+    return sorting.map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',')
+  }, [sorting])
+
+  // Fetch data when sorting changes
+  React.useEffect(() => {
+    // Don't fetch if collection is not set
+    if (!state.collection) {
+      return
+    }
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return
+    }
+
+    const controller = new AbortController()
+    const isMounted = { current: true }
+
+    // Create a key for current fetch parameters
+    const hasSearchOperators = searchConditionsRef.current.some(c => c.operator)
+    const currentSortingString = sorting.length > 0
+      ? sorting.map(s => `${s.id}:${s.desc ? 'desc' : 'asc'}`).join(',')
+      : ''
+    const fetchKey = `${state.collection}-${state.page}-${hasSearchOperators ? '10000' : state.pageSize}-${state.search}-${filtersString}-${currentSortingString}`
+
+    // Skip if parameters haven't changed
+    if (lastFetchParamsRef.current === fetchKey && lastFetchParamsRef.current !== '') {
+      return
+    }
+
+    lastFetchParamsRef.current = fetchKey
+    isFetchingRef.current = true
+
+    // Use ref to avoid dependency on fetchData
+    fetchDataRef.current(controller.signal, isMounted)
+      .then(() => {
+      })
+      .catch((e) => {
+        // Silently ignore AbortError
+        if (e?.name !== "AbortError" && isMounted.current) {
+          console.error('[DataTable] Failed to fetch data:', e)
+          // Reset lastFetchParamsRef on error to allow retry
+          if (lastFetchParamsRef.current === fetchKey) {
+            lastFetchParamsRef.current = ''
+          }
+        }
+      })
+      .finally(() => {
+        isFetchingRef.current = false
+      })
+
+    return () => {
+      isMounted.current = false
+    }
+  }, [sortingString, state.collection, state.page, state.pageSize, state.search, filtersString])
+
   // Save column visibility to localStorage when it changes
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -2960,13 +3032,13 @@ export function DataTable() {
   // Batch delete confirmation state
   const [batchDeleteOpen, setBatchDeleteOpen] = React.useState(false)
   const [batchDeleting, setBatchDeleting] = React.useState(false)
-  
+
   // Export dialog state
   const [exportOpen, setExportOpen] = React.useState(false)
   const [exportFormat, setExportFormat] = React.useState<ExportFormat>('csv')
   const [exportData, setExportData] = React.useState<string>('')
   const [exportCopied, setExportCopied] = React.useState(false)
-  
+
   // Import state
   const [importOpen, setImportOpen] = React.useState(false)
   const [importFormat, setImportFormat] = React.useState<ImportFormat>('csv')
@@ -3038,10 +3110,10 @@ export function DataTable() {
       setCreateValueInputs({})
       return
     }
-    
+
     const initializeDataInFields = async () => {
-    const existing = (formData as any).data_in
-      
+      const existing = (formData as any).data_in
+
       // If no existing data_in, load global fields for collection
       if (!existing || (typeof existing === 'object' && Object.keys(existing).length === 0)) {
         try {
@@ -3059,11 +3131,11 @@ export function DataTable() {
                 }
               }
             }
-            
+
             // Convert to entries format (expands language objects)
             const entries = objectToEntries(langObj)
             setCreateDataInEntries(entries)
-            
+
             try {
               setCreateDataInRaw(JSON.stringify(langObj, null, 2))
             } catch {
@@ -3071,13 +3143,13 @@ export function DataTable() {
             }
           } else {
             // No global fields, use empty
-    const entries = objectToEntries(existing)
-    setCreateDataInEntries(entries)
-    try {
-      setCreateDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
-    } catch {
-      setCreateDataInRaw("{}")
-    }
+            const entries = objectToEntries(existing)
+            setCreateDataInEntries(entries)
+            try {
+              setCreateDataInRaw(JSON.stringify(existing && typeof existing === "object" ? existing : {}, null, 2))
+            } catch {
+              setCreateDataInRaw("{}")
+            }
           }
         } catch (error) {
           console.error('Failed to load global data_in fields:', error)
@@ -3100,18 +3172,18 @@ export function DataTable() {
           setCreateDataInRaw("{}")
         }
       }
-      
+
       // Clear temp inputs when drawer opens
       setCreateKeyInputs({})
       setCreateTitleInputs({})
       setCreateValueInputs({})
-    setCreateDataInRawError(null)
-    setCreateFormTab("main")
+      setCreateDataInRawError(null)
+      setCreateFormTab("main")
       setCreateDataInLanguage(locale)
     }
-    
+
     initializeDataInFields()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createOpen, locale, state.collection])
 
   // Sync createDataInRaw when createDataInEntries changes
@@ -3150,7 +3222,7 @@ export function DataTable() {
     setEditDataInRawError(null)
     setEditFormTab("main")
     setEditDataInLanguage(locale)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOpen, recordToEdit, locale])
 
   // Sync editDataInRaw when editDataInEntries changes
@@ -3164,7 +3236,7 @@ export function DataTable() {
     }
   }, [editDataInEntries, editOpen, entriesToLanguageObject])
 
-      const enabledLanguageCodes = supportedLanguageCodes
+  const enabledLanguageCodes = supportedLanguageCodes
 
   const getI18nJsonFieldsForCollection = React.useCallback((collection: string): string[] => {
     if (collection === 'taxonomy') return ['title', 'category']
@@ -3188,7 +3260,7 @@ export function DataTable() {
         initial.created_at = record.created_at ?? null
         initial.updated_at = record.updated_at ?? null
       }
-      
+
       for (const col of schema) {
         if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
           if (col.fieldType === 'boolean') {
@@ -3286,12 +3358,12 @@ export function DataTable() {
       delete duplicatedRecord.created_at
       delete duplicatedRecord.updated_at
       delete duplicatedRecord.deleted_at
-      
+
       setRecordToEdit(duplicatedRecord)
       const initial: Record<string, any> = {}
       const pricePrefill: Record<string, string> = {}
       const i18nFields = getI18nJsonFieldsForCollection(state.collection)
-      
+
       for (const col of schema) {
         if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
           if (col.fieldType === 'boolean') {
@@ -3413,11 +3485,11 @@ export function DataTable() {
     setEditedCells(prev => {
       const newMap = new Map(prev)
       const rowChanges = newMap.get(rowIdStr) || {}
-      
+
       // Prepare value based on field type
       const field = schema.find(f => f.name === fieldName)
       let processedValue = value
-      
+
       if (field) {
         if (field.fieldType === 'price' && typeof value === 'number') {
           processedValue = value
@@ -3431,25 +3503,25 @@ export function DataTable() {
           processedValue = value
         }
       }
-      
+
       rowChanges[fieldName] = processedValue
       newMap.set(rowIdStr, rowChanges)
       return newMap
     })
   }, [schema])
-  
+
   // Function to save all changes at once
   const handleSaveAllChanges = React.useCallback(async () => {
     if (editedCells.size === 0) return
-    
+
     try {
       const primaryKey = schema.find(f => f.primary)?.name || 'id'
-      
+
       // Save all changes in parallel
       const promises = Array.from(editedCells.entries()).map(async ([rowIdStr, changes]) => {
         const rowId = rowIdStr
         const payload: Record<string, any> = {}
-        
+
         // Process each field change
         for (const [fieldName, value] of Object.entries(changes)) {
           if (fieldName === 'data_in') {
@@ -3473,22 +3545,22 @@ export function DataTable() {
             }
           }
         }
-        
+
         const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(rowId))}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(payload),
         })
-        
+
         if (!res.ok) {
           const json = await res.json() as { error?: string }
           throw new Error(json.error || `Update failed for row ${rowId}: ${res.status}`)
         }
       })
-      
+
       await Promise.all(promises)
-      
+
       // Clear edited cells and refresh data
       setEditedCells(new Map())
       await fetchData()
@@ -3497,7 +3569,7 @@ export function DataTable() {
       throw e
     }
   }, [editedCells, schema, state.collection, fetchData])
-  
+
   const columns = React.useMemo(
     () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, schema, undefined, segmentStatuses) : []),
     [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, segmentStatuses]
@@ -3519,14 +3591,14 @@ export function DataTable() {
   // Filter data client-side if search has operators (server doesn't support them)
   const filteredData = React.useMemo(() => {
     let result = data
-    
+
     // Apply date filters
     if (dateFilter.type && dateFilter.range) {
       const filterType = dateFilter.type
       const dateRange = dateFilter.range === 'custom' && dateFilter.customStart && dateFilter.customEnd
         ? { start: dateFilter.customStart, end: dateFilter.customEnd }
         : getDateRange(dateFilter.range as any)
-      
+
       result = result.filter((row) => {
         const cellValue = row[filterType] as string | null | undefined
         if (!cellValue) return false
@@ -3534,7 +3606,7 @@ export function DataTable() {
         return cellDate >= dateRange.start && cellDate <= dateRange.end
       })
     }
-    
+
     if (!needsClientSideFilter || !parsedSearchQuery) {
       return result
     }
@@ -3590,13 +3662,13 @@ export function DataTable() {
   const reorderedColumns = React.useMemo(() => {
     // Always start with all columns
     const allColumnsMap = new Map(columns.map(col => [col.id, col]))
-    
+
     // Apply saved column order if available
     if (columnOrder.length > 0) {
       const orderedColumns: ColumnDef<CollectionData>[] = []
       const unorderedColumns: ColumnDef<CollectionData>[] = []
       const processedIds = new Set<string>()
-      
+
       // Add columns in saved order (only if they exist in current columns)
       for (const columnId of columnOrder) {
         const col = allColumnsMap.get(columnId)
@@ -3608,7 +3680,7 @@ export function DataTable() {
           }
         }
       }
-      
+
       // Add remaining columns that weren't in the saved order
       allColumnsMap.forEach((col) => {
         const colId = col.id
@@ -3616,7 +3688,7 @@ export function DataTable() {
           unorderedColumns.push(col)
         }
       })
-      
+
       // For mobile, keep actions and select at the beginning
       if (isMobile) {
         const selectColumn = allColumnsMap.get('select')
@@ -3660,7 +3732,7 @@ export function DataTable() {
       }
     }
   }, [columns, isMobile, columnOrder])
-  
+
   // Save column order to localStorage
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined' && columnOrder.length > 0) {
@@ -3671,7 +3743,7 @@ export function DataTable() {
       }
     }
   }, [columnOrder, state.collection])
-  
+
   // Sensors for drag-and-drop
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -3679,7 +3751,7 @@ export function DataTable() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
-  
+
   // Sortable column item component
   function SortableColumnItem({ id, children }: { id: string; children: React.ReactNode }) {
     const {
@@ -3690,13 +3762,13 @@ export function DataTable() {
       transition,
       isDragging,
     } = useSortable({ id })
-    
+
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging ? 0.5 : 1,
     }
-    
+
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         <div className="flex items-center gap-1">
@@ -3717,8 +3789,8 @@ export function DataTable() {
     if (!state.collection || typeof window === 'undefined') return
     try {
       const isMobileDevice = window.innerWidth < 1024
-      const key = isMobileDevice 
-        ? `column-sizes-mobile-${state.collection}` 
+      const key = isMobileDevice
+        ? `column-sizes-mobile-${state.collection}`
         : `column-sizes-desktop-${state.collection}`
       const saved = localStorage.getItem(key)
       if (saved) {
@@ -3742,8 +3814,8 @@ export function DataTable() {
     if (state.collection && typeof window !== 'undefined' && Object.keys(columnSizing).length > 0) {
       try {
         const isMobileDevice = window.innerWidth < 1024
-        const key = isMobileDevice 
-          ? `column-sizes-mobile-${state.collection}` 
+        const key = isMobileDevice
+          ? `column-sizes-mobile-${state.collection}`
           : `column-sizes-desktop-${state.collection}`
         localStorage.setItem(key, JSON.stringify(columnSizing))
       } catch (e) {
@@ -3752,12 +3824,13 @@ export function DataTable() {
     }
   }, [columnSizing, state.collection, isMobile])
 
-  
-  
+
+
 
   const table = useReactTable({
     data: filteredData,
     columns: reorderedColumns,
+    manualSorting: true,
     state: {
       sorting,
       columnVisibility,
@@ -3791,10 +3864,10 @@ export function DataTable() {
     const rows = table.getRowModel().rows
     return rows.findIndex(row => row.original[primaryKey] === pkValue)
   }, [recordToEdit, table, primaryKey])
-  
+
   const hasPreviousRecord = currentRowIndex > 0
   const hasNextRecord = currentRowIndex >= 0 && currentRowIndex < (table?.getRowModel().rows.length || 0) - 1
-  
+
   const navigateToPrevious = React.useCallback(() => {
     if (!hasPreviousRecord || !table) return
     const rows = table.getRowModel().rows
@@ -3803,7 +3876,7 @@ export function DataTable() {
       onEditRequest(previousRow)
     }
   }, [hasPreviousRecord, currentRowIndex, table, onEditRequest])
-  
+
   const navigateToNext = React.useCallback(() => {
     if (!hasNextRecord || !table) return
     const rows = table.getRowModel().rows
@@ -3833,10 +3906,10 @@ export function DataTable() {
   async function handleBatchDelete() {
     const selectedRows = table.getFilteredSelectedRowModel().rows
     if (selectedRows.length === 0) return
-    
+
     setBatchDeleting(true)
     setError(null)
-    
+
     try {
       // Delete each selected row
       for (const row of selectedRows) {
@@ -3847,7 +3920,7 @@ export function DataTable() {
         })
         if (!res.ok) throw new Error(`Delete failed: ${res.status}`)
       }
-      
+
       setBatchDeleteOpen(false)
       setRowSelection({}) // Clear selection
       await fetchData()
@@ -3927,16 +4000,16 @@ export function DataTable() {
 
         return acc
       }, {} as Record<string, any>)
-      
-        // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
-        const processedDataIn = entriesToLanguageObject(createDataInEntries)
-      
+
+      // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
+      const processedDataIn = entriesToLanguageObject(createDataInEntries)
+
       // Always add data_in to payload (even if empty, to allow clearing it)
       payload.data_in = processedDataIn
-      
+
       // Log payload to debug relation field issues
       console.log('[handleCreateSubmit] Payload before sending:', JSON.stringify(payload, null, 2))
-      
+
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3972,83 +4045,83 @@ export function DataTable() {
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!recordToEdit) return
-    
+
     // If this is a duplicate, create a new record instead of updating
     if (isDuplicate) {
-    setEditError(null)
-    try {
-      // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
-      const payload = Object.entries(editData).reduce((acc, [key, value]) => {
-        const i18nFields = getI18nJsonFieldsForCollection(state.collection)
-        const i18nMatch = key.match(/^(.+)_([a-z]{2})$/)
-        if (i18nMatch) {
-          const baseField = i18nMatch[1]
+      setEditError(null)
+      try {
+        // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
+        const payload = Object.entries(editData).reduce((acc, [key, value]) => {
+          const i18nFields = getI18nJsonFieldsForCollection(state.collection)
+          const i18nMatch = key.match(/^(.+)_([a-z]{2})$/)
+          if (i18nMatch) {
+            const baseField = i18nMatch[1]
             const lang = i18nMatch[2] as LanguageCode
-          if (i18nFields.includes(baseField) && enabledLanguageCodes.includes(lang)) {
-            const existing = (acc[baseField] as Record<string, string>) || {}
-            acc[baseField] = { ...existing, [lang]: (value as string) || '' }
-            return acc
+            if (i18nFields.includes(baseField) && enabledLanguageCodes.includes(lang)) {
+              const existing = (acc[baseField] as Record<string, string>) || {}
+              acc[baseField] = { ...existing, [lang]: (value as string) || '' }
+              return acc
+            }
           }
-        }
 
-        // Skip any helper fields for i18n json inputs
+          // Skip any helper fields for i18n json inputs
           if (i18nMatch && enabledLanguageCodes.includes(i18nMatch[2] as LanguageCode)) {
-          const baseField = i18nMatch[1]
-          if (getI18nJsonFieldsForCollection(state.collection).includes(baseField)) {
-            return acc
+            const baseField = i18nMatch[1]
+            if (getI18nJsonFieldsForCollection(state.collection).includes(baseField)) {
+              return acc
+            }
           }
-        }
 
-        const field = schema.find((f) => f.name === key)
+          const field = schema.find((f) => f.name === key)
 
-        // For relation fields, ensure we pass the value as-is (ID, not creating new record)
-        if (field?.relation) {
-          // RelationSelect returns the value, but we need to ensure it's a primitive (ID), not an object
-          // If value is empty string, convert to null for nullable fields
-          if (value === '' && field.nullable) {
-            acc[key] = null
-          } else if (value !== '' && value != null) {
-            // Ensure we only pass primitive values (string, number), not objects
-            // If value is an object, extract the ID field
-            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-              // This shouldn't happen, but if it does, try to extract the ID
-              console.warn(`[handleCreateSubmit] Relation field ${key} has object value, extracting ID:`, value)
-              const idValue = (value as any)[field.relation.valueField] || (value as any).id || (value as any)[primaryKey]
-              acc[key] = idValue != null ? idValue : null
+          // For relation fields, ensure we pass the value as-is (ID, not creating new record)
+          if (field?.relation) {
+            // RelationSelect returns the value, but we need to ensure it's a primitive (ID), not an object
+            // If value is empty string, convert to null for nullable fields
+            if (value === '' && field.nullable) {
+              acc[key] = null
+            } else if (value !== '' && value != null) {
+              // Ensure we only pass primitive values (string, number), not objects
+              // If value is an object, extract the ID field
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                // This shouldn't happen, but if it does, try to extract the ID
+                console.warn(`[handleCreateSubmit] Relation field ${key} has object value, extracting ID:`, value)
+                const idValue = (value as any)[field.relation.valueField] || (value as any).id || (value as any)[primaryKey]
+                acc[key] = idValue != null ? idValue : null
+              } else {
+                // Pass primitive value as-is (this should be the ID of the existing record)
+                console.log(`[handleCreateSubmit] Relation field ${key} value:`, value, typeof value)
+                acc[key] = value
+              }
+            } else if (!field.nullable && value === '') {
+              // Skip required fields that are empty (will be validated on server)
+              return acc
             } else {
-              // Pass primitive value as-is (this should be the ID of the existing record)
-              console.log(`[handleCreateSubmit] Relation field ${key} value:`, value, typeof value)
               acc[key] = value
             }
-          } else if (!field.nullable && value === '') {
-            // Skip required fields that are empty (will be validated on server)
-            return acc
+          } else if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
+            acc[key] = value // Keep as object, server will stringify
+          } else if (field?.fieldType === 'price') {
+            if (value != null && typeof value === 'number') {
+              acc[key] = value
+            } else if (value === null && field.nullable) {
+              acc[key] = null
+            }
+          } else if (value instanceof Date) {
+            acc[key] = value.toISOString()
           } else {
             acc[key] = value
           }
-        } else if (field?.fieldType === 'json' && value != null && typeof value === 'object' && !(value instanceof Date)) {
-          acc[key] = value // Keep as object, server will stringify
-        } else if (field?.fieldType === 'price') {
-          if (value != null && typeof value === 'number') {
-            acc[key] = value
-          } else if (value === null && field.nullable) {
-            acc[key] = null
-          }
-        } else if (value instanceof Date) {
-          acc[key] = value.toISOString()
-        } else {
-          acc[key] = value
-        }
 
-        return acc
-      }, {} as Record<string, any>)
-        
+          return acc
+        }, {} as Record<string, any>)
+
         // Process data_in entries with language support for all fields
         const dataInObj = entriesToLanguageObject(editDataInEntries)
         const processedDataIn: Record<string, any> = {}
         const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
         const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
-        
+
         for (const [key, value] of Object.entries(dataInObj)) {
           // Check if key matches field_name_<lang> pattern
           const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
@@ -4064,12 +4137,12 @@ export function DataTable() {
             plainFields[key] = value
           }
         }
-        
+
         // Convert language fields to objects
         for (const [fieldName, langValues] of Object.entries(languageFields)) {
           processedDataIn[fieldName] = langValues
         }
-        
+
         // Convert plain fields to language objects (create entries for all languages)
         for (const [fieldName, value] of Object.entries(plainFields)) {
           // Skip if this field already has language entries
@@ -4085,13 +4158,13 @@ export function DataTable() {
             continue
           }
         }
-        
+
         // Always add data_in to payload (even if empty, to allow clearing it)
         payload.data_in = processedDataIn
-        
+
         // Log payload to debug relation field issues
         console.log('[handleEditSubmit] Duplicate payload before sending:', JSON.stringify(payload, null, 2))
-        
+
         const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -4165,16 +4238,16 @@ export function DataTable() {
 
         return acc
       }, {} as Record<string, any>)
-      
+
       // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
       const processedDataIn = entriesToLanguageObject(editDataInEntries)
-      
+
       // Always add data_in to payload (even if empty, to allow clearing it)
       payload.data_in = processedDataIn
-      
+
       // Log payload to debug relation field issues
       console.log('[handleEditSubmit] Payload before sending:', JSON.stringify(payload, null, 2))
-      
+
       const idValue = recordToEdit[primaryKey]
       const res = await fetch(`/api/admin/${encodeURIComponent(state.collection)}/${encodeURIComponent(String(idValue))}`, {
         method: "PUT",
@@ -4210,12 +4283,12 @@ export function DataTable() {
   const handleExport = React.useCallback((format: ExportFormat) => {
     // Get filtered and sorted rows (respects current table state)
     const rows = table.getFilteredRowModel().rows
-    
+
     // Get visible column order from table (only columns that are actually visible)
     const columnOrder = table.getAllColumns()
       .filter(col => col.getIsVisible() && col.id !== 'select')
       .map(col => col.id)
-    
+
     // Export with current state
     const exported = exportTable({
       collection: state.collection || '',
@@ -4228,7 +4301,7 @@ export function DataTable() {
       columnOrder,
       translations,
     })
-    
+
     setExportData(exported)
     setExportFormat(format)
     setExportOpen(true)
@@ -4263,7 +4336,7 @@ export function DataTable() {
   const handleImportFileSelect = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     setImportFile(file)
     // Detect format from file extension
     const ext = file.name.split('.').pop()?.toLowerCase()
@@ -4282,17 +4355,17 @@ export function DataTable() {
     if (!state.collection) return
     if (importMode === 'file' && !importFile) return
     if (importMode === 'paste' && !importText.trim()) return
-    
+
     setImporting(true)
     setImportResult(null)
     setImportProgress({ imported: 0, total: 0 })
-    
+
     try {
-      const content = importMode === 'file' 
+      const content = importMode === 'file'
         ? await importFile!.text()
         : importText
       const rows = parseImportFile(content, importFormat, state.collection)
-      
+
       if (rows.length === 0) {
         setImportResult({
           success: false,
@@ -4302,17 +4375,17 @@ export function DataTable() {
         setImporting(false)
         return
       }
-      
+
       setImportProgress({ imported: 0, total: rows.length })
-      
+
       const result = await importRows(
         state.collection,
         rows,
         (imported, total) => setImportProgress({ imported, total })
       )
-      
+
       setImportResult(result)
-      
+
       if (result.success || result.imported > 0) {
         // Refresh data after successful import
         const controller = new AbortController()
@@ -4339,7 +4412,7 @@ export function DataTable() {
     setImportProgress({ imported: 0, total: 0 })
     setImporting(false)
   }, [])
-  
+
   const handleImportDialogChange = React.useCallback((open: boolean) => {
     if (!open) {
       setImportOpen(false)
@@ -4367,8 +4440,8 @@ export function DataTable() {
               <IconCalendar className="h-4 w-4" />
               <span className="hidden lg:inline">{dateFilter.type && dateFilter.range ? (dateFilter.type === 'created_at' ? (t.dateFilter?.created || 'Created') : (t.dateFilter?.updated || 'Updated')) : (t.dateFilter?.filter || 'Date Filter')}</span>
               {dateFilter.type && dateFilter.range && (
-                <IconX 
-                  className="h-3 w-3 ml-1" 
+                <IconX
+                  className="h-3 w-3 ml-1"
                   onClick={(e) => {
                     e.stopPropagation()
                     clearDateFilter()
@@ -4574,7 +4647,7 @@ export function DataTable() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        
+
         {/* Search Field */}
         <div className="relative w-full lg:max-w-2xl">
           <div className="relative flex items-center gap-1 h-9 rounded-md border bg-primary-foreground px-3 shadow-xs">
@@ -4597,7 +4670,7 @@ export function DataTable() {
                       const newConditions = searchConditions.filter((_, i) => i !== idx)
                       setSearchConditions(newConditions)
                       // Update global search state
-                      const searchString = newConditions.map(c => 
+                      const searchString = newConditions.map(c =>
                         c.type === 'exact' ? `"${c.value}"` : c.value
                       ).join(' ')
                       setState(prev => ({ ...prev, search: searchString, page: 1 }))
@@ -4629,7 +4702,7 @@ export function DataTable() {
                       setSearchConditions(newConditions)
                       setSearchInput('')
                       // Update global search state with combined conditions
-                      const searchString = newConditions.map(c => 
+                      const searchString = newConditions.map(c =>
                         c.type === 'exact' ? `"${c.value}"` : c.value
                       ).join(' ')
                       setState(prev => ({ ...prev, search: searchString, page: 1 }))
@@ -4645,15 +4718,15 @@ export function DataTable() {
             </div>
           </div>
         </div>
-        
+
         <Label htmlFor="view-selector" className="sr-only">
           View
         </Label>
         <div className="flex items-center gap-1 lg:gap-2 ml-auto">
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
-            <Button 
-              variant="destructive" 
-              size="sm" 
+            <Button
+              variant="destructive"
+              size="sm"
               className="h-9"
               onClick={() => setBatchDeleteOpen(true)}
               disabled={batchDeleting}
@@ -4693,10 +4766,10 @@ export function DataTable() {
             </DropdownMenu>
             {/* Save button - only show in edit mode */}
             {editMode && hasUnsavedChanges && (
-              <Button 
-                variant="default" 
-                size="sm" 
-                className="bg-primary-foreground h-9 ml-2" 
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-primary-foreground h-9 ml-2"
                 onClick={async () => {
                   try {
                     await handleSaveAllChanges()
@@ -4736,7 +4809,7 @@ export function DataTable() {
                     return hasAccessor
                   }
                 )
-                
+
                 // Get data_in columns
                 const allDataInKeys = new Set<string>()
                 data.forEach((row) => {
@@ -4766,9 +4839,9 @@ export function DataTable() {
                     }
                   }
                 })
-                
+
                 const dataInColumnIds = Array.from(allDataInKeys).map(baseKey => `data_in.${baseKey}`)
-                
+
                 // Combine all column IDs
                 // Get all schema column IDs (use id if available, otherwise use accessorKey or accessorFn result)
                 const schemaColumnIds = schemaColumns
@@ -4779,75 +4852,75 @@ export function DataTable() {
                     return null
                   })
                   .filter((id): id is string => !!id)
-                
+
                 const allColumnIds = [
                   ...schemaColumnIds,
                   ...dataInColumnIds
                 ]
-                
+
                 // Apply saved order or use default
                 const orderedColumnIds = columnOrder.length > 0
                   ? (() => {
-                      const ordered: string[] = []
-                      const unordered: string[] = []
-                      const orderSet = new Set(columnOrder)
-                      
-                      // Add columns in saved order
-                      columnOrder.forEach(id => {
-                        if (allColumnIds.includes(id)) {
-                          ordered.push(id)
-                        }
-                      })
-                      
-                      // Add remaining columns
-                      allColumnIds.forEach(id => {
-                        if (!orderSet.has(id)) {
-                          unordered.push(id)
-                        }
-                      })
-                      
-                      return [...ordered, ...unordered]
-                    })()
+                    const ordered: string[] = []
+                    const unordered: string[] = []
+                    const orderSet = new Set(columnOrder)
+
+                    // Add columns in saved order
+                    columnOrder.forEach(id => {
+                      if (allColumnIds.includes(id)) {
+                        ordered.push(id)
+                      }
+                    })
+
+                    // Add remaining columns
+                    allColumnIds.forEach(id => {
+                      if (!orderSet.has(id)) {
+                        unordered.push(id)
+                      }
+                    })
+
+                    return [...ordered, ...unordered]
+                  })()
                   : allColumnIds
-                
+
                 const handleDragEnd = (event: DragEndEvent) => {
                   const { active, over } = event
-                  
+
                   if (over && active.id !== over.id) {
                     const oldIndex = orderedColumnIds.indexOf(active.id as string)
                     const newIndex = orderedColumnIds.indexOf(over.id as string)
-                    
+
                     if (oldIndex !== -1 && newIndex !== -1) {
                       // Move the dragged column in the ordered list
                       const newOrderedIds = arrayMove(orderedColumnIds, oldIndex, newIndex)
-                      
+
                       // Merge with existing columnOrder to preserve columns not in the drag list
                       // This ensures we don't lose columns that might not be in orderedColumnIds
                       const existingOrderSet = new Set(columnOrder)
                       const newOrderSet = new Set(newOrderedIds)
-                      
+
                       // Start with the new order
                       const finalOrder = [...newOrderedIds]
-                      
+
                       // Add any columns from existing order that aren't in the new order
                       columnOrder.forEach(id => {
                         if (!newOrderSet.has(id) && allColumnIds.includes(id)) {
                           finalOrder.push(id)
                         }
                       })
-                      
+
                       // Add any columns from allColumnIds that aren't in either order
                       allColumnIds.forEach(id => {
                         if (!existingOrderSet.has(id) && !newOrderSet.has(id)) {
                           finalOrder.push(id)
                         }
                       })
-                      
+
                       setColumnOrder(finalOrder)
                     }
                   }
                 }
-                
+
                 return (
                   <DndContext
                     sensors={sensors}
@@ -4864,17 +4937,17 @@ export function DataTable() {
                         let column = isDataIn
                           ? table.getAllColumns().find(col => col.id === columnId)
                           : schemaColumns.find(col => col.id === columnId)
-                        
+
                         // If not found in schemaColumns, try all table columns
                         if (!column && !isDataIn) {
                           column = table.getAllColumns().find(col => col.id === columnId)
                         }
-                        
+
                         if (!column && !isDataIn) {
                           console.warn(`[Column Settings] Column ${columnId} not found in schemaColumns or table columns`)
                           return null
                         }
-                        
+
                         if (isDataIn) {
                           // Data_in column
                           const baseKey = columnId.replace('data_in.', '')
@@ -4924,7 +4997,7 @@ export function DataTable() {
                           const canSort = dataInColumn?.getCanSort() ?? false
                           const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
                           const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
-                          
+
                           return (
                             <SortableColumnItem key={columnId} id={columnId}>
                               <DropdownMenuSub>
@@ -5083,7 +5156,7 @@ export function DataTable() {
                           const canSort = column?.getCanSort() ?? false
                           const defaultSortForColumn = defaultSorting.find(s => s.id === columnId)
                           const sortValue = defaultSortForColumn ? (defaultSortForColumn.desc ? 'desc' : 'asc') : 'none'
-                          
+
                           return (
                             <SortableColumnItem key={columnId} id={columnId}>
                               <DropdownMenuSub>
@@ -5299,18 +5372,18 @@ export function DataTable() {
                       )}
                     </div>
                   </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  <div className="flex items-center justify-between gap-4 px-2 py-1.5">
-                    <Label htmlFor="card-view-mobile-switch" className="text-sm font-medium cursor-pointer">
-                      {t.cardView || "Card View"}
-                    </Label>
-                    <Switch
-                      id="card-view-mobile-switch"
-                      checked={cardViewModeMobile}
-                      onCheckedChange={setCardViewModeMobile}
-                    />
-                  </div>
-                </DropdownMenuSubContent>
+                  <DropdownMenuSubContent>
+                    <div className="flex items-center justify-between gap-4 px-2 py-1.5">
+                      <Label htmlFor="card-view-mobile-switch" className="text-sm font-medium cursor-pointer">
+                        {t.cardView || "Card View"}
+                      </Label>
+                      <Switch
+                        id="card-view-mobile-switch"
+                        checked={cardViewModeMobile}
+                        onCheckedChange={setCardViewModeMobile}
+                      />
+                    </div>
+                  </DropdownMenuSubContent>
                 </DropdownMenuSub>
               )}
               {!isMobile && (
@@ -5390,435 +5463,444 @@ export function DataTable() {
         value="outline"
         className="relative flex flex-col gap-4 overflow-auto px-0"
       >
-        {loading && (
-          <div className="flex items-center justify-center py-4">
-            <IconLoader className="size-6 animate-spin text-muted-foreground" />
-            <span className="ml-2 text-sm text-muted-foreground">
-              {t.loading ? t.loading.replace("{collection}", collectionLabel) : `Loading ${collectionLabel}...`}
-            </span>
-          </div>
-        )}
+
         {error && (
           <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-1 text-sm text-destructive">
             Error: {error}
           </div>
         )}
-        {!loading && !error && (
+        {!error && (
           <>
-        {(isMobile ? cardViewModeMobile : cardViewModeDesktop) ? (
-          // Card View
-          <div 
-            className={cn(
-              "grid gap-4",
-              isMobile ? "grid-cols-1" : ""
-            )}
-            style={!isMobile ? { gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` } : undefined}
-          >
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const allVisibleCells = row.getVisibleCells().filter(cell => 
-                  cell.column.id !== 'select' && cell.column.id !== 'actions'
-                )
-                // Separate title cell for header - prioritize title, fallback to name only if title is not available
-                const titleCell = allVisibleCells.find(cell => cell.column.id === 'title')
-                const nameCell = allVisibleCells.find(cell => cell.column.id === 'name')
-                // Use title if available, otherwise don't use name (user wants title, not name)
-                const headerCell = titleCell || null
-                // Filter out title from body cells (title goes to header), but keep name in body
-                const visibleCells = allVisibleCells.filter(cell => 
-                  cell.column.id !== 'title'
-                )
-                const actionsCell = row.getVisibleCells().find(cell => cell.column.id === 'actions')
-                const selectCell = row.getVisibleCells().find(cell => cell.column.id === 'select')
-                
-                return (
-                  <div
-                    key={row.id}
-                    className="rounded-lg border bg-primary-foreground p-3 space-y-2"
-                    onDoubleClick={() => onEditRequest(row)}
-                  >
-                    {/* Header with checkbox, title and actions */}
-                    <div className="flex items-center justify-between pb-2 border-b gap-2">
-                      {selectCell && (
-                        <div className="flex items-center">
-                          {flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}
-                        </div>
-                      )}
-                      {headerCell && (() => {
-                        // For card header, if title is JSON field with title/value structure, use title
-                        const rowData = row.original
-                        const titleValue = rowData?.title
-                        let displayTitle: React.ReactNode = null
-                        
-                        if (titleValue && typeof titleValue === 'string') {
-                          try {
-                            const parsed = JSON.parse(titleValue)
-                            if (parsed && typeof parsed === 'object') {
-                              const localeValue = parsed[locale] || parsed.en || parsed.ru || parsed.rs || null
-                              if (localeValue && typeof localeValue === 'object' && 'title' in localeValue) {
-                                // Use title for card header
-                                displayTitle = localeValue.title != null ? String(localeValue.title) : null
+            {(isMobile ? cardViewModeMobile : cardViewModeDesktop) ? (
+              // Card View
+              <div
+                className={cn(
+                  "grid gap-4",
+                  isMobile ? "grid-cols-1" : ""
+                )}
+                style={!isMobile ? { gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))` } : undefined}
+              >
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => {
+                    const allVisibleCells = row.getVisibleCells().filter(cell =>
+                      cell.column.id !== 'select' && cell.column.id !== 'actions'
+                    )
+                    // Separate title cell for header - prioritize title, fallback to name only if title is not available
+                    const titleCell = allVisibleCells.find(cell => cell.column.id === 'title')
+                    const nameCell = allVisibleCells.find(cell => cell.column.id === 'name')
+                    // Use title if available, otherwise don't use name (user wants title, not name)
+                    const headerCell = titleCell || null
+                    // Filter out title from body cells (title goes to header), but keep name in body
+                    const visibleCells = allVisibleCells.filter(cell =>
+                      cell.column.id !== 'title'
+                    )
+                    const actionsCell = row.getVisibleCells().find(cell => cell.column.id === 'actions')
+                    const selectCell = row.getVisibleCells().find(cell => cell.column.id === 'select')
+
+                    return (
+                      <div
+                        key={row.id}
+                        className="rounded-lg border bg-primary-foreground p-3 space-y-2"
+                        onDoubleClick={() => onEditRequest(row)}
+                      >
+                        {/* Header with checkbox, title and actions */}
+                        <div className="flex items-center justify-between pb-2 border-b gap-2">
+                          {selectCell && (
+                            <div className="flex items-center">
+                              {flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}
+                            </div>
+                          )}
+                          {headerCell && (() => {
+                            // For card header, if title is JSON field with title/value structure, use title
+                            const rowData = row.original
+                            const titleValue = rowData?.title
+                            let displayTitle: React.ReactNode = null
+
+                            if (titleValue && typeof titleValue === 'string') {
+                              try {
+                                const parsed = JSON.parse(titleValue)
+                                if (parsed && typeof parsed === 'object') {
+                                  const localeValue = parsed[locale] || parsed.en || parsed.ru || parsed.rs || null
+                                  if (localeValue && typeof localeValue === 'object' && 'title' in localeValue) {
+                                    // Use title for card header
+                                    displayTitle = localeValue.title != null ? String(localeValue.title) : null
+                                  }
+                                }
+                              } catch (e) {
+                                // Not JSON, use as is
                               }
                             }
-                          } catch (e) {
-                            // Not JSON, use as is
-                          }
-                        }
-                        
-                        // If we didn't extract title from JSON, use normal cell render
-                        if (displayTitle === null) {
-                          displayTitle = flexRender(headerCell.column.columnDef.cell, headerCell.getContext())
-                        }
-                        
-                        return (
-                          <div className="flex-1 font-semibold text-base truncate">
-                            {displayTitle}
-                          </div>
-                        )
-                      })()}
-                      {actionsCell && (
-                        <div className="ml-auto">
-                          {flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
-                        </div>
-                      )}
-                    </div>
-                    {/* Card content - fields on left, values on right */}
-                    <div className="space-y-2">
-                      {visibleCells.map((cell) => {
-                        // Extract baseKey for data_in fields
-                        const isDataInField = cell.column.id.startsWith('data_in.')
-                        const baseKey = isDataInField ? cell.column.id.replace('data_in.', '') : null
-                        
-                        const columnSchema = schema.find((col) => {
-                          if (isDataInField) {
-                            return false
-                          }
-                          return col.name === cell.column.id
-                        })
-                        
-                        // For data_in fields, use unified function to get label
-                        let fieldLabel: string
-                        if (isDataInField && baseKey) {
-                          // Use unified function to get field label
-                          const rowData = row.original
-                          const dataInLabel = getDataInFieldLabel(baseKey, rowData, locale, translations, state.collection)
-                          // Use label from function, or fallback to baseKey only if absolutely necessary
-                          fieldLabel = dataInLabel || baseKey
-                        } else {
-                          // For regular fields
-                          const columnTitle = columnSchema?.title || cell.column.id
-                          const dataTableFieldTitle = (translations as any)?.dataTable?.fields?.[state.collection]?.[cell.column.id]
-                          fieldLabel = dataTableFieldTitle || columnTitle
-                        }
-                        
-                        return (
-                          <div key={cell.id} className="flex items-center gap-2 text-sm">
-                            <div className="font-medium text-muted-foreground min-w-[120px] shrink-0 text-left">
-                              {fieldLabel}:
+
+                            // If we didn't extract title from JSON, use normal cell render
+                            if (displayTitle === null) {
+                              displayTitle = flexRender(headerCell.column.columnDef.cell, headerCell.getContext())
+                            }
+
+                            return (
+                              <div className="flex-1 font-semibold text-base truncate">
+                                {displayTitle}
+                              </div>
+                            )
+                          })()}
+                          {actionsCell && (
+                            <div className="ml-auto">
+                              {flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
                             </div>
-                            <div className="flex-1 text-left">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="rounded-lg border bg-primary-foreground p-6 text-center text-muted-foreground">
-                {t.noDataFound.replace("{collection}", collectionLabel)}
-              </div>
-            )}
-          </div>
-        ) : (
-          // Table View
-        <div className="overflow-x-auto rounded-lg border bg-primary-foreground">
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const canResize = header.column.getCanResize()
-                      const isResizing = header.column.getIsResizing()
-                      return (
-                        <TableHead 
-                          key={header.id} 
-                          colSpan={header.colSpan} 
-                          className={header.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 top-0 z-20 bg-muted' : header.column.id === 'select' ? 'p-0 pl-0' : ''}
-                          style={{ 
-                            width: header.getSize(), 
-                            position: header.column.id === 'actions' ? 'sticky' : 'relative',
-                            left: header.column.id === 'actions' ? 0 : undefined
-                          }}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                          {canResize && (
-                            <div
-                              onMouseDown={header.getResizeHandler()}
-                              onTouchStart={header.getResizeHandler()}
-                              className={`absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none ${
-                                isResizing ? 'bg-primary' : 'bg-transparent hover:bg-primary/50'
-                              }`}
-                              style={{ userSelect: 'none' }}
-                            />
                           )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              {/* Filter row - show filter inputs under headers */}
-              {showFilterRow && table.getHeaderGroups().length > 0 && (
-                <thead className="bg-muted/50">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={`filter-${headerGroup.id}`}>
-                      {headerGroup.headers.map((header) => {
-                        const columnId = header.column.id
-                        
-                        // Skip filter for row selection and actions columns
-                        if (columnId === 'select' || columnId === 'actions') {
+                        </div>
+                        {/* Card content - fields on left, values on right */}
+                        <div className="space-y-2">
+                          {visibleCells.map((cell) => {
+                            // Extract baseKey for data_in fields
+                            const isDataInField = cell.column.id.startsWith('data_in.')
+                            const baseKey = isDataInField ? cell.column.id.replace('data_in.', '') : null
+
+                            const columnSchema = schema.find((col) => {
+                              if (isDataInField) {
+                                return false
+                              }
+                              return col.name === cell.column.id
+                            })
+
+                            // For data_in fields, use unified function to get label
+                            let fieldLabel: string
+                            if (isDataInField && baseKey) {
+                              // Use unified function to get field label
+                              const rowData = row.original
+                              const dataInLabel = getDataInFieldLabel(baseKey, rowData, locale, translations, state.collection)
+                              // Use label from function, or fallback to baseKey only if absolutely necessary
+                              fieldLabel = dataInLabel || baseKey
+                            } else {
+                              // For regular fields
+                              const columnTitle = columnSchema?.title || cell.column.id
+                              const dataTableFieldTitle = (translations as any)?.dataTable?.fields?.[state.collection]?.[cell.column.id]
+                              fieldLabel = dataTableFieldTitle || columnTitle
+                            }
+
+                            return (
+                              <div key={cell.id} className="flex items-center gap-2 text-sm">
+                                <div className="font-medium text-muted-foreground min-w-[120px] shrink-0 text-left">
+                                  {fieldLabel}:
+                                </div>
+                                <div className="flex-1 text-left">
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="rounded-lg border bg-primary-foreground p-6 text-center text-muted-foreground">
+                    {t.noDataFound.replace("{collection}", collectionLabel)}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Table View
+              <div className="overflow-x-auto rounded-lg border bg-primary-foreground">
+                <Table>
+                  <TableHeader className="bg-muted sticky top-0 z-10">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          const canResize = header.column.getCanResize()
+                          const isResizing = header.column.getIsResizing()
                           return (
-                            <TableHead key={`filter-${header.id}`} className="p-0">
-                              {header.isPlaceholder ? null : <div />}
+                            <TableHead
+                              key={header.id}
+                              colSpan={header.colSpan}
+                              className={header.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 top-0 z-20 bg-muted' : header.column.id === 'select' ? 'p-0 pl-0' : ''}
+                              style={{
+                                width: header.getSize(),
+                                position: header.column.id === 'actions' ? 'sticky' : 'relative',
+                                left: header.column.id === 'actions' ? 0 : undefined
+                              }}
+                            >
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                              {canResize && (
+                                <div
+                                  onMouseDown={header.getResizeHandler()}
+                                  onTouchStart={header.getResizeHandler()}
+                                  className={`absolute top-0 right-0 h-full w-1 cursor-col-resize select-none touch-none ${isResizing ? 'bg-primary' : 'bg-transparent hover:bg-primary/50'
+                                    }`}
+                                  style={{ userSelect: 'none' }}
+                                />
+                              )}
                             </TableHead>
                           )
-                        }
-                        
-                        // Find column schema to determine filter type
-                        const colSchema = schema.find((col) => {
-                          if (columnId.startsWith('data_in.')) {
-                            return false // data_in columns handled separately
-                          }
-                          return col.name === columnId
-                        })
-                        
-                        // Determine if this is a multiselect field
-                        const isMultiselect = colSchema && (
-                          (colSchema.fieldType === 'select' && colSchema.selectOptions) ||
-                          (colSchema.fieldType === 'enum' && colSchema.enum) ||
-                          colSchema.fieldType === 'array' ||
-                          (colSchema as any).multiple === true
-                        )
-                        
-                        // Get options for multiselect
-                        let multiselectOptions: Array<{ value: string; label: string }> = []
-                        if (isMultiselect) {
-                          if (colSchema.fieldType === 'select' && colSchema.selectOptions) {
-                            multiselectOptions = colSchema.selectOptions
-                          } else if (colSchema.fieldType === 'enum' && colSchema.enum) {
-                            multiselectOptions = colSchema.enum.values.map((val, idx) => ({
-                              value: val,
-                              label: colSchema.enum!.labels[idx] || val
-                            }))
-                          }
-                        }
-                        
-                        // Get current filter value (array for multiselect, string for text)
-                        const currentFilterValue = columnFilterValues[columnId]
-                        const multiselectValue = isMultiselect 
-                          ? (Array.isArray(currentFilterValue) ? currentFilterValue : [])
-                          : []
-                        const textValue = !isMultiselect 
-                          ? (typeof currentFilterValue === 'string' ? currentFilterValue : '')
-                          : ''
-                        
-                        return (
-                          <TableHead key={`filter-${header.id}`} className="p-1">
-                            {header.isPlaceholder ? null : (
-                              <div className="flex items-center justify-center">
-                                {isMultiselect && multiselectOptions.length > 0 ? (
-                                  <ColumnFilterMultiselect
-                                    options={multiselectOptions}
-                                    value={multiselectValue}
-                                    translations={translations}
-                                    onValueChange={(values) => {
-                                      setColumnFilterValues(prev => ({
-                                        ...prev,
-                                        [columnId]: values
-                                      }))
-                                      // Update columnFilters state
-                                      if (values.length > 0) {
-                                        setColumnFilters(prev => {
-                                          const existing = prev.find(f => f.id === columnId)
-                                          if (existing) {
-                                            return prev.map(f => 
-                                              f.id === columnId 
-                                                ? { ...f, value: values }
-                                                : f
-                                            )
-                                          }
-                                          return [...prev, { id: columnId, value: values }]
-                                        })
-                                      } else {
-                                        setColumnFilters(prev => prev.filter(f => f.id !== columnId))
-                                      }
-                                    }}
-                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
-                                  />
-                                ) : (
-                                  <Input
-                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
-                                    value={textValue}
-                                    onChange={(e) => {
-                                      const value = e.target.value
-                                      setColumnFilterValues(prev => ({
-                                        ...prev,
-                                        [columnId]: value
-                                      }))
-                                      // Update columnFilters state
-                                      if (value) {
-                                        setColumnFilters(prev => {
-                                          const existing = prev.find(f => f.id === columnId)
-                                          if (existing) {
-                                            return prev.map(f => 
-                                              f.id === columnId 
-                                                ? { ...f, value }
-                                                : f
-                                            )
-                                          }
-                                          return [...prev, { id: columnId, value }]
-                                        })
-                                      } else {
-                                        setColumnFilters(prev => prev.filter(f => f.id !== columnId))
-                                      }
-                                    }}
-                                    className="h-7 text-xs"
-                                    size={1}
-                                  />
-                                )}
-                              </div>
-                            )}
-                          </TableHead>
-                        )
-                      })}
-                    </TableRow>
-                  ))}
-                </thead>
-              )}
-                <TableBody>
-                {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        onDoubleClick={() => onEditRequest(row)}
-                        className="cursor-pointer bg-primary-foreground"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell 
-                            key={cell.id} 
-                            className={cell.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full' : cell.column.id === 'select' ? 'p-0 pl-0' : ''}
-                            style={{ 
-                              width: cell.column.getSize(), 
-                              position: cell.column.id === 'actions' ? 'sticky' : undefined,
-                              left: cell.column.id === 'actions' ? 0 : undefined
-                            }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
+                        })}
                       </TableRow>
-                    ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                        {t.noDataFound.replace("{collection}", collectionLabel)}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-        </div>
-        )}
-        <div className="flex items-center justify-between px-0">
-          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                    ))}
+                  </TableHeader>
+                  {/* Filter row - show filter inputs under headers */}
+                  {showFilterRow && table.getHeaderGroups().length > 0 && (
+                    <thead className="bg-muted/50">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={`filter-${headerGroup.id}`}>
+                          {headerGroup.headers.map((header) => {
+                            const columnId = header.column.id
+
+                            // Skip filter for row selection and actions columns
+                            if (columnId === 'select' || columnId === 'actions') {
+                              return (
+                                <TableHead key={`filter-${header.id}`} className="p-0">
+                                  {header.isPlaceholder ? null : <div />}
+                                </TableHead>
+                              )
+                            }
+
+                            // Find column schema to determine filter type
+                            const colSchema = schema.find((col) => {
+                              if (columnId.startsWith('data_in.')) {
+                                return false // data_in columns handled separately
+                              }
+                              return col.name === columnId
+                            })
+
+                            // Determine if this is a multiselect field
+                            const isMultiselect = colSchema && (
+                              (colSchema.fieldType === 'select' && colSchema.selectOptions) ||
+                              (colSchema.fieldType === 'enum' && colSchema.enum) ||
+                              colSchema.fieldType === 'array' ||
+                              (colSchema as any).multiple === true
+                            )
+
+                            // Get options for multiselect
+                            let multiselectOptions: Array<{ value: string; label: string }> = []
+                            if (isMultiselect) {
+                              if (colSchema.fieldType === 'select' && colSchema.selectOptions) {
+                                multiselectOptions = colSchema.selectOptions
+                              } else if (colSchema.fieldType === 'enum' && colSchema.enum) {
+                                multiselectOptions = colSchema.enum.values.map((val, idx) => ({
+                                  value: val,
+                                  label: colSchema.enum!.labels[idx] || val
+                                }))
+                              }
+                            }
+
+                            // Get current filter value (array for multiselect, string for text)
+                            const currentFilterValue = columnFilterValues[columnId]
+                            const multiselectValue = isMultiselect
+                              ? (Array.isArray(currentFilterValue) ? currentFilterValue : [])
+                              : []
+                            const textValue = !isMultiselect
+                              ? (typeof currentFilterValue === 'string' ? currentFilterValue : '')
+                              : ''
+
+                            return (
+                              <TableHead key={`filter-${header.id}`} className="p-1">
+                                {header.isPlaceholder ? null : (
+                                  <div className="flex items-center justify-center">
+                                    {isMultiselect && multiselectOptions.length > 0 ? (
+                                      <ColumnFilterMultiselect
+                                        options={multiselectOptions}
+                                        value={multiselectValue}
+                                        translations={translations}
+                                        onValueChange={(values) => {
+                                          setColumnFilterValues(prev => ({
+                                            ...prev,
+                                            [columnId]: values
+                                          }))
+                                          // Update columnFilters state
+                                          if (values.length > 0) {
+                                            setColumnFilters(prev => {
+                                              const existing = prev.find(f => f.id === columnId)
+                                              if (existing) {
+                                                return prev.map(f =>
+                                                  f.id === columnId
+                                                    ? { ...f, value: values }
+                                                    : f
+                                                )
+                                              }
+                                              return [...prev, { id: columnId, value: values }]
+                                            })
+                                          } else {
+                                            setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                          }
+                                        }}
+                                        placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
+                                      />
+                                    ) : (
+                                      <Input
+                                        placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
+                                        value={textValue}
+                                        onChange={(e) => {
+                                          const value = e.target.value
+                                          setColumnFilterValues(prev => ({
+                                            ...prev,
+                                            [columnId]: value
+                                          }))
+                                          // Update columnFilters state
+                                          if (value) {
+                                            setColumnFilters(prev => {
+                                              const existing = prev.find(f => f.id === columnId)
+                                              if (existing) {
+                                                return prev.map(f =>
+                                                  f.id === columnId
+                                                    ? { ...f, value }
+                                                    : f
+                                                )
+                                              }
+                                              return [...prev, { id: columnId, value }]
+                                            })
+                                          } else {
+                                            setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                          }
+                                        }}
+                                        className="h-7 text-xs"
+                                        size={1}
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                              </TableHead>
+                            )
+                          })}
+                        </TableRow>
+                      ))}
+                    </thead>
+                  )}
+                  <TableBody>
+                    {loading ?
+                      (
+                        <TableRow
+                          key={`loading`}
+                          className="cursor-pointer bg-primary-foreground"
+                        > <TableCell
+                          className={'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full'}
+                          colSpan={100}
+                        >
+                            <div className="flex items-center justify-center py-4">
+                              <IconLoader className="size-6 animate-spin text-muted-foreground" />
+                              <span className="ml-2 text-sm text-muted-foreground">
+                                {t.loading ? t.loading.replace("{collection}", collectionLabel) : `Loading ${collectionLabel}...`}
+                              </span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : table.getRowModel().rows?.length ? (
+                        table.getRowModel().rows.map((row) => (
+                          <TableRow
+                            key={row.id}
+                            data-state={row.getIsSelected() && "selected"}
+                            onDoubleClick={() => onEditRequest(row)}
+                            className="cursor-pointer bg-primary-foreground"
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell
+                                key={cell.id}
+                                className={cell.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full' : cell.column.id === 'select' ? 'p-0 pl-0' : ''}
+                                style={{
+                                  width: cell.column.getSize(),
+                                  position: cell.column.id === 'actions' ? 'sticky' : undefined,
+                                  left: cell.column.id === 'actions' ? 0 : undefined
+                                }}
+                              >
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={columns.length}
+                            className="h-24 text-center"
+                          >
+                            {t.noDataFound.replace("{collection}", collectionLabel)}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-0">
+              <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
                 {t.selectedRecords.replace('{count}', String(table.getFilteredSelectedRowModel().rows.length)).replace('{total}', String(total))}
-          </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                {t.rowsPerPage}
-              </Label>
-              <Select
-                value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => {
-                  const pageSize = Number(value)
-                  table.setPageSize(pageSize)
-                  // Also update default page size
-                  setDefaultPageSize(pageSize)
-                }}
-              >
-                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-fit items-center justify-center text-sm font-medium">
+              </div>
+              <div className="flex w-full items-center gap-8 lg:w-fit">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                    {t.rowsPerPage}
+                  </Label>
+                  <Select
+                    value={`${table.getState().pagination.pageSize}`}
+                    onValueChange={(value) => {
+                      const pageSize = Number(value)
+                      table.setPageSize(pageSize)
+                      // Also update default page size
+                      setDefaultPageSize(pageSize)
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                      <SelectValue
+                        placeholder={table.getState().pagination.pageSize}
+                      />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                      {[10, 20, 30, 40, 50].map((pageSize) => (
+                        <SelectItem key={pageSize} value={`${pageSize}`}>
+                          {pageSize}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex w-fit items-center justify-center text-sm font-medium">
                   {t.page.replace('{page}', String(state.page)).replace('{total}', String(totalPages || 1))}
-            </div>
-            <div className="ml-auto flex items-center gap-2 lg:ml-0">
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(0)}
+                </div>
+                <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                  <Button
+                    variant="outline"
+                    className="hidden h-8 w-8 p-0 lg:flex"
+                    onClick={() => table.setPageIndex(0)}
                     disabled={state.page === 1}
-              >
-                <span className="sr-only">Go to first page</span>
-                <IconChevronsLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.previousPage()}
+                  >
+                    <span className="sr-only">Go to first page</span>
+                    <IconChevronsLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8"
+                    size="icon"
+                    onClick={() => table.previousPage()}
                     disabled={state.page === 1}
-              >
-                <span className="sr-only">Go to previous page</span>
-                <IconChevronLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.nextPage()}
+                  >
+                    <span className="sr-only">Go to previous page</span>
+                    <IconChevronLeft />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="size-8"
+                    size="icon"
+                    onClick={() => table.nextPage()}
                     disabled={state.page >= totalPages}
-              >
-                <span className="sr-only">Go to next page</span>
-                <IconChevronRight />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden size-8 lg:flex"
-                size="icon"
+                  >
+                    <span className="sr-only">Go to next page</span>
+                    <IconChevronRight />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="hidden size-8 lg:flex"
+                    size="icon"
                     onClick={() => table.setPageIndex(totalPages - 1)}
                     disabled={state.page >= totalPages}
-              >
-                <span className="sr-only">Go to last page</span>
-                <IconChevronsRight />
-              </Button>
+                  >
+                    <span className="sr-only">Go to last page</span>
+                    <IconChevronsRight />
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
           </>
         )}
       </TabsContent>
@@ -5867,27 +5949,27 @@ export function DataTable() {
       <ResponsiveDialog
         open={createOpen}
         onOpenChange={(open) => {
-        setCreateOpen(open)
-        if (!open) {
-          // Clear form data and price inputs when dialog closes
-          setFormData({})
-          setCreateError(null)
-          setCreateFormTab("main")
-          setCreateDataInLanguage(locale)
-          setCreateDataInEntries([])
-          setCreateDataInRaw("{}")
-          setCreateDataInRawError(null)
-          setPriceInputs(prev => {
-            const newInputs = { ...prev }
-            editableFields.forEach(field => {
-              if (field.fieldType === 'price') {
-                delete newInputs[`create-${field.name}`]
-              }
+          setCreateOpen(open)
+          if (!open) {
+            // Clear form data and price inputs when dialog closes
+            setFormData({})
+            setCreateError(null)
+            setCreateFormTab("main")
+            setCreateDataInLanguage(locale)
+            setCreateDataInEntries([])
+            setCreateDataInRaw("{}")
+            setCreateDataInRawError(null)
+            setPriceInputs(prev => {
+              const newInputs = { ...prev }
+              editableFields.forEach(field => {
+                if (field.fieldType === 'price') {
+                  delete newInputs[`create-${field.name}`]
+                }
+              })
+              return newInputs
             })
-            return newInputs
-          })
-        }
-      }}
+          }
+        }}
         onlyDrawer
         direction="right"
         handleOnly
@@ -5912,7 +5994,7 @@ export function DataTable() {
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
-                      {editableFields                      .filter((f) => {
+                      {editableFields.filter((f) => {
                         if (f.name === "data_in") return false
                         if (state.collection === 'roles') {
                           // For roles, show: title, name, description, is_system, order, xaid
@@ -5924,274 +6006,274 @@ export function DataTable() {
                         }
                         return true
                       }).map((field) => (
-                    <div key={field.name} className="flex flex-col gap-2">
-                {field.fieldType === 'boolean' ? (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`field-${field.name}`}
-                      checked={formData[field.name] === true}
-                      onCheckedChange={(checked) => handleFieldChange(field.name, checked === true)}
-                    />
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium cursor-pointer">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                    </Label>
-                  </div>
-                ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <DateTimePicker
-                      mode={field.fieldType}
-                      value={formData[field.name] || null}
-                      onChange={(date) => handleFieldChange(field.name, date)}
-                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
-                    />
-                  </>
-                ) : field.fieldType === 'phone' ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <PhoneInput
-                      value={formData[field.name] || ''}
-                      onChange={(value) => handleFieldChange(field.name, value || '')}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                    />
-                  </>
-                ) : field.fieldType === 'password' ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`field-${field.name}`}
-                      type="password"
-                      required={!field.nullable}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                      minLength={8}
-                    />
-                    <Label htmlFor={`field-${field.name}-confirm`} className="text-sm font-medium">
-                      {t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`field-${field.name}-confirm`}
-                      type="password"
-                      required={!field.nullable}
-                      value={formData[`${field.name}_confirm`] || ""}
-                      onChange={(e) => handleFieldChange(`${field.name}_confirm`, e.target.value)}
-                      placeholder={t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
-                      minLength={8}
-                    />
-                    {formData[field.name] && formData[`${field.name}_confirm`] && formData[field.name] !== formData[`${field.name}_confirm`] && (
-                      <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
-                    )}
-                  </>
-                ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                        {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                        {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                      </Label>
-                      <Tabs
-                        value={jsonFieldLanguage[field.name] || locale}
-                        onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
-                        className="w-auto"
-                      >
-                        <TabsList className="h-8">
-                          {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
-                            <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
-                              {l.shortName}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <Tabs
-                      value={jsonFieldLanguage[field.name] || locale}
-                      onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
-                      className="w-full"
-                    >
-                      {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
-                        <TabsContent key={l.code} value={l.code} className="mt-0">
-                          <Input
-                            id={`field-${field.name}_${l.code}`}
-                            type="text"
-                            required={!field.nullable}
-                            value={formData[`${field.name}_${l.code}`] || ""}
-                            onChange={(e) => handleFieldChange(`${field.name}_${l.code}`, e.target.value)}
-                            placeholder={
-                              t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
-                              `Enter ${field.title || field.name} (${l.name})`
-                            }
-                          />
-                        </TabsContent>
+                        <div key={field.name} className="flex flex-col gap-2">
+                          {field.fieldType === 'boolean' ? (
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`field-${field.name}`}
+                                checked={formData[field.name] === true}
+                                onCheckedChange={(checked) => handleFieldChange(field.name, checked === true)}
+                              />
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium cursor-pointer">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                              </Label>
+                            </div>
+                          ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <DateTimePicker
+                                mode={field.fieldType}
+                                value={formData[field.name] || null}
+                                onChange={(date) => handleFieldChange(field.name, date)}
+                                placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                              />
+                            </>
+                          ) : field.fieldType === 'phone' ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <PhoneInput
+                                value={formData[field.name] || ''}
+                                onChange={(value) => handleFieldChange(field.name, value || '')}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                              />
+                            </>
+                          ) : field.fieldType === 'password' ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`field-${field.name}`}
+                                type="password"
+                                required={!field.nullable}
+                                value={formData[field.name] || ""}
+                                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                                minLength={8}
+                              />
+                              <Label htmlFor={`field-${field.name}-confirm`} className="text-sm font-medium">
+                                {t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`field-${field.name}-confirm`}
+                                type="password"
+                                required={!field.nullable}
+                                value={formData[`${field.name}_confirm`] || ""}
+                                onChange={(e) => handleFieldChange(`${field.name}_confirm`, e.target.value)}
+                                placeholder={t.form?.confirm?.replace('{field}', field.title || field.name) || `Confirm ${field.title || field.name}`}
+                                minLength={8}
+                              />
+                              {formData[field.name] && formData[`${field.name}_confirm`] && formData[field.name] !== formData[`${field.name}_confirm`] && (
+                                <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
+                              )}
+                            </>
+                          ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                  {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                  {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                                </Label>
+                                <Tabs
+                                  value={jsonFieldLanguage[field.name] || locale}
+                                  onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
+                                  className="w-auto"
+                                >
+                                  <TabsList className="h-8">
+                                    {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                                      <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                                        {l.shortName}
+                                      </TabsTrigger>
+                                    ))}
+                                  </TabsList>
+                                </Tabs>
+                              </div>
+                              <Tabs
+                                value={jsonFieldLanguage[field.name] || locale}
+                                onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
+                                className="w-full"
+                              >
+                                {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                                  <TabsContent key={l.code} value={l.code} className="mt-0">
+                                    <Input
+                                      id={`field-${field.name}_${l.code}`}
+                                      type="text"
+                                      required={!field.nullable}
+                                      value={formData[`${field.name}_${l.code}`] || ""}
+                                      onChange={(e) => handleFieldChange(`${field.name}_${l.code}`, e.target.value)}
+                                      placeholder={
+                                        t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
+                                        `Enter ${field.title || field.name} (${l.name})`
+                                      }
+                                    />
+                                  </TabsContent>
+                                ))}
+                              </Tabs>
+                            </>
+                          ) : (field as any).fieldType === 'price' ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`field-${field.name}`}
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                required={!field.nullable}
+                                value={
+                                  priceInputs[`create-${field.name}`] !== undefined
+                                    ? priceInputs[`create-${field.name}`]
+                                    : formData[field.name] === undefined || formData[field.name] === null
+                                      ? ""
+                                      : (Number(formData[field.name]) / 100).toFixed(2)
+                                }
+                                onChange={(e) => {
+                                  let v = e.target.value.replace(/,/g, '.')
+                                  setPriceInputs((prev) => ({ ...prev, [`create-${field.name}`]: v }))
+                                  if (v.includes('.')) {
+                                    const [i, d] = v.split('.')
+                                    v = `${i}.${d.slice(0, 2)}`
+                                  }
+                                  const num = v === '' ? NaN : Number(v)
+                                  const cents = !isFinite(num) ? null : Math.round(num * 100)
+                                  handleFieldChange(field.name, cents)
+                                }}
+                                onBlur={(e) => {
+                                  let v = e.target.value.replace(/,/g, '.')
+                                  if (v.includes('.')) {
+                                    const [i, d] = v.split('.')
+                                    v = `${i}.${d.slice(0, 2)}`
+                                  }
+                                  const num = v === '' ? NaN : Number(v)
+                                  if (isFinite(num)) {
+                                    const formatted = num.toFixed(2)
+                                    setPriceInputs((prev) => ({ ...prev, [`create-${field.name}`]: formatted }))
+                                    const cents = Math.round(num * 100)
+                                    handleFieldChange(field.name, cents)
+                                  }
+                                }}
+                                placeholder={`Enter ${field.title || field.name}`}
+                              />
+                            </>
+                          ) : field.fieldType === 'select' && field.selectOptions ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <ComboboxSelect
+                                id={`field-${field.name}`}
+                                options={field.selectOptions}
+                                value={formData[field.name] || ""}
+                                onValueChange={(value) => handleFieldChange(field.name, value)}
+                                placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                                disabled={false}
+                                required={!field.nullable}
+                                translations={t}
+                              />
+                            </>
+                          ) : field.fieldType === 'enum' && field.enum ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Select
+                                value={formData[field.name] || ""}
+                                onValueChange={(value) => handleFieldChange(field.name, value)}
+                                required={!field.nullable}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={`Select ${field.title || field.name}`} />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[300px] z-9999" position="popper" sideOffset={5}>
+                                  {field.enum.values.map((val, index) => (
+                                    <SelectItem key={val} value={val}>
+                                      {field.enum!.labels[index] || val}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </>
+                          ) : field.relation ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <RelationSelect
+                                relation={field.relation}
+                                value={formData[field.name]}
+                                onChange={(value) => handleFieldChange(field.name, value)}
+                                required={!field.nullable}
+                                translations={t}
+                                search={state.search}
+                              />
+                            </>
+                          ) : field.textarea ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Textarea
+                                id={`field-${field.name}`}
+                                required={!field.nullable}
+                                value={formData[field.name] || ""}
+                                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                                placeholder={`Enter ${field.title || field.name}`}
+                                rows={6}
+                              />
+                            </>
+                          ) : field.name === 'description' ? (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Textarea
+                                id={`field-${field.name}`}
+                                required={!field.nullable}
+                                value={formData[field.name] || ""}
+                                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                                rows={4}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`field-${field.name}`}
+                                type={field.fieldType === 'email' ? 'email' : field.fieldType === 'number' ? 'number' : 'text'}
+                                required={!field.nullable}
+                                value={formData[field.name] || ""}
+                                onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                              />
+                            </>
+                          )}
+                        </div>
                       ))}
-                    </Tabs>
-                  </>
-                ) : (field as any).fieldType === 'price' ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`field-${field.name}`}
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      required={!field.nullable}
-                      value={
-                        priceInputs[`create-${field.name}`] !== undefined
-                          ? priceInputs[`create-${field.name}`]
-                          : formData[field.name] === undefined || formData[field.name] === null
-                            ? ""
-                            : (Number(formData[field.name]) / 100).toFixed(2)
-                      }
-                      onChange={(e) => {
-                        let v = e.target.value.replace(/,/g, '.')
-                        setPriceInputs((prev) => ({ ...prev, [`create-${field.name}`]: v }))
-                        if (v.includes('.')) {
-                          const [i, d] = v.split('.')
-                          v = `${i}.${d.slice(0, 2)}`
-                        }
-                        const num = v === '' ? NaN : Number(v)
-                        const cents = !isFinite(num) ? null : Math.round(num * 100)
-                        handleFieldChange(field.name, cents)
-                      }}
-                      onBlur={(e) => {
-                        let v = e.target.value.replace(/,/g, '.')
-                        if (v.includes('.')) {
-                          const [i, d] = v.split('.')
-                          v = `${i}.${d.slice(0, 2)}`
-                        }
-                        const num = v === '' ? NaN : Number(v)
-                        if (isFinite(num)) {
-                          const formatted = num.toFixed(2)
-                          setPriceInputs((prev) => ({ ...prev, [`create-${field.name}`]: formatted }))
-                          const cents = Math.round(num * 100)
-                          handleFieldChange(field.name, cents)
-                        }
-                      }}
-                      placeholder={`Enter ${field.title || field.name}`}
-                    />
-                  </>
-                ) : field.fieldType === 'select' && field.selectOptions ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <ComboboxSelect
-                      id={`field-${field.name}`}
-                      options={field.selectOptions}
-                      value={formData[field.name] || ""}
-                      onValueChange={(value) => handleFieldChange(field.name, value)}
-                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
-                      disabled={false}
-                      required={!field.nullable}
-                      translations={t}
-                    />
-                  </>
-                ) : field.fieldType === 'enum' && field.enum ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Select
-                      value={formData[field.name] || ""}
-                      onValueChange={(value) => handleFieldChange(field.name, value)}
-                      required={!field.nullable}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Select ${field.title || field.name}`} />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px] z-9999" position="popper" sideOffset={5}>
-                        {field.enum.values.map((val, index) => (
-                          <SelectItem key={val} value={val}>
-                            {field.enum!.labels[index] || val}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
-                ) : field.relation ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <RelationSelect
-                      relation={field.relation}
-                      value={formData[field.name]}
-                      onChange={(value) => handleFieldChange(field.name, value)}
-                      required={!field.nullable}
-                      translations={t}
-                      search={state.search}
-                    />
-                  </>
-                ) : field.textarea ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Textarea
-                      id={`field-${field.name}`}
-                      required={!field.nullable}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={`Enter ${field.title || field.name}`}
-                      rows={6}
-                    />
-                  </>
-                ) : field.name === 'description' ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Textarea
-                      id={`field-${field.name}`}
-                      required={!field.nullable}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                      rows={4}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`field-${field.name}`}
-                      type={field.fieldType === 'email' ? 'email' : field.fieldType === 'number' ? 'number' : 'text'}
-                      required={!field.nullable}
-                      value={formData[field.name] || ""}
-                      onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                    />
-                  </>
-                )}
-                      </div>
-                    ))}
                     </div>
                   </TabsContent>
                   {state.collection === 'roles' && (
                     <TabsContent value="info" className="mt-0">
-                    <div className="grid gap-4">
+                      <div className="grid gap-4">
                         {schema.filter((f) => ['id', 'uuid', 'order', 'created_at', 'updated_at'].includes(f.name)).map((field) => {
                           // For create form, these fields won't have values yet
                           const value = formData[field.name] ?? null
@@ -6236,14 +6318,14 @@ export function DataTable() {
                           </TabsList>
                         </Tabs>
                       </div>
-                      
+
                       {/* Data_in fields */}
                       <div className="grid gap-4">
                         <div className="flex items-center justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => {
                               // Add a new entry with a temporary unique key
                               const tempKey = `new_field_${Date.now()}`
@@ -6256,12 +6338,12 @@ export function DataTable() {
                                 return [...prev, ...newEntries]
                               })
                             }}
-                        >
-                          <IconPlus className="mr-2 h-4 w-4" />
-                          {t.addField || "Add field"}
-                        </Button>
-                      </div>
-                      <div className="grid gap-3">
+                          >
+                            <IconPlus className="mr-2 h-4 w-4" />
+                            {t.addField || "Add field"}
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
                           {(() => {
                             const uniqueBaseKeys = getUniqueBaseKeys(createDataInEntries)
                             if (uniqueBaseKeys.length === 0) {
@@ -6273,17 +6355,17 @@ export function DataTable() {
                                 const { value } = getTitleAndValueForLanguage(createDataInEntries, baseKey, lang)
                                 return value && value.trim() !== ''
                               })
-                              
+
                               const tempKey = createKeyInputs[baseKey] ?? baseKey
                               const tempTitle = createTitleInputs[baseKey] ?? currentTitle
                               const tempValue = createValueInputs[baseKey] ?? currentValue
-                              
+
                               return (
                                 <div key={`create-entry-${baseKey}-${idx}`} className="flex gap-2 items-center">
-                              <Input
+                                  <Input
                                     value={tempKey}
-                                onChange={(e) => {
-                                  const v = e.target.value
+                                    onChange={(e) => {
+                                      const v = e.target.value
                                       // Update only the temporary state, don't update entries yet
                                       setCreateKeyInputs((prev) => ({
                                         ...prev,
@@ -6305,7 +6387,7 @@ export function DataTable() {
                                       setCreateDataInEntries((prev) => {
                                         const result: Array<{ key: string; title: string; value: string }> = []
                                         const oldData: Record<string, { title: string; value: string }> = {}
-                                        
+
                                         // Collect old title and value for all languages
                                         supportedLanguageCodes.forEach(lang => {
                                           const oldLangKey = `${baseKey}_${lang}`
@@ -6314,7 +6396,7 @@ export function DataTable() {
                                             oldData[lang] = { title: oldEntry.title, value: oldEntry.value }
                                           }
                                         })
-                                        
+
                                         // Keep entries that don't match this base key
                                         prev.forEach(entry => {
                                           const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
@@ -6326,7 +6408,7 @@ export function DataTable() {
                                           }
                                           result.push(entry)
                                         })
-                                        
+
                                         // Add new entries with new base key
                                         supportedLanguageCodes.forEach(lang => {
                                           result.push({
@@ -6335,7 +6417,7 @@ export function DataTable() {
                                             value: oldData[lang]?.value || ''
                                           })
                                         })
-                                        
+
                                         // Update temp key state with new base key
                                         setCreateKeyInputs((prev) => {
                                           const newState = { ...prev }
@@ -6343,17 +6425,17 @@ export function DataTable() {
                                           newState[v] = v
                                           return newState
                                         })
-                                        
+
                                         return result
                                       })
                                     }}
                                     placeholder="Name (key)"
                                     className="flex-1"
                                   />
-                                <Input
+                                  <Input
                                     value={tempTitle}
-                                  onChange={(e) => {
-                                    const v = e.target.value
+                                    onChange={(e) => {
+                                      const v = e.target.value
                                       // Update only temporary state, don't update entries yet
                                       setCreateTitleInputs((prev) => ({
                                         ...prev,
@@ -6368,7 +6450,7 @@ export function DataTable() {
                                           const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
                                           return !value || value.trim() === ''
                                         })
-                                        
+
                                         const currentData = getTitleAndValueForLanguage(prev, baseKey, createDataInLanguage)
                                         return updateTitleAndValueForLanguage(prev, baseKey, createDataInLanguage, v, currentData.value, allEmpty && currentData.value.trim() !== '')
                                       })
@@ -6401,7 +6483,7 @@ export function DataTable() {
                                           const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
                                           return !value || value.trim() === ''
                                         })
-                                        
+
                                         const currentData = getTitleAndValueForLanguage(prev, baseKey, createDataInLanguage)
                                         return updateTitleAndValueForLanguage(prev, baseKey, createDataInLanguage, currentData.title, v, allEmpty && v.trim() !== '')
                                       })
@@ -6411,14 +6493,14 @@ export function DataTable() {
                                         delete newState[baseKey]
                                         return newState
                                       })
-                                  }}
-                                  placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
+                                    }}
+                                    placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
                                     className="flex-1"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
                                     onClick={(e) => {
                                       e.preventDefault()
                                       e.stopPropagation()
@@ -6435,15 +6517,15 @@ export function DataTable() {
                                     }}
                                   >
                                     <IconX className="h-4 w-4" />
-                                  <span className="sr-only">Remove</span>
-                                </Button>
-                              </div>
+                                    <span className="sr-only">Remove</span>
+                                  </Button>
+                                </div>
                               )
                             })
                           })()}
-                            </div>
+                        </div>
                       </div>
-                      
+
                       {/* Raw JSON */}
                       <div className="grid gap-2">
                         <div className="flex items-center justify-between">
@@ -6513,29 +6595,29 @@ export function DataTable() {
       <ResponsiveDialog
         open={editOpen}
         onOpenChange={(open) => {
-        setEditOpen(open)
-        if (!open) {
-          // Clear edit data and price inputs when dialog closes
-          setEditData({})
-          setEditError(null)
-          setRecordToEdit(null)
-          setIsDuplicate(false)
-          setEditFormTab("main")
-          setEditDataInLanguage(locale)
-          setEditDataInEntries([])
-          setEditDataInRaw("{}")
-          setEditDataInRawError(null)
-          setPriceInputs(prev => {
-            const newInputs = { ...prev }
-            schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
-              if (field.fieldType === 'price') {
-                delete newInputs[`edit-${field.name}`]
-              }
+          setEditOpen(open)
+          if (!open) {
+            // Clear edit data and price inputs when dialog closes
+            setEditData({})
+            setEditError(null)
+            setRecordToEdit(null)
+            setIsDuplicate(false)
+            setEditFormTab("main")
+            setEditDataInLanguage(locale)
+            setEditDataInEntries([])
+            setEditDataInRaw("{}")
+            setEditDataInRawError(null)
+            setPriceInputs(prev => {
+              const newInputs = { ...prev }
+              schema.filter((f) => !isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden).forEach(field => {
+                if (field.fieldType === 'price') {
+                  delete newInputs[`edit-${field.name}`]
+                }
+              })
+              return newInputs
             })
-            return newInputs
-          })
-        }
-      }}
+          }
+        }}
         onlyDrawer
         direction="right"
         handleOnly
@@ -6545,7 +6627,7 @@ export function DataTable() {
             <div className="border-b px-6 py-4">
               <ResponsiveDialogHeader>
                 <ResponsiveDialogTitle>
-                  {isDuplicate 
+                  {isDuplicate
                     ? (t.createRecord?.title || "Create record in {collection}").replace("{collection}", collectionLabel)
                     : (t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)
                   }
@@ -6578,257 +6660,257 @@ export function DataTable() {
                         }
                         return false
                       }).map((field) => (
-                    <div key={field.name} className="flex flex-col gap-2">
-                {field.fieldType === 'boolean' ? (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`edit-field-${field.name}`}
-                      checked={editData[field.name] === true}
-                      onCheckedChange={(checked) => handleEditFieldChange(field.name, checked === true)}
-                      disabled={field.readOnly}
-                    />
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium cursor-pointer">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                    </Label>
-                  </div>
-                ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <DateTimePicker
-                      mode={field.fieldType}
-                      value={editData[field.name] || null}
-                      onChange={(date) => handleEditFieldChange(field.name, date)}
-                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                    />
-                  </>
-                ) : field.fieldType === 'phone' ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <PhoneInput
-                      value={editData[field.name] || ''}
-                      onChange={(value) => handleEditFieldChange(field.name, value || '')}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                    />
-                  </>
-                ) : field.fieldType === 'password' ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {field.title || field.name} (leave empty to keep current)
-                    </Label>
-                    <Input
-                      id={`edit-field-${field.name}`}
-                      type="password"
-                      value={editData[field.name] || ""}
-                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enterNew?.replace('{field}', field.title || field.name) || `Enter new ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                      minLength={8}
-                    />
-                    <Label htmlFor={`edit-field-${field.name}-confirm`} className="text-sm font-medium">
-                      {t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
-                    </Label>
-                    <Input
-                      id={`edit-field-${field.name}-confirm`}
-                      type="password"
-                      value={editData[`${field.name}_confirm`] || ""}
-                      onChange={(e) => handleEditFieldChange(`${field.name}_confirm`, e.target.value)}
-                      placeholder={t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                      minLength={8}
-                    />
-                    {editData[field.name] && editData[`${field.name}_confirm`] && editData[field.name] !== editData[`${field.name}_confirm`] && (
-                      <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
-                    )}
-                  </>
-                ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                        {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                        {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                      </Label>
-                      <Tabs
-                        value={jsonFieldLanguage[field.name] || locale}
-                        onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
-                        className="w-auto"
-                      >
-                        <TabsList className="h-8">
-                          {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
-                            <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
-                              {l.shortName}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                    <Tabs
-                      value={jsonFieldLanguage[field.name] || locale}
-                      onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
-                      className="w-full"
-                    >
-                      {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
-                        <TabsContent key={l.code} value={l.code} className="mt-0">
-                          <Input
-                            id={`edit-field-${field.name}_${l.code}`}
-                            type="text"
-                            required={!field.nullable}
-                            value={editData[`${field.name}_${l.code}`] || ""}
-                            onChange={(e) => handleEditFieldChange(`${field.name}_${l.code}`, e.target.value)}
-                            placeholder={
-                              t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
-                              `Enter ${field.title || field.name} (${l.name})`
-                            }
-                            disabled={field.readOnly}
-                          />
-                        </TabsContent>
+                        <div key={field.name} className="flex flex-col gap-2">
+                          {field.fieldType === 'boolean' ? (
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`edit-field-${field.name}`}
+                                checked={editData[field.name] === true}
+                                onCheckedChange={(checked) => handleEditFieldChange(field.name, checked === true)}
+                                disabled={field.readOnly}
+                              />
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium cursor-pointer">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                              </Label>
+                            </div>
+                          ) : field.fieldType === 'date' || field.fieldType === 'time' || field.fieldType === 'datetime' ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <DateTimePicker
+                                mode={field.fieldType}
+                                value={editData[field.name] || null}
+                                onChange={(date) => handleEditFieldChange(field.name, date)}
+                                placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                              />
+                            </>
+                          ) : field.fieldType === 'phone' ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <PhoneInput
+                                value={editData[field.name] || ''}
+                                onChange={(value) => handleEditFieldChange(field.name, value || '')}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                              />
+                            </>
+                          ) : field.fieldType === 'password' ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {field.title || field.name} (leave empty to keep current)
+                              </Label>
+                              <Input
+                                id={`edit-field-${field.name}`}
+                                type="password"
+                                value={editData[field.name] || ""}
+                                onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enterNew?.replace('{field}', field.title || field.name) || `Enter new ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                                minLength={8}
+                              />
+                              <Label htmlFor={`edit-field-${field.name}-confirm`} className="text-sm font-medium">
+                                {t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
+                              </Label>
+                              <Input
+                                id={`edit-field-${field.name}-confirm`}
+                                type="password"
+                                value={editData[`${field.name}_confirm`] || ""}
+                                onChange={(e) => handleEditFieldChange(`${field.name}_confirm`, e.target.value)}
+                                placeholder={t.form?.confirmNew?.replace('{field}', field.title || field.name) || `Confirm new ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                                minLength={8}
+                              />
+                              {editData[field.name] && editData[`${field.name}_confirm`] && editData[field.name] !== editData[`${field.name}_confirm`] && (
+                                <p className="text-sm text-destructive">{t.form?.passwordsDoNotMatch || "Passwords do not match"}</p>
+                              )}
+                            </>
+                          ) : field.fieldType === 'json' && getI18nJsonFieldsForCollection(state.collection).includes(field.name) ? (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                  {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                  {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                                </Label>
+                                <Tabs
+                                  value={jsonFieldLanguage[field.name] || locale}
+                                  onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
+                                  className="w-auto"
+                                >
+                                  <TabsList className="h-8">
+                                    {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                                      <TabsTrigger key={l.code} value={l.code} className="text-xs px-2 py-1">
+                                        {l.shortName}
+                                      </TabsTrigger>
+                                    ))}
+                                  </TabsList>
+                                </Tabs>
+                              </div>
+                              <Tabs
+                                value={jsonFieldLanguage[field.name] || locale}
+                                onValueChange={(value) => setJsonFieldLanguage((prev) => ({ ...prev, [field.name]: value as LanguageCode }))}
+                                className="w-full"
+                              >
+                                {LANGUAGES.filter((l) => enabledLanguageCodes.includes(l.code)).map((l) => (
+                                  <TabsContent key={l.code} value={l.code} className="mt-0">
+                                    <Input
+                                      id={`edit-field-${field.name}_${l.code}`}
+                                      type="text"
+                                      required={!field.nullable}
+                                      value={editData[`${field.name}_${l.code}`] || ""}
+                                      onChange={(e) => handleEditFieldChange(`${field.name}_${l.code}`, e.target.value)}
+                                      placeholder={
+                                        t.form?.enter?.replace('{field}', `${field.title || field.name} (${l.name})`) ||
+                                        `Enter ${field.title || field.name} (${l.name})`
+                                      }
+                                      disabled={field.readOnly}
+                                    />
+                                  </TabsContent>
+                                ))}
+                              </Tabs>
+                            </>
+                          ) : (field as any).fieldType === 'price' ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`edit-field-${field.name}`}
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                required={!field.nullable}
+                                disabled={field.readOnly}
+                                value={
+                                  priceInputs[`edit-${field.name}`] !== undefined
+                                    ? priceInputs[`edit-${field.name}`]
+                                    : editData[field.name] === undefined || editData[field.name] === null
+                                      ? ""
+                                      : (Number(editData[field.name]) / 100).toFixed(2)
+                                }
+                                onChange={(e) => {
+                                  let v = e.target.value.replace(/,/g, '.')
+                                  setPriceInputs((prev) => ({ ...prev, [`edit-${field.name}`]: v }))
+                                  if (v.includes('.')) {
+                                    const [i, d] = v.split('.')
+                                    v = `${i}.${d.slice(0, 2)}`
+                                  }
+                                  const num = v === '' ? NaN : Number(v)
+                                  const cents = !isFinite(num) ? null : Math.round(num * 100)
+                                  handleEditFieldChange(field.name, cents)
+                                }}
+                                onBlur={(e) => {
+                                  let v = e.target.value.replace(/,/g, '.')
+                                  if (v.includes('.')) {
+                                    const [i, d] = v.split('.')
+                                    v = `${i}.${d.slice(0, 2)}`
+                                  }
+                                  const num = v === '' ? NaN : Number(v)
+                                  if (isFinite(num)) {
+                                    const formatted = num.toFixed(2)
+                                    setPriceInputs((prev) => ({ ...prev, [`edit-${field.name}`]: formatted }))
+                                    const cents = Math.round(num * 100)
+                                    handleEditFieldChange(field.name, cents)
+                                  }
+                                }}
+                                placeholder={`Enter ${field.title || field.name}`}
+                              />
+                            </>
+                          ) : field.fieldType === 'select' && field.selectOptions ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <ComboboxSelect
+                                id={`edit-field-${field.name}`}
+                                options={field.selectOptions}
+                                value={editData[field.name] || ""}
+                                onValueChange={(value) => handleEditFieldChange(field.name, value)}
+                                placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                                required={!field.nullable}
+                                translations={t}
+                              />
+                            </>
+                          ) : field.relation ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <RelationSelect
+                                relation={field.relation}
+                                value={editData[field.name]}
+                                onChange={(value) => handleEditFieldChange(field.name, value)}
+                                disabled={field.readOnly}
+                                required={!field.nullable}
+                                translations={t}
+                                search={state.search}
+                              />
+                            </>
+                          ) : field.textarea ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Textarea
+                                id={`edit-field-${field.name}`}
+                                required={!field.nullable}
+                                value={editData[field.name] || ''}
+                                onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                                disabled={field.readOnly}
+                                rows={6}
+                              />
+                            </>
+                          ) : field.name === 'description' ? (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Textarea
+                                id={`edit-field-${field.name}`}
+                                required={!field.nullable}
+                                value={editData[field.name] || ''}
+                                onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                                rows={4}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                                {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                                {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+                              <Input
+                                id={`edit-field-${field.name}`}
+                                type={field.fieldType === 'email' ? 'email' : field.fieldType === 'number' ? 'number' : 'text'}
+                                required={!field.nullable}
+                                value={editData[field.name] || ''}
+                                onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
+                                placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
+                                disabled={field.readOnly}
+                              />
+                            </>
+                          )}
+                        </div>
                       ))}
-                    </Tabs>
-                  </>
-                ) : (field as any).fieldType === 'price' ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`edit-field-${field.name}`}
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      required={!field.nullable}
-                      disabled={field.readOnly}
-                      value={
-                        priceInputs[`edit-${field.name}`] !== undefined
-                          ? priceInputs[`edit-${field.name}`]
-                          : editData[field.name] === undefined || editData[field.name] === null
-                            ? ""
-                            : (Number(editData[field.name]) / 100).toFixed(2)
-                      }
-                      onChange={(e) => {
-                        let v = e.target.value.replace(/,/g, '.')
-                        setPriceInputs((prev) => ({ ...prev, [`edit-${field.name}`]: v }))
-                        if (v.includes('.')) {
-                          const [i, d] = v.split('.')
-                          v = `${i}.${d.slice(0, 2)}`
-                        }
-                        const num = v === '' ? NaN : Number(v)
-                        const cents = !isFinite(num) ? null : Math.round(num * 100)
-                        handleEditFieldChange(field.name, cents)
-                      }}
-                      onBlur={(e) => {
-                        let v = e.target.value.replace(/,/g, '.')
-                        if (v.includes('.')) {
-                          const [i, d] = v.split('.')
-                          v = `${i}.${d.slice(0, 2)}`
-                        }
-                        const num = v === '' ? NaN : Number(v)
-                        if (isFinite(num)) {
-                          const formatted = num.toFixed(2)
-                          setPriceInputs((prev) => ({ ...prev, [`edit-${field.name}`]: formatted }))
-                          const cents = Math.round(num * 100)
-                          handleEditFieldChange(field.name, cents)
-                        }
-                      }}
-                      placeholder={`Enter ${field.title || field.name}`}
-                    />
-                  </>
-                ) : field.fieldType === 'select' && field.selectOptions ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <ComboboxSelect
-                      id={`edit-field-${field.name}`}
-                      options={field.selectOptions}
-                      value={editData[field.name] || ""}
-                      onValueChange={(value) => handleEditFieldChange(field.name, value)}
-                      placeholder={t.form?.select?.replace('{field}', field.title || field.name) || `Select ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                      required={!field.nullable}
-                      translations={t}
-                    />
-                  </>
-                ) : field.relation ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <RelationSelect
-                      relation={field.relation}
-                      value={editData[field.name]}
-                      onChange={(value) => handleEditFieldChange(field.name, value)}
-                      disabled={field.readOnly}
-                      required={!field.nullable}
-                      translations={t}
-                      search={state.search}
-                    />
-                  </>
-                ) : field.textarea ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Textarea
-                      id={`edit-field-${field.name}`}
-                      required={!field.nullable}
-                      value={editData[field.name] || ''}
-                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
-                      disabled={field.readOnly}
-                      rows={6}
-                    />
-                  </>
-                ) : field.name === 'description' ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Textarea
-                      id={`edit-field-${field.name}`}
-                      required={!field.nullable}
-                      value={editData[field.name] || ''}
-                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                      rows={4}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Input
-                      id={`edit-field-${field.name}`}
-                      type={field.fieldType === 'email' ? 'email' : field.fieldType === 'number' ? 'number' : 'text'}
-                      required={!field.nullable}
-                      value={editData[field.name] || ''}
-                      onChange={(e) => handleEditFieldChange(field.name, e.target.value)}
-                      placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
-                      disabled={field.readOnly}
-                    />
-                  </>
-                )}
-                      </div>
-                    ))}
                     </div>
                   </TabsContent>
                   {state.collection === 'roles' && (
                     <TabsContent value="info" className="mt-0">
-                    <div className="grid gap-4">
+                      <div className="grid gap-4">
                         {schema.filter((f) => ['id', 'uuid', 'order', 'created_at', 'updated_at'].includes(f.name)).map((field) => {
                           // Use recordToEdit for edit form to get original data
                           const value = recordToEdit?.[field.name] ?? editData[field.name] ?? null
@@ -6873,14 +6955,14 @@ export function DataTable() {
                           </TabsList>
                         </Tabs>
                       </div>
-                      
+
                       {/* Data_in fields */}
                       <div className="grid gap-4">
                         <div className="flex items-center justify-end">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => {
                               // Add a new entry with a temporary unique key
                               const tempKey = `new_field_${Date.now()}`
@@ -6893,12 +6975,12 @@ export function DataTable() {
                                 return [...prev, ...newEntries]
                               })
                             }}
-                        >
-                          <IconPlus className="mr-2 h-4 w-4" />
-                          {t.addField || "Add field"}
-                        </Button>
-                      </div>
-                      <div className="grid gap-3">
+                          >
+                            <IconPlus className="mr-2 h-4 w-4" />
+                            {t.addField || "Add field"}
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
                           {(() => {
                             const uniqueBaseKeys = getUniqueBaseKeys(editDataInEntries)
                             if (uniqueBaseKeys.length === 0) {
@@ -6910,17 +6992,17 @@ export function DataTable() {
                                 const { value } = getTitleAndValueForLanguage(editDataInEntries, baseKey, lang)
                                 return value && value.trim() !== ''
                               })
-                              
+
                               const tempKey = editKeyInputs[baseKey] ?? baseKey
                               const tempTitle = editTitleInputs[baseKey] ?? currentTitle
                               const tempValue = editValueInputs[baseKey] ?? currentValue
-                              
+
                               return (
                                 <div key={`edit-entry-${baseKey}-${idx}`} className="flex gap-2 items-center">
-                              <Input
+                                  <Input
                                     value={tempKey}
-                                onChange={(e) => {
-                                  const v = e.target.value
+                                    onChange={(e) => {
+                                      const v = e.target.value
                                       // Update only the temporary state, don't update entries yet
                                       setEditKeyInputs((prev) => ({
                                         ...prev,
@@ -6942,7 +7024,7 @@ export function DataTable() {
                                       setEditDataInEntries((prev) => {
                                         const result: Array<{ key: string; title: string; value: string }> = []
                                         const oldData: Record<string, { title: string; value: string }> = {}
-                                        
+
                                         // Collect old title and value for all languages
                                         supportedLanguageCodes.forEach(lang => {
                                           const oldLangKey = `${baseKey}_${lang}`
@@ -6951,7 +7033,7 @@ export function DataTable() {
                                             oldData[lang] = { title: oldEntry.title, value: oldEntry.value }
                                           }
                                         })
-                                        
+
                                         // Keep entries that don't match this base key
                                         prev.forEach(entry => {
                                           const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
@@ -6963,7 +7045,7 @@ export function DataTable() {
                                           }
                                           result.push(entry)
                                         })
-                                        
+
                                         // Add new entries with new base key
                                         supportedLanguageCodes.forEach(lang => {
                                           result.push({
@@ -6972,7 +7054,7 @@ export function DataTable() {
                                             value: oldData[lang]?.value || ''
                                           })
                                         })
-                                        
+
                                         // Update temp key state with new base key
                                         setEditKeyInputs((prev) => {
                                           const newState = { ...prev }
@@ -6980,17 +7062,17 @@ export function DataTable() {
                                           newState[v] = v
                                           return newState
                                         })
-                                        
+
                                         return result
                                       })
                                     }}
                                     placeholder="Name (key)"
                                     className="flex-1"
                                   />
-                                <Input
+                                  <Input
                                     value={tempTitle}
-                                  onChange={(e) => {
-                                    const v = e.target.value
+                                    onChange={(e) => {
+                                      const v = e.target.value
                                       // Update only temporary state, don't update entries yet
                                       setEditTitleInputs((prev) => ({
                                         ...prev,
@@ -7005,7 +7087,7 @@ export function DataTable() {
                                           const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
                                           return !value || value.trim() === ''
                                         })
-                                        
+
                                         const currentData = getTitleAndValueForLanguage(prev, baseKey, editDataInLanguage)
                                         return updateTitleAndValueForLanguage(prev, baseKey, editDataInLanguage, v, currentData.value, allEmpty && currentData.value.trim() !== '')
                                       })
@@ -7038,7 +7120,7 @@ export function DataTable() {
                                           const { value } = getTitleAndValueForLanguage(prev, baseKey, l)
                                           return !value || value.trim() === ''
                                         })
-                                        
+
                                         const currentData = getTitleAndValueForLanguage(prev, baseKey, editDataInLanguage)
                                         return updateTitleAndValueForLanguage(prev, baseKey, editDataInLanguage, currentData.title, v, allEmpty && v.trim() !== '')
                                       })
@@ -7048,39 +7130,39 @@ export function DataTable() {
                                         delete newState[baseKey]
                                         return newState
                                       })
-                                  }}
-                                  placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
+                                    }}
+                                    placeholder={(translations as any)?.dataTable?.valuePlaceholder || "Value (string or JSON)"}
                                     className="flex-1"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    // Remove all entries for this base key
-                                    setEditDataInEntries((prev) => {
-                                      return prev.filter(entry => {
-                                        const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
-                                        if (langMatch && langMatch[1] === baseKey) {
-                                          return false
-                                        }
-                                        return entry.key !== baseKey
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      // Remove all entries for this base key
+                                      setEditDataInEntries((prev) => {
+                                        return prev.filter(entry => {
+                                          const langMatch = entry.key.match(/^(.+)_([a-z]{2})$/i)
+                                          if (langMatch && langMatch[1] === baseKey) {
+                                            return false
+                                          }
+                                          return entry.key !== baseKey
+                                        })
                                       })
-                                    })
-                                  }}
-                                >
-                                  <IconX className="h-4 w-4" />
-                                  <span className="sr-only">Remove</span>
-                                </Button>
-                              </div>
+                                    }}
+                                  >
+                                    <IconX className="h-4 w-4" />
+                                    <span className="sr-only">Remove</span>
+                                  </Button>
+                                </div>
                               )
                             })
                           })()}
+                        </div>
                       </div>
-                      </div>
-                      
+
                       {/* Raw JSON */}
                       <div className="grid gap-2">
                         <div className="flex items-center justify-between">
@@ -7167,10 +7249,10 @@ export function DataTable() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                    {t.form?.cancel || "Cancel"}
-                  </Button>
-                  <Button type="submit">{t.form?.save || "Save"}</Button>
+                    <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                      {t.form?.cancel || "Cancel"}
+                    </Button>
+                    <Button type="submit">{t.form?.save || "Save"}</Button>
                   </div>
                 </ResponsiveDialogFooter>
               </div>
@@ -7281,11 +7363,11 @@ export function DataTable() {
                   onChange={handleImportFileSelect}
                   disabled={importing}
                 />
-              {importFile && (
-                <p className="text-sm text-muted-foreground">
-                  {(t.selectedFile || "Selected file: {name} ({size} KB)").replace('{name}', importFile.name).replace('{size}', (importFile.size / 1024).toFixed(2))}
-                </p>
-              )}
+                {importFile && (
+                  <p className="text-sm text-muted-foreground">
+                    {(t.selectedFile || "Selected file: {name} ({size} KB)").replace('{name}', importFile.name).replace('{size}', (importFile.size / 1024).toFixed(2))}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-2">

@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     const isAdmin = roles.some((role) => role.isSystem === true)
 
     await usersRepository.update(persistedUser.uuid, {
-      lastLoginAt: new Date().toISOString(),
+      lastLoginAt: new Date(),
     })
 
     const sessionUuid = crypto.randomUUID()
