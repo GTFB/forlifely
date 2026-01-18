@@ -557,7 +557,7 @@ function getDataInFieldLabel(
 }
 
 // Dynamic column generator
-function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>, editMode: boolean = false, handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void, fullSchema?: ColumnSchemaExtended[], editedCells?: Map<string, Record<string, any>>): ColumnDef<CollectionData>[] {
+function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: Row<CollectionData>) => void, onEditRequest: (row: Row<CollectionData>) => void, onDuplicateRequest?: (row: Row<CollectionData>) => void, locale: string = 'en', relationData: Record<string, Record<any, string>> = {}, translations?: any, collection?: string, data?: CollectionData[], columnVisibility?: VisibilityState, columnAlignment?: Record<string, 'left' | 'center' | 'right'>, columnSizing?: Record<string, number>, editMode: boolean = false, handleCellUpdate?: (rowId: string | number, fieldName: string, value: any) => void, fullSchema?: ColumnSchemaExtended[], editedCells?: Map<string, Record<string, any>>, segmentStatuses?: SelectOption[]): ColumnDef<CollectionData>[] {
   return [
   {
     id: "select",
@@ -894,8 +894,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         }
         
         // For JSON fields in taxonomy collection (title and category fields), extract translation by locale
-        // Also handle title field in roles collection
-        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title'))) {
+        // Also handle title field in roles and expanses collections
+        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title'))) {
           let jsonValue = value
           
           // If category is empty, try to extract it from data_in
@@ -1404,6 +1404,7 @@ export function DataTable() {
   const [relationData, setRelationData] = React.useState<Record<string, Record<any, string>>>({})
   const [translations, setTranslations] = React.useState<any>(null)
   const [taxonomyConfig, setTaxonomyConfig] = React.useState<any>(null)
+  const [segmentStatuses, setSegmentStatuses] = React.useState<SelectOption[]>([])
   
   // Local search state for input (debounced before updating global state)
   const [searchInput, setSearchInput] = React.useState(state.search)
@@ -1901,6 +1902,116 @@ export function DataTable() {
   // Track fetching state to prevent concurrent requests
   const isFetchingRef = React.useRef(false)
 
+  // Load segment statuses from taxonomy for expanses.status_name
+  const loadSegmentStatuses = React.useCallback(async () => {
+    try {
+      const filters = {
+        conditions: [
+          {
+            field: 'entity',
+            operator: 'eq',
+            values: ['Segment'],
+          },
+        ],
+      }
+      const orders = {
+        orders: [{ field: 'sortOrder', direction: 'asc' }],
+      }
+      // Build query params manually to ensure proper encoding
+      const params = new URLSearchParams()
+      params.append('filters', JSON.stringify(filters))
+      params.append('orders', JSON.stringify(orders))
+      params.append('limit', '1000')
+      
+      const response = await fetch(`/api/admin/taxonomies?${params.toString()}`, {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[DataTable] Failed to load segment statuses:', response.status, errorText)
+        throw new Error(`Failed to load statuses: ${response.status}`)
+      }
+      
+      const data = await response.json() as { docs?: Array<{ name?: string; title?: string | Record<string, string>; sortOrder?: number }> }
+      const options: SelectOption[] = (data.docs || []).map((status: any) => {
+        // Extract localized label from title
+        let label = status.name || ''
+        if (status.title) {
+          const title = typeof status.title === 'string' 
+            ? JSON.parse(status.title) 
+            : status.title
+          label = title[locale] || title.en || title.ru || title.rs || status.name
+        }
+        return {
+          value: status.name || '',
+          label: label,
+        }
+      })
+      setSegmentStatuses(options)
+    } catch (e) {
+      console.error('Failed to load segment statuses:', e)
+      setSegmentStatuses([])
+    }
+  }, [locale])
+
+  // Load segment statuses when collection is expanses or when locale changes
+  React.useEffect(() => {
+    if (state.collection === 'expanses') {
+      void loadSegmentStatuses()
+    } else {
+      // Clear statuses when not on expanses collection
+      setSegmentStatuses([])
+    }
+  }, [state.collection, loadSegmentStatuses])
+
+  // Update schema when segmentStatuses change for expanses (to update selectOptions and fieldType)
+  const segmentStatusesStrRef = React.useRef<string>('')
+  
+  React.useEffect(() => {
+    if (state.collection === 'expanses') {
+      const currentStatusesStr = JSON.stringify(segmentStatuses)
+      
+      // Check if segmentStatuses actually changed
+      if (currentStatusesStr === segmentStatusesStrRef.current) {
+        return // No change, skip update
+      }
+      
+      segmentStatusesStrRef.current = currentStatusesStr
+      
+      // Update schema with new selectOptions for status_name and ensure title is json
+      setSchema((prevSchema) => {
+        if (prevSchema.length === 0) return prevSchema
+        
+        const updatedSchema = prevSchema.map((col) => {
+          if (col.name === 'status_name' && segmentStatuses.length > 0) {
+            return {
+              ...col,
+              selectOptions: segmentStatuses,
+              fieldType: 'select' as const,
+            }
+          }
+          // Also ensure title has fieldType: 'json' for expanses
+          if (col.name === 'title' && col.fieldType !== 'json') {
+            return {
+              ...col,
+              fieldType: 'json' as const,
+            }
+          }
+          return col
+        })
+        
+        // Only update if something changed
+        const hasChanges = updatedSchema.some((col, index) => {
+          const oldCol = prevSchema[index]
+          return col.fieldType !== oldCol.fieldType || 
+                 JSON.stringify(col.selectOptions) !== JSON.stringify(oldCol.selectOptions)
+        })
+        
+        return hasChanges ? updatedSchema : prevSchema
+      })
+    }
+  }, [segmentStatuses, state.collection])
+
   const fetchData = React.useCallback(async (abortSignal?: AbortSignal, isMountedRef?: { current: boolean }) => {
     setLoading(true)
     setError(null)
@@ -1930,6 +2041,14 @@ export function DataTable() {
       if (isMountedRef && !isMountedRef.current) return
       
       if (!res.ok) {
+        const errorText = await res.text()
+        console.error('[DataTable] Fetch error details:', {
+          status: res.status,
+          statusText: res.statusText,
+          url: res.url,
+          errorText,
+          queryParams,
+        })
         throw new Error(`Failed to load: ${res.status}`)
       }
       const json: StateResponse = await res.json()
@@ -1986,6 +2105,11 @@ export function DataTable() {
           }))
         }
         
+        // For expanses.status_name, load statuses from taxonomy (entity='Segment')
+        if (state.collection === 'expanses' && col.name === 'status_name' && segmentStatuses && segmentStatuses.length > 0) {
+          selectOptions = segmentStatuses
+        }
+        
         // Get translated field title
         let fieldTitle: string | undefined
         if (state.collection === 'taxonomy' && (translations as any)?.taxonomy?.fields) {
@@ -2022,12 +2146,13 @@ export function DataTable() {
         const forcedFieldType =
           col.name === "data_in"
             ? "json"
-            : state.collection === "roles" && col.name === "title"
+            : (state.collection === "roles" && col.name === "title") ||
+              (state.collection === "expanses" && col.name === "title")
               ? "json"
               : undefined
 
         const forcedRelation: RelationConfig | undefined =
-          col.name === "xaid"
+          col.name === "xaid" && state.collection !== "expanses"
             ? {
                 collection: "expanses",
                 valueField: "xaid",
@@ -2037,20 +2162,25 @@ export function DataTable() {
 
         const isSystemFieldByName = ['deleted_at', 'uuid'].includes(col.name)
 
+        // Force select type if selectOptions are available (e.g., for expanses.status_name)
+        const shouldBeSelect = selectOptions && selectOptions.length > 0
+
         return {
           ...col,
           title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
           hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid'), // Hide only core system fields, data_in, and raid for roles
+          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid') || (state.collection === 'expanses' && col.name === 'xaid'), // Hide only core system fields, data_in, raid for roles, and xaid for expanses
           readOnly: options.readOnly || false,
           required: options.required || fieldConfig?.required || columnConfig?.required || false,
           virtual: options.virtual || false,
           fieldType:
-            options.type ||
-            fieldConfig?.type ||
-            (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
-            forcedFieldType ||
-            inferredDbFieldType,
+            shouldBeSelect
+              ? 'select'
+              : forcedFieldType ||
+                options.type ||
+                fieldConfig?.type ||
+                (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
+                inferredDbFieldType,
           textarea: options.textarea || false,
           enum: options.enum,
           relation: forcedRelation || options.relation,
@@ -2184,7 +2314,7 @@ export function DataTable() {
         setLoading(false)
       }
     }
-  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations])
+  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations, segmentStatuses])
 
   // Track last fetch parameters to prevent unnecessary refetches
   const lastFetchParamsRef = React.useRef<string>('')
@@ -3213,6 +3343,7 @@ export function DataTable() {
   const getI18nJsonFieldsForCollection = React.useCallback((collection: string): string[] => {
     if (collection === 'taxonomy') return ['title', 'category']
     if (collection === 'roles') return ['title']
+    if (collection === 'expanses') return ['title']
     return []
   }, [])
 
@@ -3542,8 +3673,8 @@ export function DataTable() {
   }, [editedCells, schema, state.collection, fetchData])
   
   const columns = React.useMemo(
-    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, schema) : []),
-    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate]
+    () => (schema.length > 0 ? generateColumns(schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, schema, undefined, segmentStatuses) : []),
+    [schema, onDeleteRequest, onEditRequest, onDuplicateRequest, locale, relationData, t, state.collection, data, columnVisibility, columnAlignment, columnSizing, editMode, handleCellUpdate, segmentStatuses]
   )
 
   // Parse search query for client-side filtering with operators
@@ -5983,11 +6114,15 @@ export function DataTable() {
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
-                      {editableFields.filter((f) => {
+                      {editableFields                      .filter((f) => {
                         if (f.name === "data_in") return false
                         if (state.collection === 'roles') {
                           // For roles, show: title, name, description, is_system, order, xaid
                           return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
+                        }
+                        if (state.collection === 'expanses' && f.name === 'xaid') {
+                          // Hide xaid in expanses form (auto-generated)
+                          return false
                         }
                         return true
                       }).map((field) => (

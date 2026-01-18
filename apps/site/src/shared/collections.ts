@@ -37,7 +37,6 @@ export const COLLECTION_GROUPS: Record<string, string[]> = {
     'finances',
     'wallets',
     'wallet_transactions',
-    'expanses',
   ],
   Content: [
     'assets',
@@ -58,7 +57,6 @@ export const COLLECTION_GROUPS: Record<string, string[]> = {
     'identities',
     'keys',
     'taxonomy',
-    'settings',
     'expanses',
     'relations',
   ],

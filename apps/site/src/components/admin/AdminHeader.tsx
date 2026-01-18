@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarTrigger, SidebarContext } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Bell, Grip } from "lucide-react"
@@ -28,6 +28,15 @@ import {
 interface AdminHeaderProps {
   title?: string
   breadcrumbItems?: Array<{ label: string; href?: string }>
+}
+
+// Safe SidebarTrigger that only renders if SidebarProvider exists
+function SafeSidebarTrigger({ className }: { className?: string }) {
+  const sidebarContext = React.useContext(SidebarContext)
+  if (!sidebarContext) {
+    return null
+  }
+  return <SidebarTrigger className={className} />
 }
 
 export const AdminHeader = React.memo(function AdminHeader({ 
@@ -277,7 +286,7 @@ export const AdminHeader = React.memo(function AdminHeader({
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-        <SidebarTrigger className="-ml-1" />
+        <SafeSidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb className="flex-1">
           <BreadcrumbList>

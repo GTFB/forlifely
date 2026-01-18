@@ -605,96 +605,107 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   
   items = finalItems
   
-  // Transform user roles to teams format
-  React.useEffect(() => {
-    if (!meUser?.roles) {
-      return
-    }
-    
-    const roleTeams: Array<{
-      name: string
-      logo: React.ElementType
-      plan: string
-      href: string
-      order: number
-    }> = []
-    
-    // Process roles with auth_redirect_url
-    meUser.roles.forEach((role) => {
-      if (!role.dataIn) return
-      
-      let dataIn: any
-      try {
-        dataIn = typeof role.dataIn === 'string' ? JSON.parse(role.dataIn) : role.dataIn
-      } catch {
-        return
-      }
-      
-      const authRedirectUrl = dataIn?.auth_redirect_url
-      if (!authRedirectUrl || typeof authRedirectUrl !== 'string') {
-        return
-      }
-      
-      // Remove "Кабинет" from role title/name
-      let roleName = role.title || role.name || ''
-      roleName = roleName.replace(/^Кабинет\s+/i, '').trim()
-      
-      // Try to get order from dataIn, fallback to 0
-      const order = dataIn?.order ? Number(dataIn.order) : 0
-      
-      roleTeams.push({
-        name: roleName,
-        logo: Logo,
-        plan: role.description || '',
-        href: authRedirectUrl,
-        order,
+  // Load roles from Roles collection
+  const [rolesLoading, setRolesLoading] = React.useState(false)
+  
+  const loadRoles = React.useCallback(async () => {
+    setRolesLoading(true)
+    try {
+      const res = await fetch('/api/admin/state?c=roles&ps=1000', {
+        credentials: 'include'
       })
-    })
-    
-    // Add Super Admin role if user has Administrator role
-    const isSuperAdmin = meUser.roles.some((r) => r.name === 'Administrator')
-    if (isSuperAdmin) {
-      const superAdminExists = roleTeams.some((rt) => rt.href === '/admin/dashboard')
-      if (!superAdminExists) {
-        roleTeams.unshift({
-          name: 'Супер-админ',
-          logo: Logo,
-          plan: 'Super Admin Dashboard',
-          href: '/admin/dashboard',
-          order: -1,
-        })
+      if (!res.ok) {
+        throw new Error(`Failed to load roles: ${res.status}`)
       }
-    }
-
-    // Add manager cabinet (/m/) if user has access (check if current pathname starts with /m/ or user has admin role)
-    const hasManagerAccess = meUser.roles.some(
-      (r) => r.name === 'Administrator' || r.name === 'admin' || r.name === 'manager'
-    ) || (typeof window !== 'undefined' && window.location.pathname.startsWith('/m/'))
-    
-    if (hasManagerAccess) {
-      // Check if manager cabinet already exists in roles
-      const hasManagerRole = roleTeams.some((rt) => rt.href.startsWith('/m/'))
-      if (!hasManagerRole) {
+      const json = await res.json() as { success?: boolean; data?: any[] }
+      
+      if (!json.success || !json.data) {
+        return
+      }
+      
+      // Transform roles to teams format
+      const roleTeams: Array<{
+        name: string
+        logo: React.ElementType
+        plan: string
+        href: string
+        order: number
+      }> = []
+      
+      json.data.forEach((role: any) => {
+        // Extract title for current locale
+        let roleName = ''
+        if (role.title) {
+          const title = typeof role.title === 'string' 
+            ? JSON.parse(role.title) 
+            : role.title
+          roleName = title[locale] || title.en || title.ru || title.rs || role.name || ''
+        } else {
+          roleName = role.name || ''
+        }
+        
+        // Extract suffix from data_in
+        let href = ''
+        if (role.data_in) {
+          let dataIn: any
+          try {
+            dataIn = typeof role.data_in === 'string' 
+              ? JSON.parse(role.data_in) 
+              : role.data_in
+          } catch {
+            // Ignore parse errors
+          }
+          
+          if (dataIn?.suffix) {
+            const suffix = dataIn.suffix[locale] || dataIn.suffix.en || dataIn.suffix.ru || dataIn.suffix.rs
+            if (suffix) {
+              href = typeof suffix === 'object' && 'value' in suffix 
+                ? suffix.value 
+                : String(suffix)
+            }
+          }
+        }
+        
+        // Skip if no href (suffix not found)
+        if (!href) {
+          return
+        }
+        
+        // Try to get order from role.order or data_in.order
+        const order = role.order !== undefined ? Number(role.order) : 
+          (role.data_in && typeof role.data_in === 'object' && 'order' in role.data_in 
+            ? Number(role.data_in.order) 
+            : 0)
+        
         roleTeams.push({
-          name: 'Менеджерский',
+          name: roleName,
           logo: Logo,
-          plan: '',
-          href: '/m/dashboard',
-          order: 500, // Between regular roles and admin
+          plan: role.description || '',
+          href: href,
+          order,
         })
+      })
+      
+      // Sort by order
+      roleTeams.sort((a, b) => a.order - b.order)
+      
+      // Update teamsRef if changed
+      const currentTeamsStr = JSON.stringify(teamsRef.current)
+      const newTeamsStr = JSON.stringify(roleTeams)
+      if (currentTeamsStr !== newTeamsStr) {
+        teamsRef.current = roleTeams as any
       }
+    } catch (e) {
+      console.error('Failed to load roles:', e)
+    } finally {
+      setRolesLoading(false)
     }
-    
-    // Sort by order
-    roleTeams.sort((a, b) => a.order - b.order)
-    
-    // Update teamsRef if changed
-    const currentTeamsStr = JSON.stringify(teamsRef.current)
-    const newTeamsStr = JSON.stringify(roleTeams)
-    if (currentTeamsStr !== newTeamsStr) {
-      teamsRef.current = roleTeams as any
-    }
-  }, [meUser?.roles])
+  }, [locale])
+  
+  // Load roles on mount and when locale changes
+  React.useEffect(() => {
+    void loadRoles()
+  }, [loadRoles])
   
   // Always return same reference - mutations happen in-place
   const teams = teamsRef.current
@@ -728,22 +739,30 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       return translations?.sidebar?.platform || "Platform"
     }
     
-    // Find active team based on pathname
-    let activeTeam = null
-    if (pathname.startsWith('/admin')) {
-      activeTeam = teams.find(t => t.href === '/admin/dashboard' || t.href?.startsWith('/admin'))
-    } else if (pathname.startsWith('/m/')) {
-      activeTeam = teams.find(t => t.href?.startsWith('/m/'))
-    } else if (pathname.startsWith('/c/')) {
-      activeTeam = teams.find(t => t.href?.startsWith('/c/'))
-    } else if (pathname.startsWith('/i/')) {
-      activeTeam = teams.find(t => t.href?.startsWith('/i/'))
-    } else if (pathname.startsWith('/p/')) {
-      activeTeam = teams.find(t => t.href?.startsWith('/p/'))
+    // Find active team based on pathname - check if pathname starts with any team's href
+    let activeTeam = teams.find(t => {
+      if (!t.href) return false
+      // Exact match or pathname starts with href
+      return pathname === t.href || pathname.startsWith(t.href + '/')
+    })
+    
+    // Fallback to prefix-based matching for backward compatibility
+    if (!activeTeam) {
+      if (pathname.startsWith('/admin')) {
+        activeTeam = teams.find(t => t.href === '/admin/dashboard' || t.href?.startsWith('/admin'))
+      } else if (pathname.startsWith('/m/')) {
+        activeTeam = teams.find(t => t.href?.startsWith('/m/'))
+      } else if (pathname.startsWith('/c/')) {
+        activeTeam = teams.find(t => t.href?.startsWith('/c/'))
+      } else if (pathname.startsWith('/i/')) {
+        activeTeam = teams.find(t => t.href?.startsWith('/i/'))
+      } else if (pathname.startsWith('/p/')) {
+        activeTeam = teams.find(t => t.href?.startsWith('/p/'))
+      }
     }
     
     return activeTeam?.name || teams[0]?.name || translations?.sidebar?.platform || "Platform"
-  }, [pathname, teams, translations?.sidebar?.platform])
+  }, [pathname, translations?.sidebar?.platform])
 
   // Use global ref for platformLabel to maintain stable reference
   const platformLabelRef = globalPlatformLabelRef

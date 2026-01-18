@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { ChevronsUpDown, Check } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +41,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
 }) {
   const { isMobile, state } = useSidebar()
   const pathname = usePathname()
+  const router = useRouter()
   const isCollapsed = state === "collapsed"
   // Use ref to track teams to avoid unnecessary state updates
   const teamsRef = React.useRef(teams)
@@ -102,12 +103,12 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
     return `Ctrl+Alt+${index + 1}`
   }, [isMac])
 
-  // Handle team navigation - open in new window
+  // Handle team navigation - navigate to route
   const handleTeamClick = React.useCallback((team: typeof teams[0]) => {
     if (team.href) {
-      window.open(team.href, '_blank', 'noopener,noreferrer')
+      router.push(team.href)
     }
-  }, [])
+  }, [router])
 
   // Register global hotkeys
   React.useEffect(() => {
@@ -214,6 +215,9 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
               // Determine if this team is active based on pathname (without useMemo - hooks can't be in loops)
               const isActive = (() => {
                 if (!pathname || !team.href) return false
+                // Exact match or pathname starts with href
+                if (pathname === team.href || pathname.startsWith(team.href + '/')) return true
+                // Fallback to prefix-based matching for backward compatibility
                 if (pathname.startsWith('/admin') && team.href === '/admin/dashboard') return true
                 if (pathname.startsWith('/m/') && team.href.startsWith('/m/')) return true
                 if (pathname.startsWith('/c/') && team.href.startsWith('/c/')) return true
