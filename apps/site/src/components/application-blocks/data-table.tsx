@@ -4091,48 +4091,8 @@ export function DataTable() {
           return acc
         }, {} as Record<string, any>)
 
-        // Process data_in entries with language support for all fields
-        const dataInObj = entriesToLanguageObject(editDataInEntries)
-        const processedDataIn: Record<string, any> = {}
-        const languageFields: Record<string, Record<string, string>> = {} // field_name -> { en: "...", ru: "...", rs: "..." }
-        const plainFields: Record<string, any> = {} // field_name -> value (without language suffix)
-
-        for (const [key, value] of Object.entries(dataInObj)) {
-          // Check if key matches field_name_<lang> pattern
-          const langMatch = key.match(/^(.+)_([a-z]{2})$/i)
-          if (langMatch && enabledLanguageCodes.includes(langMatch[2].toLowerCase() as LanguageCode)) {
-            const fieldName = langMatch[1]
-            const lang = langMatch[2].toLowerCase()
-            if (!languageFields[fieldName]) {
-              languageFields[fieldName] = {}
-            }
-            languageFields[fieldName][lang] = typeof value === 'string' ? value : JSON.stringify(value)
-          } else {
-            // Plain field without language suffix
-            plainFields[key] = value
-          }
-        }
-
-        // Convert language fields to objects
-        for (const [fieldName, langValues] of Object.entries(languageFields)) {
-          processedDataIn[fieldName] = langValues
-        }
-
-        // Convert plain fields to language objects (create entries for all languages)
-        for (const [fieldName, value] of Object.entries(plainFields)) {
-          // Skip if this field already has language entries
-          if (!languageFields[fieldName]) {
-            const fieldValue = typeof value === 'string' ? value : JSON.stringify(value)
-            const langObject: Record<string, string> = {}
-            for (const lang of enabledLanguageCodes) {
-              langObject[lang] = fieldValue
-            }
-            processedDataIn[fieldName] = langObject
-          } else {
-            // Field has language entries, skip plain value
-            continue
-          }
-        }
+        // Process data_in entries - entriesToLanguageObject already returns the correct structure with title and value
+        const processedDataIn = entriesToLanguageObject(editDataInEntries)
 
         // Always add data_in to payload (even if empty, to allow clearing it)
         payload.data_in = processedDataIn
