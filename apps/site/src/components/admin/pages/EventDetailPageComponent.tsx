@@ -7,24 +7,14 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { altrpJournal } from '@/shared/types/altrp'
+import { formatDate } from '@/shared/utils/date-format'
 
 interface EventDetailPageComponentProps {
   journal: altrpJournal
 }
 
 export default function EventDetailPageComponent({ journal }: EventDetailPageComponentProps) {
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'Не указано'
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(date)
-  }
+ 
 
   const parseDetails = () => {
     if (!journal.details) return null

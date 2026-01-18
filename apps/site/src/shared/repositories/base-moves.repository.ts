@@ -500,7 +500,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
     if (data.location) dataIn.location = data.location;
     if (data.sendingBaid) dataIn.sending_baid = data.sendingBaid;
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const [created] = await this.db
       .insert(schema.baseMoves)
@@ -560,7 +560,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       return false;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
     // 1. Delete all relations where this base_move is the target (inventory items)
     try {
@@ -655,7 +655,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         dataIn: data, // Object
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, baseMove.id));
 
@@ -768,7 +768,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         statusName: 'ON_APPROVAL',
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, baseMove.id));
 
@@ -813,7 +813,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .set({
         title: data.title !== undefined ? data.title : existing.title,
         dataIn: updatedData,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, existing.id));
 
@@ -862,7 +862,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .set({
         title: data.title !== undefined ? data.title : existing.title,
         dataIn: updatedData,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, existing.id));
 
@@ -921,7 +921,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       dataIn.owner_eaid = opts.ownerEaid;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const [created] = await this.db
       .insert(schema.baseMoves)
@@ -989,7 +989,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         dataIn: data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, inventoryMove.id));
 
@@ -1057,7 +1057,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       dataIn.transportPrice = data.transportPrice;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const [created] = await this.db
       .insert(schema.baseMoves)
@@ -1108,7 +1108,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         dataIn: data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, baseMove.id));
 
@@ -1200,7 +1200,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
         .update(schema.baseMoves)
         .set({
           dataIn: serialized,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(schema.baseMoves.id, move.id));
 
@@ -1386,7 +1386,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         dataIn: serialized,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, move.id));
 
@@ -1439,7 +1439,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
         title: data.title !== undefined ? data.title : existing.title,
         laidTo: data.laidTo !== undefined ? data.laidTo : existing.laidTo,
         dataIn: updatedData,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, existing.id));
 
@@ -1487,7 +1487,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         statusName: 'COMPLETED',
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, baseMove.id));
 
@@ -1539,7 +1539,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         statusName: 'COMPLETED',
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, baseMove.id));
 
@@ -1705,8 +1705,8 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       } else {
         // Add new item to receiving
         const newItem = {
-          updatedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
+          updatedAt: new Date(),
+          createdAt: new Date(),
           deletedAt: null,
           gin: null,
           fts: null,
@@ -1773,7 +1773,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         dataIn: receivingData,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, receiving.id));
 
@@ -1806,7 +1806,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
       .update(schema.baseMoves)
       .set({
         statusName,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       })
       .where(eq(schema.baseMoves.id, existing.id));
 
@@ -1826,7 +1826,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
         .update(schema.baseMoves)
         .set({
           statusName,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date(),
         })
         .where(eq(schema.baseMoves.id, relatedReceiving.id));
 
@@ -1844,7 +1844,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
             .update(schema.baseMoves)
             .set({
               statusName,
-              updatedAt: new Date().toISOString(),
+              updatedAt: new Date(),
             })
             .where(eq(schema.baseMoves.id, relatedSending.id));
 
@@ -1884,7 +1884,7 @@ export class BaseMovesRepository extends BaseRepository<BaseMove> {
         return;
       }
 
-      const now = new Date().toISOString();
+      const now = new Date();
 
       for (const relation of relations) {
         const dataIn = parseJson<Record<string, unknown>>(relation.dataIn, {});

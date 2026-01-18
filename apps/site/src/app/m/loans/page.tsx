@@ -30,6 +30,7 @@ import type {
   DbPaginatedResult,
   DbPaginationResult,
 } from '@/shared/types/shared'
+import { formatDate } from '@/shared/utils/date-format'
 
 const INITIAL_LIMIT = 10
 const LOAN_STATUSES = ['NEW', 'SCORING', 'ADDITIONAL_INFO_REQUESTED'] // Only show these statuses
@@ -245,16 +246,6 @@ export default function AdminLoansPage() {
       currency: 'RUB',
       minimumFractionDigits: 0,
     }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(date)
   }
 
   const getStatusVariant = (status?: string | null) => {

@@ -45,6 +45,7 @@
     "d1:migrate:taxonomy-title-json:remote": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:remote",
     "migrate:taxonomy-title-json:local": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:local",
     "migrate:taxonomy-title-json:remote": "bun run --filter=altrp-site d1:migrate:taxonomy-title-json:remote",
+    "generate:keys:vapid": "npx  web-push generate-vapid-keys",
     "prepare": "husky"
   },
   "devDependencies": {

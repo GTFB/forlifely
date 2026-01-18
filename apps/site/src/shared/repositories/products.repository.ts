@@ -440,7 +440,7 @@ export class ProductsRepository extends BaseRepository<ProductExtended> {
       average_purchase_price: averageWithMarkup,
     };
 
-    const updatedAt = new Date().toISOString();
+    const updatedAt = new Date();
 
     await this.db
       .update(schema.products)
@@ -653,7 +653,7 @@ export class ProductsRepository extends BaseRepository<ProductExtended> {
 
   async softDelete(paid: string): Promise<boolean> {
     try {
-      const now = new Date().toISOString();
+      const now = new Date();
       await this.db
         .update(schema.products)
         .set({ 

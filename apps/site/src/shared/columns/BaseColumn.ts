@@ -46,6 +46,10 @@ export type BaseColumnOptions = {
         values: string[];
         labels: string[];
     };
+    /**
+     * Indicates if the field stores i18n translations
+     */
+    i18n?: true,
     relation?: RelationConfig;
     index?: boolean;
     defaultValue?: any;

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, integer, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const userRoles = pgTable('user_roles', {
@@ -6,6 +6,6 @@ export const userRoles = pgTable('user_roles', {
   userUuid: text('user_uuid').notNull(),
   roleUuid: text('role_uuid').notNull(),
   order: integer('order').default(0),
-  createdAt: text('created_at').notNull().default(sql`now()`),
+  createdAt: timestamp('created_at').notNull().default(sql`now()`),
 })
 

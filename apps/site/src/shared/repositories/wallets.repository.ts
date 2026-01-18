@@ -140,8 +140,8 @@ export class WalletsRepository extends BaseRepository<Wallet> {
         ...(options.data ?? {}),
         currency: options.currency ?? "USD",
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     } satisfies Partial<WalletTransaction>;
 
     const [created] = await this.db
@@ -224,8 +224,8 @@ export class WalletsRepository extends BaseRepository<Wallet> {
         type: 'contractor_wallet',
       },
       statusName: "ACTIVE",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     } as typeof schema.wallets.$inferInsert;
 
     const [wallet] = await this.db
@@ -319,8 +319,8 @@ export class WalletsRepository extends BaseRepository<Wallet> {
       targetAid: wallet.targetAid,
       statusName: "COMPLETED_PAYMENT",
       dataIn: {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     return walletTransaction;
     

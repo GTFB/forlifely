@@ -18,7 +18,7 @@ const createAssetsSqlite = () => sqliteTable('assets', {
 	xaid: text('xaid'),
 	createdAt: text('created_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
 	updatedAt: text('updated_at').notNull().default("(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"),
-	deletedAt: numeric('deleted_at'),
+	deletedAt: text('deleted_at'),
 	gin: text('gin', {
 		mode: 'json'
 	}),

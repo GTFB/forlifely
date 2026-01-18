@@ -1,4 +1,4 @@
-import { eq, } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { SiteDb, buildDbFilters, buildDbOrders, createDb } from "./utils";
 import BaseCollection from "../collections/BaseCollection";
 import type { DbFilters, DbOrders, DbPagination, DbPaginatedResult } from "../types/shared";
@@ -93,15 +93,15 @@ export default class BaseRepository<T> {
         if (!data.uuid) {
             data.uuid = crypto.randomUUID();
         }
-        // Для PostgreSQL timestamp-колонки имеют defaultNow(), поэтому не переопределяем их вручную
-        // Для SQLite (text) выставляем ISO‑строку вручную
-        if (!isPostgres()) {
-            if (this.schema.createdAt) {
-                data.createdAt = new Date().toISOString()
-            }
-            if (this.schema.updatedAt) {
-                data.updatedAt = new Date().toISOString()
-            }
+        // Устанавливаем время в UTC для всех БД
+        // Для PostgreSQL: используем объект Date, который автоматически конвертируется в UTC timestamp
+        // Для SQLite: используем ISO строку с суффиксом Z (UTC)
+        const now = isPostgres() ? new Date() : new Date().toISOString();
+        if (this.schema.createdAt) {
+            data.createdAt = now;
+        }
+        if (this.schema.updatedAt) {
+            data.updatedAt = now;
         }
 
         await this.beforeCreate(data as Partial<T>);
@@ -123,10 +123,11 @@ export default class BaseRepository<T> {
             BaseRepository.normalizeJsonFields(data as Record<string, unknown>);
         }
 
-        if (!isPostgres()) {
-            if (this.schema.updatedAt) {
-                data.updatedAt = new Date().toISOString()
-            }
+        // Устанавливаем время в UTC для всех БД
+        // Для PostgreSQL: используем объект Date, который автоматически конвертируется в UTC timestamp
+        // Для SQLite: используем ISO строку с суффиксом Z (UTC)
+        if (this.schema.updatedAt) {
+            data.updatedAt = isPostgres() ? new Date() : new Date().toISOString();
         }
         await this.beforeUpdate(uuid, data as Partial<T>);
         await this.db.update(this.schema).set(data).where(eq(this.schema.uuid, uuid)).execute();
@@ -153,7 +154,9 @@ export default class BaseRepository<T> {
     protected async _softDeleteByUuid(uuid: string) {
 
         if (this.schema.deletedAt) {
-            return await this.db.update(this.schema).set({ deletedAt: new Date().toISOString() }).where(eq(this.schema.uuid, uuid)).execute();
+            // Устанавливаем время в UTC для всех БД
+            const deletedAt = isPostgres() ? new Date() : new Date().toISOString();
+            return await this.db.update(this.schema).set({ deletedAt }).where(eq(this.schema.uuid, uuid)).execute();
         }
 
         return await this.db.delete(this.schema).where(eq(this.schema.uuid, uuid)).execute();

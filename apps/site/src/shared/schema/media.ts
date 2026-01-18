@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, jsonb, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, numeric, jsonb, boolean, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const media = pgTable('media', {
@@ -17,13 +17,13 @@ export const media = pgTable('media', {
   uploaderAid: text('uploader_aid'),
   order: numeric('order').default('0'),
   xaid: text('xaid'),
-  updatedAt: text('updated_at')
+  updatedAt: timestamp('updated_at')
     .notNull()
     .default(sql`now()`),
-  createdAt: text('created_at')
+  createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
-  deletedAt: numeric('deleted_at'),
+  deletedAt: timestamp('deleted_at'),
   dataIn: jsonb('data_in'),
   url: text('url'),
   thumbnailUrl: text('thumbnail_u_r_l'),

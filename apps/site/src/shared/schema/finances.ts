@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, text, serial, numeric, jsonb, timestamp } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const finances = pgTable('finances', {
@@ -14,13 +14,13 @@ export const finances = pgTable('finances', {
   statusName: text('status_name'),
   order: numeric('order').default('0'),
   xaid: text('xaid'),
-  updatedAt: text('updated_at')
+  updatedAt: timestamp('updated_at')
     .notNull()
     .default(sql`now()`),
-  createdAt: text('created_at')
+  createdAt: timestamp('created_at')
     .notNull()
     .default(sql`now()`),
-  deletedAt: numeric('deleted_at'),
+  deletedAt: timestamp('deleted_at'),
   gin: jsonb('gin'),
   fts: jsonb('fts'),
   dataIn: jsonb('data_in'),
