@@ -74,7 +74,7 @@
       "Finance": "Финансы",
       "Content": "Контент",
       "Chats": "Чаты",
-      "Admin": "Админ",
+      "Admin": "Администратор",
       "Logs": "Журналы",
       "System": "Система"
     },
@@ -107,6 +107,10 @@
   },
   "teamSwitcher": {
     "teamsLabel": "Роли"
+  },
+  "expanseSelector": {
+    "label": "Пространство",
+    "general": "Общее"
   },
   "navUser": {
     "notifications": "Уведомления",

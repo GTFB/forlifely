@@ -110,6 +110,10 @@
       "teamsLabel": "Timovi",
       "addTeam": "Dodaj tim"
     },
+    "expanseSelector": {
+      "label": "Prostor",
+      "general": "Opšte"
+    },
     "navUser": {
       "notifications": "Obaveštenja",
       "english": "Engleski",

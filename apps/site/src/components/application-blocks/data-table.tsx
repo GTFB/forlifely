@@ -2029,7 +2029,8 @@ export function DataTable() {
         const forcedFieldType =
           col.name === "data_in"
             ? "json"
-            : (state.collection === "roles" && col.name === "title") ||
+            : (state.collection === "taxonomy" && col.name === "title") ||
+              (state.collection === "roles" && col.name === "title") ||
               (state.collection === "expanses" && col.name === "title")
               ? "json"
               : undefined
@@ -3114,6 +3115,73 @@ export function DataTable() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createOpen, locale, state.collection])
 
+  // Auto-populate XAID from selected expanse when create form opens or expanse changes
+  React.useEffect(() => {
+    if (!createOpen || !state.collection) return
+
+    // Check if collection has xaid field in schema
+    const hasXaidField = schema.some((col) => col.name === 'xaid')
+    if (!hasXaidField) return
+
+    // Check if xaid field is hidden or read-only
+    const xaidField = schema.find((col) => col.name === 'xaid')
+    if (xaidField?.hidden || xaidField?.readOnly) return
+
+    // Skip for expanses collection (xaid is auto-generated there)
+    if (state.collection === 'expanses') return
+
+    // Get selected expanse xaid from localStorage
+    if (typeof window !== 'undefined') {
+      const selectedXaid = localStorage.getItem('selected-expanse-xaid')
+      
+      // Only set if value exists and is not empty
+      if (selectedXaid && selectedXaid.trim() !== '') {
+        // Only set if not already set in formData
+        if (!formData.xaid || formData.xaid === '') {
+          setFormData((prev) => ({ ...prev, xaid: selectedXaid }))
+        }
+      } else {
+        // If "Общее" is selected (empty value), ensure xaid is empty
+        if (formData.xaid) {
+          setFormData((prev) => {
+            const updated = { ...prev }
+            delete updated.xaid
+            return updated
+          })
+        }
+      }
+    }
+  }, [createOpen, state.collection, schema, formData.xaid])
+
+  // Listen for expanse selection changes
+  React.useEffect(() => {
+    if (!createOpen || !state.collection) return
+
+    const hasXaidField = schema.some((col) => col.name === 'xaid')
+    if (!hasXaidField || state.collection === 'expanses') return
+
+    const xaidField = schema.find((col) => col.name === 'xaid')
+    if (xaidField?.hidden || xaidField?.readOnly) return
+
+    const handleExpanseSelected = (e: CustomEvent) => {
+      const selectedXaid = e.detail as string
+      if (selectedXaid && selectedXaid.trim() !== '') {
+        setFormData((prev) => ({ ...prev, xaid: selectedXaid }))
+      } else {
+        setFormData((prev) => {
+          const updated = { ...prev }
+          delete updated.xaid
+          return updated
+        })
+      }
+    }
+
+    window.addEventListener('expanse-selected', handleExpanseSelected as EventListener)
+    return () => {
+      window.removeEventListener('expanse-selected', handleExpanseSelected as EventListener)
+    }
+  }, [createOpen, state.collection, schema])
+
   // Sync createDataInRaw when createDataInEntries changes
   React.useEffect(() => {
     if (!createOpen) return
@@ -3862,6 +3930,28 @@ export function DataTable() {
     e.preventDefault()
     setCreateError(null)
     try {
+      // Auto-populate XAID from selected expanse if not already set
+      const hasXaidField = schema.some((col) => col.name === 'xaid')
+      if (hasXaidField && state.collection !== 'expanses') {
+        const xaidField = schema.find((col) => col.name === 'xaid')
+        if (xaidField && !xaidField.hidden && !xaidField.readOnly) {
+          if (typeof window !== 'undefined') {
+            const selectedXaid = localStorage.getItem('selected-expanse-xaid')
+            if (selectedXaid && selectedXaid.trim() !== '') {
+              // Override formData.xaid with selected expanse xaid if it's empty or not set
+              if (!formData.xaid || formData.xaid === '') {
+                formData.xaid = selectedXaid
+              }
+            } else {
+              // If "Общее" is selected, ensure xaid is not set
+              if (formData.xaid) {
+                delete formData.xaid
+              }
+            }
+          }
+        }
+      }
+
       // Normalize payload for API: handle taxonomy translations, JSON, prices, and Date values
       const payload = Object.entries(formData).reduce((acc, [key, value]) => {
         const i18nFields = getI18nJsonFieldsForCollection(state.collection)

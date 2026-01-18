@@ -109,6 +109,10 @@
   "teamSwitcher": {
     "teamsLabel": "Roles"
   },
+  "expanseSelector": {
+    "label": "Expanse",
+    "general": "General"
+  },
   "navUser": {
     "notifications": "Notifications",
     "english": "English",

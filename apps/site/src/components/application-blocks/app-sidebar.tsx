@@ -99,9 +99,6 @@ function getGlobalRefs() {
     teamsRef: { 
       current: [
         { name: "Admin", logo: Logo, plan: "", href: "/admin/dashboard" },
-        { name: "Кабинет Потребителя", logo: Logo, plan: "", href: "/c/dashboard" },
-        { name: "Кабинет Инвестора", logo: Logo, plan: "", href: "/i/dashboard" },
-        { name: "Кабинет Партнера", logo: Logo, plan: "", href: "/p/dashboard" },
       ] 
     },
     itemsStructureRef: { current: restoredItemsStructure },
@@ -235,6 +232,14 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   
   // Use stable reference from ref
   const translations = translationsRef.current
+  
+  // Force re-render when translations or teams change (for teams update)
+  const [, forceUpdate] = React.useReducer(x => x + 1, 0)
+  React.useEffect(() => {
+    if (translations) {
+      forceUpdate()
+    }
+  }, [translations])
 
   // Helper function to convert collection name to taxonomy entity key
   const collectionToEntityKey = (collection: string): string => {
@@ -608,6 +613,16 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   // Load roles from Roles collection
   const [rolesLoading, setRolesLoading] = React.useState(false)
   
+  // Use state for teams to ensure re-renders when teams change
+  // Initialize with empty array to avoid showing initial "Admin" before roles load
+  const [teamsState, setTeamsState] = React.useState<Array<{
+    name: string
+    logo: React.ElementType
+    plan: string
+    href: string
+    order: number
+  }>>([])
+  
   const loadRoles = React.useCallback(async () => {
     setRolesLoading(true)
     try {
@@ -620,6 +635,10 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       const json = await res.json() as { success?: boolean; data?: any[] }
       
       if (!json.success || !json.data) {
+        // If no roles data, clear teamsRef to remove initial "Admin"
+        teamsRef.current = []
+        setTeamsState([])
+        forceUpdate()
         return
       }
       
@@ -632,7 +651,12 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         order: number
       }> = []
       
-      json.data.forEach((role: any) => {
+      // Track hrefs during building to prevent duplicates early
+      const buildingHrefs = new Set<string>()
+      
+      console.log('[AppSidebar] Loading roles from API, total:', json.data.length)
+      
+      json.data.forEach((role: any, index: number) => {
         // Extract title for current locale
         let roleName = ''
         if (role.title) {
@@ -668,14 +692,24 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         
         // Skip if no href (suffix not found)
         if (!href) {
+          console.log(`[AppSidebar] Skipping role ${index} "${roleName}" - no href found`)
           return
         }
+        
+        // Skip if we already have a team with this href (prevent duplicates during building)
+        if (buildingHrefs.has(href)) {
+          console.warn(`[AppSidebar] Skipping duplicate role with href "${href}":`, roleName, '(already have:', Array.from(buildingHrefs).find(h => h === href), ')')
+          return
+        }
+        buildingHrefs.add(href)
         
         // Try to get order from role.order or data_in.order
         const order = role.order !== undefined ? Number(role.order) : 
           (role.data_in && typeof role.data_in === 'object' && 'order' in role.data_in 
             ? Number(role.data_in.order) 
             : 0)
+        
+        console.log(`[AppSidebar] Adding role ${index}: name="${roleName}", href="${href}", order=${order}`)
         
         roleTeams.push({
           name: roleName,
@@ -686,29 +720,142 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         })
       })
       
-      // Sort by order
+      console.log('[AppSidebar] After processing all roles, roleTeams.length:', roleTeams.length)
+      
+      // Remove duplicates by href BEFORE sorting (keep first occurrence with lowest order)
+      const hrefMap = new Map<string, typeof roleTeams[0]>()
+      roleTeams.forEach(team => {
+        if (!team.href) return
+        const existing = hrefMap.get(team.href)
+        if (!existing || team.order < existing.order) {
+          hrefMap.set(team.href, team)
+        }
+      })
+      roleTeams.length = 0
+      roleTeams.push(...Array.from(hrefMap.values()))
+      
+      // Sort by order after deduplication
       roleTeams.sort((a, b) => a.order - b.order)
       
-      // Update teamsRef if changed
-      const currentTeamsStr = JSON.stringify(teamsRef.current)
-      const newTeamsStr = JSON.stringify(roleTeams)
-      if (currentTeamsStr !== newTeamsStr) {
-        teamsRef.current = roleTeams as any
+      // IMPORTANT: Do NOT add Admin team if user is super admin
+      // The role from database should already contain the admin role with href /admin/dashboard
+      // Adding it manually causes duplicates
+      // If no admin role exists in database, it means user doesn't have admin access via roles
+      // and we should not add it manually
+      
+      // Final deduplication check to ensure no duplicates by href
+      const finalHrefMap = new Map<string, typeof roleTeams[0]>()
+      roleTeams.forEach(team => {
+        if (!team.href) return
+        const existing = finalHrefMap.get(team.href)
+        if (!existing || team.order < existing.order) {
+          finalHrefMap.set(team.href, team)
+        }
+      })
+      const finalRoleTeams = Array.from(finalHrefMap.values())
+      finalRoleTeams.sort((a, b) => a.order - b.order)
+      
+      // Debug: log if duplicates found
+      const hrefs = finalRoleTeams.map(t => t.href).filter(Boolean)
+      const uniqueHrefs = new Set(hrefs)
+      if (hrefs.length !== uniqueHrefs.size) {
+        const duplicates = hrefs.filter((h, i) => hrefs.indexOf(h) !== i)
+        console.error('[AppSidebar] CRITICAL: Duplicate hrefs found after deduplication:', duplicates)
+        console.error('[AppSidebar] All teams:', finalRoleTeams.map(t => ({ name: t.name, href: t.href })))
       }
+      
+      // STRICT: Final deduplication by href - keep only one per href
+      const strictDedupMap = new Map<string, typeof finalRoleTeams[0]>()
+      finalRoleTeams.forEach(team => {
+        if (!team.href) return
+        // Always keep the first one we encounter (already sorted by order)
+        if (!strictDedupMap.has(team.href)) {
+          strictDedupMap.set(team.href, team)
+        } else {
+          console.warn(`[AppSidebar] Removing duplicate team with href "${team.href}":`, team.name)
+        }
+      })
+      const strictFinalTeams = Array.from(strictDedupMap.values())
+      strictFinalTeams.sort((a, b) => a.order - b.order)
+      
+      // Log final result for debugging with detailed info
+      console.log('[AppSidebar] Final teams after loadRoles:', strictFinalTeams.length, 'teams:', strictFinalTeams.map(t => ({ name: t.name, href: t.href, order: t.order })))
+      
+      // Verify no duplicates by href
+      const finalHrefs = strictFinalTeams.map(t => t.href).filter(Boolean)
+      const finalUniqueHrefs = new Set(finalHrefs)
+      if (finalHrefs.length !== finalUniqueHrefs.size) {
+        console.error('[AppSidebar] CRITICAL ERROR: Still have duplicates after strict deduplication!')
+        console.error('Hrefs:', finalHrefs)
+        console.error('Teams:', strictFinalTeams)
+      }
+      
+      // ALWAYS update teamsRef - even if content seems same, we need to ensure fresh reference
+      teamsRef.current = [...strictFinalTeams] as any
+      // Explicitly update teamsState to ensure UI updates
+      setTeamsState([...strictFinalTeams])
+      forceUpdate()
     } catch (e) {
       console.error('Failed to load roles:', e)
     } finally {
       setRolesLoading(false)
     }
-  }, [locale])
+  }, [locale, translations?.sidebar?.categories?.Admin, translations?.dashboard?.adminPanel, translations?.dashboard?.title, isSuperAdmin, setTeamsState])
   
-  // Load roles on mount and when locale changes
+  // Load roles on mount and when locale or translations change
   React.useEffect(() => {
     void loadRoles()
-  }, [loadRoles])
+  }, [loadRoles, translations])
   
-  // Always return same reference - mutations happen in-place
-  const teams = teamsRef.current
+  // Sync teamsState with teamsRef when it changes
+  // Use a ref to track the last teams string to detect changes
+  const lastTeamsStrRef = React.useRef(JSON.stringify(teamsRef.current))
+  
+  React.useEffect(() => {
+    const currentTeams = teamsRef.current
+    const currentStr = JSON.stringify(currentTeams)
+    
+    // Only update if teams actually changed
+    if (lastTeamsStrRef.current !== currentStr) {
+      lastTeamsStrRef.current = currentStr
+      // Ensure no duplicates before setting state
+      const hrefMap = new Map<string, typeof currentTeams[0] & { order: number }>()
+      currentTeams.forEach(team => {
+        if (!team.href) return
+        if (!hrefMap.has(team.href)) {
+          hrefMap.set(team.href, {
+            ...team,
+            order: (team as any).order ?? 0
+          } as typeof currentTeams[0] & { order: number })
+        }
+      })
+      const dedupedTeams = Array.from(hrefMap.values())
+      setTeamsState(dedupedTeams)
+    }
+  }, [forceUpdate, rolesLoading]) // Also watch rolesLoading to catch when roles finish loading
+  
+  // NOTE: Disabled - we now use roles from database with their own translations
+  // If a role with /admin/dashboard exists in database, it will have its own translated name
+  // This effect was causing duplicate "Admin" entries by modifying team names after loadRoles
+  // React.useEffect(() => {
+  //   if (translations && teamsRef.current.length > 0) {
+  //     const adminTeam = teamsRef.current.find(team => team.href === '/admin/dashboard')
+  //     if (adminTeam) {
+  //       const adminLabel = translations?.sidebar?.categories?.Admin || translations?.dashboard?.adminPanel || "Admin"
+  //       if (adminTeam.name !== adminLabel) {
+  //         // Create new array with updated team to trigger re-render
+  //         teamsRef.current = teamsRef.current.map(team => 
+  //           team.href === '/admin/dashboard' 
+  //             ? { ...team, name: adminLabel }
+  //             : team
+  //         )
+  //         forceUpdate()
+  //       }
+  //     }
+  //   }
+  // }, [translations?.sidebar?.categories?.Admin, translations?.dashboard?.adminPanel, forceUpdate])
+  
+  const teams = teamsState
 
   // Use global ref for userProps to maintain stable reference
   const userPropsRef = globalUserPropsRef
@@ -734,7 +881,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
 
   // Compute active role name based on pathname and teams
   const activeRoleName = React.useMemo(() => {
-    const teams = teamsRef.current
     if (!pathname || !teams || teams.length === 0) {
       return translations?.sidebar?.platform || "Platform"
     }
@@ -762,7 +908,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     }
     
     return activeTeam?.name || teams[0]?.name || translations?.sidebar?.platform || "Platform"
-  }, [pathname, translations?.sidebar?.platform])
+  }, [pathname, translations?.sidebar?.platform, teams])
 
   // Use global ref for platformLabel to maintain stable reference
   const platformLabelRef = globalPlatformLabelRef
