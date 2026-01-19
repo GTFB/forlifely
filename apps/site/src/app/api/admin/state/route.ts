@@ -50,8 +50,13 @@ function isValidCollection(name: string): boolean {
 }
 
 function parseStateFromUrl(url: URL): AdminState {
-  // Parse query string with qs
-  const parsed = qs.parse(url.search.slice(1))
+  // Parse query string with qs - use brackets format to match client-side serialization
+  const parsed = qs.parse(url.search.slice(1), {
+    arrayLimit: 1000,
+    parseArrays: true,
+    allowDots: false,
+    comma: false,
+  })
   
   const collection = (parsed.c as string) || DEFAULT_STATE.collection
   const page = Math.max(1, Number(parsed.p) || DEFAULT_STATE.page)
@@ -59,8 +64,48 @@ function parseStateFromUrl(url: URL): AdminState {
   const search = (parsed.s as string) || DEFAULT_STATE.search
   
   let filters: AdminFilter[] = []
-  if (parsed.filters && Array.isArray(parsed.filters)) {
-    filters = parsed.filters.filter((item: any) => item && typeof item.field === "string") as unknown as AdminFilter[]
+  if (parsed.filters) {
+    console.log(`[API /admin/state] Parsing filters from URL:`, {
+      rawFilters: parsed.filters,
+      isArray: Array.isArray(parsed.filters),
+      type: typeof parsed.filters,
+      rawUrl: url.search,
+    })
+    
+    // Handle different formats: array, object with numeric keys, or nested object
+    if (Array.isArray(parsed.filters)) {
+      // Direct array format
+      filters = parsed.filters.filter((item: any) => item && typeof item.field === "string") as unknown as AdminFilter[]
+    } else if (typeof parsed.filters === 'object' && parsed.filters !== null) {
+      // Could be object with numeric keys like {0: {field: 'entity', ...}, 1: {...}}
+      // or nested object like {field: ['entity'], op: ['eq'], value: ['contractors.status_name']}
+      const filterKeys = Object.keys(parsed.filters)
+      
+      // Check if it's a nested object format (field, op, value as separate arrays)
+      if (filterKeys.includes('field') && filterKeys.includes('op') && filterKeys.includes('value')) {
+        const fieldArray = Array.isArray(parsed.filters.field) ? parsed.filters.field : [parsed.filters.field]
+        const opArray = Array.isArray(parsed.filters.op) ? parsed.filters.op : [parsed.filters.op]
+        const valueArray = Array.isArray(parsed.filters.value) ? parsed.filters.value : [parsed.filters.value]
+        
+        const maxLength = Math.max(fieldArray.length, opArray.length, valueArray.length)
+        filters = []
+        for (let i = 0; i < maxLength; i++) {
+          if (fieldArray[i] && typeof fieldArray[i] === 'string') {
+            filters.push({
+              field: fieldArray[i] as string,
+              op: opArray[i] as AdminFilter['op'],
+              value: valueArray[i],
+            })
+          }
+        }
+      } else {
+        // Object with numeric keys
+        const filterArray = Object.values(parsed.filters)
+        filters = filterArray.filter((item: any) => item && typeof item.field === "string") as unknown as AdminFilter[]
+      }
+    }
+    
+    console.log(`[API /admin/state] Parsed filters:`, filters)
   }
   
   return { collection, page, pageSize, filters, search }
@@ -147,12 +192,34 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     
     // Apply column filters from state.filters (only real DB columns are supported)
     if (Array.isArray(state.filters) && state.filters.length > 0) {
+      console.log(`[API /admin/state] Processing filters for ${state.collection}:`, {
+        filters: state.filters,
+        filtersLength: state.filters.length,
+        filtersType: typeof state.filters,
+        realColumnNames: Array.from(columns.map((c: { name: string }) => c.name)),
+      })
       const allowedOps = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "like", "in"])
       const realColumnNames = new Set(columns.map((c: { name: string }) => c.name))
 
       for (const f of state.filters) {
-        if (!f || typeof f.field !== "string" || !allowedOps.has(f.op)) continue
-        if (!realColumnNames.has(f.field)) continue // skip virtual/non-existent fields
+        console.log(`[API /admin/state] Processing filter:`, {
+          filter: f,
+          hasField: typeof f?.field === "string",
+          field: f?.field,
+          op: f?.op,
+          value: f?.value,
+          isAllowedOp: allowedOps.has(f?.op),
+          isRealColumn: realColumnNames.has(f?.field),
+          willApply: !!(f && typeof f.field === "string" && allowedOps.has(f.op) && realColumnNames.has(f.field)),
+        })
+        if (!f || typeof f.field !== "string" || !allowedOps.has(f.op)) {
+          console.warn(`[API /admin/state] Skipping invalid filter:`, f)
+          continue
+        }
+        if (!realColumnNames.has(f.field)) {
+          console.warn(`[API /admin/state] Skipping filter for non-existent column:`, f.field, `Available columns:`, Array.from(realColumnNames))
+          continue // skip virtual/non-existent fields
+        }
 
         const colExpr = q(f.field)
 
@@ -258,8 +325,15 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     
     const where = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : ''
 
+    console.log(`[API /admin/state] Executing query for ${state.collection}:`, {
+      where,
+      bindings,
+      wherePartsCount: whereParts.length,
+    })
+
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM ${q(state.collection)} ${where}`
+    console.log(`[API /admin/state] Count query:`, countQuery, `Bindings:`, bindings)
     const countResult = await executeRawQuery<{ total: string | number }>(
       client,
       countQuery,
@@ -267,15 +341,19 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     )
 
     const total = Number(countResult[0]?.total) || 0
+    console.log(`[API /admin/state] Total count:`, total)
 
     // Get data with pagination
     const offset = (state.page - 1) * state.pageSize
     const dataQuery = `SELECT * FROM ${q(state.collection)} ${where} LIMIT $${bindings.length + 1} OFFSET $${bindings.length + 2}`
+    console.log(`[API /admin/state] Data query:`, dataQuery, `Bindings:`, [...bindings, state.pageSize, offset])
     const dataResult = await executeRawQuery(
       client,
       dataQuery,
       [...bindings, state.pageSize, offset]
     )
+    
+    console.log(`[API /admin/state] Data result length:`, dataResult?.length || 0)
 
     // Process data: parse JSON fields and compute virtual fields
     const processedData = await Promise.all(

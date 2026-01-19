@@ -6,6 +6,7 @@ import { UsersRepository } from '@/shared/repositories/users.repository'
 import { getNextResendAvailableAt } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { UserSessionsRepository, getClientIp } from '@/shared/repositories/user-sessions.repository'
+import { isPostgres } from '@/shared/utils/db'
 interface LoginRequest {
   email: string
   password: string
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
     const isAdmin = roles.some((role) => role.isSystem === true)
 
     await usersRepository.update(persistedUser.uuid, {
-      lastLoginAt: new Date().toISOString(),
+      lastLoginAt: isPostgres() ? new Date() : new Date().toISOString(),
     })
 
     const sessionUuid = crypto.randomUUID()
@@ -154,8 +155,27 @@ export async function POST(request: Request) {
     )
   } catch (error) {
     console.error('Login error:', error)
+    
+    // Provide more detailed error information
+    let errorMessage = 'Login failed'
+    let errorDetails: string | undefined
+    
+    if (error instanceof Error) {
+      errorMessage = error.message || errorMessage
+      errorDetails = error.stack
+      console.error('Error stack:', error.stack)
+    } else if (typeof error === 'string') {
+      errorMessage = error
+    } else {
+      errorDetails = String(error)
+    }
+    
     return new Response(
-      JSON.stringify({ error: 'Login failed', details: String(error) }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: errorDetails,
+        code: 'LOGIN_ERROR'
+      }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

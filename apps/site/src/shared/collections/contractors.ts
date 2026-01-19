@@ -4,8 +4,17 @@ import BaseCollection from "./BaseCollection";
 
 export default class Contractors extends BaseCollection {
     __title = 'Contractors';
+    // Default sorting: by ID ascending (A-Z) instead of descending
+    __defaultSort = [{ id: 'id', desc: false }];
     title = new BaseColumn({
         title: 'Название',
+        type: 'json',
+        i18n: true,
+    });
+    reg = new BaseColumn({
+        type: 'text',
+    });
+    tin = new BaseColumn({
         type: 'text',
     });
     status_name = new BaseColumn({
@@ -18,23 +27,40 @@ export default class Contractors extends BaseCollection {
             filters: [{
                 field: 'entity',
                 op: 'eq',
-                value: 'contractors.status_name',
+                value: 'Contractor', // Entity value in DB is 'Contractor' (capitalized)
             }],
         },
     });
-    reg = new BaseColumn({
-        hidden: true,
-    });
-    tin = new BaseColumn({
-        hidden: true,
-    });
-    type = new BaseColumn({
-        hidden: true,
-    });
     city_name = new BaseColumn({
-        hidden: true,
+        title: 'Город',
+        type: 'text',
+        relation: {
+            collection: 'taxonomy',
+            valueField: 'name',
+            labelField: 'title',
+            filters: [{
+                field: 'entity',
+                op: 'eq',
+                value: 'City', // Entity value in DB is 'City' (capitalized)
+            }],
+        },
+    });
+    order = new BaseColumn({
+        title: 'Порядок',
+        type: 'number',
+        hiddenTable: true, // Hidden by default, but can be enabled in table settings
+    });
+    xaid = new BaseColumn({
+        title: 'Проект',
+        type: 'text',
+        readOnly: true,
+        hiddenTable: true,
     });
     media_id = new BaseColumn({
+        title: 'Логотип',
+        type: 'text',
+    });
+    type = new BaseColumn({
         hidden: true,
     });
     gin = new BaseColumn({
@@ -42,6 +68,10 @@ export default class Contractors extends BaseCollection {
     });
     fts = new BaseColumn({
         hidden: true,
+    });
+    data_out = new BaseColumn({
+        hidden: true,
+        hiddenTable: true,
     });
     caid = new BaseColumn({
         hidden: true,

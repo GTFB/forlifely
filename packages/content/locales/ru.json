@@ -206,6 +206,7 @@
       "cancel": "Отмена",
       "create": "Создать",
       "save": "Сохранить",
+      "clear": "Очистить",
       "passwordsDoNotMatch": "Пароли не совпадают"
     },
     "actions": {
@@ -227,8 +228,25 @@
         "deleteAll": "Удалить все"
       }
     },
+    "statusFilter": {
+      "filter": "По статусу",
+      "filterBy": "Фильтровать по статусу",
+      "clear": "Очистить фильтр",
+      "selected": "выбран",
+      "selectedPlural": "выбрано"
+    },
+    "cityFilter": {
+      "filter": "По городу",
+      "filterBy": "Фильтровать по городу",
+      "clear": "Очистить фильтр",
+      "selected": "выбран",
+      "selectedPlural": "выбрано"
+    },
+    "filterSettings": "Настройки фильтров",
+    "filters": "Кнопки-фильтры",
+    "showColumnFilters": "Фильтры в столбцах",
     "dateFilter": {
-      "filter": "Фильтр по дате",
+      "filter": "По дате",
       "filterBy": "Фильтровать по",
       "created": "Создано",
       "updated": "Обновлено",
@@ -254,7 +272,7 @@
     },
     "loading": "Загрузка {collection}...",
     "dataInFields": "Дополнительно",
-    "showFilters": "Показать фильтры",
+    "showFilters": "Фильтры в столбцах",
     "cardView": "Режим карточек",
     "cardViewMobile": "Режим карточек (мобильный)",
     "cardViewDesktop": "Режим карточек (десктоп)",
@@ -333,6 +351,20 @@
         "updated_at": "Обновлено",
         "data_in": "Данные (JSON)",
         "main": "Главное!"
+      },
+      "contractors": {
+        "id": "ID",
+        "uuid": "UUID",
+        "title": "Название",
+        "reg": "Рег. №",
+        "tin": "ИНН",
+        "status_name": "Статус",
+        "city_name": "Город",
+        "order": "Порядок",
+        "xaid": "Проект",
+        "media_id": "Логотип",
+        "created_at": "Создано",
+        "updated_at": "Обновлено"
       }
     }
   },
@@ -395,7 +427,9 @@
       "wallet_transaction": "Транзакция",
       "expanse": "Пространство",
       "yield": "Игрофикатор",
-      "zoo": "Животное"
+      "zoo": "Животное",
+      "contractors.status_name": "Статус контрагентов",
+      "contractors.city_name": "Город контрагентов"
     },
     "fields": {
       "entity": "Сущность",

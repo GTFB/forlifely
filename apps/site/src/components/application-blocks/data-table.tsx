@@ -30,8 +30,11 @@ import {
   IconGripVertical,
   IconEdit,
   IconDeviceFloppy,
+  IconTag,
+  IconMapPin,
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
+import BaseColumn from "@/shared/columns/BaseColumn"
 import type { AdminFilter } from "@/shared/types"
 import { parseSearchQuery, matchesSearchQuery, type ParsedSearchQuery, type SearchCondition } from "@/shared/utils/search-parser"
 import { exportTable, getFileExtension, getMimeType, addBOM, type ExportFormat } from "@/shared/utils/table-export"
@@ -122,7 +125,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -361,7 +364,9 @@ function ColumnFilterMultiselect({
               ? `${selectedOptions.length} ${t?.form?.selected || "selected"}`
               : placeholder || t?.form?.selectPlaceholder || "Select..."}
           </span>
-          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          {selectedOptions.length === 0 && (
+            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0 z-10002" align="start">
@@ -402,6 +407,144 @@ function ColumnFilterMultiselect({
   )
 }
 
+// Media Upload Input Component
+function MediaUploadInput({
+  value,
+  onChange,
+  disabled,
+  translations,
+}: {
+  value: string
+  onChange: (uuid: string) => void
+  disabled?: boolean
+  translations?: any
+}) {
+  const [uploading, setUploading] = React.useState(false)
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Load preview if value exists
+  React.useEffect(() => {
+    if (value) {
+      setPreviewUrl(`/api/altrp/v1/admin/files/${value}`)
+    } else {
+      setPreviewUrl(null)
+    }
+  }, [value])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate image file
+    if (!file.type.startsWith('image/')) {
+      alert(translations?.form?.invalidImage || 'Please select an image file')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const response = await fetch('/api/altrp/v1/admin/files/upload-for-public', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Upload failed')
+      }
+
+      const result = await response.json() as { success: boolean; data?: { uuid: string } }
+      if (result.success && result.data?.uuid) {
+        onChange(result.data.uuid)
+      } else {
+        throw new Error('Upload response invalid')
+      }
+    } catch (error) {
+      console.error('Failed to upload image:', error)
+      alert(translations?.form?.uploadError || 'Failed to upload image')
+    } finally {
+      setUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleRemove = () => {
+    onChange('')
+    setPreviewUrl(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-4">
+        {previewUrl ? (
+          <>
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="h-20 w-20 rounded object-cover border"
+              onError={() => setPreviewUrl(null)}
+            />
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled || uploading}
+              >
+                {uploading ? (translations?.form?.uploading || 'Uploading...') : (translations?.form?.changeImage || 'Change Image')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRemove}
+                disabled={disabled || uploading}
+              >
+                {translations?.form?.remove || 'Remove'}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || uploading}
+            className="w-full"
+          >
+            {uploading ? (translations?.form?.uploading || 'Uploading...') : (translations?.form?.uploadImage || 'Upload Image')}
+          </Button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+          disabled={disabled || uploading}
+        />
+      </div>
+      {value && (
+        <Input
+          type="text"
+          value={value}
+          readOnly
+          className="font-mono text-xs"
+          placeholder="Media UUID"
+        />
+      )}
+    </div>
+  )
+}
+
 // Relation Select Component
 function RelationSelect({
   relation,
@@ -411,6 +554,7 @@ function RelationSelect({
   required,
   translations,
   search,
+  locale = 'en',
 }: {
   relation: RelationConfig
   value: any
@@ -419,6 +563,7 @@ function RelationSelect({
   required?: boolean
   translations?: any
   search?: string
+  locale?: string
 }) {
   const [options, setOptions] = React.useState<Array<{ value: any; label: string }>>([])
   const [loading, setLoading] = React.useState(false)
@@ -433,12 +578,87 @@ function RelationSelect({
           relationFilters.push(...relation.filters)
         }
 
+        // ALWAYS check what entity values exist in DB for taxonomy when loading taxonomy options
+        // This helps debug what entity values are actually stored in the database
+        if (relation.collection === 'taxonomy') {
+          console.log(`[RelationSelect] ===== DEBUG: Making query to taxonomy to see ALL entity values =====`)
+          const debugQueryParams = qs.stringify({
+            c: 'taxonomy',
+            p: 1,
+            ps: 1000, // Get more records to see all entity values
+          })
+          
+          console.log(`[RelationSelect] Debug query URL: /api/admin/state?${debugQueryParams}`)
+          
+          try {
+            const debugRes = await fetch(`/api/admin/state?${debugQueryParams}`, {
+              credentials: "include",
+            })
+            console.log(`[RelationSelect] Debug query response status:`, debugRes.status)
+            
+            if (debugRes.ok) {
+              const debugJson: StateResponse = await debugRes.json()
+              console.log(`[RelationSelect] Debug query returned ${debugJson.data?.length || 0} records`)
+              
+              const uniqueEntities = [...new Set(debugJson.data?.map((item: any) => item.entity) || [])]
+              console.log(`[RelationSelect] ===== ALL ENTITY VALUES IN TAXONOMY DB =====`)
+              console.log(`[RelationSelect] Unique entity values:`, uniqueEntities)
+              console.log(`[RelationSelect] Total unique entities:`, uniqueEntities.length)
+              
+              // Group by entity to see what records exist for each
+              const byEntity: Record<string, any[]> = {}
+              debugJson.data?.forEach((item: any) => {
+                if (!byEntity[item.entity]) {
+                  byEntity[item.entity] = []
+                }
+                byEntity[item.entity].push({
+                  id: item.id,
+                  name: item.name,
+                  title: item.title,
+                })
+              })
+              
+              console.log(`[RelationSelect] Records grouped by entity:`, byEntity)
+              console.log(`[RelationSelect] Count per entity:`, Object.keys(byEntity).reduce((acc, key) => {
+                acc[key] = byEntity[key].length
+                return acc
+              }, {} as Record<string, number>))
+              console.log(`[RelationSelect] ============================================`)
+              
+              // Show sample records
+              console.log(`[RelationSelect] Sample taxonomy records (first 20):`, debugJson.data?.slice(0, 20).map((item: any) => ({
+                id: item.id,
+                entity: item.entity,
+                name: item.name,
+                title: typeof item.title === 'string' ? item.title : JSON.stringify(item.title),
+              })))
+            } else {
+              const errorText = await debugRes.text()
+              console.error(`[RelationSelect] Debug query failed with status:`, debugRes.status, `Error:`, errorText)
+            }
+          } catch (debugError) {
+            console.error(`[RelationSelect] Debug query error:`, debugError)
+          }
+        }
+
         const queryParams = qs.stringify({
           c: relation.collection,
           p: 1,
           ps: 1000, // Load more items for select
           ...(relation.inheritSearch && search && { s: search }),
           ...(relationFilters.length > 0 && { filters: relationFilters }),
+        }, {
+          arrayFormat: 'brackets', // Use brackets format for arrays: filters[0][field]=entity
+          encode: false, // Don't encode, let browser handle it
+        })
+
+        console.log(`[RelationSelect] Loading options for ${relation.collection}:`, {
+          relation,
+          filters: relationFilters,
+          queryParams,
+          url: `/api/admin/state?${queryParams}`,
+          // Show exact filter values being sent
+          filterValues: relationFilters.map(f => ({ field: f.field, op: f.op, value: f.value })),
         })
 
         const res = await fetch(`/api/admin/state?${queryParams}`, {
@@ -448,12 +668,50 @@ function RelationSelect({
         
         const json: StateResponse = await res.json()
         
-        const opts = json.data.map((item) => ({
-          value: item[relation.valueField],
-          label: relation.labelFields
-            ? relation.labelFields.map(f => item[f]).filter(Boolean).join(" ")
-            : String(item[relation.labelField] || "-"),
-        }))
+        console.log(`[RelationSelect] Received response for ${relation.collection}:`, {
+          success: json.success,
+          dataLength: json.data?.length,
+          data: json.data,
+          // Log first few items to see entity values
+          sampleEntities: json.data?.slice(0, 5).map((item: any) => ({
+            entity: item.entity,
+            name: item.name,
+            title: item.title,
+          })),
+        })
+        
+        const opts = json.data.map((item) => {
+          const value = item[relation.valueField]
+          let label: string
+          
+          // If labelField is 'title' and collection is 'taxonomy', parse JSON
+          if (relation.collection === 'taxonomy' && relation.labelField === 'title') {
+            let titleValue = item[relation.labelField]
+            
+            // Parse JSON if it's a string
+            if (typeof titleValue === 'string') {
+              try {
+                titleValue = JSON.parse(titleValue)
+              } catch {
+                // Not JSON, use as-is
+              }
+            }
+            
+            // Extract locale-specific value
+            if (titleValue && typeof titleValue === 'object') {
+              label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+            } else {
+              label = String(titleValue || "-")
+            }
+          } else {
+            // Regular field handling
+            label = relation.labelFields
+              ? relation.labelFields.map(f => item[f]).filter(Boolean).join(" ")
+              : String(item[relation.labelField] || "-")
+          }
+          
+          return { value, label }
+        })
         
         console.log(`[RelationSelect] Loaded ${opts.length} options for ${relation.collection}:`, opts)
         setOptions(opts)
@@ -465,7 +723,7 @@ function RelationSelect({
     }
 
     loadOptions()
-  }, [relation, search])
+  }, [relation, search, locale])
 
   return (
     <Select value={value ? String(value) : ""} onValueChange={(val) => {
@@ -499,6 +757,170 @@ function RelationSelect({
         )}
       </SelectContent>
     </Select>
+  )
+}
+
+// Relation Multiselect Component (for column filters)
+function RelationMultiselect({
+  relation,
+  value,
+  onChange,
+  disabled,
+  translations,
+  locale = 'en',
+}: {
+  relation: RelationConfig
+  value: string | string[] | null
+  onChange: (value: string[] | null) => void
+  disabled?: boolean
+  translations?: any
+  locale?: string
+}) {
+  const [options, setOptions] = React.useState<Array<{ value: any; label: string }>>([])
+  const [loading, setLoading] = React.useState(false)
+  const [open, setOpen] = React.useState(false)
+
+  // Convert value to array
+  const selectedValues = React.useMemo(() => {
+    if (!value) return []
+    if (Array.isArray(value)) return value.map(v => String(v))
+    return [String(value)]
+  }, [value])
+
+  React.useEffect(() => {
+    const loadOptions = async () => {
+      setLoading(true)
+      try {
+        const relationFilters: AdminFilter[] = []
+        if (Array.isArray(relation.filters)) {
+          relationFilters.push(...relation.filters)
+        }
+
+        const queryParams = qs.stringify({
+          c: relation.collection,
+          p: 1,
+          ps: 1000,
+          ...(relationFilters.length > 0 && { filters: relationFilters }),
+        }, {
+          arrayFormat: 'brackets',
+          encode: false,
+        })
+
+        const res = await fetch(`/api/admin/state?${queryParams}`, {
+          credentials: "include",
+        })
+        if (!res.ok) throw new Error(`Failed to load: ${res.status}`)
+        
+        const json: StateResponse = await res.json()
+        
+        const opts = json.data.map((item) => {
+          const val = item[relation.valueField]
+          let label: string
+          
+          if (relation.collection === 'taxonomy' && relation.labelField === 'title') {
+            let titleValue = item[relation.labelField]
+            
+            if (typeof titleValue === 'string') {
+              try {
+                titleValue = JSON.parse(titleValue)
+              } catch {
+                // Not JSON, use as-is
+              }
+            }
+            
+            if (titleValue && typeof titleValue === 'object') {
+              label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+            } else {
+              label = String(titleValue || "-")
+            }
+          } else {
+            label = relation.labelFields
+              ? relation.labelFields.map(f => item[f]).filter(Boolean).join(" ")
+              : String(item[relation.labelField] || "-")
+          }
+          
+          return { value: val, label }
+        })
+        
+        setOptions(opts)
+      } catch (e) {
+        console.error(`[RelationMultiselect] Failed to load options for ${relation.collection}:`, e)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOptions()
+  }, [relation, locale])
+
+  const selectedOptions = options.filter(opt => selectedValues.includes(String(opt.value)))
+  const t = translations?.dataTable || translations
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-7 text-xs"
+          disabled={disabled || loading}
+        >
+          <span className="truncate">
+            {selectedOptions.length > 0
+              ? `${selectedOptions.length} ${t?.form?.selected || "selected"}`
+              : (t?.form?.selectPlaceholder || "Select...")}
+          </span>
+          {selectedOptions.length === 0 && (
+            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-10002" align="start">
+        <Command>
+          <CommandInput placeholder={t?.search || "Search..."} className="h-8" />
+          <CommandList>
+            <CommandEmpty>{t?.form?.noResults || "No results found."}</CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => {
+                const isSelected = selectedValues.includes(String(option.value))
+                return (
+                  <CommandItem
+                    key={option.value}
+                    value={`${option.label} ${option.value}`}
+                    onSelect={() => {
+                      if (isSelected) {
+                        const newValues = selectedValues.filter((v) => v !== String(option.value))
+                        onChange(newValues.length > 0 ? newValues : null)
+                      } else {
+                        onChange([...selectedValues, String(option.value)])
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span>{option.label}</span>
+                      {isSelected && <IconCheck className="h-4 w-4 ml-auto" />}
+                    </div>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+        {selectedValues.length > 0 && (
+          <div className="border-t p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => onChange(null)}
+            >
+              {t?.form?.clear || "Clear"}
+            </Button>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -590,13 +1012,56 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
     enableSorting: false,
     enableHiding: false,
   },
-    ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
+    ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => {
+      // Set smaller default size for ID and media_id columns in contractors collection
+      const isContractorsId = collection === 'contractors' && col.name === 'id'
+      const isContractorsLogo = collection === 'contractors' && col.name === 'media_id'
+      // For ID, allow smaller sizes (user can set 50px)
+      const defaultSize = isContractorsId ? 80 : (isContractorsLogo ? 80 : undefined)
+      const defaultMinSize = isContractorsId ? 50 : (isContractorsLogo ? 80 : 100)
+      const defaultMaxSize = isContractorsId ? undefined : (isContractorsLogo ? 120 : undefined)
+      
+      // Check if this column has a relation (for multiselect filtering)
+      const hasRelation = col.relation
+      
+      // Determine if this is a multiselect field
+      const isMultiselect = !hasRelation && (
+        (col.fieldType === 'select' && col.selectOptions) ||
+        (col.fieldType === 'enum' && col.enum) ||
+        col.fieldType === 'array' ||
+        (col as any).multiple === true
+      )
+      
+      // Custom filter function for multiselect and relation fields (OR logic)
+      const customFilterFn = (isMultiselect || hasRelation) ? (row: any, columnId: string, filterValue: any) => {
+        if (!filterValue) {
+          return true
+        }
+        
+        // Handle array values (multiselect) - OR logic
+        if (Array.isArray(filterValue)) {
+          if (filterValue.length === 0) {
+            return true
+          }
+          const cellValue = row.getValue(columnId) as string | null | undefined
+          // OR logic: cell value should be in the filter array
+          return cellValue ? filterValue.includes(cellValue) : false
+        }
+        
+        // Handle single value (relation or text filter)
+        const cellValue = row.getValue(columnId) as string | null | undefined
+        return cellValue ? String(cellValue) === String(filterValue) : false
+      } : undefined
+      
+      return {
       id: col.name, // Explicitly set id to match accessorKey
       accessorKey: col.name,
       enableSorting: true,
       enableResizing: true,
-      size: columnSizing?.[col.name] || undefined,
-      minSize: 100,
+      size: columnSizing?.[col.name] || defaultSize,
+      minSize: defaultMinSize,
+      maxSize: defaultMaxSize,
+      ...(customFilterFn && { filterFn: customFilterFn }),
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
@@ -740,6 +1205,7 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
                   void handleCellUpdate(rowId, col.name, val)
                 }}
                 translations={translations}
+                locale={locale}
               />
             )
           }
@@ -869,6 +1335,41 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           return <div className={`${col.primary ? "font-mono font-medium" : "font-mono"} ${alignmentClass}`}>{amount}</div>
         }
 
+        // For media_id in contractors, show logo image or placeholder
+        if (col.name === 'media_id' && collection === 'contractors') {
+          const mediaId = value
+          if (mediaId) {
+            // media_id is UUID, use admin files endpoint
+            const imageUrl = `/api/altrp/v1/admin/files/${mediaId}`
+            return (
+              <div className="flex items-center justify-start">
+                <img
+                  src={imageUrl}
+                  alt="Logo"
+                  className="h-10 w-10 rounded object-cover"
+                  onError={(e) => {
+                    // Fallback to placeholder on error
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    const placeholder = target.nextElementSibling as HTMLElement
+                    if (placeholder) placeholder.style.display = 'flex'
+                  }}
+                />
+                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center" style={{ display: 'none' }}>
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </div>
+            )
+          }
+          return (
+            <div className="flex items-center justify-start">
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
+          )
+        }
+
         // For enum type, show label instead of value
         if (col.fieldType === 'enum' && col.enum) {
           const valueIndex = col.enum.values.indexOf(String(value))
@@ -895,8 +1396,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
         }
         
         // For JSON fields in taxonomy collection (title and category fields), extract translation by locale
-        // Also handle title field in roles and expanses collections
-        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title'))) {
+        // Also handle title field in roles, expanses, and contractors collections
+        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title') || (collection === 'contractors' && col.name === 'title'))) {
           let jsonValue = value
           
           // If category is empty, try to extract it from data_in
@@ -936,6 +1437,17 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           }
         }
         
+        // For taxonomy.entity field, translate using entityOptions
+        if (collection === 'taxonomy' && col.name === 'entity' && value) {
+          const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+          const translatedValue = entityOptions[value] || value
+          return (
+            <div className={`${col.primary ? "font-mono font-medium" : ""}`}>
+              {translatedValue}
+            </div>
+          )
+        }
+        
         // Use defaultCell if value is empty/null/undefined
         const isEmpty = value === null || value === undefined || value === ''
         const displayValue = isEmpty && col.defaultCell !== undefined
@@ -960,7 +1472,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
           </div>
         )
       },
-    })),
+      }
+    }),
     // Dynamic columns from data_in
     ...(data && columnVisibility ? (() => {
       // Get all unique base keys from data_in in all records
@@ -1043,8 +1556,8 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             }
           }
           // Fallback to translation or baseKey
-          // Use correct path to translations: translations.dataTable.fields
-          const fieldTranslation = (translations as any)?.dataTable?.fields?.[collection || '']?.[baseKey]
+          // translations parameter is already the dataTable object, so use translations.fields directly
+          const fieldTranslation = (translations as any)?.fields?.[collection || '']?.[baseKey]
           const columnTitle = fieldTitle || fieldTranslation || baseKey
           
           return {
@@ -1955,9 +2468,10 @@ export function DataTable() {
         return "text"
       }
       
-      const extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
-        const columnConfig = (collection as any)?.fields?.find((f: any) => f.name === col.name)
-        const options = columnConfig?.options || {}
+      let extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
+        // Get BaseColumn directly from collection instance
+        const fieldColumn = (collection as any)[col.name] as BaseColumn | undefined
+        const options = fieldColumn?.options || {}
         
         // For taxonomy collection, get config from Taxonomy export
         let fieldConfig: any = null
@@ -1981,8 +2495,8 @@ export function DataTable() {
               value: String(value),
             }
           })
-        } else if (columnConfig?.type === 'select' && columnConfig?.options?.length) {
-          selectOptions = columnConfig.options.map((opt: any) => ({
+        } else if ((options as any).type === 'select' && (options as any).selectOptions?.length) {
+          selectOptions = (options as any).selectOptions.map((opt: any) => ({
             label: opt.label || opt.value,
             value: opt.value || opt,
           }))
@@ -2031,9 +2545,10 @@ export function DataTable() {
             ? "json"
             : (state.collection === "taxonomy" && col.name === "title") ||
               (state.collection === "roles" && col.name === "title") ||
-              (state.collection === "expanses" && col.name === "title")
-              ? "json"
-              : undefined
+              (state.collection === "expanses" && col.name === "title") ||
+              (state.collection === "contractors" && col.name === "title")
+            ? "json"
+            : undefined
 
         const forcedRelation: RelationConfig | undefined =
           col.name === "xaid" && state.collection !== "expanses"
@@ -2049,13 +2564,34 @@ export function DataTable() {
         // Force select type if selectOptions are available (e.g., for expanses.status_name)
         const shouldBeSelect = selectOptions && selectOptions.length > 0
 
+        // For contractors, ensure ID is visible in table (even if it's primary)
+        const shouldHideInTable = options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid') || (state.collection === 'expanses' && col.name === 'xaid') || (state.collection === 'contractors' && col.name === 'xaid')
+        // Explicitly show ID for contractors, even if it's primary or would otherwise be hidden
+        // Also ensure it's not hidden through options.hidden
+        const hideInTable = (state.collection === 'contractors' && col.name === 'id') ? false : shouldHideInTable
+        const isHidden = (state.collection === 'contractors' && col.name === 'id') ? false : (options.hidden || false)
+
+        const finalRelation = forcedRelation || options.relation
+        
+        // Debug log for contractors relation fields
+        if (state.collection === 'contractors' && (col.name === 'status_name' || col.name === 'city_name')) {
+          console.log(`[DataTable fetchData] Contractors field ${col.name}:`, {
+            hasOptions: !!options,
+            hasRelation: !!options.relation,
+            relation: options.relation,
+            finalRelation,
+            forcedRelation,
+            willBeInSchema: !isHidden && !hideInTable,
+          })
+        }
+        
         return {
           ...col,
-          title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
-          hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid') || (state.collection === 'expanses' && col.name === 'xaid'), // Hide only core system fields, data_in, raid for roles, and xaid for expanses
+          title: fieldTitle || options.title || defaultTitle,
+          hidden: isHidden, // Hide only core system fields, but show ID for contractors
+          hiddenTable: hideInTable, // Hide only core system fields, data_in, raid for roles, xaid for expanses and contractors, but show ID for contractors
           readOnly: options.readOnly || false,
-          required: options.required || fieldConfig?.required || columnConfig?.required || false,
+          required: options.required || fieldConfig?.required || false,
           virtual: options.virtual || false,
           fieldType:
             shouldBeSelect
@@ -2063,14 +2599,16 @@ export function DataTable() {
               : forcedFieldType ||
                 options.type ||
                 fieldConfig?.type ||
-                (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
                 inferredDbFieldType,
           textarea: options.textarea || false,
           enum: options.enum,
-          relation: forcedRelation || options.relation,
+          relation: finalRelation,
           selectOptions,
         }
       })
+      
+      // Note: Column reordering for contractors (ID first) is now handled in reorderedColumns useMemo
+      // to respect saved column order from localStorage
       
       // Load relation data for display
       const relationsToLoad = extendedColumns.filter(col => col.relation)
@@ -2121,9 +2659,34 @@ export function DataTable() {
             
             relJson.data.forEach((item) => {
               const value = item[col.relation!.valueField]
-              const label = col.relation!.labelFields
-                ? col.relation!.labelFields.map(f => item[f]).filter(Boolean).join(" ")
-                : String(item[col.relation!.labelField] || "-")
+              let label: string
+              
+              // If labelField is 'title' and collection is 'taxonomy', parse JSON
+              if (col.relation!.collection === 'taxonomy' && col.relation!.labelField === 'title') {
+                let titleValue = item[col.relation!.labelField]
+                
+                // Parse JSON if it's a string
+                if (typeof titleValue === 'string') {
+                  try {
+                    titleValue = JSON.parse(titleValue)
+                  } catch {
+                    // Not JSON, use as-is
+                  }
+                }
+                
+                // Extract locale-specific value
+                if (titleValue && typeof titleValue === 'object') {
+                  label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+                } else {
+                  label = String(titleValue || "-")
+                }
+              } else {
+                // Regular field handling
+                label = col.relation!.labelFields
+                  ? col.relation!.labelFields.map(f => item[f]).filter(Boolean).join(" ")
+                  : String(item[col.relation!.labelField] || "-")
+              }
+              
               map[value] = label
             })
             
@@ -2198,7 +2761,7 @@ export function DataTable() {
         setLoading(false)
       }
     }
-  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations, segmentStatuses])
+  }, [state.collection, state.page, state.pageSize, state.search, filtersString, setState, taxonomyConfig, translations, segmentStatuses, locale])
 
   // Track last fetch parameters to prevent unnecessary refetches
   const lastFetchParamsRef = React.useRef<string>('')
@@ -2389,6 +2952,14 @@ export function DataTable() {
     customEnd?: Date
     singleDate?: Date
   }>({ type: null, range: null })
+  
+  // Status filter state (only for contractors collection) - now supports multiselect
+  const [statusFilter, setStatusFilter] = React.useState<string[]>([])
+  const [statusOptions, setStatusOptions] = React.useState<Array<{ value: string; label: string }>>([])
+  
+  // City filter state (only for contractors collection) - supports multiselect
+  const [cityFilter, setCityFilter] = React.useState<string[]>([])
+  const [cityOptions, setCityOptions] = React.useState<Array<{ value: string; label: string }>>([])
   
   const [tempSingleDate, setTempSingleDate] = React.useState<{
     created: Date | null
@@ -2595,6 +3166,162 @@ export function DataTable() {
     setColumnFilters((prev) => prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at'))
   }, [])
   
+  // Load status options from taxonomy (only for contractors collection)
+  React.useEffect(() => {
+    if (state.collection !== 'contractors') {
+      setStatusOptions([])
+      setStatusFilter([]) // Clear status filter when switching collections
+      return
+    }
+    
+    const loadStatusOptions = async () => {
+      try {
+        const queryParams = qs.stringify({
+          c: 'taxonomy',
+          p: 1,
+          ps: 1000,
+          filters: [{
+            field: 'entity',
+            op: 'eq',
+            value: 'Contractor',
+          }],
+        }, {
+          arrayFormat: 'brackets',
+          encode: false,
+        })
+        
+        const res = await fetch(`/api/admin/state?${queryParams}`, {
+          credentials: "include",
+        })
+        if (!res.ok) return
+        
+        const json: StateResponse = await res.json()
+        const opts = json.data.map((item) => {
+          const value = item.name
+          let label: string
+          
+          // Parse JSON title if it's a string
+          let titleValue = item.title
+          if (typeof titleValue === 'string') {
+            try {
+              titleValue = JSON.parse(titleValue)
+            } catch {
+              // Not JSON, use as-is
+            }
+          }
+          
+          // Extract locale-specific value
+          if (titleValue && typeof titleValue === 'object') {
+            label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+          } else {
+            label = String(titleValue || "-")
+          }
+          
+          return { value, label }
+        })
+        
+        setStatusOptions(opts)
+      } catch (e) {
+        console.error('Failed to load status options:', e)
+      }
+    }
+    
+    loadStatusOptions()
+  }, [state.collection, locale])
+  
+  // Load city options from taxonomy (only for contractors collection)
+  React.useEffect(() => {
+    if (state.collection !== 'contractors') {
+      setCityOptions([])
+      setCityFilter([]) // Clear city filter when switching collections
+      return
+    }
+    
+    const loadCityOptions = async () => {
+      try {
+        const queryParams = qs.stringify({
+          c: 'taxonomy',
+          p: 1,
+          ps: 1000,
+          filters: [{
+            field: 'entity',
+            op: 'eq',
+            value: 'City',
+          }],
+        }, {
+          arrayFormat: 'brackets',
+          encode: false,
+        })
+        
+        const res = await fetch(`/api/admin/state?${queryParams}`, {
+          credentials: "include",
+        })
+        if (!res.ok) return
+        
+        const json: StateResponse = await res.json()
+        const opts = json.data.map((item) => {
+          const value = item.name
+          let label: string
+          
+          // Parse JSON title if it's a string
+          let titleValue = item.title
+          if (typeof titleValue === 'string') {
+            try {
+              titleValue = JSON.parse(titleValue)
+            } catch {
+              // Not JSON, use as-is
+            }
+          }
+          
+          // Extract locale-specific value
+          if (titleValue && typeof titleValue === 'object') {
+            label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+          } else {
+            label = String(titleValue || "-")
+          }
+          
+          return { value, label }
+        })
+        
+        setCityOptions(opts)
+      } catch (e) {
+        console.error('Failed to load city options:', e)
+      }
+    }
+    
+    loadCityOptions()
+  }, [state.collection, locale])
+  
+  // Apply status filter (multiselect)
+  // Note: We don't add to columnFilters because tanstack table uses AND logic for arrays
+  // Instead, we apply the filter directly in filteredData with OR logic
+  const applyStatusFilter = React.useCallback((statusValues: string[]) => {
+    setStatusFilter(statusValues)
+    // Remove from columnFilters to avoid double filtering with AND logic
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'status_name'))
+  }, [])
+  
+  // Clear status filter
+  const clearStatusFilter = React.useCallback(() => {
+    setStatusFilter([])
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'status_name'))
+  }, [])
+  
+  // Apply city filter (multiselect)
+  // Note: We don't add to columnFilters because tanstack table uses AND logic for arrays
+  // Instead, we apply the filter directly in filteredData with OR logic
+  const applyCityFilter = React.useCallback((cityValues: string[]) => {
+    setCityFilter(cityValues)
+    // Remove from columnFilters to avoid double filtering with AND logic
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'city_name'))
+  }, [])
+  
+  // Clear city filter
+  const clearCityFilter = React.useCallback(() => {
+    setCityFilter([])
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'city_name'))
+  }, [])
+  
   // Restore column filter values when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -2641,6 +3368,84 @@ export function DataTable() {
     }
     return false // Default: hidden
   })
+  
+  // Filter visibility settings
+  const [filterSettings, setFilterSettings] = React.useState<{
+    dateFilter: boolean
+    statusFilter: boolean
+    cityFilter: boolean
+    columnFilters: boolean
+  }>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`filter-settings-${state.collection}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && typeof parsed === 'object') {
+            return {
+              dateFilter: parsed.dateFilter === true,  // Явно true, иначе false
+              statusFilter: parsed.statusFilter !== false,  // По умолчанию true
+              cityFilter: parsed.cityFilter === true,  // Явно true, иначе false
+              columnFilters: parsed.columnFilters === true,  // Явно true, иначе false
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore filter settings from localStorage:', e)
+      }
+    }
+    return {
+      dateFilter: false,  // По умолчанию отключен
+      statusFilter: true,  // По умолчанию включен только статус
+      cityFilter: false,   // По умолчанию отключен
+      columnFilters: false, // По умолчанию отключен
+    }
+  })
+  
+  // Save filter settings to localStorage
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`filter-settings-${state.collection}`, JSON.stringify(filterSettings))
+      } catch (e) {
+        console.warn('Failed to save filter settings to localStorage:', e)
+      }
+    }
+  }, [filterSettings, state.collection])
+  
+  // Restore filter settings when collection changes
+  React.useEffect(() => {
+    if (!state.collection || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(`filter-settings-${state.collection}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object') {
+          setFilterSettings({
+            dateFilter: parsed.dateFilter === true,  // Явно true, иначе false
+            statusFilter: parsed.statusFilter !== false,  // По умолчанию true
+            cityFilter: parsed.cityFilter === true,  // Явно true, иначе false
+            columnFilters: parsed.columnFilters === true,  // Явно true, иначе false
+          })
+        }
+      } else {
+        setFilterSettings({
+          dateFilter: false,  // По умолчанию отключен
+          statusFilter: true,  // По умолчанию включен только статус
+          cityFilter: false,   // По умолчанию отключен
+          columnFilters: false, // По умолчанию отключен
+        })
+      }
+    } catch (e) {
+      console.warn('Failed to restore filter settings:', e)
+      setFilterSettings({
+        dateFilter: false,  // По умолчанию отключен
+        statusFilter: true,  // По умолчанию включен только статус
+        cityFilter: false,   // По умолчанию отключен
+        columnFilters: false, // По умолчанию отключен
+      })
+    }
+  }, [state.collection])
 
   const [cardViewModeMobile, setCardViewModeMobile] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -3009,8 +3814,26 @@ export function DataTable() {
   }, [])
 
   const editableFields = React.useMemo(
-    () => schema.filter((col) => !isAutoGeneratedField(col.name, !!col.relation) && !col.primary && !col.hidden),
-    [schema, isAutoGeneratedField]
+    () => schema.filter((col) => {
+      // For relation fields, allow them even if primary (they might be marked as primary in DB schema)
+      const isRelationField = !!col.relation
+      const shouldInclude = !isAutoGeneratedField(col.name, isRelationField) && (!col.primary || isRelationField) && !col.hidden
+      
+      // Debug log for contractors relation fields
+      if (state.collection === 'contractors' && (col.name === 'status_name' || col.name === 'city_name')) {
+        console.log(`[DataTable editableFields] Field ${col.name}:`, {
+          hasRelation: !!col.relation,
+          relation: col.relation,
+          isPrimary: col.primary,
+          isHidden: col.hidden,
+          isAutoGenerated: isAutoGeneratedField(col.name, isRelationField),
+          shouldInclude,
+        })
+      }
+      
+      return shouldInclude
+    }),
+    [schema, isAutoGeneratedField, state.collection]
   )
 
   // Edit dialog state
@@ -3161,7 +3984,9 @@ export function DataTable() {
     if (!hasXaidField || state.collection === 'expanses') return
 
     const xaidField = schema.find((col) => col.name === 'xaid')
-    if (xaidField?.hidden || xaidField?.readOnly) return
+    // For readOnly fields, still allow auto-population from expanse selector
+    // Only skip if field is explicitly hidden
+    if (xaidField?.hidden) return
 
     const handleExpanseSelected = (e: CustomEvent) => {
       const selectedXaid = e.detail as string
@@ -3235,9 +4060,10 @@ export function DataTable() {
       const enabledLanguageCodes = supportedLanguageCodes
 
   const getI18nJsonFieldsForCollection = React.useCallback((collection: string): string[] => {
-    if (collection === 'taxonomy') return ['title', 'category']
-    if (collection === 'roles') return ['title']
-    if (collection === 'expanses') return ['title']
+  if (collection === 'taxonomy') return ['title', 'category']
+  if (collection === 'roles') return ['title']
+  if (collection === 'expanses') return ['title']
+  if (collection === 'contractors') return ['title']
     return []
   }, [])
 
@@ -3252,6 +4078,14 @@ export function DataTable() {
       if (state.collection === 'roles') {
         initial.id = record.id ?? null
         initial.uuid = record.uuid ?? null
+        initial.order = record.order ?? null
+        initial.created_at = record.created_at ?? null
+        initial.updated_at = record.updated_at ?? null
+      }
+      if (state.collection === 'contractors') {
+        initial.id = record.id ?? null
+        initial.uuid = record.uuid ?? null
+        initial.xaid = record.xaid ?? null
         initial.order = record.order ?? null
         initial.created_at = record.created_at ?? null
         initial.updated_at = record.updated_at ?? null
@@ -3491,7 +4325,7 @@ export function DataTable() {
           processedValue = value
         } else if (field.fieldType === 'boolean') {
           processedValue = value === true || value === 'true' || value === 1 || value === '1'
-        } else if (value instanceof Date) {
+        } else if (value instanceof Date && typeof value.toISOString === 'function') {
           processedValue = value.toISOString()
         } else if (field.fieldType === 'json' && value != null && typeof value === 'object') {
           processedValue = value
@@ -3529,7 +4363,7 @@ export function DataTable() {
                 payload[fieldName] = value
               } else if (field.fieldType === 'boolean') {
                 payload[fieldName] = value === true || value === 'true' || value === 1 || value === '1'
-              } else if (value instanceof Date) {
+              } else if (value instanceof Date && typeof value.toISOString === 'function') {
                 payload[fieldName] = value.toISOString()
               } else if (field.fieldType === 'json' && value != null && typeof value === 'object') {
                 payload[fieldName] = value
@@ -3603,6 +4437,22 @@ export function DataTable() {
       })
     }
     
+    // Apply status filter (multiselect)
+    if (statusFilter.length > 0) {
+      result = result.filter((row) => {
+        const cellValue = row.status_name as string | null | undefined
+        return cellValue && statusFilter.includes(cellValue)
+      })
+    }
+    
+    // Apply city filter (multiselect)
+    if (cityFilter.length > 0) {
+      result = result.filter((row) => {
+        const cellValue = row.city_name as string | null | undefined
+        return cellValue && cityFilter.includes(cellValue)
+      })
+    }
+    
     if (!needsClientSideFilter || !parsedSearchQuery) {
       return result
     }
@@ -3638,7 +4488,18 @@ export function DataTable() {
     }
 
     return filtered
-  }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize])
+  }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize, dateFilter, statusFilter, cityFilter, getDateRange])
+  
+  // Update total when status or city filters are applied (client-side filtering)
+  React.useEffect(() => {
+    if (statusFilter.length > 0 || cityFilter.length > 0 || (dateFilter.type && dateFilter.range)) {
+      const filteredLength = filteredData.length
+      if (filteredLength !== total) {
+        setTotal(filteredLength)
+        setTotalPages(Math.max(1, Math.ceil(filteredLength / pagination.pageSize)))
+      }
+    }
+  }, [statusFilter, cityFilter, dateFilter, filteredData.length, total, pagination.pageSize])
 
   // Reorder columns for mobile: move actions to the beginning
   const [isMobile, setIsMobile] = React.useState(() => {
@@ -3706,10 +4567,37 @@ export function DataTable() {
       }
     } else {
       // No saved order - use default reordering
+      let otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
+      
+      // For contractors, set default column order: ID, Логотип (media_id), Название (title), Рег. № (reg), ИНН (tin), Статус (status_name), Город (city_name)
+      if (state.collection === 'contractors') {
+        const defaultOrder = ['id', 'media_id', 'title', 'reg', 'tin', 'status_name', 'city_name']
+        const ordered: ColumnDef<CollectionData>[] = []
+        const unordered: ColumnDef<CollectionData>[] = []
+        const processedIds = new Set<string>()
+        
+        // Add columns in default order
+        for (const colId of defaultOrder) {
+          const col = otherColumns.find(c => c.id === colId)
+          if (col && col.id) {
+            ordered.push(col)
+            processedIds.add(col.id)
+          }
+        }
+        
+        // Add remaining columns
+        otherColumns.forEach(col => {
+          if (col.id && !processedIds.has(col.id)) {
+            unordered.push(col)
+          }
+        })
+        
+        otherColumns = [...ordered, ...unordered]
+      }
+      
       if (isMobile) {
         const selectColumn = allColumnsMap.get('select')
         const actionsColumn = allColumnsMap.get('actions')
-        const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
         const result: ColumnDef<CollectionData>[] = []
         if (actionsColumn) result.push(actionsColumn)
         if (selectColumn) result.push(selectColumn)
@@ -3719,7 +4607,6 @@ export function DataTable() {
         // Desktop: select first, actions last
         const selectColumn = allColumnsMap.get('select')
         const actionsColumn = allColumnsMap.get('actions')
-        const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
         const result: ColumnDef<CollectionData>[] = []
         if (selectColumn) result.push(selectColumn)
         result.push(...otherColumns)
@@ -3727,7 +4614,7 @@ export function DataTable() {
         return result
       }
     }
-  }, [columns, isMobile, columnOrder])
+  }, [columns, isMobile, columnOrder, state.collection])
   
   // Save column order to localStorage
   React.useEffect(() => {
@@ -3934,7 +4821,9 @@ export function DataTable() {
       const hasXaidField = schema.some((col) => col.name === 'xaid')
       if (hasXaidField && state.collection !== 'expanses') {
         const xaidField = schema.find((col) => col.name === 'xaid')
-        if (xaidField && !xaidField.hidden && !xaidField.readOnly) {
+        // For readOnly fields, still allow auto-population from expanse selector
+        // Only skip if field is explicitly hidden
+        if (xaidField && !xaidField.hidden) {
           if (typeof window !== 'undefined') {
             const selectedXaid = localStorage.getItem('selected-expanse-xaid')
             if (selectedXaid && selectedXaid.trim() !== '') {
@@ -4009,7 +4898,7 @@ export function DataTable() {
           } else if (value === null && field.nullable) {
             acc[key] = null
           }
-        } else if (value instanceof Date) {
+        } else if (value instanceof Date && typeof value.toISOString === 'function') {
           acc[key] = value.toISOString()
         } else {
           acc[key] = value
@@ -4124,7 +5013,7 @@ export function DataTable() {
           } else if (value === null && field.nullable) {
             acc[key] = null
           }
-        } else if (value instanceof Date) {
+        } else if (value instanceof Date && typeof value.toISOString === 'function') {
           acc[key] = value.toISOString()
         } else {
           acc[key] = value
@@ -4247,7 +5136,7 @@ export function DataTable() {
           } else if (value === null && field.nullable) {
             acc[key] = null
           }
-        } else if (value instanceof Date) {
+        } else if (value instanceof Date && typeof value.toISOString === 'function') {
           acc[key] = value.toISOString()
         } else {
           acc[key] = value
@@ -4451,15 +5340,17 @@ export function DataTable() {
     >
       <div className="flex items-center gap-2 px-0">
         {/* Date Filter Button */}
+        {filterSettings.dateFilter && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
+            <Button variant="outline" size="sm" className="bg-primary-foreground h-9 text-xs">
               <IconCalendar className="h-4 w-4" />
-              <span className="hidden lg:inline">{dateFilter.type && dateFilter.range ? (dateFilter.type === 'created_at' ? (t.dateFilter?.created || 'Created') : (t.dateFilter?.updated || 'Updated')) : (t.dateFilter?.filter || 'Date Filter')}</span>
+              <span className="hidden lg:inline">{dateFilter.type && dateFilter.range ? (dateFilter.type === 'created_at' ? (t.dateFilter?.created || 'Created') : (t.dateFilter?.updated || 'Updated')) : (t.dateFilter?.filter || 'По дате')}</span>
               {dateFilter.type && dateFilter.range && (
                 <IconX 
-                  className="h-3 w-3 ml-1" 
+                  className="h-3 w-3 ml-1 cursor-pointer hover:opacity-70" 
                   onClick={(e) => {
+                    e.preventDefault()
                     e.stopPropagation()
                     clearDateFilter()
                   }}
@@ -4664,6 +5555,151 @@ export function DataTable() {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
+        
+        {/* Status Filter Button (only for contractors collection) - Multiselect */}
+        {filterSettings.statusFilter && state.collection === 'contractors' && statusOptions.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="bg-primary-foreground h-9 text-xs">
+                <IconTag className="h-4 w-4" />
+                <span className="hidden lg:inline">
+                  {statusFilter.length > 0
+                    ? `${statusFilter.length} ${statusFilter.length === 1 ? (t.statusFilter?.selected || 'выбран') : (t.statusFilter?.selectedPlural || 'выбрано')}`
+                    : (t.statusFilter?.filter || 'По статусу')
+                  }
+                </span>
+                {statusFilter.length > 0 && (
+                  <IconX 
+                    className="h-3 w-3 ml-1 cursor-pointer hover:opacity-70" 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      clearStatusFilter()
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-0 z-10002">
+              <Command>
+                <CommandInput placeholder={t?.search || "Search..."} className="h-8" />
+                <CommandList>
+                  <CommandEmpty>{t?.form?.noResults || "No results found."}</CommandEmpty>
+                  <CommandGroup>
+                    {statusOptions.map((option) => {
+                      const isSelected = statusFilter.includes(option.value)
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={`${option.label} ${option.value}`}
+                          onSelect={() => {
+                            if (isSelected) {
+                              applyStatusFilter(statusFilter.filter((v) => v !== option.value))
+                            } else {
+                              applyStatusFilter([...statusFilter, option.value])
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>{option.label}</span>
+                            {isSelected && <IconCheck className="h-4 w-4 ml-auto" />}
+                          </div>
+                        </CommandItem>
+                      )
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+              {statusFilter.length > 0 && (
+                <>
+                  <div className="border-t p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={clearStatusFilter}
+                    >
+                      {t.statusFilter?.clear || 'Clear filter'}
+                    </Button>
+                  </div>
+                </>
+              )}
+          </PopoverContent>
+        </Popover>
+        )}
+        
+        {/* City Filter Button (only for contractors collection) - Multiselect */}
+        {filterSettings.cityFilter && state.collection === 'contractors' && cityOptions.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="bg-primary-foreground h-9 text-xs">
+                <IconMapPin className="h-4 w-4" />
+                <span className="hidden lg:inline">
+                  {cityFilter.length > 0
+                    ? `${cityFilter.length} ${cityFilter.length === 1 ? (t.cityFilter?.selected || 'выбран') : (t.cityFilter?.selectedPlural || 'выбрано')}`
+                    : (t.cityFilter?.filter || 'По городу')
+                  }
+                </span>
+                {cityFilter.length > 0 && (
+                  <IconX 
+                    className="h-3 w-3 ml-1 cursor-pointer hover:opacity-70" 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      clearCityFilter()
+                    }}
+                  />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-0 z-10002">
+              <Command>
+                <CommandInput placeholder={t?.search || "Search..."} className="h-8" />
+                <CommandList>
+                  <CommandEmpty>{t?.form?.noResults || "No results found."}</CommandEmpty>
+                  <CommandGroup>
+                    {cityOptions.map((option) => {
+                      const isSelected = cityFilter.includes(option.value)
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={`${option.label} ${option.value}`}
+                          onSelect={() => {
+                            if (isSelected) {
+                              applyCityFilter(cityFilter.filter((v) => v !== option.value))
+                            } else {
+                              applyCityFilter([...cityFilter, option.value])
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>{option.label}</span>
+                            {isSelected && <IconCheck className="h-4 w-4 ml-auto" />}
+                          </div>
+                        </CommandItem>
+                      )
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+              {cityFilter.length > 0 && (
+                <>
+                  <div className="border-t p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={clearCityFilter}
+                    >
+                      {t.cityFilter?.clear || 'Clear filter'}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
+        )}
         
         {/* Search Field */}
         <div className="relative w-full lg:max-w-2xl">
@@ -5350,6 +6386,55 @@ export function DataTable() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+              {/* Filter settings submenu */}
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <div className="flex items-center">
+                    <IconFilter className="h-4 w-4 mr-2" />
+                    <span>{t.filters || "Кнопки-фильтры"}</span>
+                  </div>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuCheckboxItem
+                    checked={filterSettings.dateFilter}
+                    onCheckedChange={(checked) => {
+                      setFilterSettings(prev => ({ ...prev, dateFilter: checked }))
+                    }}
+                  >
+                    <div className="flex items-center">
+                      <IconCalendar className="h-4 w-4 mr-2" />
+                      <span>{t.dateFilter?.filter || "По дате"}</span>
+                    </div>
+                  </DropdownMenuCheckboxItem>
+                  {state.collection === 'contractors' && (
+                    <>
+                      <DropdownMenuCheckboxItem
+                        checked={filterSettings.statusFilter}
+                        onCheckedChange={(checked) => {
+                          setFilterSettings(prev => ({ ...prev, statusFilter: checked }))
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <IconTag className="h-4 w-4 mr-2" />
+                          <span>{t.statusFilter?.filter || "По статусу"}</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={filterSettings.cityFilter}
+                        onCheckedChange={(checked) => {
+                          setFilterSettings(prev => ({ ...prev, cityFilter: checked }))
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <IconMapPin className="h-4 w-4 mr-2" />
+                          <span>{t.cityFilter?.filter || "По городу"}</span>
+                        </div>
+                      </DropdownMenuCheckboxItem>
+                    </>
+                  )}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
               {/* Edit mode */}
               <DropdownMenuSeparator />
               <div className="flex items-center justify-between gap-4 px-2 py-1.5">
@@ -5666,7 +6751,7 @@ export function DataTable() {
                 ))}
               </TableHeader>
               {/* Filter row - show filter inputs under headers */}
-              {showFilterRow && table.getHeaderGroups().length > 0 && (
+              {filterSettings.columnFilters && showFilterRow && table.getHeaderGroups().length > 0 && (
                 <thead className="bg-muted/50">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={`filter-${headerGroup.id}`}>
@@ -5690,8 +6775,11 @@ export function DataTable() {
                           return col.name === columnId
                         })
                         
+                        // Check if this column has a relation (for RelationSelect)
+                        const hasRelation = colSchema && (colSchema as any).relation
+                        
                         // Determine if this is a multiselect field
-                        const isMultiselect = colSchema && (
+                        const isMultiselect = colSchema && !hasRelation && (
                           (colSchema.fieldType === 'select' && colSchema.selectOptions) ||
                           (colSchema.fieldType === 'enum' && colSchema.enum) ||
                           colSchema.fieldType === 'array' ||
@@ -5711,78 +6799,172 @@ export function DataTable() {
                           }
                         }
                         
-                        // Get current filter value (array for multiselect, string for text)
+                        // Get current filter value (array for multiselect, string for text/relation)
                         const currentFilterValue = columnFilterValues[columnId]
                         const multiselectValue = isMultiselect 
                           ? (Array.isArray(currentFilterValue) ? currentFilterValue : [])
                           : []
-                        const textValue = !isMultiselect 
+                        const textValue = !isMultiselect && !hasRelation
                           ? (typeof currentFilterValue === 'string' ? currentFilterValue : '')
                           : ''
+                        const relationValue = hasRelation
+                          ? (currentFilterValue || null)
+                          : null
                         
                         return (
                           <TableHead key={`filter-${header.id}`} className="p-1">
                             {header.isPlaceholder ? null : (
-                              <div className="flex items-center justify-center">
-                                {isMultiselect && multiselectOptions.length > 0 ? (
-                                  <ColumnFilterMultiselect
-                                    options={multiselectOptions}
-                                    value={multiselectValue}
-                                    translations={translations}
-                                    onValueChange={(values) => {
-                                      setColumnFilterValues(prev => ({
-                                        ...prev,
-                                        [columnId]: values
-                                      }))
-                                      // Update columnFilters state
-                                      if (values.length > 0) {
-                                        setColumnFilters(prev => {
-                                          const existing = prev.find(f => f.id === columnId)
-                                          if (existing) {
-                                            return prev.map(f => 
-                                              f.id === columnId 
-                                                ? { ...f, value: values }
-                                                : f
-                                            )
-                                          }
-                                          return [...prev, { id: columnId, value: values }]
-                                        })
-                                      } else {
-                                        setColumnFilters(prev => prev.filter(f => f.id !== columnId))
-                                      }
-                                    }}
-                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
-                                  />
+                              <div className="flex items-center justify-center w-full">
+                                {hasRelation ? (
+                                  <div className="relative w-full">
+                                    <RelationMultiselect
+                                      relation={(colSchema as any).relation}
+                                      value={relationValue}
+                                      onChange={(value) => {
+                                        setColumnFilterValues(prev => ({
+                                          ...prev,
+                                          [columnId]: value || ''
+                                        }))
+                                        if (value && value.length > 0) {
+                                          setColumnFilters(prev => {
+                                            const existing = prev.find(f => f.id === columnId)
+                                            if (existing) {
+                                              return prev.map(f => 
+                                                f.id === columnId ? { ...f, value } : f
+                                              )
+                                            }
+                                            return [...prev, { id: columnId, value }]
+                                          })
+                                        } else {
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }
+                                      }}
+                                      translations={translations}
+                                      locale={locale}
+                                    />
+                                    {relationValue && (Array.isArray(relationValue) ? relationValue.length > 0 : true) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          // Clear filter - same logic as onChange(null)
+                                          setColumnFilterValues(prev => ({
+                                            ...prev,
+                                            [columnId]: ''
+                                          }))
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }}
+                                        title={t?.form?.clear || "Clear"}
+                                      >
+                                        <IconX className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ) : isMultiselect && multiselectOptions.length > 0 ? (
+                                  <div className="relative w-full">
+                                    <ColumnFilterMultiselect
+                                      options={multiselectOptions}
+                                      value={multiselectValue}
+                                      translations={translations}
+                                      onValueChange={(values) => {
+                                        setColumnFilterValues(prev => ({
+                                          ...prev,
+                                          [columnId]: values
+                                        }))
+                                        // Update columnFilters state
+                                        if (values.length > 0) {
+                                          setColumnFilters(prev => {
+                                            const existing = prev.find(f => f.id === columnId)
+                                            if (existing) {
+                                              return prev.map(f => 
+                                                f.id === columnId 
+                                                  ? { ...f, value: values }
+                                                  : f
+                                              )
+                                            }
+                                            return [...prev, { id: columnId, value: values }]
+                                          })
+                                        } else {
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }
+                                      }}
+                                      placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
+                                    />
+                                    {multiselectValue.length > 0 && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          // Clear filter - same logic as onValueChange([])
+                                          setColumnFilterValues(prev => ({
+                                            ...prev,
+                                            [columnId]: []
+                                          }))
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }}
+                                        title={t?.form?.clear || "Clear"}
+                                      >
+                                        <IconX className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 ) : (
-                                  <Input
-                                    placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
-                                    value={textValue}
-                                    onChange={(e) => {
-                                      const value = e.target.value
-                                      setColumnFilterValues(prev => ({
-                                        ...prev,
-                                        [columnId]: value
-                                      }))
-                                      // Update columnFilters state
-                                      if (value) {
-                                        setColumnFilters(prev => {
-                                          const existing = prev.find(f => f.id === columnId)
-                                          if (existing) {
-                                            return prev.map(f => 
-                                              f.id === columnId 
-                                                ? { ...f, value }
-                                                : f
-                                            )
-                                          }
-                                          return [...prev, { id: columnId, value }]
-                                        })
-                                      } else {
-                                        setColumnFilters(prev => prev.filter(f => f.id !== columnId))
-                                      }
-                                    }}
-                                    className="h-7 text-xs"
-                                    size={1}
-                                  />
+                                  <div className="relative w-full">
+                                    <Input
+                                      placeholder={(translations as any)?.dataTable?.filterPlaceholder || "Filter..."}
+                                      value={textValue}
+                                      onChange={(e) => {
+                                        const value = e.target.value
+                                        setColumnFilterValues(prev => ({
+                                          ...prev,
+                                          [columnId]: value
+                                        }))
+                                        // Update columnFilters state
+                                        if (value) {
+                                          setColumnFilters(prev => {
+                                            const existing = prev.find(f => f.id === columnId)
+                                            if (existing) {
+                                              return prev.map(f => 
+                                                f.id === columnId 
+                                                  ? { ...f, value }
+                                                  : f
+                                              )
+                                            }
+                                            return [...prev, { id: columnId, value }]
+                                          })
+                                        } else {
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }
+                                      }}
+                                      className="h-7 text-xs flex-1 pr-7"
+                                      size={1}
+                                    />
+                                    {textValue && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setColumnFilterValues(prev => ({
+                                            ...prev,
+                                            [columnId]: ''
+                                          }))
+                                          setColumnFilters(prev => prev.filter(f => f.id !== columnId))
+                                        }}
+                                        title={t?.form?.clear || "Clear"}
+                                      >
+                                        <IconX className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -5997,16 +7179,35 @@ export function DataTable() {
                 <Tabs value={createFormTab} onValueChange={(v) => setCreateFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
-                    {state.collection === 'roles' && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
+                    {(state.collection === 'roles' || state.collection === 'contractors') && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
                     <TabsTrigger value="details">{t.tabs?.details || "Details"}</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
-                      {editableFields                      .filter((f) => {
+                      {editableFields.filter((f) => {
+                        // Debug log for contractors relation fields in create form
+                        if (state.collection === 'contractors' && (f.name === 'status_name' || f.name === 'city_name')) {
+                          console.log(`[DataTable Create Form] Field ${f.name}:`, {
+                            isAutoGenerated: isAutoGeneratedField(f.name, !!f.relation),
+                            hasRelation: !!f.relation,
+                            relation: f.relation,
+                            isPrimary: f.primary,
+                            isHidden: f.hidden,
+                            inEditableFields: true,
+                            inList: ['title', 'reg', 'tin', 'status_name', 'city_name', 'order', 'media_id'].includes(f.name),
+                          })
+                        }
+                        
                         if (f.name === "data_in") return false
                         if (state.collection === 'roles') {
                           // For roles, show: title, name, description, is_system, order, xaid
                           return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
+                        }
+                        if (state.collection === 'contractors') {
+                          // For contractors, show: title, reg, tin, status_name, city_name, order, media_id
+                          // Hide xaid (auto-generated from expanse selector)
+                          if (f.name === 'xaid') return false
+                          return ['title', 'reg', 'tin', 'status_name', 'city_name', 'order', 'media_id'].includes(f.name)
                         }
                         if (state.collection === 'expanses' && f.name === 'xaid') {
                           // Hide xaid in expanses form (auto-generated)
@@ -6174,6 +7375,23 @@ export function DataTable() {
                       placeholder={`Enter ${field.title || field.name}`}
                     />
                   </>
+                ) : field.relation && typeof field.relation === 'object' && field.relation.collection ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <RelationSelect
+                      relation={field.relation}
+                      value={formData[field.name]}
+                      onChange={(value) => handleFieldChange(field.name, value)}
+                      disabled={false}
+                      required={!field.nullable}
+                      translations={t}
+                      search={state.search}
+                      locale={locale}
+                    />
+                  </>
                 ) : field.fieldType === 'select' && field.selectOptions ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -6214,21 +7432,6 @@ export function DataTable() {
                       </SelectContent>
                     </Select>
                   </>
-                ) : field.relation ? (
-                  <>
-                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <RelationSelect
-                      relation={field.relation}
-                      value={formData[field.name]}
-                      onChange={(value) => handleFieldChange(field.name, value)}
-                      required={!field.nullable}
-                      translations={t}
-                      search={state.search}
-                    />
-                  </>
                 ) : field.textarea ? (
                   <>
                     <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
@@ -6257,6 +7460,19 @@ export function DataTable() {
                       onChange={(e) => handleFieldChange(field.name, e.target.value)}
                       placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                       rows={4}
+                    />
+                  </>
+                ) : field.name === 'media_id' && state.collection === 'contractors' ? (
+                  <>
+                    <Label htmlFor={`field-${field.name}`} className="text-sm font-medium">
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <MediaUploadInput
+                      value={formData[field.name] || ""}
+                      onChange={(uuid) => handleFieldChange(field.name, uuid)}
+                      disabled={false}
+                      translations={t}
                     />
                   </>
                 ) : (
@@ -6653,20 +7869,55 @@ export function DataTable() {
                 <Tabs value={editFormTab} onValueChange={(v) => setEditFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
-                    {state.collection === 'roles' && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
+                    {(state.collection === 'roles' || state.collection === 'contractors') && <TabsTrigger value="info">{t.tabs?.info || "Info"}</TabsTrigger>}
                     <TabsTrigger value="details">{t.tabs?.details || "Details"}</TabsTrigger>
                   </TabsList>
                   <TabsContent value="main" className="mt-0">
                     <div className="grid gap-4">
                       {schema.filter((f) => {
-                        if (!isAutoGeneratedField(f.name, !!f.relation) && !f.primary && !f.hidden && f.name !== "data_in") {
-                          if (state.collection === 'roles') {
-                            // For roles, show: title, name, description, is_system, order, xaid
-                            return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
-                          }
-                          return true
+                        // Debug log for contractors relation fields
+                        if (state.collection === 'contractors' && (f.name === 'status_name' || f.name === 'city_name')) {
+                          const isRelationField = !!f.relation
+                          const shouldShow = !isAutoGeneratedField(f.name, isRelationField) && (!f.primary || isRelationField) && !f.hidden && String(f.name) !== "data_in"
+                          console.log(`[DataTable Edit Form] Field ${f.name}:`, {
+                            isAutoGenerated: isAutoGeneratedField(f.name, isRelationField),
+                            hasRelation: isRelationField,
+                            relation: f.relation,
+                            isPrimary: f.primary,
+                            isHidden: f.hidden,
+                            shouldShow,
+                            inList: ['title', 'reg', 'tin', 'status_name', 'city_name', 'order', 'media_id'].includes(f.name),
+                          })
                         }
-                        return false
+                        
+                        // For relation fields, allow them even if primary (they might be marked as primary in DB schema)
+                        const isRelationField = !!f.relation
+                        const shouldShow = !isAutoGeneratedField(f.name, isRelationField) && (!f.primary || isRelationField) && !f.hidden && f.name !== "data_in"
+                        
+                        if (!shouldShow) {
+                          // Debug log for filtered out fields in contractors
+                          if (state.collection === 'contractors' && (f.name === 'status_name' || f.name === 'city_name')) {
+                            console.warn(`[DataTable Edit Form] Field ${f.name} was filtered out:`, {
+                              isAutoGenerated: isAutoGeneratedField(f.name, isRelationField),
+                              isPrimary: f.primary,
+                              isHidden: f.hidden,
+                              hasRelation: isRelationField,
+                            })
+                          }
+                          return false
+                        }
+                        
+                        if (state.collection === 'roles') {
+                          // For roles, show: title, name, description, is_system, order, xaid
+                          return ['title', 'name', 'description', 'is_system', 'order', 'xaid'].includes(f.name)
+                        }
+                        if (state.collection === 'contractors') {
+                          // For contractors, show: title, reg, tin, status_name, city_name, order, media_id
+                          // Hide xaid (auto-generated from expanse selector)
+                          if (f.name === 'xaid') return false
+                          return ['title', 'reg', 'tin', 'status_name', 'city_name', 'order', 'media_id'].includes(f.name)
+                        }
+                        return true
                       }).map((field) => (
                     <div key={field.name} className="flex flex-col gap-2">
                 {field.fieldType === 'boolean' ? (
@@ -6831,6 +8082,23 @@ export function DataTable() {
                       placeholder={`Enter ${field.title || field.name}`}
                     />
                   </>
+                ) : field.relation && typeof field.relation === 'object' && field.relation.collection ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <RelationSelect
+                      relation={field.relation}
+                      value={editData[field.name]}
+                      onChange={(value) => handleEditFieldChange(field.name, value)}
+                      disabled={field.readOnly}
+                      required={!field.nullable}
+                      translations={t}
+                      search={state.search}
+                      locale={locale}
+                    />
+                  </>
                 ) : field.fieldType === 'select' && field.selectOptions ? (
                   <>
                     <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
@@ -6846,22 +8114,6 @@ export function DataTable() {
                       disabled={field.readOnly}
                       required={!field.nullable}
                       translations={t}
-                    />
-                  </>
-                ) : field.relation ? (
-                  <>
-                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
-                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
-                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <RelationSelect
-                      relation={field.relation}
-                      value={editData[field.name]}
-                      onChange={(value) => handleEditFieldChange(field.name, value)}
-                      disabled={field.readOnly}
-                      required={!field.nullable}
-                      translations={t}
-                      search={state.search}
                     />
                   </>
                 ) : field.textarea ? (
@@ -6893,6 +8145,19 @@ export function DataTable() {
                       placeholder={t.form?.enter?.replace('{field}', field.title || field.name) || `Enter ${field.title || field.name}`}
                       disabled={field.readOnly}
                       rows={4}
+                    />
+                  </>
+                ) : field.name === 'media_id' && state.collection === 'contractors' ? (
+                  <>
+                    <Label htmlFor={`edit-field-${field.name}`} className="text-sm font-medium">
+                      {(translations as any)?.dataTable?.fields?.[state.collection]?.[field.name] || field.title || field.name}
+                      {!field.nullable && <span className="text-destructive ml-1">*</span>}
+                    </Label>
+                    <MediaUploadInput
+                      value={editData[field.name] || ""}
+                      onChange={(uuid) => handleEditFieldChange(field.name, uuid)}
+                      disabled={field.readOnly}
+                      translations={t}
                     />
                   </>
                 ) : (
@@ -7541,7 +8806,7 @@ const defaultT = {
   center: "Center",
   right: "Right",
   dataInFields: "Additional",
-  showFilters: "Show Filters",
+  showFilters: "Фильтры в столбцах",
   cardView: "Card View",
   cardViewMobile: "Card View (Mobile)",
   cardViewDesktop: "Card View (Desktop)",
@@ -7568,5 +8833,43 @@ const defaultT = {
   width: "Width",
   widthAuto: "Auto",
   widthReset: "Reset",
-  widthPixels: "pixels"
+  widthPixels: "pixels",
+  statusFilter: {
+    filter: "По статусу",
+    filterBy: "Filter by status",
+    clear: "Clear filter",
+    selected: "selected",
+    selectedPlural: "selected"
+  },
+  cityFilter: {
+    filter: "По городу",
+    filterBy: "Filter by city",
+    clear: "Clear filter",
+    selected: "selected",
+    selectedPlural: "selected"
+  },
+  filterSettings: "Filter Settings",
+  filters: "Кнопки-фильтры",
+  showColumnFilters: "Фильтры в столбцах",
+  dateFilter: {
+    filter: "По дате",
+    filterBy: "Filter by",
+    created: "Created",
+    updated: "Updated",
+    today: "Today",
+    yesterday: "Yesterday",
+    last7days: "Last 7 days",
+    last30days: "Last 30 days",
+    last90days: "Last 90 days",
+    thisMonth: "This month",
+    lastMonth: "Last month",
+    thisYear: "This year",
+    lastYear: "Last year",
+    clear: "Clear filter",
+    selectDate: "Select date",
+    dateRange: "Date range",
+    from: "From",
+    to: "To",
+    apply: "Apply"
+  }
 }

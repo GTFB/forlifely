@@ -14,6 +14,7 @@ export default class Taxonomy extends BaseCollection {
                 'base_moves',
                 'wallet_transactions',
                 'contractors.status_name',
+                'contractors.city_name',
                 'relations.MOVE_ITEM',
             ],
             labels: [
@@ -23,6 +24,7 @@ export default class Taxonomy extends BaseCollection {
                 'Машины',
                 'Транзакции кошелька',
                 'Статус контрагентов',
+                'Город контрагентов',
                 'Тип движения товара',
             ],
         },

@@ -34,6 +34,7 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
     const controller = new AbortController()
     abortRef.current = controller
     setLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/altrp/v1/admin/notices", {
         credentials: "include",
@@ -42,7 +43,22 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
       })
 
       if (!response.ok) {
-        throw new Error("Failed to load admin notices")
+        // Try to get error message from response
+        let errorMessage = "Failed to load admin notices"
+        try {
+          const errorData = await response.json() as { error?: string } | null
+          errorMessage = (errorData && 'error' in errorData && errorData.error) ? errorData.error : errorMessage
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        
+        // Log error but don't throw - just set error state
+        console.warn(`[AdminNotices] Failed to load notices: ${response.status} ${errorMessage}`)
+        setError(errorMessage)
+        // Set empty notices instead of throwing
+        setNotices({})
+        return
       }
 
       const data = (await response.json()) as AdminNotices
@@ -52,8 +68,11 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
       if ((err as any)?.name === "AbortError") {
         return
       }
-      console.error("Failed to fetch admin notices", err)
-      setError(err instanceof Error ? err.message : "Failed to load admin notices")
+      console.error("[AdminNotices] Failed to fetch admin notices", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to load admin notices"
+      setError(errorMessage)
+      // Set empty notices instead of leaving in error state
+      setNotices({})
     } finally {
       if (abortRef.current === controller) {
         abortRef.current = null
