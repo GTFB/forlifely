@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { AppSidebar } from "@/components/application-blocks/app-sidebar"
-import { DataTable } from "@/components/application-blocks/data-table"
+import { DataTable } from "@/components/application-blocks/data-table/DataTable"
 import {
   SidebarInset,
   SidebarProvider,
