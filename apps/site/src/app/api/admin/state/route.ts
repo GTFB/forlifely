@@ -133,14 +133,30 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     const client = getPostgresClient(db)
     
     // Get table schema
-    const schemaResult = await executeRawQuery<ColumnInfo>(
-      client,
-      `SELECT column_name, data_type, is_nullable, column_default, ordinal_position
-       FROM information_schema.columns
-       WHERE table_name = $1
-       ORDER BY ordinal_position`,
-      [state.collection]
-    )
+    let schemaResult: ColumnInfo[]
+    try {
+      schemaResult = await executeRawQuery<ColumnInfo>(
+        client,
+        `SELECT column_name, data_type, is_nullable, column_default, ordinal_position
+         FROM information_schema.columns
+         WHERE table_name = $1
+         ORDER BY ordinal_position`,
+        [state.collection]
+      )
+    } catch (schemaError) {
+      console.error(`[API /admin/state] Failed to get schema for ${state.collection}:`, schemaError)
+      return new Response(
+        JSON.stringify({
+          error: "Failed to get table schema",
+          details: schemaError instanceof Error ? schemaError.message : String(schemaError),
+          state,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    }
 
     if (!schemaResult || schemaResult.length === 0) {
       return new Response(
@@ -160,6 +176,7 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       type: col.data_type.toUpperCase(),
       nullable: col.is_nullable === 'YES',
       primary: false, // Will be determined separately if needed
+      dataType: col.data_type.toLowerCase(), // Keep original case for jsonb check
     }))
     
     // Add virtual fields to schema
@@ -216,12 +233,53 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
           console.warn(`[API /admin/state] Skipping invalid filter:`, f)
           continue
         }
-        if (!realColumnNames.has(f.field)) {
-          console.warn(`[API /admin/state] Skipping filter for non-existent column:`, f.field, `Available columns:`, Array.from(realColumnNames))
-          continue // skip virtual/non-existent fields
+        // Handle JSON field filters (e.g., data_in.contractor_caid)
+        const isJsonField = f.field.includes('.')
+        let colExpr: string
+        
+        if (isJsonField) {
+          const [jsonColumn, jsonKey] = f.field.split('.', 2)
+          
+          // Find actual column name (handle case variations and snake_case vs camelCase)
+          let actualColumnName: string | undefined
+          for (const colName of realColumnNames) {
+            if (colName.toLowerCase() === jsonColumn.toLowerCase() ||
+                colName.replace(/_/g, '').toLowerCase() === jsonColumn.replace(/_/g, '').toLowerCase()) {
+              actualColumnName = colName
+              break
+            }
+          }
+          
+          if (!actualColumnName) {
+            console.warn(`[API /admin/state] Skipping filter for non-existent JSON column:`, jsonColumn, `Available columns:`, Array.from(realColumnNames))
+            continue
+          }
+          
+          // Find column type to determine if it's jsonb
+          const columnInfo = schemaResult.find((c: ColumnInfo) => 
+            c.column_name.toLowerCase() === actualColumnName.toLowerCase()
+          )
+          const dataType = columnInfo?.data_type?.toLowerCase() || ''
+          const isJsonb = dataType === 'jsonb' || dataType === 'json'
+          
+          // Escape single quotes in jsonKey for SQL safety (double single quotes in PostgreSQL)
+          const escapedKey = jsonKey.replace(/'/g, "''")
+          
+          if (isJsonb) {
+            // Use JSON path operator for PostgreSQL jsonb
+            colExpr = `${q(actualColumnName)}->>'${escapedKey}'`
+          } else {
+            // For text fields that contain JSON, cast to jsonb first
+            // This handles cases where data_in is stored as TEXT but contains JSON
+            colExpr = `(${q(actualColumnName)}::jsonb)->>'${escapedKey}'`
+          }
+        } else {
+          if (!realColumnNames.has(f.field)) {
+            console.warn(`[API /admin/state] Skipping filter for non-existent column:`, f.field, `Available columns:`, Array.from(realColumnNames))
+            continue // skip virtual/non-existent fields
+          }
+          colExpr = q(f.field)
         }
-
-        const colExpr = q(f.field)
 
         switch (f.op) {
           case "eq":
@@ -334,24 +392,42 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM ${q(state.collection)} ${where}`
     console.log(`[API /admin/state] Count query:`, countQuery, `Bindings:`, bindings)
-    const countResult = await executeRawQuery<{ total: string | number }>(
-      client,
-      countQuery,
-      bindings
-    )
-
-    const total = Number(countResult[0]?.total) || 0
-    console.log(`[API /admin/state] Total count:`, total)
+    
+    let countResult: { total: string | number }[]
+    let total = 0
+    try {
+      countResult = await executeRawQuery<{ total: string | number }>(
+        client,
+        countQuery,
+        bindings
+      )
+      total = Number(countResult[0]?.total) || 0
+      console.log(`[API /admin/state] Total count:`, total)
+    } catch (countError) {
+      console.error(`[API /admin/state] Count query failed:`, countError)
+      console.error(`[API /admin/state] Query was:`, countQuery)
+      console.error(`[API /admin/state] Bindings were:`, bindings)
+      throw new Error(`Count query failed: ${countError instanceof Error ? countError.message : String(countError)}`)
+    }
 
     // Get data with pagination
     const offset = (state.page - 1) * state.pageSize
     const dataQuery = `SELECT * FROM ${q(state.collection)} ${where} LIMIT $${bindings.length + 1} OFFSET $${bindings.length + 2}`
     console.log(`[API /admin/state] Data query:`, dataQuery, `Bindings:`, [...bindings, state.pageSize, offset])
-    const dataResult = await executeRawQuery(
-      client,
-      dataQuery,
-      [...bindings, state.pageSize, offset]
-    )
+    
+    let dataResult: any[]
+    try {
+      dataResult = await executeRawQuery(
+        client,
+        dataQuery,
+        [...bindings, state.pageSize, offset]
+      )
+    } catch (dataError) {
+      console.error(`[API /admin/state] Data query failed:`, dataError)
+      console.error(`[API /admin/state] Query was:`, dataQuery)
+      console.error(`[API /admin/state] Bindings were:`, [...bindings, state.pageSize, offset])
+      throw new Error(`Data query failed: ${dataError instanceof Error ? dataError.message : String(dataError)}`)
+    }
     
     console.log(`[API /admin/state] Data result length:`, dataResult?.length || 0)
 
@@ -430,11 +506,35 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
       }
     )
   } catch (error) {
-    console.error("State API error:", error)
+    console.error("[API /admin/state] Error:", error)
+    
+    // Extract meaningful error message
+    let errorMessage = "Failed to fetch collection data"
+    let errorDetails: any = {}
+    
+    if (error instanceof Error) {
+      errorMessage = error.message
+      errorDetails = {
+        message: error.message,
+        name: error.name,
+        // Don't include stack in production response
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+      }
+      
+      // Check for SQL errors
+      if (error.message.includes('syntax error') || error.message.includes('SQL')) {
+        errorMessage = `SQL Error: ${error.message}`
+      } else if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        errorMessage = `Table not found: ${state.collection}`
+      }
+    } else {
+      errorDetails = String(error)
+    }
+    
     return new Response(
       JSON.stringify({
-        error: "Failed to fetch collection data",
-        details: String(error),
+        error: errorMessage,
+        details: errorDetails,
         state,
       }),
       {

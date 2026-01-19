@@ -198,6 +198,7 @@ type CollectionData = Record<string, any>
 
 type StateResponse = {
   success: boolean
+  error?: string
   state: {
     collection: string
     page: number
@@ -1428,10 +1429,61 @@ function generateColumns(schema: ColumnSchemaExtended[], onDeleteRequest: (row: 
             // If localeValue is an object with title and value structure, use the value for table/card body
             if (localeValue && typeof localeValue === 'object' && 'value' in localeValue) {
               const displayValue = localeValue.value != null ? String(localeValue.value) : "-"
+              // Make title clickable for contractors to navigate to detail page
+              if (collection === 'contractors' && col.name === 'title') {
+                const caid = row.original.caid
+                return (
+                  <div 
+                    className={`${alignmentClass} cursor-pointer hover:text-primary hover:underline`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (caid) {
+                        window.location.href = `/admin/contractors/${caid}`
+                      }
+                    }}
+                  >
+                    {displayValue}
+                  </div>
+                )
+              }
               return <div className={alignmentClass}>{displayValue}</div>
             } else if (localeValue !== null && localeValue !== undefined) {
               // If it's a simple value (string, number, etc.)
+              // Make title clickable for contractors to navigate to detail page
+              if (collection === 'contractors' && col.name === 'title') {
+                const caid = row.original.caid
+                return (
+                  <div 
+                    className={`${alignmentClass} cursor-pointer hover:text-primary hover:underline`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (caid) {
+                        window.location.href = `/admin/contractors/${caid}`
+                      }
+                    }}
+                  >
+                    {String(localeValue)}
+                  </div>
+                )
+              }
               return <div className={alignmentClass}>{String(localeValue)}</div>
+            }
+            // Make title clickable for contractors even when value is null
+            if (collection === 'contractors' && col.name === 'title') {
+              const caid = row.original.caid
+              return (
+                <div 
+                  className={`${alignmentClass} cursor-pointer hover:text-primary hover:underline`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (caid) {
+                      window.location.href = `/admin/contractors/${caid}`
+                    }
+                  }}
+                >
+                  -
+                </div>
+              )
             }
             return <div className={alignmentClass}>-</div>
           }
@@ -2426,6 +2478,9 @@ export function DataTable() {
         ps: serverPageSize,
         ...(serverSearch && { s: serverSearch }),
         ...(state.filters.length > 0 && { filters: state.filters }),
+      }, {
+        arrayFormat: 'brackets',
+        encode: false,
       })
 
       const res = await fetch(`/api/admin/state?${queryParams}`, {
@@ -2437,18 +2492,45 @@ export function DataTable() {
       if (isMountedRef && !isMountedRef.current) return
       
       if (!res.ok) {
-        const errorText = await res.text()
+        let errorText = ''
+        let errorJson: any = null
+        try {
+          const contentType = res.headers.get('content-type')
+          if (contentType && contentType.includes('application/json')) {
+            errorJson = await res.json()
+            errorText = JSON.stringify(errorJson, null, 2)
+          } else {
+            errorText = await res.text()
+          }
+        } catch (e) {
+          errorText = `Failed to read error response: ${e}`
+        }
+        
         console.error('[DataTable] Fetch error details:', {
           status: res.status,
           statusText: res.statusText,
           url: res.url,
           errorText,
+          errorJson,
           queryParams,
         })
-        throw new Error(`Failed to load: ${res.status}`)
+        
+        const errorMessage = errorJson?.error || errorJson?.details?.message || `Failed to load: ${res.status}`
+        throw new Error(errorMessage)
       }
-      const json: StateResponse = await res.json()
       
+      let json: StateResponse
+      try {
+        json = await res.json()
+      } catch (parseError) {
+        console.error('[DataTable] Failed to parse JSON response:', parseError)
+        throw new Error('Invalid JSON response from server')
+      }
+      
+      if (!json.success) {
+        console.error('[DataTable] API returned unsuccessful response:', json)
+        throw new Error(json.error || 'Failed to load data')
+      }
 
       if (isMountedRef && !isMountedRef.current) return
       
@@ -4726,6 +4808,11 @@ export function DataTable() {
     enableRowSelection: true,
     enableMultiSort: true, // Enable multi-column sorting
     columnResizeMode: 'onChange',
+    getRowId: (row) => {
+      // Use primary key from schema, fallback to 'id' if not found
+      const pkValue = row[primaryKey]
+      return pkValue != null ? String(pkValue) : String(row.id ?? Math.random())
+    },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -6976,29 +7063,33 @@ export function DataTable() {
                 </thead>
               )}
                 <TableBody>
-                {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        onDoubleClick={() => onEditRequest(row)}
-                        className="cursor-pointer bg-primary-foreground"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell 
-                            key={cell.id} 
-                            className={cell.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full' : cell.column.id === 'select' ? 'p-0 pl-0' : ''}
-                            style={{ 
-                              width: cell.column.getSize(), 
-                              position: cell.column.id === 'actions' ? 'sticky' : undefined,
-                              left: cell.column.id === 'actions' ? 0 : undefined
-                            }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
+                {schema.length > 0 && reorderedColumns.length > 0 && !loading && table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => {
+                      // Safely get row ID
+                      const rowId = row.id || String(row.original[primaryKey] ?? Math.random())
+                      return (
+                        <TableRow
+                          key={rowId}
+                          data-state={row.getIsSelected() && "selected"}
+                          onDoubleClick={() => onEditRequest(row)}
+                          className="cursor-pointer bg-primary-foreground"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell 
+                              key={cell.id} 
+                              className={cell.column.id === 'actions' ? 'p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full' : cell.column.id === 'select' ? 'p-0 pl-0' : ''}
+                              style={{ 
+                                width: cell.column.getSize(), 
+                                position: cell.column.id === 'actions' ? 'sticky' : undefined,
+                                left: cell.column.id === 'actions' ? 0 : undefined
+                              }}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      )
+                    })
                 ) : (
                   <TableRow>
                     <TableCell
