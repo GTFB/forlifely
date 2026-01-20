@@ -13,7 +13,6 @@ import {
   IconPlus,
   IconCheck,
   IconX,
-  IconSearch,
   IconTrash,
   IconArrowUp,
   IconArrowDown,
@@ -28,7 +27,9 @@ import {
   IconCalendar,
   IconGripVertical,
   IconEdit,
-  IconDeviceFloppy,
+  IconDeviceFloppy, 
+  IconTag,
+  IconMapPin,
 } from "@tabler/icons-react"
 import { getCollection } from "@/shared/collections/getCollection"
 import type { AdminFilter } from "@/shared/types"
@@ -138,6 +139,7 @@ import { getInitialLocale } from "@/lib/getInitialLocale"
 import { useDeviceType } from "@/hooks/use-device-type"
 import { SmartSearch } from "./SmartSearch"
 import BaseColumn from "@/shared/columns/BaseColumn"
+import { Check, ChevronsUpDown, ImageIcon } from "lucide-react"
 import type {
   RelationConfig,
   SelectOption,
@@ -802,9 +804,10 @@ export function DataTable() {
         return "text"
       }
 
-      const extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
-        const columnConfig = (collection as any)?.fields?.find((f: any) => f.name === col.name)
-        const options = columnConfig?.options || {}
+      let extendedColumns: ColumnSchemaExtended[] = json.schema.columns.map((col) => {
+        // Get BaseColumn directly from collection instance
+        const fieldColumn = (collection as any)[col.name] as BaseColumn | undefined
+        const options = fieldColumn?.options || {}
 
         // For taxonomy collection, get config from Taxonomy export
         let fieldConfig: any = null
@@ -828,8 +831,8 @@ export function DataTable() {
               value: String(value),
             }
           })
-        } else if (columnConfig?.type === 'select' && columnConfig?.options?.length) {
-          selectOptions = columnConfig.options.map((opt: any) => ({
+        } else if ((options as any).type === 'select' && (options as any).selectOptions?.length) {
+          selectOptions = (options as any).selectOptions.map((opt: any) => ({
             label: opt.label || opt.value,
             value: opt.value || opt,
           }))
@@ -877,9 +880,10 @@ export function DataTable() {
           col.name === "data_in"
             ? "json"
             : (state.collection === "roles" && col.name === "title") ||
-              (state.collection === "expanses" && col.name === "title")
-              ? "json"
-              : undefined
+            (state.collection === "expanses" && col.name === "title") ||
+            (state.collection === "contractors" && col.name === "title")
+          ? "json"
+          : undefined
 
         const forcedRelation: RelationConfig | undefined =
           col.name === "xaid" && state.collection !== "expanses"
@@ -894,14 +898,37 @@ export function DataTable() {
 
         // Force select type if selectOptions are available (e.g., for expanses.status_name)
         const shouldBeSelect = selectOptions && selectOptions.length > 0
+        // For contractors, ensure ID is visible in table (even if it's primary)
+        const shouldHideInTable = options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid') || (state.collection === 'expanses' && col.name === 'xaid') || (state.collection === 'contractors' && col.name === 'xaid')
+        // Explicitly show ID for contractors, even if it's primary or would otherwise be hidden
+        // Also ensure it's not hidden through options.hidden
+        const hideInTable = (state.collection === 'contractors' && col.name === 'id') ? false : shouldHideInTable
+        const isHidden = (state.collection === 'contractors' && col.name === 'id') ? false : (options.hidden || false)
 
+        const finalRelation = forcedRelation || options.relation
+        
+        // Debug log for contractors relation fields
+        if (state.collection === 'contractors' && (col.name === 'status_name' || col.name === 'city_name')) {
+          console.log(`[DataTable fetchData] Contractors field ${col.name}:`, {
+            hasOptions: !!options,
+            hasRelation: !!options.relation,
+            relation: options.relation,
+            finalRelation,
+            forcedRelation,
+            willBeInSchema: !isHidden && !hideInTable,
+          })
+        }
+        
         return {
           ...col,
-          title: fieldTitle || options.title || columnConfig?.label || defaultTitle,
-          hidden: options.hidden || false,
-          hiddenTable: options.hiddenTable || isSystemFieldByName || col.name === 'data_in' || (state.collection === 'roles' && col.name === 'raid') || (state.collection === 'expanses' && col.name === 'xaid'), // Hide only core system fields, data_in, raid for roles, and xaid for expanses
+
+          
+          title: fieldTitle || options.title || defaultTitle,
+          hidden: isHidden, // Hide only core system fields, but show ID for contractors
+          hiddenTable: hideInTable, // Hide only core system fields, data_in, raid for roles, xaid for expanses and contractors, but show ID for contractors
+          
           readOnly: options.readOnly || false,
-          required: options.required || fieldConfig?.required || columnConfig?.required || false,
+          required: options.required || fieldConfig?.required || false,
           virtual: options.virtual || false,
           fieldType:
             shouldBeSelect
@@ -909,11 +936,10 @@ export function DataTable() {
               : forcedFieldType ||
               options.type ||
               fieldConfig?.type ||
-              (columnConfig?.type === 'select' ? 'select' : columnConfig?.type) ||
               inferredDbFieldType,
           textarea: options.textarea || false,
           enum: options.enum,
-          relation: forcedRelation || options.relation,
+          relation: finalRelation,
           selectOptions,
         }
       })
@@ -967,9 +993,33 @@ export function DataTable() {
 
             relJson.data.forEach((item) => {
               const value = item[col.relation!.valueField]
-              const label = col.relation!.labelFields
-                ? col.relation!.labelFields.map(f => item[f]).filter(Boolean).join(" ")
-                : String(item[col.relation!.labelField] || "-")
+              let label: string
+              
+              // If labelField is 'title' and collection is 'taxonomy', parse JSON
+              if (col.relation!.collection === 'taxonomy' && col.relation!.labelField === 'title') {
+                let titleValue = item[col.relation!.labelField]
+                
+                // Parse JSON if it's a string
+                if (typeof titleValue === 'string') {
+                  try {
+                    titleValue = JSON.parse(titleValue)
+                  } catch {
+                    // Not JSON, use as-is
+                  }
+                }
+                
+                // Extract locale-specific value
+                if (titleValue && typeof titleValue === 'object') {
+                  label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+                } else {
+                  label = String(titleValue || "-")
+                }
+              } else {
+                // Regular field handling
+                label = col.relation!.labelFields
+                  ? col.relation!.labelFields.map(f => item[f]).filter(Boolean).join(" ")
+                  : String(item[col.relation!.labelField] || "-")
+              }
               map[value] = label
             })
 
@@ -1232,6 +1282,13 @@ export function DataTable() {
     customEnd?: Date
     singleDate?: Date
   }>({ type: null, range: null })
+  // Status filter state (only for contractors collection) - now supports multiselect
+  const [statusFilter, setStatusFilter] = React.useState<string[]>([])
+  const [statusOptions, setStatusOptions] = React.useState<Array<{ value: string; label: string }>>([])
+  
+  // City filter state (only for contractors collection) - supports multiselect
+  const [cityFilter, setCityFilter] = React.useState<string[]>([])
+  const [cityOptions, setCityOptions] = React.useState<Array<{ value: string; label: string }>>([])
 
   const [tempSingleDate, setTempSingleDate] = React.useState<{
     created: Date | null
@@ -1422,7 +1479,162 @@ export function DataTable() {
     })
     setColumnFilters((prev) => prev.filter(f => f.id !== 'created_at' && f.id !== 'updated_at'))
   }, [])
-
+// Load status options from taxonomy (only for contractors collection)
+  React.useEffect(() => {
+    if (state.collection !== 'contractors') {
+      setStatusOptions([])
+      setStatusFilter([]) // Clear status filter when switching collections
+      return
+    }
+    
+    const loadStatusOptions = async () => {
+      try {
+        const queryParams = qs.stringify({
+          c: 'taxonomy',
+          p: 1,
+          ps: 1000,
+          filters: [{
+            field: 'entity',
+            op: 'eq',
+            value: 'Contractor',
+          }],
+        }, {
+          arrayFormat: 'brackets',
+          encode: false,
+        })
+        
+        const res = await fetch(`/api/admin/state?${queryParams}`, {
+          credentials: "include",
+        })
+        if (!res.ok) return
+        
+        const json: StateResponse = await res.json()
+        const opts = json.data.map((item) => {
+          const value = item.name
+          let label: string
+          
+          // Parse JSON title if it's a string
+          let titleValue = item.title
+          if (typeof titleValue === 'string') {
+            try {
+              titleValue = JSON.parse(titleValue)
+            } catch {
+              // Not JSON, use as-is
+            }
+          }
+          
+          // Extract locale-specific value
+          if (titleValue && typeof titleValue === 'object') {
+            label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+          } else {
+            label = String(titleValue || "-")
+          }
+          
+          return { value, label }
+        })
+        
+        setStatusOptions(opts)
+      } catch (e) {
+        console.error('Failed to load status options:', e)
+      }
+    }
+    
+    loadStatusOptions()
+  }, [state.collection, locale])
+  
+  // Load city options from taxonomy (only for contractors collection)
+  React.useEffect(() => {
+    if (state.collection !== 'contractors') {
+      setCityOptions([])
+      setCityFilter([]) // Clear city filter when switching collections
+      return
+    }
+    
+    const loadCityOptions = async () => {
+      try {
+        const queryParams = qs.stringify({
+          c: 'taxonomy',
+          p: 1,
+          ps: 1000,
+          filters: [{
+            field: 'entity',
+            op: 'eq',
+            value: 'City',
+          }],
+        }, {
+          arrayFormat: 'brackets',
+          encode: false,
+        })
+        
+        const res = await fetch(`/api/admin/state?${queryParams}`, {
+          credentials: "include",
+        })
+        if (!res.ok) return
+        
+        const json: StateResponse = await res.json()
+        const opts = json.data.map((item) => {
+          const value = item.name
+          let label: string
+          
+          // Parse JSON title if it's a string
+          let titleValue = item.title
+          if (typeof titleValue === 'string') {
+            try {
+              titleValue = JSON.parse(titleValue)
+            } catch {
+              // Not JSON, use as-is
+            }
+          }
+          
+          // Extract locale-specific value
+          if (titleValue && typeof titleValue === 'object') {
+            label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+          } else {
+            label = String(titleValue || "-")
+          }
+          
+          return { value, label }
+        })
+        
+        setCityOptions(opts)
+      } catch (e) {
+        console.error('Failed to load city options:', e)
+      }
+    }
+    
+    loadCityOptions()
+  }, [state.collection, locale])
+  
+  // Apply status filter (multiselect)
+  // Note: We don't add to columnFilters because tanstack table uses AND logic for arrays
+  // Instead, we apply the filter directly in filteredData with OR logic
+  const applyStatusFilter = React.useCallback((statusValues: string[]) => {
+    setStatusFilter(statusValues)
+    // Remove from columnFilters to avoid double filtering with AND logic
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'status_name'))
+  }, [])
+  
+  // Clear status filter
+  const clearStatusFilter = React.useCallback(() => {
+    setStatusFilter([])
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'status_name'))
+  }, [])
+  
+  // Apply city filter (multiselect)
+  // Note: We don't add to columnFilters because tanstack table uses AND logic for arrays
+  // Instead, we apply the filter directly in filteredData with OR logic
+  const applyCityFilter = React.useCallback((cityValues: string[]) => {
+    setCityFilter(cityValues)
+    // Remove from columnFilters to avoid double filtering with AND logic
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'city_name'))
+  }, [])
+  
+  // Clear city filter
+  const clearCityFilter = React.useCallback(() => {
+    setCityFilter([])
+    setColumnFilters((prev) => prev.filter(f => f.id !== 'city_name'))
+  }, [])
+  
   // Restore column filter values when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -1454,7 +1666,7 @@ export function DataTable() {
       }
     }
   }, [columnFilterValues, state.collection])
-
+  
   // Show/hide filter row under headers
   const [showFilterRow, setShowFilterRow] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -1469,6 +1681,85 @@ export function DataTable() {
     }
     return false // Default: hidden
   })
+  
+  // Filter visibility settings
+  const [filterSettings, setFilterSettings] = React.useState<{
+    dateFilter: boolean
+    statusFilter: boolean
+    cityFilter: boolean
+    columnFilters: boolean
+  }>(() => {
+    if (typeof window !== 'undefined' && state.collection) {
+      try {
+        const saved = localStorage.getItem(`filter-settings-${state.collection}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && typeof parsed === 'object') {
+            return {
+              dateFilter: parsed.dateFilter === true,  // Явно true, иначе false
+              statusFilter: parsed.statusFilter !== false,  // По умолчанию true
+              cityFilter: parsed.cityFilter === true,  // Явно true, иначе false
+              columnFilters: parsed.columnFilters === true,  // Явно true, иначе false
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore filter settings from localStorage:', e)
+      }
+    }
+    return {
+      dateFilter: false,  // По умолчанию отключен
+      statusFilter: true,  // По умолчанию включен только статус
+      cityFilter: false,   // По умолчанию отключен
+      columnFilters: false, // По умолчанию отключен
+    }
+  })
+  
+  // Save filter settings to localStorage
+  React.useEffect(() => {
+    if (state.collection && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`filter-settings-${state.collection}`, JSON.stringify(filterSettings))
+      } catch (e) {
+        console.warn('Failed to save filter settings to localStorage:', e)
+            }
+    }
+  }, [filterSettings, state.collection])
+  // Show/hide filter row under headers
+    // Restore filter settings when collection changes
+    React.useEffect(() => {
+      if (!state.collection || typeof window === 'undefined') return
+      try {
+        const saved = localStorage.getItem(`filter-settings-${state.collection}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && typeof parsed === 'object') {
+            setFilterSettings({
+              dateFilter: parsed.dateFilter === true,  // Явно true, иначе false
+              statusFilter: parsed.statusFilter !== false,  // По умолчанию true
+              cityFilter: parsed.cityFilter === true,  // Явно true, иначе false
+              columnFilters: parsed.columnFilters === true,  // Явно true, иначе false
+            })
+        }
+      } else {
+        setFilterSettings({
+          dateFilter: false,  // По умолчанию отключен
+          statusFilter: true,  // По умолчанию включен только статус
+          cityFilter: false,   // По умолчанию отключен
+          columnFilters: false, // По умолчанию отключен
+        })
+        
+    }
+  } catch (e) {
+    console.warn('Failed to restore filter settings:', e)
+    setFilterSettings({
+      dateFilter: false,  // По умолчанию отключен
+      statusFilter: true,  // По умолчанию включен только статус
+      cityFilter: false,   // По умолчанию отключен
+      columnFilters: false, // По умолчанию отключен
+    })
+  }
+  }, [state.collection])
 
   const [cardViewModeMobile, setCardViewModeMobile] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined' && state.collection) {
@@ -1898,8 +2189,26 @@ export function DataTable() {
   }, [])
 
   const editableFields = React.useMemo(
-    () => schema.filter((col) => !isAutoGeneratedField(col.name, !!col.relation) && !col.primary && !col.hidden),
-    [schema, isAutoGeneratedField]
+    () => schema.filter((col) => {
+      // For relation fields, allow them even if primary (they might be marked as primary in DB schema)
+      const isRelationField = !!col.relation
+      const shouldInclude = !isAutoGeneratedField(col.name, isRelationField) && (!col.primary || isRelationField) && !col.hidden
+      
+      // Debug log for contractors relation fields
+      if (state.collection === 'contractors' && (col.name === 'status_name' || col.name === 'city_name')) {
+        console.log(`[DataTable editableFields] Field ${col.name}:`, {
+          hasRelation: !!col.relation,
+          relation: col.relation,
+          isPrimary: col.primary,
+          isHidden: col.hidden,
+          isAutoGenerated: isAutoGeneratedField(col.name, isRelationField),
+          shouldInclude,
+        })
+      }
+      
+      return shouldInclude
+    }),
+    [schema, isAutoGeneratedField, state.collection]
   )
 
   // Edit dialog state
@@ -2060,6 +2369,7 @@ export function DataTable() {
     if (collection === 'taxonomy') return ['title', 'category']
     if (collection === 'roles') return ['title']
     if (collection === 'expanses') return ['title']
+    if (collection === 'contractors') return ['title']
     return []
   }, [])
 
@@ -2078,7 +2388,14 @@ export function DataTable() {
         initial.created_at = record.created_at ?? null
         initial.updated_at = record.updated_at ?? null
       }
-
+      if (state.collection === 'contractors') {
+        initial.id = record.id ?? null
+        initial.uuid = record.uuid ?? null
+        initial.xaid = record.xaid ?? null
+        initial.order = record.order ?? null
+        initial.created_at = record.created_at ?? null
+        initial.updated_at = record.updated_at ?? null
+      }
       for (const col of schema) {
         if (!isAutoGeneratedField(col.name, !!col.relation) && !col.primary) {
           if (col.fieldType === 'boolean') {
@@ -2460,7 +2777,18 @@ export function DataTable() {
     }
 
     return filtered
-  }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize])
+  }, [data, parsedSearchQuery, needsClientSideFilter, total, pagination.pageSize, dateFilter, statusFilter, cityFilter, getDateRange])
+  
+  // Update total when status or city filters are applied (client-side filtering)
+  React.useEffect(() => {
+    if (statusFilter.length > 0 || cityFilter.length > 0 || (dateFilter.type && dateFilter.range)) {
+      const filteredLength = filteredData.length
+      if (filteredLength !== total) {
+        setTotal(filteredLength)
+        setTotalPages(Math.max(1, Math.ceil(filteredLength / pagination.pageSize)))
+      }
+    }
+  }, [statusFilter, cityFilter, dateFilter, filteredData.length, total, pagination.pageSize])
 
   // Reorder columns for mobile: move actions to the beginning
   const [isMobile, setIsMobile] = React.useState(() => {
@@ -2528,10 +2856,36 @@ export function DataTable() {
       }
     } else {
       // No saved order - use default reordering
+      let otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
+      
+      // For contractors, set default column order: ID, Логотип (media_id), Название (title), Рег. № (reg), ИНН (tin), Статус (status_name), Город (city_name)
+      if (state.collection === 'contractors') {
+        const defaultOrder = ['id', 'media_id', 'title', 'reg', 'tin', 'status_name', 'city_name']
+        const ordered: ColumnDef<CollectionData>[] = []
+        const unordered: ColumnDef<CollectionData>[] = []
+        const processedIds = new Set<string>()
+        
+        // Add columns in default order
+        for (const colId of defaultOrder) {
+          const col = otherColumns.find(c => c.id === colId)
+          if (col && col.id) {
+            ordered.push(col)
+            processedIds.add(col.id)
+          }
+        }
+        
+        // Add remaining columns
+        otherColumns.forEach(col => {
+          if (col.id && !processedIds.has(col.id)) {
+            unordered.push(col)
+          }
+        })
+        
+        otherColumns = [...ordered, ...unordered]
+      }
       if (isMobile) {
         const selectColumn = allColumnsMap.get('select')
         const actionsColumn = allColumnsMap.get('actions')
-        const otherColumns = columns.filter(col => col.id !== 'select' && col.id !== 'actions')
         const result: ColumnDef<CollectionData>[] = []
         if (actionsColumn) result.push(actionsColumn)
         if (selectColumn) result.push(selectColumn)
@@ -2549,8 +2903,8 @@ export function DataTable() {
         return result
       }
     }
-  }, [columns, isMobile, columnOrder])
-
+  }, [columns, isMobile, columnOrder, state.collection])
+  
   // Save column order to localStorage
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined' && columnOrder.length > 0) {
@@ -6159,4 +6513,3 @@ export function DataTable() {
     </Tabs>
   )
 }
-

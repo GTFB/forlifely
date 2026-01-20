@@ -1,23 +1,23 @@
 import * as React from "react"
 
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-  } from "@/components/ui/command"
-  
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+
 
 import { cn } from "@/lib/utils"
 
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-  } from "@/components/ui/popover"
-  
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
 import { Button } from "@/components/ui/button"
 
 import { Check, ChevronsUpDown } from "lucide-react"
@@ -55,7 +55,9 @@ export function ColumnFilterMultiselect({
               ? `${selectedOptions.length} ${t?.form?.selected || "selected"}`
               : placeholder || t?.form?.selectPlaceholder || "Select..."}
           </span>
-          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          {selectedOptions.length === 0 && (
+            <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) p-0 z-10002" align="start">

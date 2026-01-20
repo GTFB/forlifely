@@ -372,6 +372,13 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
     const result = await executeRawQuery<{ id: number }>(client, sql, values)
     const lastRowId = result[0]?.id
 
+    // Auto-assign order = id * 100 for contractors collection if order is empty/null/0
+    if (collection === 'contractors' && lastRowId && (!data.order || data.order === 0)) {
+      const updateSql = `UPDATE ${q(collection)} SET "order" = $1 WHERE id = $2`
+      await executeRawQuery(client, updateSql, [lastRowId * 100, lastRowId])
+      data.order = lastRowId * 100
+    }
+
     // Auto-assign sort_order = id * 100 for taxonomy collection if sort_order is empty/null/0
     if (collection === 'taxonomy' && lastRowId) {
       const sortOrderValue = data.sort_order

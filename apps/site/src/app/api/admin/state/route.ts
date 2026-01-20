@@ -1,6 +1,5 @@
 import { getAdminState } from "@/shared/services/api/get-admin-state.service"
 
-
 export const onRequestOptions = async () =>
   new Response(null, {
     status: 204,

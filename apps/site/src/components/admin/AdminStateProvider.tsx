@@ -4,6 +4,7 @@ import * as React from "react"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import { COLLECTION_GROUPS } from "@/shared/collections"
 
 export type AdminFilter = {
   field: string
@@ -39,20 +40,57 @@ const AdminStateContext = createContext<{
   pushState: () => {},
 })
 
-function AdminStateProviderInner({ children }: { children: ReactNode }) {
+function AdminStateProviderInner({ 
+  children, 
+  initialState 
+}: { 
+  children: ReactNode
+  initialState?: AdminState
+}) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
 
+  // Stabilize initialState reference to prevent dependency array size changes
+  const initialStateRef = React.useRef(initialState)
+  React.useEffect(() => {
+    initialStateRef.current = initialState
+  }, [initialState])
+
   const parseStateFromSearch = useCallback((): AdminState => {
+    // If initialState is provided, use it instead of parsing from URL
+    if (initialStateRef.current) {
+      return initialStateRef.current
+    }
+    
     const paramCollection = searchParams.get("c")
     const isAdminRoot = pathname === "/admin" || pathname === "/admin/"
+    
+    // Try to extract collection from pathname if not in URL params
+    // e.g., /admin/contractors/[caid] -> "contractors"
+    let collectionFromPath = ""
+    if (!paramCollection && pathname && pathname.startsWith("/admin/")) {
+      const pathParts = pathname.split("/").filter(Boolean)
+      if (pathParts.length >= 2 && pathParts[0] === "admin") {
+        const potentialCollection = pathParts[1]
+        // Only use if it's a valid collection (exists in COLLECTION_GROUPS)
+        // and not a special route like "settings", "sql-editor", etc.
+        const specialRoutes = ["settings", "sql-editor", "seed", "dashboard"]
+        const allCollections = Object.values(COLLECTION_GROUPS).flat()
+        if (!specialRoutes.includes(potentialCollection) && allCollections.includes(potentialCollection)) {
+          collectionFromPath = potentialCollection
+        }
+      }
+    }
+    
     const collection =
       paramCollection !== null
         ? paramCollection
-        : isAdminRoot
-          ? DEFAULT_STATE.collection
-          : ""
+        : collectionFromPath
+          ? collectionFromPath
+          : isAdminRoot
+            ? DEFAULT_STATE.collection
+            : ""
     const page = Math.max(1, Number(searchParams.get("p") || DEFAULT_STATE.page))
     const pageSize = Math.max(1, Number(searchParams.get("ps") || DEFAULT_STATE.pageSize))
     const search = searchParams.get("s") || DEFAULT_STATE.search
@@ -87,16 +125,24 @@ function AdminStateProviderInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // When URL changes (e.g., back/forward), sync state
+    // But skip if initialState was provided (isolated provider)
+    if (initialStateRef.current) {
+      return
+    }
     const next = parseStateFromSearch()
     _setState((prev) => {
       const changed = JSON.stringify(prev) !== JSON.stringify(next)
       return changed ? next : prev
     })
-  }, [parseStateFromSearch])
+  }, [searchParams, pathname, parseStateFromSearch])
 
   const setState = useCallback((updater: (prev: AdminState) => AdminState) => {
     _setState((prev) => {
       const next = updater(prev)
+      // Don't sync URL if initialState was provided (isolated provider)
+      if (initialStateRef.current) {
+        return next
+      }
       // Sync URL with replace (no history entry) - defer to useEffect to avoid render warnings
       const params = new URLSearchParams()
       params.set("c", next.collection)
@@ -113,6 +159,10 @@ function AdminStateProviderInner({ children }: { children: ReactNode }) {
   const pushState = useCallback((partial: Partial<AdminState>) => {
     _setState((prev) => {
       const next = { ...prev, ...partial }
+      // Don't sync URL if initialState was provided (isolated provider)
+      if (initialStateRef.current) {
+        return next
+      }
       // Sync URL with push (creates history entry)
       const params = new URLSearchParams()
       params.set("c", next.collection)
@@ -141,10 +191,16 @@ function AdminStateProviderInner({ children }: { children: ReactNode }) {
   )
 }
 
-export function AdminStateProvider({ children }: { children: ReactNode }) {
+export function AdminStateProvider({ 
+  children, 
+  initialState 
+}: { 
+  children: ReactNode
+  initialState?: AdminState
+}) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <AdminStateProviderInner>{children}</AdminStateProviderInner>
+      <AdminStateProviderInner initialState={initialState}>{children}</AdminStateProviderInner>
     </Suspense>
   )
 }

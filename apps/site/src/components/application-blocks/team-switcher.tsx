@@ -26,6 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { ExpanseSelector } from "./expanse-selector"
 
 export const TeamSwitcher = React.memo(function TeamSwitcher({
   teams,
@@ -83,8 +84,19 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
         dashboard: { title: "Dashboard" },
       }
     }
+    // Ensure teamSwitcher translations are properly extracted
+    const teamSwitcherTranslations = translations.teamSwitcher || {}
+    const teamsLabel = teamSwitcherTranslations.teamsLabel || "Roles"
+    
+    // Debug: log if translation is missing
+    if (!teamSwitcherTranslations.teamsLabel && translations.teamSwitcher) {
+      console.warn('[TeamSwitcher] teamSwitcher.teamsLabel not found in translations:', translations.teamSwitcher)
+    }
+    
     return {
-      teamSwitcher: translations.teamSwitcher || { teamsLabel: "Roles" },
+      teamSwitcher: {
+        teamsLabel: teamsLabel
+      },
       dashboard: translations.dashboard || { title: "Dashboard" },
     }
   }, [translations])
@@ -228,7 +240,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
 
               return (
                 <DropdownMenuItem
-                  key={team.name}
+                  key={team.href || `${team.name}-${index}`}
                   onClick={() => {
                     handleTeamClick(team)
                   }}
@@ -242,6 +254,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                 </DropdownMenuItem>
               )
             })}
+            <ExpanseSelector translations={translations} />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
@@ -259,10 +272,12 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
   }
   
   for (let i = 0; i < prevProps.teams.length; i++) {
-    // Only check logo reference and plan - name is mutated in-place, so we ignore it
+    // Check all properties including name to detect translation changes
     if (
       prevProps.teams[i].logo !== nextProps.teams[i].logo ||
-      prevProps.teams[i].plan !== nextProps.teams[i].plan
+      prevProps.teams[i].plan !== nextProps.teams[i].plan ||
+      prevProps.teams[i].name !== nextProps.teams[i].name ||
+      prevProps.teams[i].href !== nextProps.teams[i].href
     ) {
       return false
     }

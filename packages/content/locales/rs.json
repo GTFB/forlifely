@@ -110,6 +110,10 @@
       "teamsLabel": "Timovi",
       "addTeam": "Dodaj tim"
     },
+    "expanseSelector": {
+      "label": "Prostor",
+      "general": "Opšte"
+    },
     "navUser": {
       "notifications": "Obaveštenja",
       "english": "Engleski",
@@ -203,6 +207,7 @@
         "noOptionsAvailable": "Nema dostupnih opcija",
         "cancel": "Otkaži",
         "create": "Kreiraj",
+        "clear": "Obriši",
         "save": "Sačuvaj",
         "passwordsDoNotMatch": "Lozinke se ne podudaraju"
       },
@@ -225,6 +230,23 @@
           "deleteAll": "Obriši sve"
         }
       },
+      "statusFilter": {
+        "filter": "Filter po statusu",
+        "filterBy": "Filtriraj po statusu",
+        "clear": "Obriši filter",
+        "selected": "izabran",
+        "selectedPlural": "izabrano"
+      },
+      "cityFilter": {
+        "filter": "Filter po gradu",
+        "filterBy": "Filtriraj po gradu",
+        "clear": "Obriši filter",
+        "selected": "izabran",
+        "selectedPlural": "izabrano"
+      },
+      "filterSettings": "Podešavanja filtera",
+      "filters": "Filteri",
+      "showColumnFilters": "Prikaži filtere kolona",
       "dateFilter": {
         "filter": "Filter po datumu",
         "filterBy": "Filtriraj po",
@@ -333,10 +355,24 @@
           "xaid": "Projekti",
           "created_at": "Kreirano",
           "updated_at": "Ažurirano",
-          "data_in": "Podaci (JSON)",
-          "main": "Glavno!"
-        }
+        "data_in": "Podaci (JSON)",
+        "main": "Glavno!"
+      },
+      "contractors": {
+        "id": "ID",
+        "uuid": "UUID",
+        "title": "Naziv",
+        "reg": "Broj registracije",
+        "tin": "Poreski broj",
+        "status_name": "Status",
+        "city_name": "Grad",
+        "order": "Redosled",
+        "xaid": "Prostor",
+        "media_id": "Logo",
+        "created_at": "Kreirano",
+        "updated_at": "Ažurirano"
       }
+    }
     },
     "taxonomy": {
       "entityOptions": {
@@ -396,7 +432,9 @@
         "wallet_transaction": "Transakcija novčanika",
         "expanse": "Trošak",
         "yield": "Prinos",
-        "zoo": "Zoološki vrt"
+        "zoo": "Zoološki vrt",
+        "contractors.status_name": "Status izvođača",
+        "contractors.city_name": "Grad izvođača"
       },
       "fields": {
         "entity": "Entitet",

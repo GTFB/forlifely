@@ -14,7 +14,7 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 
-
+import { ImageIcon } from "lucide-react"
 import {
   Row,
   VisibilityState,
@@ -104,13 +104,56 @@ export function generateColumns(
       enableSorting: false,
       enableHiding: false,
     },
-    ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => ({
-      id: col.name, // Explicitly set id to match accessorKey
+
+    ...schema.filter(col => !col.hidden && !col.hiddenTable).map((col) => {
+      // Set smaller default size for ID and media_id columns in contractors collection
+      const isContractorsId = collection === 'contractors' && col.name === 'id'
+      const isContractorsLogo = collection === 'contractors' && col.name === 'media_id'
+      // For ID, allow smaller sizes (user can set 50px)
+      const defaultSize = isContractorsId ? 80 : (isContractorsLogo ? 80 : undefined)
+      const defaultMinSize = isContractorsId ? 50 : (isContractorsLogo ? 80 : 100)
+      const defaultMaxSize = isContractorsId ? undefined : (isContractorsLogo ? 120 : undefined)
+      
+      // Check if this column has a relation (for multiselect filtering)
+      const hasRelation = col.relation
+      
+      // Determine if this is a multiselect field
+      const isMultiselect = !hasRelation && (
+        (col.fieldType === 'select' && col.selectOptions) ||
+        (col.fieldType === 'enum' && col.enum) ||
+        col.fieldType === 'array' ||
+        (col as any).multiple === true
+      )
+      
+      // Custom filter function for multiselect and relation fields (OR logic)
+      const customFilterFn = (isMultiselect || hasRelation) ? (row: any, columnId: string, filterValue: any) => {
+        if (!filterValue) {
+          return true
+        }
+        
+        // Handle array values (multiselect) - OR logic
+        if (Array.isArray(filterValue)) {
+          if (filterValue.length === 0) {
+            return true
+          }
+          const cellValue = row.getValue(columnId) as string | null | undefined
+          // OR logic: cell value should be in the filter array
+          return cellValue ? filterValue.includes(cellValue) : false
+        }
+        
+        // Handle single value (relation or text filter)
+        const cellValue = row.getValue(columnId) as string | null | undefined
+        return cellValue ? String(cellValue) === String(filterValue) : false
+      } : undefined
+      
+      return {    id: col.name, // Explicitly set id to match accessorKey
       accessorKey: col.name,
       enableSorting: true,
       enableResizing: true,
-      size: columnSizing?.[col.name] || undefined,
-      minSize: 100,
+      size: columnSizing?.[col.name] || defaultSize,
+      minSize: defaultMinSize,
+      maxSize: defaultMaxSize,
+      ...(customFilterFn && { filterFn: customFilterFn }),
       header: ({ column, table }: HeaderContext<CollectionData, unknown>) => {
         const sortedIndex = table.getState().sorting.findIndex((s: any) => s.id === column.id)
         const isSorted = column.getIsSorted()
@@ -261,6 +304,7 @@ export function generateColumns(
                   void handleCellUpdate(rowId, col.name, val)
                 }}
                 translations={translations}
+                locale={locale}
               />
             )
           }
@@ -391,7 +435,40 @@ export function generateColumns(
           const amount = isFinite(cents) ? (cents / 100).toFixed(2) : '-'
           return <div className={`${col.primary ? "font-mono font-medium" : "font-mono"} ${alignmentClass}`}>{amount}</div>
         }
-
+        // For media_id in contractors, show logo image or placeholder
+        if (col.name === 'media_id' && collection === 'contractors') {
+          const mediaId = value
+          if (mediaId) {
+            // media_id is UUID, use admin files endpoint
+            const imageUrl = `/api/altrp/v1/admin/files/${mediaId}`
+            return (
+              <div className="flex items-center justify-start">
+                <img
+                  src={imageUrl}
+                  alt="Logo"
+                  className="h-10 w-10 rounded object-cover"
+                  onError={(e) => {
+                    // Fallback to placeholder on error
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    const placeholder = target.nextElementSibling as HTMLElement
+                    if (placeholder) placeholder.style.display = 'flex'
+                  }}
+                />
+                <div className="h-10 w-10 rounded bg-muted flex items-center justify-center" style={{ display: 'none' }}>
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </div>
+            )
+          }
+          return (
+            <div className="flex items-center justify-start">
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                <ImageIcon className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </div>
+          )
+        }
         // For enum type, show label instead of value
         if (col.fieldType === 'enum' && col.enum) {
           const valueIndex = col.enum.values.indexOf(String(value))
@@ -418,8 +495,8 @@ export function generateColumns(
         }
 
         // For JSON fields in taxonomy collection (title and category fields), extract translation by locale
-        // Also handle title field in roles and expanses collections
-        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title'))) {
+        // Also handle title field in roles, expanses, and contractors collections
+        if (col.fieldType === 'json' && ((collection === 'taxonomy' && (col.name === 'title' || col.name === 'category')) || (collection === 'roles' && col.name === 'title') || (collection === 'expanses' && col.name === 'title') || (collection === 'contractors' && col.name === 'title'))) {          
           let jsonValue = value
 
           // If category is empty, try to extract it from data_in
@@ -458,7 +535,16 @@ export function generateColumns(
             return <div className={alignmentClass}>-</div>
           }
         }
-
+  // For taxonomy.entity field, translate using entityOptions
+  if (collection === 'taxonomy' && col.name === 'entity' && value) {
+    const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
+    const translatedValue = entityOptions[value] || value
+    return (
+      <div className={`${col.primary ? "font-mono font-medium" : ""}`}>
+        {translatedValue}
+      </div>
+    )
+  }
         // Use defaultCell if value is empty/null/undefined
         const isEmpty = value === null || value === undefined || value === ''
         const displayValue = isEmpty && col.defaultCell !== undefined
@@ -483,7 +569,8 @@ export function generateColumns(
           </div>
         )
       },
-    })),
+    }
+  }),
     // Dynamic columns from data_in
     ...(data && columnVisibility ? (() => {
       // Get all unique base keys from data_in in all records
@@ -567,7 +654,8 @@ export function generateColumns(
           }
           // Fallback to translation or baseKey
           // Use correct path to translations: translations.dataTable.fields
-          const fieldTranslation = (translations as any)?.dataTable?.fields?.[collection || '']?.[baseKey]
+          // translations parameter is already the dataTable object, so use translations.fields directly
+          const fieldTranslation = (translations as any)?.fields?.[collection || '']?.[baseKey]
           const columnTitle = fieldTitle || fieldTranslation || baseKey
 
           return {

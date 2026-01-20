@@ -109,6 +109,10 @@
   "teamSwitcher": {
     "teamsLabel": "Roles"
   },
+  "expanseSelector": {
+    "label": "Expanse",
+    "general": "General"
+  },
   "navUser": {
     "notifications": "Notifications",
     "english": "English",
@@ -203,6 +207,7 @@
       "cancel": "Cancel",
       "create": "Create",
       "save": "Save",
+      "clear": "Clear",
       "passwordsDoNotMatch": "Passwords do not match"
     },
     "actions": {
@@ -224,6 +229,23 @@
         "deleteAll": "Delete All"
       }
     },
+    "statusFilter": {
+      "filter": "Status Filter",
+      "filterBy": "Filter by status",
+      "clear": "Clear filter",
+      "selected": "selected",
+      "selectedPlural": "selected"
+    },
+    "cityFilter": {
+      "filter": "City Filter",
+      "filterBy": "Filter by city",
+      "clear": "Clear filter",
+      "selected": "selected",
+      "selectedPlural": "selected"
+    },
+    "filterSettings": "Filter Settings",
+    "filters": "Filters",
+    "showColumnFilters": "Show column filters",
     "dateFilter": {
       "filter": "Date Filter",
       "filterBy": "Filter by",
@@ -334,6 +356,20 @@
         "updated_at": "Updated",
         "data_in": "Data (JSON)",
         "main": "Main!"
+      },
+      "contractors": {
+        "id": "ID",
+        "uuid": "UUID",
+        "title": "Title",
+        "reg": "Registration Number",
+        "tin": "Tax ID Number",
+        "status_name": "Status",
+        "city_name": "City",
+        "order": "Order",
+        "xaid": "Expanse",
+        "media_id": "Logo",
+        "created_at": "Created",
+        "updated_at": "Updated"
       }
     }
   },
@@ -395,7 +431,9 @@
       "wallet_transaction": "Wallet Transaction",
       "expanse": "Expanse",
       "yield": "Yield",
-      "zoo": "Zoo"
+      "zoo": "Zoo",
+      "contractors.status_name": "Contractor Status",
+      "contractors.city_name": "Contractor City"
     },
     "fields": {
       "entity": "Entity",

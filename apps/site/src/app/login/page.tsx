@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Globe } from "lucide-react"
+import { Loader2, Globe, Eye, EyeOff } from "lucide-react"
 import { Logo } from "@/components/misc/logo/logo"
 import {
   DropdownMenu,
@@ -47,6 +47,7 @@ export default function LoginPage() {
     email: "",
     password: "",
   })
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     const forgot = searchParams.get("forgot")
@@ -194,6 +195,8 @@ export default function LoginPage() {
 
       const data: { 
         error?: string
+        details?: string
+        code?: string
         success?: boolean
         user?: {
           roles?: Array<{
@@ -220,7 +223,15 @@ export default function LoginPage() {
         if ((data as any)?.code === 'INVALID_CREDENTIALS' || data.error === 'Invalid credentials') {
           throw new Error((t.errors as any).invalidCredentials || data.error || t.errors.loginFailed)
         }
-        throw new Error(data.error || t.errors.loginFailed)
+        
+        // Log error details for debugging
+        if (data.details) {
+          console.error('[Login] Error details:', data.details)
+        }
+        
+        // Use error message or fallback to loginFailed
+        const errorMsg = data.error || t.errors.loginFailed
+        throw new Error(errorMsg)
       }
 
       // Check if user has Administrator role
@@ -387,17 +398,30 @@ export default function LoginPage() {
             {!forgotMode ? (
               <div className="space-y-2">
                 <Label htmlFor="password">{t.password}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder={t.passwordPlaceholder}
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <button
+                    type="button"
+                    aria-label={t.password}
+                    title={t.password}
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted z-10"
+                    disabled={loading}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder={t.passwordPlaceholder}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    autoComplete="current-password"
+                    className="pl-10"
+                  />
+                </div>
               </div>
             ) : null}
 

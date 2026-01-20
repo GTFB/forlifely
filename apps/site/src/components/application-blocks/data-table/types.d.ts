@@ -44,6 +44,7 @@ export type CollectionData = Record<string, any>
 
 export type StateResponse = {
   success: boolean
+  error?: string
   state: {
     collection: string
     page: number

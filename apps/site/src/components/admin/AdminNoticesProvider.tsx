@@ -34,6 +34,7 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
     const controller = new AbortController()
     abortRef.current = controller
     setLoading(true)
+    setError(null)
     try {
       const response = await fetch("/api/altrp/v1/admin/notices", {
         credentials: "include",
@@ -41,24 +42,69 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
         signal: controller.signal,
       })
 
+      // Check if request was aborted before processing response
+      if (controller.signal.aborted) {
+        return
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to load admin notices")
+        // Try to get error message from response
+        let errorMessage = "Failed to load admin notices"
+        try {
+          const errorData = await response.json() as { error?: string } | null
+          errorMessage = (errorData && 'error' in errorData && errorData.error) ? errorData.error : errorMessage
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+        
+        // Check again if aborted before updating state
+        if (controller.signal.aborted) {
+          return
+        }
+        
+        // Log error but don't throw - just set error state
+        console.warn(`[AdminNotices] Failed to load notices: ${response.status} ${errorMessage}`)
+        setError(errorMessage)
+        // Set empty notices instead of throwing
+        setNotices({})
+        return
       }
 
       const data = (await response.json()) as AdminNotices
+      
+      // Check again if aborted before updating state
+      if (controller.signal.aborted) {
+        return
+      }
+      
       setNotices(data || {})
       setError(null)
     } catch (err) {
-      if ((err as any)?.name === "AbortError") {
+      // Ignore AbortError completely - it's expected when component unmounts or request is cancelled
+      if ((err as any)?.name === "AbortError" || err instanceof DOMException && err.name === "AbortError") {
         return
       }
-      console.error("Failed to fetch admin notices", err)
-      setError(err instanceof Error ? err.message : "Failed to load admin notices")
+      console.error("[AdminNotices] Failed to fetch admin notices", err)
+      
+      // Check if aborted before updating state
+      if (controller.signal.aborted) {
+        return
+      }
+      
+      const errorMessage = err instanceof Error ? err.message : "Failed to load admin notices"
+      setError(errorMessage)
+      // Set empty notices instead of leaving in error state
+      setNotices({})
     } finally {
-      if (abortRef.current === controller) {
+      // Only update loading state if this controller is still the current one
+      if (abortRef.current === controller && !controller.signal.aborted) {
+        abortRef.current = null
+        setLoading(false)
+      } else if (abortRef.current === controller) {
+        // If aborted, just clear the ref
         abortRef.current = null
       }
-      setLoading(false)
     }
   }, [])
 
