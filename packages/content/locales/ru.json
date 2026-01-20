@@ -553,5 +553,9 @@
     "errorTitle": "Ошибка",
     "errorMessage": "Не удалось подтвердить смену email.",
     "backToLogin": "Перейти ко входу"
+  },
+  "breadcrumbs": {
+    "admin_apnel": "Панель администратора",
+    "contractors": "Контрагенты"
   }
 }

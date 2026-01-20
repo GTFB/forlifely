@@ -46,7 +46,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
     }
 
     const walletsRepository = WalletsRepository.getInstance();
-    const transactionsRepository = WalletTransactionsRepository.getInstance(createDb());
+    const transactionsRepository = WalletTransactionsRepository.getInstance();
 
     const summary = await walletsRepository.getSummary(waid);
 

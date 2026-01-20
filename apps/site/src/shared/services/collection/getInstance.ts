@@ -1,14 +1,11 @@
-import BaseCollection from "@/shared/collections/BaseCollection";
 import { getCollection } from "@/shared/collections/getCollection";
 import { i18n } from "../i18n";
 import { getRepository } from "@/shared/repositories/getRepository";
 import { eq } from "drizzle-orm";
 import { parseCollectionInstance } from "./parseCollectionInstance";
+import { BreadcrumbItemObject, InstanceServiceType } from "./types";
 
-export async function getInstance(collectionName: string, altrpIndex:string, locale?: string):Promise<{
-    instance: any,
-    collectionConfig: BaseCollection
-} | null>{
+export async function getInstanceService(collectionName: string, altrpIndex:string, locale?: string):Promise<InstanceServiceType | null>{
     
     const collectionConfig = getCollection(collectionName)
     if(! collectionConfig){
@@ -30,8 +27,17 @@ export async function getInstance(collectionName: string, altrpIndex:string, loc
         return null
     }
     
+    const breadcrumbItems: BreadcrumbItemObject[] = await collectionConfig.getBreadcrumbsItems()
+
+    breadcrumbItems.push({
+        href: `/admin/details/${collectionName}/${altrpIndex}`,
+        label: `${instance.title || ''} ${collectionConfig.name || ''}`
+    })
+
     return {
         instance,
-        collectionConfig
+        collectionConfig,
+        breadcrumbItems,
+        title: instance.title || instance.uuid
     }
 }

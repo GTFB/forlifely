@@ -19,7 +19,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
     const locationLaid = url.searchParams.get('location_laid')
 
     // Use repository to fetch data
-    const repository = ProductVariantsRepository.getInstance(createDb())
+    const repository = ProductVariantsRepository.getInstance()
     
     // If location_laid is provided, filter by location using relations
     const result = locationLaid

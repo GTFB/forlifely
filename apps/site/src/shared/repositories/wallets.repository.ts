@@ -301,7 +301,7 @@ export class WalletsRepository extends BaseRepository<Wallet> {
       console.error("wallet does not have waid");
       return null;
     }
-    const walletTransactionRepo = WalletTransactionsRepository.getInstance(this.db);
+    const walletTransactionRepo = WalletTransactionsRepository.getInstance();
 
     let [walletTransaction] = await walletTransactionRepo.findByParams({
       fullWaid: wallet.waid,

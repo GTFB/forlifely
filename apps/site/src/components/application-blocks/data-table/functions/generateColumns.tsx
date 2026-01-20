@@ -27,7 +27,7 @@ import {
   CollectionData,
   SelectOption,
 
-} from "../types/"
+} from "../types"
 
 import {
   IconDotsVertical,

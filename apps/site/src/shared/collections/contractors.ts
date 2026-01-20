@@ -1,5 +1,7 @@
 import BaseColumn from "../columns/BaseColumn";
 import { generateAid } from "../generate-aid";
+import { BreadcrumbItemObject } from "../services/collection/types";
+import { i18n } from "../services/i18n";
 import BaseCollection from "./BaseCollection";
 
 export default class Contractors extends BaseCollection {
@@ -81,8 +83,21 @@ export default class Contractors extends BaseCollection {
                 if (instance.caid) {
                     return instance.caid;
                 }
-                instance.caid =  generateAid('c');
+                instance.caid = generateAid('c');
             },
         },
     });
+
+    public async getBreadcrumbsItems(): Promise<BreadcrumbItemObject[]> {
+        return [
+            {
+                label: await i18n.t('breadcrumbs.admin_apnel'),
+                href: "/admin"
+            },
+
+            {
+                label: await i18n.t('breadcrumbs.contractors'), href: "/admin?c=contractors"
+            },
+        ]
+    }
 }

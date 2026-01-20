@@ -1,5 +1,7 @@
 import  BaseColumn  from "@/shared/columns/BaseColumn";
 import type { SortingState } from "@tanstack/react-table";
+import { BreadcrumbItemObject } from "../services/collection/types";
+import { i18n } from "../services/i18n";
 
 export default class BaseCollection {
     created_at = new BaseColumn({ hidden: true });
@@ -98,5 +100,11 @@ export default class BaseCollection {
             }
         }
         return null
+    }
+    public async getBreadcrumbsItems():Promise<BreadcrumbItemObject[]>{
+        return [
+            { label: await i18n.t('breadcrumbs.admin_apnel') || "Admin Panel",
+                 href: "/admin" },
+        ]
     }
   }

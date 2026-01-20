@@ -13,7 +13,7 @@ async function handleGet(context: AuthenticatedRequestContext) {
 
   try {
     // Use repository to fetch all public locations
-    const repository = LocationsRepository.getInstance(createDb())
+    const repository = LocationsRepository.getInstance()
     const locations = await repository.getPublicLocations(100)
 
     // Map locations to simpler format

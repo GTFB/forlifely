@@ -557,5 +557,9 @@
     "errorTitle": "Error",
     "errorMessage": "Failed to confirm email change.",
     "backToLogin": "Back to login"
+  },
+  "breadcrumbs": {
+    "admin_apnel": "Admin Panel",
+    "contractors": "Contractors"
   }
 }

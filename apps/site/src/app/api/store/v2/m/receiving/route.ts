@@ -91,7 +91,7 @@ async function handlePost(context: AuthenticatedRequestContext) {
       if (locationLaid) {
         const locationsRepo = await import('@/shared/repositories/locations.repository')
         const LocationsRepository = locationsRepo.LocationsRepository
-        const locRepo = LocationsRepository.getInstance(createDb())
+        const locRepo = LocationsRepository.getInstance()
         const loc = await locRepo.findByLaid(locationLaid)
         if (loc) {
           location = {

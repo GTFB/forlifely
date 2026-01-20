@@ -4583,7 +4583,6 @@ export function DataTable() {
                             const rowData = row.original
                             const titleValue = rowData?.title
                             let displayTitle: React.ReactNode = null
-
                             if (titleValue && typeof titleValue === 'string') {
                               try {
                                 const parsed = JSON.parse(titleValue)
@@ -4860,14 +4859,14 @@ export function DataTable() {
                             key={row.id}
                             data-state={row.getIsSelected() && "selected"}
                             onDoubleClick={() => onEditRequest(row)}
-                            onClick={() => {
-                              const altrpIndex = collectionConfig?.getAltrpIndex()
-                              if(typeof altrpIndex === 'string'){
-                                const url = `/admin/details/${state.collection}/${row.original[altrpIndex]}`
+                            // onClick={() => {
+                            //   const altrpIndex = collectionConfig?.getAltrpIndex()
+                            //   if(typeof altrpIndex === 'string'){
+                            //     const url = `/admin/details/${state.collection}/${row.original[altrpIndex]}`
                                 
-                                router.replace(url)
-                              }
-                            }}
+                            //     router.push(url)
+                            //   }
+                            // }}
                             onAuxClick={(e) => {
                               if(e.button === 1){
                                 const altrpIndex = collectionConfig?.getAltrpIndex()
