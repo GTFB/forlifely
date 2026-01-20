@@ -3,6 +3,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { schema } from "../schema";
 import type { Location } from "../schema/types";
 import { createDb, parseJson, notDeleted, withNotDeleted, type SiteDb } from "./utils";
+import BaseRepository from "./BaseRepositroy";
 
 type LocationInventory = {
   location: Location;
@@ -21,17 +22,18 @@ function toNumber(value: unknown): number {
   return 0;
 }
 
-export class LocationsRepository {
+export class LocationsRepository extends BaseRepository<Location>{
   private static instance: LocationsRepository | null = null;
-  private readonly db: SiteDb;
 
-  private constructor(db: D1Database | SiteDb) {
-    this.db = createDb(db);
+  private constructor() {
+    super(schema.locations)
+
   }
 
-  public static getInstance(db: D1Database | SiteDb): LocationsRepository {
+  public static getInstance(
+  ): LocationsRepository {
     if (!LocationsRepository.instance) {
-      LocationsRepository.instance = new LocationsRepository(db);
+      LocationsRepository.instance = new LocationsRepository();
     }
     return LocationsRepository.instance;
   }

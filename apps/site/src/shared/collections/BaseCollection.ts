@@ -57,6 +57,7 @@ export default class BaseCollection {
 
             // Skip virtual columns (they don't exist in DB)
             if (field.options.virtual) {
+                
                 continue
             }
 
@@ -69,6 +70,7 @@ export default class BaseCollection {
                         parsed[key] = JSON.parse(value)
                         parsed[camelKey] = JSON.parse(value)
                     }
+
                 } catch (error) {
                     // Not valid JSON, keep as is
                     console.warn(`Failed to parse JSON field ${key} in collection ${this.name}:`, error)
@@ -85,5 +87,16 @@ export default class BaseCollection {
                 data[key] = await this[key].prepare(data[key])
             }
         }
+    }
+    public getAltrpIndex(): string | null{
+        
+        for (const key in this) {
+            if(this[key] instanceof BaseColumn) {
+                if(this[key].getOption('altrpIndex')){
+                    return key
+                }
+            }
+        }
+        return null
     }
   }

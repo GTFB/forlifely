@@ -1,5 +1,5 @@
 import { AdminFilter } from "@/shared/types"
-import { RelationConfig, StateResponse } from "./types"
+import { RelationConfig, StateResponse } from "./types/"
 import * as React from "react"
 import qs from "qs"
 

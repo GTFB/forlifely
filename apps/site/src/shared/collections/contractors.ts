@@ -74,6 +74,7 @@ export default class Contractors extends BaseCollection {
         hiddenTable: true,
     });
     caid = new BaseColumn({
+        altrpIndex: true,
         hidden: true,
         hooks: {
             beforeSave: (value, instance, context) => {

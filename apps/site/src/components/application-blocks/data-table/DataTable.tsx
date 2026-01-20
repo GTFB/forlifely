@@ -154,7 +154,7 @@ import { generateColumns } from "./functions/generateColumns"
 import { copyToClipboard } from "./functions/copyToClipboard"
 import { formatDateTimeForLocale } from "./functions/formatDateTimeForLocale"
 import { defaultT } from "./default-t"
-
+import { useRouter } from 'next/navigation';
 
 // Helper function to get data_in field label
 function getDataInFieldLabel(
@@ -218,7 +218,7 @@ export function DataTable() {
   const deviceType = useDeviceType()
   const columnSizesKey = React.useMemo(() => `column-sizes-${deviceType}-${state.collection}`, [deviceType, state.collection])
   const columnVisibiliteStateKey = `column-visibility-${deviceType}-${state.collection}`
-
+  const router = useRouter()
   type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
   const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
@@ -4860,6 +4860,23 @@ export function DataTable() {
                             key={row.id}
                             data-state={row.getIsSelected() && "selected"}
                             onDoubleClick={() => onEditRequest(row)}
+                            onClick={() => {
+                              const altrpIndex = collectionConfig?.getAltrpIndex()
+                              if(typeof altrpIndex === 'string'){
+                                const url = `/admin/details/${state.collection}/${row.original[altrpIndex]}`
+                                
+                                router.replace(url)
+                              }
+                            }}
+                            onAuxClick={(e) => {
+                              if(e.button === 1){
+                                const altrpIndex = collectionConfig?.getAltrpIndex()
+                                if(typeof altrpIndex === 'string'){
+                                  const url = `/admin/details/${state.collection}/${row.original[altrpIndex]}`
+                                  window.open(url, '_blank')
+                                }
+                              }
+                            }}
                             className="cursor-pointer bg-primary-foreground"
                           >
                             {row.getVisibleCells().map((cell) => (
