@@ -5,6 +5,7 @@ import { getInstanceService } from "@/shared/services/collection/getInstance"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import AdminDetailsCollectionPageClient from "./page.client"
+import {  PROJECT_SETTINGS } from "@/settings"
 
 export async function generateMetadata({ params }: { params: Promise<{ collectionName: string, altrpIndex: string }> }): Promise<Metadata> {
     const p = await params
@@ -39,7 +40,9 @@ export default async function AdminDetailsCollectionPage({ params }: { params: P
     }
     const { instance, collectionConfig, breadcrumbItems, title } = result
 
-    console.log(instance)
+    const Olap = await collectionConfig.getOLAP({
+        locale: PROJECT_SETTINGS.defaultLanguage
+    })
     return (
         <div className="flex h-screen w-full overflow-hidden">
             <SidebarProvider>
@@ -49,7 +52,12 @@ export default async function AdminDetailsCollectionPage({ params }: { params: P
                         breadcrumbItems={breadcrumbItems}
                     />
                     <main className="flex-1 overflow-y-auto p-4">
-                        <AdminDetailsCollectionPageClient altrpIndex={altrpIndex} instance={instance} title={title}/>
+                        <AdminDetailsCollectionPageClient 
+                        altrpIndex={altrpIndex} 
+                        collectionName={collectionName}
+                        instance={instance} 
+                        olapTabs={Olap?.tabs || []}
+                        title={title}/>
                     </main>
                 </SidebarInset>
             </SidebarProvider>

@@ -2,6 +2,7 @@
 import { InstanceDetails } from "@/components/application-blocks/instance-details/InstanceDetails"
 import { Badge } from "@/packages/components/ui/badge"
 import { Button } from "@/packages/components/ui/button"
+import { OLAPSettings, OLAPTab } from "@/shared/collections/BaseCollection"
 import { ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -10,10 +11,16 @@ export default function AdminDetailsCollectionPageClient({
     instance,
     altrpIndex,
     title,
+    olapTabs,
+    collectionName,
+
 }:{
     instance: any,
     altrpIndex: string,
-    title: string
+    title: string,
+    olapTabs: OLAPTab[] 
+    collectionName: string
+
 }) {
     const router = useRouter()
     return (
@@ -61,8 +68,10 @@ export default function AdminDetailsCollectionPageClient({
             <InstanceDetails
                 altrpIndex={altrpIndex}
                 instance={instance}
+                collectionName={collectionName}
                 showTabsOnly={false}
-                activeTab={'con'}
+                activeTab={'general'}
+                olapTabs={olapTabs}
                 setActiveTab={(value) => {
                     // Handle tab change if needed
                 }}

@@ -1,7 +1,66 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/packages/components/ui/card"
-import { BarChart3, Briefcase, FolderKanban, Target, Users, Wallet } from "lucide-react"
 import React from "react"
-export function DashboardTab({ altrpIndex }: { altrpIndex: string }) {
+import { Contractor } from "@/shared/schema"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { BarChart3, BriefcaseBusiness, Building2, FolderKanban, Target, Users, Wallet } from "lucide-react"
+
+export function Contractors({
+    contractor
+}: {
+    contractor: Contractor
+}) {
+    return (  <><Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <Building2 className="h-5 w-5" />
+        Общее
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {contractor.reg && (
+          <div>
+            <p className="text-sm text-muted-foreground">Рег. №</p>
+            <p className="font-medium">{contractor.reg}</p>
+          </div>
+        )}
+        {contractor.tin && (
+          <div>
+            <p className="text-sm text-muted-foreground">ИНН</p>
+            <p className="font-medium">{contractor.tin}</p>
+          </div>
+        )}
+        {contractor.cityName && (
+          <div>
+            <p className="text-sm text-muted-foreground">Город</p>
+            <p className="font-medium">{contractor.cityName}</p>
+          </div>
+        )}
+        {(() => {
+          const dataIn = contractor.dataIn
+          if (!dataIn || typeof dataIn !== 'object') return null
+          const entries = Object.entries(dataIn as Record<string, unknown>)
+          return entries.map(([key, value]): React.ReactNode => {
+            if (value === null || value === undefined || value === '') return null
+            return (
+              <div key={key}>
+                <p className="text-sm text-muted-foreground">{key}</p>
+                <p className="font-medium">
+                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                </p>
+              </div>
+            )
+          }).filter((item): item is React.ReactElement => item !== null)
+        })() as React.ReactNode}
+      </div>
+    </CardContent>
+  </Card>
+  <div className="mt-4">
+    <DashboardTab caid={contractor.caid} />
+  </div>
+   </> )
+}
+
+function DashboardTab({ caid }: { caid: string }) {
     const [metrics, setMetrics] = React.useState({
       contactsCount: 0,
       dealsCount: 0,
@@ -21,11 +80,11 @@ export function DashboardTab({ altrpIndex }: { altrpIndex: string }) {
           
           // Fetch all related data
           const [contactsRes, dealsRes, projectsRes, goalsRes, financesRes] = await Promise.all([
-            fetch(`/api/admin/state?c=humans&ps=1000&filters[0][field]=data_in.contractor_altrpIndex&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(altrpIndex)}`, { credentials: 'include' }),
-            fetch(`/api/admin/state?c=deals&ps=1000&filters[0][field]=client_aid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(altrpIndex)}`, { credentials: 'include' }),
-            fetch(`/api/admin/state?c=deals&ps=1000&filters[0][field]=client_aid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(altrpIndex)}&filters[1][field]=status_name&filters[1][op]=eq&filters[1][value]=project`, { credentials: 'include' }),
-            fetch(`/api/admin/state?c=goals&ps=1000&filters[0][field]=data_in.contractor_altrpIndex&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(altrpIndex)}`, { credentials: 'include' }),
-            fetch(`/api/admin/state?c=finances&ps=1000&filters[0][field]=data_in.contractor_altrpIndex&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(altrpIndex)}`, { credentials: 'include' }),
+            fetch(`/api/admin/state?c=humans&ps=1000&filters[0][field]=data_in.contractor_caid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(caid)}`, { credentials: 'include' }),
+            fetch(`/api/admin/state?c=deals&ps=1000&filters[0][field]=client_aid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(caid)}`, { credentials: 'include' }),
+            fetch(`/api/admin/state?c=deals&ps=1000&filters[0][field]=client_aid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(caid)}&filters[1][field]=status_name&filters[1][op]=eq&filters[1][value]=project`, { credentials: 'include' }),
+            fetch(`/api/admin/state?c=goals&ps=1000&filters[0][field]=data_in.contractor_caid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(caid)}`, { credentials: 'include' }),
+            fetch(`/api/admin/state?c=finances&ps=1000&filters[0][field]=data_in.contractor_caid&filters[0][op]=eq&filters[0][value]=${encodeURIComponent(caid)}`, { credentials: 'include' }),
           ])
   
           const [contactsData, dealsData, projectsData, goalsData, financesData] = await Promise.all([
@@ -85,7 +144,7 @@ export function DashboardTab({ altrpIndex }: { altrpIndex: string }) {
       }
   
       fetchMetrics()
-    }, [altrpIndex])
+    }, [caid])
   
     if (loading) {
       return (
@@ -117,7 +176,7 @@ export function DashboardTab({ altrpIndex }: { altrpIndex: string }) {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Сделки</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.dealsCount}</div>

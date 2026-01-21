@@ -1,7 +1,11 @@
 import  BaseColumn  from "@/shared/columns/BaseColumn";
 import type { SortingState } from "@tanstack/react-table";
+import { LANGUAGES } from "@/settings";
+
+type LanguageCode = (typeof LANGUAGES)[number]["code"];
 import { BreadcrumbItemObject } from "../services/collection/types";
 import { i18n } from "../services/i18n";
+import {PROJECT_SETTINGS} from '@/settings'
 
 export default class BaseCollection {
     created_at = new BaseColumn({ hidden: true });
@@ -107,4 +111,26 @@ export default class BaseCollection {
                  href: "/admin" },
         ]
     }
-  }
+
+    async getOLAP(options: OLAPOptions): Promise<OLAPSettings | null> {
+        return null
+    }
+}
+
+export interface OLAPOptions  {
+    locale?: LanguageCode
+}
+
+export interface OLAPTab {
+    id: string
+    collection: string
+    localKey: string
+    foreignKey: string
+    label: string
+}
+export interface OLAPSettings {
+    tabs: OLAPTab[]
+}
+
+  
+  

@@ -643,7 +643,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       // Track hrefs during building to prevent duplicates early
       const buildingHrefs = new Set<string>()
       
-      console.log('[AppSidebar] Loading roles from API, total:', json.data.length)
       
       json.data.forEach((role: any, index: number) => {
         // Extract title for current locale
@@ -681,7 +680,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         
         // Skip if no href (suffix not found)
         if (!href) {
-          console.log(`[AppSidebar] Skipping role ${index} "${roleName}" - no href found`)
           return
         }
         
@@ -698,7 +696,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
             ? Number(role.data_in.order) 
             : 0)
         
-        console.log(`[AppSidebar] Adding role ${index}: name="${roleName}", href="${href}", order=${order}`)
         
         roleTeams.push({
           name: roleName,
@@ -709,7 +706,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         })
       })
       
-      console.log('[AppSidebar] After processing all roles, roleTeams.length:', roleTeams.length)
       
       // Remove duplicates by href BEFORE sorting (keep first occurrence with lowest order)
       const hrefMap = new Map<string, typeof roleTeams[0]>()
@@ -768,7 +764,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       strictFinalTeams.sort((a, b) => a.order - b.order)
       
       // Log final result for debugging with detailed info
-      console.log('[AppSidebar] Final teams after loadRoles:', strictFinalTeams.length, 'teams:', strictFinalTeams.map(t => ({ name: t.name, href: t.href, order: t.order })))
       
       // Verify no duplicates by href
       const finalHrefs = strictFinalTeams.map(t => t.href).filter(Boolean)

@@ -3,28 +3,28 @@ import { InstanceDetailsProps } from "./types"
 import React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Briefcase, Building2, FileText, FolderKanban, Target, Users, Wallet } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/packages/components/ui/card"
-import { DashboardTab } from "./DashboardTab"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/packages/components/ui/dialog"
 import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
 import { Button } from "@/packages/components/ui/button"
+import { getComponent } from "./general-tabs/getComponent"
+import { OLAPTab } from "@/shared/collections/BaseCollection"
+import { DataTable } from "../data-table"
+
 
 export function InstanceDetails({ 
     altrpIndex, 
     collectionName,
     instance,
     title,
-    showTabsOnly = false,
-    activeTab: externalActiveTab,
-    setActiveTab: externalSetActiveTab
+    activeTab,
+    setActiveTab: externalSetActiveTab,
+    olapTabs = []
   }: InstanceDetailsProps) {
     const router = useRouter()
-    const [internalActiveTab, setInternalActiveTab] = React.useState("general")
+    const [internalActiveTab, setInternalActiveTab] = React.useState(activeTab)
     
     // Use external state if provided, otherwise use internal state
-    const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab
-    const setActiveTab = externalSetActiveTab || setInternalActiveTab
-    
+    const setActiveTab =  setInternalActiveTab
     
     const [linkContactDialogOpen, setLinkContactDialogOpen] = React.useState(false)
     const [selectedContactId, setSelectedContactId] = React.useState<string | null>(null)
@@ -39,207 +39,42 @@ export function InstanceDetails({
     } | null>(null)
     const [selectedEntityId, setSelectedEntityId] = React.useState<string | null>(null)
     const [linkingEntity, setLinkingEntity] = React.useState(false)
-  
+
+
+    const finalTabs = [
+      {
+        label: 'Общее',
+        id: 'general',
+        icon: 'Building2',
+      },
+      ...olapTabs,
+    ]
+
     const tabsList = (
       <TabsList className="inline-flex items-center justify-center gap-2 w-auto">
-        <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <Building2 className="h-5 w-5" />
-          <span className="text-xs">Общее</span>
-        </TabsTrigger>
-        <TabsTrigger value="contacts" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <Users className="h-5 w-5" />
-          <span className="text-xs">Контакты</span>
-        </TabsTrigger>
-        <TabsTrigger value="deals" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <Briefcase className="h-5 w-5" />
-          <span className="text-xs">Сделки</span>
-        </TabsTrigger>
-        <TabsTrigger value="projects" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <FolderKanban className="h-5 w-5" />
-          <span className="text-xs">Проекты</span>
-        </TabsTrigger>
-        <TabsTrigger value="goals" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <Target className="h-5 w-5" />
-          <span className="text-xs">Задачи</span>
-        </TabsTrigger>
-        <TabsTrigger value="finances" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <Wallet className="h-5 w-5" />
-          <span className="text-xs">Финансы</span>
-        </TabsTrigger>
-        <TabsTrigger value="documents" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-          <FileText className="h-5 w-5" />
-          <span className="text-xs">Документы</span>
-        </TabsTrigger>
+        {
+          finalTabs.map((tab,idx)=>{
+            return  <TabsTrigger value={tab.id} key={tab.id} className="flex flex-col items-center justify-center gap-1 px-3 py-2">
+              <Building2 className="h-5 w-5" />
+              <span className="text-xs">{tab.label}</span>
+            </TabsTrigger>
+          })
+        }
       </TabsList>
     )
   
-    if (showTabsOnly) {
-      return (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    return (<>
+    
+    <Tabs value={internalActiveTab} onValueChange={setActiveTab} className="w-full">
           {tabsList}
-        </Tabs>
-      )
-    }
-  
-    return (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* TabsList is rendered in header, so we don't render it here */}
         <TabsContent value="general" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Общее
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {instance.reg && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Рег. №</p>
-                    <p className="font-medium">{instance.reg}</p>
-                  </div>
-                )}
-                {instance.tin && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">ИНН</p>
-                    <p className="font-medium">{instance.tin}</p>
-                  </div>
-                )}
-                {instance.cityName && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Город</p>
-                    <p className="font-medium">{instance.cityName}</p>
-                  </div>
-                )}
-                {instance.dataIn && typeof instance.dataIn === 'object' && (
-                  Object.entries(instance.dataIn).map(([key, value]) => {
-                    if (value === null || value === undefined || value === '') return null
-                    return (
-                      <div key={key}>
-                        <p className="text-sm text-muted-foreground">{key}</p>
-                        <p className="font-medium">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                        </p>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          <div className="mt-4">
-            <DashboardTab altrpIndex={altrpIndex} />
-          </div>
+          {getComponent(collectionName, {instance})}
         </TabsContent>
-  
-        {/* Dialog for linking existing contact */}
-        <Dialog open={linkContactDialogOpen} onOpenChange={setLinkContactDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Выберите контакт для привязки</DialogTitle>
-              <DialogDescription>
-                Выберите существующую запись из списка для привязки к контрагенту "{title}"
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <AdminStateProvider
-                initialState={{
-                  collection: "humans",
-                  page: 1,
-                  pageSize: 20,
-                  filters: [],
-                  search: "",
-                }}
-              >AdminStateProvider
-              </AdminStateProvider>
-            </div>
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setLinkContactDialogOpen(false)
-                  setSelectedContactId(null)
-                }}
-              >
-                Отмена
-              </Button>
-              <Button 
-                onClick={async () => {
-                  if (!selectedContactId) return
-                  
-                  setLinking(true)
-                  try {
-                    // Fetch current human data
-                    const humanRes = await fetch(`/api/admin/state?c=humans&ps=1&filters[0][field]=id&filters[0][op]=eq&filters[0][value]=${selectedContactId}`, {
-                      credentials: 'include'
-                    })
-                    
-                    if (!humanRes.ok) {
-                      throw new Error('Failed to fetch human data')
-                    }
-                    
-                    const humanData = await humanRes.json() as { data?: any[] }
-                    const human = humanData.data?.[0]
-                    
-                    if (!human) {
-                      throw new Error('Human not found')
-                    }
-                    
-                    // Get current data_in
-                    let dataIn: any = {}
-                    if (human.data_in) {
-                      try {
-                        dataIn = typeof human.data_in === 'string' 
-                          ? JSON.parse(human.data_in) 
-                          : human.data_in
-                      } catch {
-                        dataIn = {}
-                      }
-                    }
-                    
-                    // Update data_in with contractor_altrpIndex
-                    dataIn.contractor_altrpIndex = altrpIndex
-                    
-                    // Update human record
-                    const updateRes = await fetch(`/api/admin/humans/${human.id}`, {
-                      method: 'PUT',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        data_in: dataIn
-                      })
-                    })
-                    
-                    if (!updateRes.ok) {
-                      const errorData = await updateRes.json() as { error?: string }
-                      throw new Error(errorData.error || 'Failed to link contact')
-                    }
-                    
-                    // Close dialog and refresh table
-                    setLinkContactDialogOpen(false)
-                    setSelectedContactId(null)
-                    // Trigger a refresh by updating a key or reloading
-                    window.location.reload()
-                  } catch (error) {
-                    console.error('Error linking contact:', error)
-                    alert(error instanceof Error ? error.message : 'Ошибка при привязке контакта')
-                  } finally {
-                    setLinking(false)
-                  }
-                }}
-                disabled={!selectedContactId || linking}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {linking ? 'Привязка...' : 'Привязать'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-  
-        {/* Universal dialog for linking other entities (deals, goals, finances) */}
+        {olapTabs.map((tab, idx)=>{
+          return <OlapTabContent key={`olap-tab-${tab.id}`} olapTab={tab} instance={instance}></OlapTabContent>
+        })}
+        {/* todo: Universal dialog for linking other entities (deals, goals, finances) */}
         {linkEntityConfig && (
           <Dialog open={linkEntityDialogOpen} onOpenChange={setLinkEntityDialogOpen}>
             <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
@@ -367,5 +202,150 @@ export function InstanceDetails({
           </Dialog>
         )}
       </Tabs>
+      </>
     )
   }
+
+  function OlapTabContent({
+    olapTab,
+    instance
+  }: {
+    olapTab: OLAPTab
+    instance: any,
+  }){
+    return (<TabsContent value={olapTab.id} className="mt-4">
+        <AdminStateProvider
+          initialState={{
+            collection: olapTab.collection,
+            page: 1,
+            pageSize: 10,
+            filters: [{ field: olapTab.foreignKey, op: 'eq', value: instance[olapTab.localKey] as string }],
+            search: "",
+          }}
+        >
+        <DataTableWithLinkButton
+          onLinkClick={() => {
+            //todo: реализовать
+          }}
+        />
+        </AdminStateProvider>
+      </TabsContent>)
+  }
+  
+function DataTableWithLinkButton({ onLinkClick }: { onLinkClick: () => void }) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  
+  React.useEffect(() => {
+    if (!containerRef.current) return
+    
+    const insertButton = () => {
+      // Find the container with buttons (ml-auto class)
+      const buttonsContainer = containerRef.current?.querySelector('.ml-auto.flex.items-center') as HTMLElement
+      if (!buttonsContainer) return
+      
+      // Check if button already exists
+      if (buttonsContainer.querySelector('[data-link-button]')) return
+      
+      // Find the "Add" button - look for button that contains "+" or "Добавить" or "Add" text
+      // and is a direct child or in a direct child div of buttonsContainer
+      const allElements = Array.from(buttonsContainer.children)
+      let addButton: HTMLElement | null = null
+      
+      // Look through direct children
+      for (const child of allElements) {
+        if (child.tagName === 'BUTTON') {
+          const btn = child as HTMLElement
+          const text = btn.textContent || ''
+          const hasPlus = text.includes('+') || text.includes('Добавить') || text.includes('Add')
+          if (hasPlus) {
+            addButton = btn
+            break
+          }
+        } else if (child.tagName === 'DIV') {
+          // Check if it contains a button with plus
+          const btn = child.querySelector('button') as HTMLElement
+          if (btn) {
+            const text = btn.textContent || ''
+            const hasPlus = text.includes('+') || text.includes('Добавить') || text.includes('Add')
+            if (hasPlus) {
+              addButton = btn
+              break
+            }
+          }
+        }
+      }
+      
+      // Fallback: find last button in container
+      if (!addButton) {
+        const lastButton = buttonsContainer.querySelector('button:last-of-type') as HTMLElement
+        if (lastButton) {
+          addButton = lastButton
+        }
+      }
+      
+      if (!addButton) return
+      
+      // Get the parent of addButton (should be buttonsContainer or a direct child)
+      const addButtonParent = addButton.parentElement
+      if (!addButtonParent) return
+      
+      // Create button element
+      const buttonElement = document.createElement('button')
+      buttonElement.setAttribute('data-link-button', 'true')
+      buttonElement.type = 'button'
+      buttonElement.className = 'inline-flex items-center justify-center gap-2 rounded-md bg-green-600 hover:bg-green-700 text-sm font-medium text-white h-9 px-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
+      buttonElement.innerHTML = `
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+        <span>Привязать</span>
+      `
+      buttonElement.onclick = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onLinkClick()
+      }
+      
+      // Insert AFTER the "Add" button in the same parent container
+      if (addButton.nextSibling) {
+        addButtonParent.insertBefore(buttonElement, addButton.nextSibling)
+      } else {
+        addButtonParent.appendChild(buttonElement)
+      }
+    }
+    
+    // Try to insert immediately
+    insertButton()
+    
+    // Also try after a short delay in case DataTable hasn't rendered yet
+    const timeoutId = setTimeout(insertButton, 100)
+    
+    // Also observe for DOM changes
+    const observer = new MutationObserver(() => {
+      insertButton()
+    })
+    
+    if (containerRef.current) {
+      observer.observe(containerRef.current, {
+        childList: true,
+        subtree: true
+      })
+    }
+    
+    return () => {
+      clearTimeout(timeoutId)
+      observer.disconnect()
+      // Cleanup on unmount
+      const existingButton = containerRef.current?.querySelector('[data-link-button]')
+      if (existingButton) {
+        existingButton.remove()
+      }
+    }
+  }, [onLinkClick])
+  
+  return (
+    <div ref={containerRef}>
+      <DataTable />
+    </div>
+  )
+}
