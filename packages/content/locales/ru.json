@@ -243,8 +243,8 @@
       "selectedPlural": "выбрано"
     },
     "filterSettings": "Настройки фильтров",
-    "filters": "Кнопки-фильтры",
-    "showColumnFilters": "Фильтры в столбцах",
+    "filters": "Фильтры",
+    "showColumnFilters": "В столбцах",
     "dateFilter": {
       "filter": "По дате",
       "filterBy": "Фильтровать по",

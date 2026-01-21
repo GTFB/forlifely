@@ -87,34 +87,34 @@ export default function ContractorDetailClient({
   const [linkingEntity, setLinkingEntity] = React.useState(false)
 
   const tabsList = (
-    <TabsList className="inline-flex items-center justify-center gap-2 w-auto">
-      <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <Building2 className="h-5 w-5" />
-        <span className="text-xs">Общее</span>
+    <TabsList className="flex items-center justify-center gap-0 w-full overflow-visible">
+      <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <Building2 className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Общее</span>
       </TabsTrigger>
-      <TabsTrigger value="contacts" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <Users className="h-5 w-5" />
-        <span className="text-xs">Контакты</span>
+      <TabsTrigger value="contacts" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <Users className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Контакты</span>
       </TabsTrigger>
-      <TabsTrigger value="deals" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <Briefcase className="h-5 w-5" />
-        <span className="text-xs">Сделки</span>
+      <TabsTrigger value="deals" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <Briefcase className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Сделки</span>
       </TabsTrigger>
-      <TabsTrigger value="projects" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <FolderKanban className="h-5 w-5" />
-        <span className="text-xs">Проекты</span>
+      <TabsTrigger value="projects" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <FolderKanban className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Проекты</span>
       </TabsTrigger>
-      <TabsTrigger value="goals" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <Target className="h-5 w-5" />
-        <span className="text-xs">Задачи</span>
+      <TabsTrigger value="goals" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <Target className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Задачи</span>
       </TabsTrigger>
-      <TabsTrigger value="finances" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <Wallet className="h-5 w-5" />
-        <span className="text-xs">Финансы</span>
+      <TabsTrigger value="finances" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <Wallet className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Финансы</span>
       </TabsTrigger>
-      <TabsTrigger value="documents" className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-        <FileText className="h-5 w-5" />
-        <span className="text-xs">Документы</span>
+      <TabsTrigger value="documents" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+        <FileText className="h-4 w-4 sm:h-6 sm:w-6" />
+        <span className="text-xs hidden sm:inline">Документы</span>
       </TabsTrigger>
     </TabsList>
   )
@@ -630,7 +630,7 @@ function DataTableWithLinkButton({ onLinkClick }: { onLinkClick: () => void }) {
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
-        <span>Привязать</span>
+        <span class="hidden sm:inline">Привязать</span>
       `
       buttonElement.onclick = (e) => {
         e.preventDefault()

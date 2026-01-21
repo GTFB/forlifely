@@ -139,7 +139,7 @@ export const onRequestGet = async (context: AuthenticatedRequestContext) => {
         client,
         `SELECT column_name, data_type, is_nullable, column_default, ordinal_position
          FROM information_schema.columns
-         WHERE table_name = $1
+         WHERE table_schema = 'public' AND LOWER(table_name) = LOWER($1)
          ORDER BY ordinal_position`,
         [state.collection]
       )
