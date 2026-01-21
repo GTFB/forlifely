@@ -28,8 +28,8 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
   const abortRef = React.useRef<AbortController | null>(null)
 
   const fetchNotices = React.useCallback(async () => {
-    if (abortRef.current) {
-      abortRef.current.abort()
+    if (abortRef.current && !abortRef.current.signal.aborted) {
+      abortRef.current.abort("New request started")
     }
     const controller = new AbortController()
     abortRef.current = controller
@@ -110,7 +110,11 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
 
   React.useEffect(() => {
     fetchNotices()
-    return () => abortRef.current?.abort()
+    return () => {
+      if (abortRef.current && !abortRef.current.signal.aborted) {
+        abortRef.current.abort("Component unmounting")
+      }
+    }
   }, [fetchNotices])
 
   useAdminSocketEvent(

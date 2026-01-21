@@ -1221,6 +1221,10 @@ export function DataTable() {
     pageSize: defaultPageSize,
   })
 
+  // Refs to track previous values and prevent infinite loops
+  const prevPaginationRef = React.useRef(pagination)
+  const prevStateRef = React.useRef({ page: state.page, pageSize: state.pageSize })
+
   // Restore default page size when collection changes
   React.useEffect(() => {
     if (!state.collection || typeof window === 'undefined') return
@@ -1229,7 +1233,7 @@ export function DataTable() {
       const saved = localStorage.getItem(`default-page-size-${state.collection}`)
       if (saved) {
         const parsed = Number(saved)
-        if (!isNaN(parsed) && parsed > 0) {
+        if (!isNaN(parsed) && parsed > 0 && parsed !== state.pageSize) {
           setDefaultPageSize(parsed)
           setPagination(prev => ({ ...prev, pageSize: parsed }))
           setState(prev => ({ ...prev, pageSize: parsed }))
@@ -1238,8 +1242,8 @@ export function DataTable() {
     } catch (e) {
       console.warn('Failed to restore default page size:', e)
     }
-  }, [state.collection, setState])
-
+  }, [state.collection, setState, state.pageSize])
+  
   // Save default page size to localStorage when it changes
   React.useEffect(() => {
     if (state.collection && typeof window !== 'undefined') {
@@ -1253,16 +1257,67 @@ export function DataTable() {
 
   React.useEffect(() => {
     // when table pagination changes, reflect to admin state
-    setState((prev) => ({
-      ...prev,
-      page: pagination.pageIndex + 1,
-      pageSize: pagination.pageSize,
-    }))
+    const newPage = pagination.pageIndex + 1
+    const newPageSize = pagination.pageSize
+    
+    // Skip if pagination hasn't actually changed
+    if (
+      prevPaginationRef.current.pageIndex === pagination.pageIndex &&
+      prevPaginationRef.current.pageSize === pagination.pageSize
+    ) {
+      return
+    }
+    
+    // Skip if state already has these values (to prevent loops)
+    if (prevStateRef.current.page === newPage && prevStateRef.current.pageSize === newPageSize) {
+      prevPaginationRef.current = pagination
+      return
+    }
+    
+    prevPaginationRef.current = pagination
+    setState((prev) => {
+      if (prev.page === newPage && prev.pageSize === newPageSize) {
+        return prev // No change, return same object to prevent re-render
+      }
+      prevStateRef.current = { page: newPage, pageSize: newPageSize }
+      return {
+        ...prev,
+        page: newPage,
+        pageSize: newPageSize,
+      }
+    })
   }, [pagination.pageIndex, pagination.pageSize, setState])
 
   React.useEffect(() => {
     // when admin state changes externally (via URL), update table
-    setPagination({ pageIndex: Math.max(0, state.page - 1), pageSize: state.pageSize })
+    const newPageIndex = Math.max(0, state.page - 1)
+    const newPageSize = state.pageSize
+    
+    // Skip if state hasn't actually changed
+    if (
+      prevStateRef.current.page === state.page &&
+      prevStateRef.current.pageSize === state.pageSize
+    ) {
+      return
+    }
+    
+    // Skip if pagination already has these values (to prevent loops)
+    if (
+      prevPaginationRef.current.pageIndex === newPageIndex &&
+      prevPaginationRef.current.pageSize === newPageSize
+    ) {
+      prevStateRef.current = { page: state.page, pageSize: state.pageSize }
+      return
+    }
+    
+    prevStateRef.current = { page: state.page, pageSize: state.pageSize }
+    setPagination((prev) => {
+      if (prev.pageIndex === newPageIndex && prev.pageSize === newPageSize) {
+        return prev // No change, return same object to prevent re-render
+      }
+      prevPaginationRef.current = { pageIndex: newPageIndex, pageSize: newPageSize }
+      return { pageIndex: newPageIndex, pageSize: newPageSize }
+    })
   }, [state.page, state.pageSize])
 
   const [rowSelection, setRowSelection] = React.useState({})
@@ -1740,6 +1795,7 @@ export function DataTable() {
               cityFilter: parsed.cityFilter === true,  // Явно true, иначе false
               columnFilters: parsed.columnFilters === true,  // Явно true, иначе false
             })
+
         }
       } else {
         setFilterSettings({
@@ -1772,7 +1828,7 @@ export function DataTable() {
         console.warn('Failed to restore card view mode mobile from localStorage:', e)
       }
     }
-    return false // Default: table view
+    return true // Default: card view for mobile
   })
 
   // Edit mode state
@@ -1862,11 +1918,11 @@ export function DataTable() {
       if (saved !== null) {
         setCardViewModeMobile(JSON.parse(saved) === true)
       } else {
-        setCardViewModeMobile(false)
+        setCardViewModeMobile(true) // Default: card view for mobile
       }
     } catch (e) {
       console.warn('Failed to restore card view mode mobile:', e)
-      setCardViewModeMobile(false)
+      setCardViewModeMobile(true) // Default: card view for mobile
     }
   }, [state.collection])
 
@@ -2904,6 +2960,55 @@ export function DataTable() {
       }
     }
   }, [columns, isMobile, columnOrder, state.collection])
+
+  // Filter sorting to only include columns that exist in the table
+  const filteredSorting = React.useMemo(() => {
+    if (!reorderedColumns || reorderedColumns.length === 0) {
+      return sorting // Return original sorting if columns not ready yet
+    }
+    const columnIds = new Set(reorderedColumns.map(col => col.id).filter(Boolean))
+    return sorting.filter(s => columnIds.has(s.id))
+  }, [sorting, reorderedColumns])
+
+  // Update sorting if it was filtered (remove non-existent columns) - only when collection or columns change
+  const columnsKey = React.useMemo(() => {
+    if (!reorderedColumns || reorderedColumns.length === 0) return ''
+    return reorderedColumns.map(col => col.id).filter(Boolean).sort().join(',')
+  }, [reorderedColumns])
+  
+  const reorderedColumnsRef = React.useRef(reorderedColumns)
+  React.useEffect(() => {
+    reorderedColumnsRef.current = reorderedColumns
+  }, [reorderedColumns])
+  
+  const prevCollectionRef = React.useRef(state.collection)
+  const prevColumnsRef = React.useRef<string>('')
+  const setSortingRef = React.useRef(setSorting)
+  React.useEffect(() => {
+    setSortingRef.current = setSorting
+  }, [setSorting])
+  
+  React.useEffect(() => {
+    const currentColumns = reorderedColumnsRef.current
+    if (!currentColumns || currentColumns.length === 0) return
+    
+    const collectionChanged = prevCollectionRef.current !== state.collection
+    const columnsChanged = prevColumnsRef.current !== columnsKey
+    
+    if (collectionChanged || columnsChanged) {
+      const columnIds = new Set(currentColumns.map(col => col.id).filter(Boolean))
+      setSortingRef.current((currentSorting) => {
+        const hasInvalidColumns = currentSorting.some(s => !columnIds.has(s.id))
+        if (hasInvalidColumns) {
+          return currentSorting.filter(s => columnIds.has(s.id))
+        }
+        return currentSorting
+      })
+      
+      prevCollectionRef.current = state.collection
+      prevColumnsRef.current = columnsKey
+    }
+  }, [state.collection, columnsKey])
   
   // Save column order to localStorage
   React.useEffect(() => {
@@ -3002,7 +3107,7 @@ export function DataTable() {
     columns: reorderedColumns,
     manualSorting: true,
     state: {
-      sorting,
+      sorting: filteredSorting,
       columnVisibility,
       rowSelection,
       columnFilters,
@@ -4401,6 +4506,7 @@ export function DataTable() {
                   </DropdownMenuRadioGroup>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+
               {/* Edit mode */}
               <DropdownMenuSeparator />
               <div className="flex items-center justify-between gap-4 px-2 py-1.5">
@@ -4502,23 +4608,6 @@ export function DataTable() {
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               )}
-              {/* Show/hide filter row */}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault()
-                  setShowFilterRow(!showFilterRow)
-                }}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  <IconFilter className="h-4 w-4 mr-2" />
-                  {t.showFilters}
-                </div>
-                {showFilterRow && (
-                  <IconCheck className="h-4 w-4" />
-                )}
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm" className="bg-primary-foreground h-9" onClick={() => setCreateOpen(true)}>

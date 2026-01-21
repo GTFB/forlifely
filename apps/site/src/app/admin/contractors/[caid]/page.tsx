@@ -210,8 +210,8 @@ export default function ContractorDetailPage() {
             ]}
           />
           <main className="flex-1 overflow-y-auto p-4">
-            {/* Header with tabs */}
-            <div className="flex items-center justify-between mb-4 relative">
+            {/* Header with logo, tabs (desktop), and badge */}
+            <div className="flex items-center justify-between mb-4">
               {/* Left block: back button + logo + title */}
               <div className="flex items-center gap-4 flex-1">
                 <Button onClick={() => router.push('/admin?c=contractors&p=1&ps=20')} variant="outline" size="icon">
@@ -238,8 +238,8 @@ export default function ContractorDetailPage() {
                 </div>
               </div>
               
-              {/* Center block: tabs - absolutely centered */}
-              <div className="absolute left-1/2 transform -translate-x-1/2">
+              {/* Center: Tabs (desktop only) */}
+              <div className="hidden sm:flex flex-1 justify-center items-center py-2">
                 <ContractorDetailClient 
                   caid={caid} 
                   contractor={contractor} 
@@ -257,6 +257,17 @@ export default function ContractorDetailPage() {
                   </Badge>
                 )}
               </div>
+            </div>
+
+            {/* Tabs (mobile only) */}
+            <div className="mb-4 sm:hidden">
+              <ContractorDetailClient 
+                caid={caid} 
+                contractor={contractor} 
+                showTabsOnly={true}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
             </div>
 
             {/* Tab content */}
