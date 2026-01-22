@@ -6,7 +6,7 @@ import { Briefcase, Building2, FileText, FolderKanban, Target, Users, Wallet } f
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/packages/components/ui/dialog"
 import { AdminStateProvider } from "@/components/admin/AdminStateProvider"
 import { Button } from "@/packages/components/ui/button"
-import { getComponent } from "./general-tabs/getComponent"
+import { GeneralTabFactory } from "./general-tabs/GeneralTabFactory"
 import { OLAPTab } from "@/shared/collections/BaseCollection"
 import { DataTable } from "../data-table"
 
@@ -69,7 +69,7 @@ export function InstanceDetails({
           {tabsList}
         {/* TabsList is rendered in header, so we don't render it here */}
         <TabsContent value="general" className="mt-4">
-          {getComponent(collectionName, {instance})}
+          <GeneralTabFactory collectionName={collectionName} instance={instance}/>
         </TabsContent>
         {olapTabs.map((tab, idx)=>{
           return <OlapTabContent key={`olap-tab-${tab.id}`} olapTab={tab} instance={instance}></OlapTabContent>

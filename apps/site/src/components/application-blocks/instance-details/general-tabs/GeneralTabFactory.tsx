@@ -2,12 +2,10 @@ import React from "react";
 import { Contractors } from "./Contractors";
 import { Contractor } from "@/shared/schema";
 
-export function getComponent(collectionName: string, props: {
-    instance: Contractor
-}): React.ReactElement | null {
+export function GeneralTabFactory({collectionName,instance}:{collectionName : string, instance: Contractor}) {
     switch (collectionName) {
         case 'contractors': 
-            return <Contractors  contractor={props.instance} />
+            return <Contractors  contractor={instance} />
         default:
             return null
     }
