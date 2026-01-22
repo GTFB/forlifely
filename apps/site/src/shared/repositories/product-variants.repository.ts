@@ -32,7 +32,6 @@ export class ProductVariantsRepository extends BaseRepository<ProductVariant> {
   }
 
   public static getInstance(
-    db: D1Database | SiteDb
   ): ProductVariantsRepository {
     if (!ProductVariantsRepository.instance) {
       ProductVariantsRepository.instance = new ProductVariantsRepository();

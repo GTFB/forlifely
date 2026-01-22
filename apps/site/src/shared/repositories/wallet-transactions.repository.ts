@@ -1,9 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { D1Database } from "@cloudflare/workers-types";
-import { schema } from "../schema";
+import { schema, walletTransactions } from "../schema";
 import type { WalletTransaction } from "../schema/types";
 import { createDb, parseJson, notDeleted, withNotDeleted, type SiteDb } from "./utils";
 import { generateAid } from "../generate-aid";
+import BaseRepository from "./BaseRepositroy";
 
 type FormattedTransaction = Omit<WalletTransaction, "amount"> & {
   amount: number;
@@ -21,32 +22,21 @@ function formatNumber(value: number, lang = "en", options: Intl.NumberFormatOpti
   }
 }
 
-export class WalletTransactionsRepository {
+export class WalletTransactionsRepository extends BaseRepository<WalletTransaction>{
   private static instance: WalletTransactionsRepository | null = null;
-  private readonly db: SiteDb;
 
-  private constructor(db: D1Database | SiteDb) {
-    this.db = createDb(db);
+  private constructor() {
+    super(schema.walletTransactions)
   }
 
   public static getInstance(
-    db: D1Database | SiteDb
   ): WalletTransactionsRepository {
     if (!WalletTransactionsRepository.instance) {
-      WalletTransactionsRepository.instance = new WalletTransactionsRepository(db);
+      WalletTransactionsRepository.instance = new WalletTransactionsRepository();
     }
     return WalletTransactionsRepository.instance;
   }
 
-  async findByUuid(uuid: string): Promise<WalletTransaction | undefined> {
-    const [transaction] = await this.db
-      .select()
-      .from(schema.walletTransactions)
-      .where(eq(schema.walletTransactions.uuid, uuid))
-      .limit(1);
-
-    return transaction;
-  }
 
   async parseForDisplay(
     transaction: WalletTransaction,

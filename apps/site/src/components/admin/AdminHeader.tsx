@@ -25,9 +25,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { BreadcrumbItemObject } from "@/shared/services/collection/types"
 interface AdminHeaderProps {
   title?: string
-  breadcrumbItems?: Array<{ label: string; href?: string }>
+  breadcrumbItems?: BreadcrumbItemObject[]
 }
 
 // Safe SidebarTrigger that only renders if SidebarProvider exists

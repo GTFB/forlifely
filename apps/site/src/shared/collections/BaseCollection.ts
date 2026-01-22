@@ -1,5 +1,11 @@
 import  BaseColumn  from "@/shared/columns/BaseColumn";
 import type { SortingState } from "@tanstack/react-table";
+import { LANGUAGES } from "@/settings";
+
+type LanguageCode = (typeof LANGUAGES)[number]["code"];
+import { BreadcrumbItemObject } from "../services/collection/types";
+import { i18n } from "../services/i18n";
+import {PROJECT_SETTINGS} from '@/settings'
 
 export default class BaseCollection {
     created_at = new BaseColumn({ hidden: true });
@@ -57,6 +63,7 @@ export default class BaseCollection {
 
             // Skip virtual columns (they don't exist in DB)
             if (field.options.virtual) {
+                
                 continue
             }
 
@@ -69,6 +76,7 @@ export default class BaseCollection {
                         parsed[key] = JSON.parse(value)
                         parsed[camelKey] = JSON.parse(value)
                     }
+
                 } catch (error) {
                     // Not valid JSON, keep as is
                     console.warn(`Failed to parse JSON field ${key} in collection ${this.name}:`, error)
@@ -86,4 +94,43 @@ export default class BaseCollection {
             }
         }
     }
-  }
+    public getAltrpIndex(): string | null{
+        
+        for (const key in this) {
+            if(this[key] instanceof BaseColumn) {
+                if(this[key].getOption('altrpIndex')){
+                    return key
+                }
+            }
+        }
+        return null
+    }
+    public async getBreadcrumbsItems():Promise<BreadcrumbItemObject[]>{
+        return [
+            { label: await i18n.t('breadcrumbs.admin_apnel') || "Admin Panel",
+                 href: "/admin" },
+        ]
+    }
+
+    async getOLAP(options: OLAPOptions): Promise<OLAPSettings | null> {
+        return null
+    }
+}
+
+export interface OLAPOptions  {
+    locale?: LanguageCode
+}
+
+export interface OLAPTab {
+    id: string
+    collection: string
+    localKey: string
+    foreignKey: string
+    label: string
+}
+export interface OLAPSettings {
+    tabs: OLAPTab[]
+}
+
+  
+  

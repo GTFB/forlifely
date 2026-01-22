@@ -15,7 +15,9 @@ export default class BaseColumn {
         return value
     }
 
-
+    public getOption<T extends keyof BaseColumnOptions>(optionName: T): BaseColumnOptions[T] | undefined {
+        return this.options?.[optionName]
+    }
 }
 
 export type RelationConfig = {
@@ -30,6 +32,7 @@ export type RelationConfig = {
 }
 
 export type BaseColumnOptions = {
+    altrpIndex?: boolean //Is altrp main index feild
     title?: string;
     hidden?: boolean;
     hiddenTable?: boolean;  // Hide only in table, but show in forms

@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 import type { D1Database } from "@cloudflare/workers-types";
-import { schema } from "../schema";
+import { dealProducts, schema } from "../schema";
 import type { DealProduct } from "../schema/types";
 import { createDb, parseJson, notDeleted, withNotDeleted, type SiteDb } from "./utils";
+import BaseRepository from "./BaseRepositroy";
 
 type FormattedDealProduct = DealProduct & {
   priceFormatted: string;
@@ -36,34 +37,22 @@ function formatNumber(value: number, lang = "en", options: Intl.NumberFormatOpti
   }
 }
 
-export class DealProductsRepository {
+export class DealProductsRepository extends BaseRepository<DealProduct>{
   private static instance: DealProductsRepository | null = null;
-  private readonly db: SiteDb;
 
-  private constructor(db: D1Database) {
-    this.db = createDb(db);
+  private constructor() {
+    super(schema.dealProducts)
+
   }
 
   public static getInstance(
-    db: D1Database
   ): DealProductsRepository {
     if (!DealProductsRepository.instance) {
-      DealProductsRepository.instance = new DealProductsRepository(db);
+      DealProductsRepository.instance = new DealProductsRepository();
     }
     return DealProductsRepository.instance;
   }
 
-  async findByUuid(uuid: string): Promise<DealProduct | undefined> {
-    const [product] = await this.db
-      .select()
-      .from(schema.dealProducts)
-      .where(
-        eq(schema.dealProducts.uuid, uuid)
-      )
-      .limit(1);
-
-    return product;
-  }
 
   async formatForDisplay(
     product: DealProduct,

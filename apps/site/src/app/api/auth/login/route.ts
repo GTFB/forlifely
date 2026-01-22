@@ -6,7 +6,7 @@ import { UsersRepository } from '@/shared/repositories/users.repository'
 import { getNextResendAvailableAt } from '@/shared/services/email-verification.service'
 import { logUserJournalEvent } from '@/shared/services/user-journal.service'
 import { UserSessionsRepository, getClientIp } from '@/shared/repositories/user-sessions.repository'
-import { isPostgres } from '@/shared/utils/db'
+
 interface LoginRequest {
   email: string
   password: string
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     const isAdmin = roles.some((role) => role.isSystem === true)
 
     await usersRepository.update(persistedUser.uuid, {
-      lastLoginAt: isPostgres() ? new Date() : new Date().toISOString(),
+      lastLoginAt: new Date(),
     })
 
     const sessionUuid = crypto.randomUUID()

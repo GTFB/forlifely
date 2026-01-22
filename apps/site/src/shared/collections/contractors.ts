@@ -1,6 +1,11 @@
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 import BaseColumn from "../columns/BaseColumn";
 import { generateAid } from "../generate-aid";
-import BaseCollection from "./BaseCollection";
+import { BreadcrumbItemObject } from "../services/collection/types";
+import { i18n } from "../services/i18n";
+import BaseCollection, { OLAPOptions, OLAPTab } from "./BaseCollection";
+import Humans from "./humans";
+import Deals from "./deals";
 
 export default class Contractors extends BaseCollection {
     __title = 'Contractors';
@@ -74,14 +79,61 @@ export default class Contractors extends BaseCollection {
         hiddenTable: true,
     });
     caid = new BaseColumn({
+        altrpIndex: true,
         hidden: true,
         hooks: {
             beforeSave: (value, instance, context) => {
                 if (instance.caid) {
                     return instance.caid;
                 }
-                instance.caid =  generateAid('c');
+                instance.caid = generateAid('c');
             },
         },
     });
+
+    public async getBreadcrumbsItems(): Promise<BreadcrumbItemObject[]> {
+        return [
+            {
+                label: await i18n.t('breadcrumbs.admin_apnel'),
+                href: "/admin"
+            },
+
+            {
+                label: await i18n.t('breadcrumbs.contractors'), href: "/admin?c=contractors"
+            },
+        ]
+    }
+
+    async getTabs(options: OLAPOptions): Promise<OLAPTab[]>{
+        const {
+            locale= PROJECT_SETTINGS.defaultLanguage
+        } = options
+        return [
+            {
+                collection: 'humans',
+                localKey: 'caid',
+                foreignKey: 'dataIn.contractor_caid',
+                label: await i18n.t('olap.contractors.contacts',locale),
+                id: 'humans',
+            },
+            {
+                id: 'deals',
+                collection: 'deals',
+                localKey: 'caid',
+                foreignKey: 'dataIn.contractor_caid',
+                label: await i18n.t('olap.contractors.deals',locale)
+                
+            },
+        ]
+    }
+    async getOLAP(options: OLAPOptions){
+
+
+        const tabs = await this.getTabs(options)
+        
+        const Olap = {
+            tabs
+        }
+        return Olap
+    }
 }

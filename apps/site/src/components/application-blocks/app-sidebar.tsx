@@ -39,6 +39,8 @@ import {
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { useMe } from "@/providers/MeProvider"
+import { useLocalStorage } from "@uidotdev/usehooks"
+import { getInitialLocale, LanguageCode } from "@/lib/getInitialLocale"
 
 type CollectionsResponse = {
   success: boolean
@@ -129,25 +131,14 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  type LanguageCode = (typeof LANGUAGES)[number]['code']
   const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
   
-  const [locale, setLocale] = React.useState<LanguageCode>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar-locale')
-      if (saved && supportedLanguageCodes.includes(saved as LanguageCode)) {
-        return saved as LanguageCode
-      }
-    }
-    // Use PROJECT_SETTINGS.defaultLanguage, but ensure it's in LANGUAGES
-    const defaultLang = PROJECT_SETTINGS.defaultLanguage
-    if (supportedLanguageCodes.includes(defaultLang as LanguageCode)) {
-      return defaultLang as LanguageCode
-    }
-    // Fallback to first available language
-    return LANGUAGES[0]?.code || 'en'
-  })
+  // Compute initial value
+  
+  const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
 
+
+  
   // Use global ref to preserve translations across component remounts
   const translationsRef = globalTranslationsRef
   const localeRef = React.useRef(locale)
@@ -308,7 +299,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       },
     }
   }, [locale, translations?.sidebar?.platform, translations?.sidebar?.categories, translations?.taxonomy?.entityOptions])
-
   const handleLocaleChange = React.useCallback((newLocale: LanguageCode) => {
     // Validate that the locale is in supported languages
     if (!supportedLanguageCodes.includes(newLocale)) {
@@ -317,7 +307,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
     }
     setLocale(newLocale)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('sidebar-locale', newLocale)
       // Dispatch custom event to notify other components about locale change
       window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
     }
@@ -654,7 +643,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       // Track hrefs during building to prevent duplicates early
       const buildingHrefs = new Set<string>()
       
-      console.log('[AppSidebar] Loading roles from API, total:', json.data.length)
       
       json.data.forEach((role: any, index: number) => {
         // Extract title for current locale
@@ -692,7 +680,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         
         // Skip if no href (suffix not found)
         if (!href) {
-          console.log(`[AppSidebar] Skipping role ${index} "${roleName}" - no href found`)
           return
         }
         
@@ -709,7 +696,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
             ? Number(role.data_in.order) 
             : 0)
         
-        console.log(`[AppSidebar] Adding role ${index}: name="${roleName}", href="${href}", order=${order}`)
         
         roleTeams.push({
           name: roleName,
@@ -720,7 +706,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         })
       })
       
-      console.log('[AppSidebar] After processing all roles, roleTeams.length:', roleTeams.length)
       
       // Remove duplicates by href BEFORE sorting (keep first occurrence with lowest order)
       const hrefMap = new Map<string, typeof roleTeams[0]>()
@@ -779,7 +764,6 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       strictFinalTeams.sort((a, b) => a.order - b.order)
       
       // Log final result for debugging with detailed info
-      console.log('[AppSidebar] Final teams after loadRoles:', strictFinalTeams.length, 'teams:', strictFinalTeams.map(t => ({ name: t.name, href: t.href, order: t.order })))
       
       // Verify no duplicates by href
       const finalHrefs = strictFinalTeams.map(t => t.href).filter(Boolean)

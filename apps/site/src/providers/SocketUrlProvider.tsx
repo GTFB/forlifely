@@ -17,7 +17,7 @@ export function SocketUrlProvider({
   // Debug: log the URL value (only in development)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('[SocketUrlProvider] Socket URL:', url || 'undefined')
+
     }
   }, [url])
 
