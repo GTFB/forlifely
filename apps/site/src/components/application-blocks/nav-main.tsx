@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams, useRouter } from "next/navigation"
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 
@@ -27,6 +27,7 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAdminState } from "@/components/admin/AdminStateProvider"
 
 export const NavMain = React.memo(function NavMain({
   items,
@@ -150,6 +151,32 @@ const NavMainItem = React.memo(function NavMainItem({
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
   const pathname = usePathname()
+  const router = useRouter()
+  const { pushState } = useAdminState()
+  
+  // Handler for navigation links that use query parameters
+  const handleLinkClick = React.useCallback((e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    // Only handle admin collection links (with ?c= parameter)
+    if (url.includes('?c=')) {
+      e.preventDefault()
+      const urlObj = new URL(url, window.location.origin)
+      const collection = urlObj.searchParams.get('c')
+      const page = urlObj.searchParams.get('p')
+      const pageSize = urlObj.searchParams.get('ps')
+      
+      if (collection) {
+        pushState({
+          collection,
+          page: page ? Number(page) : 1,
+          pageSize: pageSize ? Number(pageSize) : 10,
+        })
+      } else {
+        // Fallback to regular navigation
+        router.push(url)
+      }
+    }
+    // For other links (like /admin/sql-editor), let Link handle it normally
+  }, [pushState, router])
   
   // Determine active state from collection prop - simple comparison, no hooks
   const isCategoryActive = item.collections?.includes(currentCollection) ?? false
@@ -213,6 +240,8 @@ const NavMainItem = React.memo(function NavMainItem({
                       if (subItem.onClick) {
                         e.preventDefault()
                         subItem.onClick()
+                      } else {
+                        handleLinkClick(e, subItem.url)
                       }
                     }}
                   >
@@ -261,7 +290,17 @@ const NavMainItem = React.memo(function NavMainItem({
                     return (
                       <SidebarMenuSubItem key={subItem.url}>
                         <SidebarMenuSubButton asChild isActive={isSubItemActive}>
-                          <Link href={subItem.url}>
+                          <Link 
+                            href={subItem.url}
+                            onClick={(e) => {
+                              if (subItem.onClick) {
+                                e.preventDefault()
+                                subItem.onClick()
+                              } else {
+                                handleLinkClick(e, subItem.url)
+                              }
+                            }}
+                          >
                             <span>{subItem.title}</span>
                           </Link>
                         </SidebarMenuSubButton>
