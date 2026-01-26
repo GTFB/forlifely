@@ -21,6 +21,23 @@ export type SelectOption = {
   value: string
 }
 
+export type DataInEntry = {
+  key: string
+  title: string
+  value: string
+}
+
+export type ColumnAlignment = Record<string, "left" | "center" | "right">
+
+export type ColumnFilterValues = Record<string, string | string[]>
+
+export type FilterSettings = {
+  dateFilter: boolean
+  statusFilter: boolean
+  cityFilter: boolean
+  columnFilters: boolean
+}
+
 export type ColumnSchemaExtended = ColumnSchema & {
   title?: string
   hidden?: boolean

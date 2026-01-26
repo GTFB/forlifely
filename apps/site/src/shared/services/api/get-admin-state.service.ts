@@ -1,27 +1,12 @@
 import { COLLECTION_GROUPS } from "@/shared/collections"
 import { getCollection } from "@/shared/collections/getCollection"
-import qs from "qs"
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { getPostgresClient, executeRawQuery, createDb } from '@/shared/repositories/utils'
 import { type SortingState, type ColumnSort } from "@tanstack/react-table"
-import { getInitialLocale, LanguageCode } from "@/lib/getInitialLocale"
-
-
-interface AdminFilter {
-  field: string
-  op: "eq" | "neq" | "gt" | "gte" | "lt" | "lte" | "like" | "in"
-  value: unknown
-}
-
-interface AdminState {
-  collection: string
-  page: number
-  pageSize: number
-  filters: AdminFilter[]
-  search: string
-  sorting: SortingState
-  locale: LanguageCode
-}
+import { LanguageCode } from "@/lib/getInitialLocale"
+import { camelToSnake } from "@/shared/utils/case-conversion"
+import { isValidCollection } from "@/shared/utils/collection-validation"
+import { parseStateFromUrl, type AdminState, type AdminFilter } from "@/shared/utils/admin-state-parser"
 
 interface ColumnInfo {
   column_name: string
@@ -32,51 +17,8 @@ interface ColumnInfo {
   [key: string]: unknown
 }
 
-const DEFAULT_STATE: AdminState = {
-  collection: "users",
-  page: 1,
-  pageSize: 10,
-  filters: [],
-  search: "",
-  sorting: [],
-  locale: getInitialLocale()
-}
-
 function q(name: string): string {
   return '"' + name.replace(/"/g, '""') + '"'
-}
-
-// Check if collection exists in COLLECTION_GROUPS
-function isValidCollection(name: string): boolean {
-  const all = Object.values(COLLECTION_GROUPS).flat()
-  return all.includes(name)
-}
-
-function parseStateFromUrl(url: URL): AdminState {
-  // Parse query string with qs
-  const parsed = qs.parse(url.search.slice(1))
-  
-  const collection = (parsed.c as string) || DEFAULT_STATE.collection
-  const page = Math.max(1, Number(parsed.p) || DEFAULT_STATE.page)
-  const pageSize = Math.max(1, Number(parsed.ps) || DEFAULT_STATE.pageSize)
-  const search = (parsed.s as string) || DEFAULT_STATE.search
-  const locale = (parsed.locale as LanguageCode) || DEFAULT_STATE.locale
-  
-  // Parse sorting from string format "field1:asc,field2:desc" to SortingState
-  let sorting: SortingState | undefined = (parsed.sorting as Array<any> || []).filter(sortItem=>sortItem.id).map((sortItem ) => {
-    return {
-      id: sortItem.id,
-      desc: sortItem.desc === 'true'
-    }
-  }) 
-  
-
-  let filters: AdminFilter[] = []
-  if (parsed.filters && Array.isArray(parsed.filters)) {
-    filters = parsed.filters.filter((item: any) => item && typeof item.field === "string") as unknown as AdminFilter[]
-  }
-  
-  return { collection, page, pageSize, filters, search, sorting, locale }
 }
 
 const onRequestGet = async (context: AuthenticatedRequestContext) => {
@@ -165,65 +107,168 @@ const onRequestGet = async (context: AuthenticatedRequestContext) => {
         whereParts.push(`${q('deleted_at')} IS NULL`)
       }
       
-      // Apply column filters from state.filters (only real DB columns are supported)
+      // Apply column filters from state.filters (supports real DB columns and JSON fields with dot notation)
       if (Array.isArray(state.filters) && state.filters.length > 0) {
         const allowedOps = new Set(["eq", "neq", "gt", "gte", "lt", "lte", "like", "in"])
         const realColumnNames = new Set(columns.map((c: { name: string }) => c.name))
+        
+        // Build map of JSON columns (jsonb type or configured as json)
+        const jsonColumns = new Set<string>()
+        for (const col of schemaResult) {
+          const fieldConfig = (collectionConfig as any)[col.column_name]
+          const isJsonField = fieldConfig?.options?.type === 'json' || col.data_type === 'jsonb'
+          if (isJsonField) {
+            jsonColumns.add(col.column_name)
+          }
+        }
   
         for (const f of state.filters) {
           if (!f || typeof f.field !== "string" || !allowedOps.has(f.op)) continue
-          if (!realColumnNames.has(f.field)) continue // skip virtual/non-existent fields
-  
-          const colExpr = q(f.field)
-  
-          switch (f.op) {
-            case "eq":
-              whereParts.push(`${colExpr} = $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "neq":
-              whereParts.push(`${colExpr} != $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "gt":
-              whereParts.push(`${colExpr} > $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "gte":
-              whereParts.push(`${colExpr} >= $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "lt":
-              whereParts.push(`${colExpr} < $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "lte":
-              whereParts.push(`${colExpr} <= $${bindings.length + 1}`)
-              bindings.push(f.value)
-              break
-            case "like": {
-              whereParts.push(`${colExpr} LIKE $${bindings.length + 1}`)
-              // Default to contains match
-              const v = typeof f.value === "string" ? `%${f.value}%` : String(f.value)
-              bindings.push(v)
-              break
+          
+          // Check if field uses dot notation (e.g., "dataIn.contractor_caid")
+          const fieldParts = f.field.split('.')
+          const isJsonPath = fieldParts.length > 1
+          
+          if (isJsonPath) {
+            // Handle JSON field path (e.g., "dataIn.contractor_caid")
+            const jsonColumnCamel = fieldParts[0]
+            const jsonPath = fieldParts.slice(1)
+            
+            // Convert camelCase to snake_case and check both variants
+            const jsonColumnSnake = camelToSnake(jsonColumnCamel)
+            const jsonColumn = jsonColumns.has(jsonColumnCamel) 
+              ? jsonColumnCamel 
+              : jsonColumns.has(jsonColumnSnake) 
+                ? jsonColumnSnake 
+                : null
+            
+            // Verify that the base column is a JSON column
+            if (!jsonColumn) {
+              continue // Skip if base column is not a JSON column
             }
-            case "in": {
-              // Support array or comma-separated string
-              const valuesArray = Array.isArray(f.value)
-                ? (f.value as any[])
-                : typeof f.value === "string"
-                  ? (f.value as string).split(",").map((s) => s.trim()).filter((s) => s.length > 0)
-                  : []
-              if (valuesArray.length === 0) {
-                // No values -> force false condition to avoid SQL error
-                whereParts.push("1 = 0")
+            
+            // Build JSON path expression for PostgreSQL
+            // For "dataIn.contractor_caid": "data_in"::jsonb->>'contractor_caid'
+            // For nested paths like "dataIn.nested.field": "data_in"::jsonb->'nested'->>'field'
+            let jsonExpr = `${q(jsonColumn)}::jsonb`
+            
+            // For all but the last part, use -> (returns jsonb)
+            // For the last part, use ->> (returns text)
+            for (let i = 0; i < jsonPath.length; i++) {
+              const isLast = i === jsonPath.length - 1
+              const pathKey = jsonPath[i]
+              // Escape single quotes in path key
+              const escapedKey = pathKey.replace(/'/g, "''")
+              jsonExpr += isLast ? `->>'${escapedKey}'` : `->'${escapedKey}'`
+            }
+            
+            const colExpr = jsonExpr
+
+            switch (f.op) {
+              case "eq":
+                whereParts.push(`${colExpr} = $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "neq":
+                whereParts.push(`${colExpr} != $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "gt":
+                whereParts.push(`${colExpr} > $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "gte":
+                whereParts.push(`${colExpr} >= $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "lt":
+                whereParts.push(`${colExpr} < $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "lte":
+                whereParts.push(`${colExpr} <= $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "like": {
+                whereParts.push(`${colExpr} LIKE $${bindings.length + 1}`)
+                // Default to contains match
+                const v = typeof f.value === "string" ? `%${f.value}%` : String(f.value)
+                bindings.push(v)
                 break
               }
-              const placeholders = valuesArray.map((_, i) => `$${bindings.length + i + 1}`).join(", ")
-              whereParts.push(`${colExpr} IN (${placeholders})`)
-              bindings.push(...valuesArray)
-              break
+              case "in": {
+                // Support array or comma-separated string
+                const valuesArray = Array.isArray(f.value)
+                  ? (f.value as any[])
+                  : typeof f.value === "string"
+                    ? (f.value as string).split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+                    : []
+                if (valuesArray.length === 0) {
+                  // No values -> force false condition to avoid SQL error
+                  whereParts.push("1 = 0")
+                  break
+                }
+                const placeholders = valuesArray.map((_, i) => `$${bindings.length + i + 1}`).join(", ")
+                whereParts.push(`${colExpr} IN (${placeholders})`)
+                bindings.push(...valuesArray)
+                break
+              }
+            }
+          } else {
+            // Handle regular column (non-JSON path)
+            if (!realColumnNames.has(f.field)) continue // skip virtual/non-existent fields
+
+            const colExpr = q(f.field)
+
+            switch (f.op) {
+              case "eq":
+                whereParts.push(`${colExpr} = $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "neq":
+                whereParts.push(`${colExpr} != $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "gt":
+                whereParts.push(`${colExpr} > $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "gte":
+                whereParts.push(`${colExpr} >= $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "lt":
+                whereParts.push(`${colExpr} < $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "lte":
+                whereParts.push(`${colExpr} <= $${bindings.length + 1}`)
+                bindings.push(f.value)
+                break
+              case "like": {
+                whereParts.push(`${colExpr} LIKE $${bindings.length + 1}`)
+                // Default to contains match
+                const v = typeof f.value === "string" ? `%${f.value}%` : String(f.value)
+                bindings.push(v)
+                break
+              }
+              case "in": {
+                // Support array or comma-separated string
+                const valuesArray = Array.isArray(f.value)
+                  ? (f.value as any[])
+                  : typeof f.value === "string"
+                    ? (f.value as string).split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+                    : []
+                if (valuesArray.length === 0) {
+                  // No values -> force false condition to avoid SQL error
+                  whereParts.push("1 = 0")
+                  break
+                }
+                const placeholders = valuesArray.map((_, i) => `$${bindings.length + i + 1}`).join(", ")
+                whereParts.push(`${colExpr} IN (${placeholders})`)
+                bindings.push(...valuesArray)
+                break
+              }
             }
           }
         }

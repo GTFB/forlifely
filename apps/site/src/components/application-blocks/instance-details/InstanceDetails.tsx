@@ -1,4 +1,4 @@
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { InstanceDetailsProps } from "./types"
 import React from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,15 +16,69 @@ export function InstanceDetails({
     collectionName,
     instance,
     title,
-    activeTab,
+    activeTab: externalActiveTab,
     setActiveTab: externalSetActiveTab,
     olapTabs = []
   }: InstanceDetailsProps) {
     const router = useRouter()
-    const [internalActiveTab, setInternalActiveTab] = React.useState(activeTab)
+    const searchParams = useSearchParams()
+    const pathname = usePathname()
     
-    // Use external state if provided, otherwise use internal state
-    const setActiveTab =  setInternalActiveTab
+    // Get all available tab IDs
+    const allTabIds = React.useMemo(() => {
+      return ['general', ...olapTabs.map(tab => tab.id)]
+    }, [olapTabs])
+    
+    // Get active tab from URL, default to 'general'
+    const tabFromUrl = searchParams.get('tab') || 'general'
+    const [internalActiveTab, setInternalActiveTab] = React.useState(
+      externalActiveTab || (allTabIds.includes(tabFromUrl) ? tabFromUrl : 'general')
+    )
+    
+    // Use external state if provided, otherwise use internal state with URL sync
+    const currentActiveTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab
+    
+    // Sync with URL when URL changes (e.g., back/forward browser buttons)
+    React.useEffect(() => {
+      if (externalActiveTab === undefined) {
+        // Only sync with URL if not using external state
+        const tab = searchParams.get('tab') || 'general'
+        if (allTabIds.includes(tab) && tab !== internalActiveTab) {
+          setInternalActiveTab(tab)
+        } else if (!allTabIds.includes(tab) && internalActiveTab !== 'general') {
+          setInternalActiveTab('general')
+        }
+      }
+    }, [searchParams, allTabIds, externalActiveTab, internalActiveTab])
+    
+    // Handle tab change with URL synchronization
+    const handleTabChange = React.useCallback((value: string) => {
+      // If external setActiveTab is provided, use it
+      if (externalSetActiveTab) {
+        externalSetActiveTab(value)
+        return
+      }
+      
+      // Otherwise, update internal state and URL
+      setInternalActiveTab(value)
+      
+      // Update URL with new tab parameter, preserving other query params
+      const params = new URLSearchParams(searchParams.toString())
+      if (value === 'general') {
+        // Remove tab param for default tab
+        params.delete('tab')
+      } else {
+        params.set('tab', value)
+      }
+      
+      // Build new URL
+      const newUrl = `${pathname}${params.toString() ? `?${params.toString()}` : ''}`
+      
+      // Update URL with pushState to save in browser history
+      router.push(newUrl)
+    }, [router, pathname, searchParams, externalSetActiveTab])
+    
+    const setActiveTab = externalSetActiveTab || handleTabChange
     
     const [linkContactDialogOpen, setLinkContactDialogOpen] = React.useState(false)
     const [selectedContactId, setSelectedContactId] = React.useState<string | null>(null)
@@ -65,7 +119,7 @@ export function InstanceDetails({
   
     return (<>
     
-    <Tabs value={internalActiveTab} onValueChange={setActiveTab} className="w-full">
+    <Tabs value={currentActiveTab} onValueChange={setActiveTab} className="w-full">
           {tabsList}
         {/* TabsList is rendered in header, so we don't render it here */}
         <TabsContent value="general" className="mt-4">

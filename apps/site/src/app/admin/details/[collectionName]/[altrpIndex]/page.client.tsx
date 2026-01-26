@@ -23,6 +23,7 @@ export default function AdminDetailsCollectionPageClient({
 
 }) {
     const router = useRouter()
+    
     return (
         <>
             {/* Header with tabs */}
@@ -70,11 +71,7 @@ export default function AdminDetailsCollectionPageClient({
                 instance={instance}
                 collectionName={collectionName}
                 showTabsOnly={false}
-                activeTab={'general'}
                 olapTabs={olapTabs}
-                setActiveTab={(value) => {
-                    // Handle tab change if needed
-                }}
             />
         </>
     )

@@ -109,17 +109,26 @@ function AdminStateProviderInner({
 
   const [state, _setState] = useState<AdminState>(() => parseStateFromSearch())
   const pendingUrlUpdateRef = React.useRef<string | null>(null)
+  const pendingUrlPushRef = React.useRef<string | null>(null)
 
   // Update document title based on collection
   useEffect(() => {
     document.title = state.collection ? `${state.collection} - Admin Panel` : "Admin Panel"
   }, [state.collection])
 
-  // Apply pending URL updates
+  // Apply pending URL updates (replace)
   useEffect(() => {
     if (pendingUrlUpdateRef.current) {
       router.replace(pendingUrlUpdateRef.current)
       pendingUrlUpdateRef.current = null
+    }
+  }, [state, router])
+
+  // Apply pending URL updates (push)
+  useEffect(() => {
+    if (pendingUrlPushRef.current) {
+      router.push(pendingUrlPushRef.current)
+      pendingUrlPushRef.current = null
     }
   }, [state, router])
 
@@ -163,14 +172,14 @@ function AdminStateProviderInner({
       if (initialStateRef.current) {
         return next
       }
-      // Sync URL with push (creates history entry)
+      // Sync URL with push (creates history entry) - defer to useEffect to avoid render warnings
       const params = new URLSearchParams()
       params.set("c", next.collection)
       params.set("p", String(next.page))
       params.set("ps", String(next.pageSize))
       if (next.search) params.set("s", next.search)
       if (next.filters.length) params.set("f", JSON.stringify(next.filters))
-      router.push(`${pathname}?${params.toString()}`)
+      pendingUrlPushRef.current = `${pathname}?${params.toString()}`
       return next
     })
   }, [pathname, router])
