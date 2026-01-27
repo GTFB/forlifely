@@ -39,7 +39,6 @@ import {
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
 import { useAdminState, useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { useMe } from "@/providers/MeProvider"
-import { useLocalStorage } from "@uidotdev/usehooks"
 import { getInitialLocale, LanguageCode } from "@/lib/getInitialLocale"
 
 type CollectionsResponse = {
@@ -131,11 +130,34 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const [user, setUser] = React.useState<MeResponse["user"] | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+  const supportedLanguageCodes = React.useMemo(() => LANGUAGES.map(lang => lang.code), [])
   
-  // Compute initial value
-  
-  const [locale, setLocale] = useLocalStorage<LanguageCode>('sidebar-locale', getInitialLocale())
+  // Use useState instead of useLocalStorage to avoid SSR issues and JSON parsing errors
+  const [locale, setLocaleState] = React.useState<LanguageCode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-locale')
+      const codes = LANGUAGES.map(lang => lang.code)
+      if (saved && codes.includes(saved as LanguageCode)) {
+        return saved as LanguageCode
+      }
+    }
+    return getInitialLocale()
+  })
+
+  // Sync with localStorage on client
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-locale', locale)
+    }
+  }, [locale])
+
+  const setLocale = React.useCallback((newLocale: LanguageCode | ((prev: LanguageCode) => LanguageCode)) => {
+    const actualLocale = typeof newLocale === 'function' ? newLocale(locale) : newLocale
+    setLocaleState(actualLocale)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: actualLocale }))
+    }
+  }, [locale, supportedLanguageCodes])
 
 
   
@@ -306,11 +328,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       return
     }
     setLocale(newLocale)
-    if (typeof window !== 'undefined') {
-      // Dispatch custom event to notify other components about locale change
-      window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: newLocale }))
-    }
-  }, [supportedLanguageCodes])
+  }, [supportedLanguageCodes, setLocale])
 
   React.useEffect(() => {
     // Check if data is already loaded in sessionStorage
@@ -603,14 +621,16 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
   const [rolesLoading, setRolesLoading] = React.useState(false)
   
   // Use state for teams to ensure re-renders when teams change
-  // Initialize with empty array to avoid showing initial "Admin" before roles load
+  // Initialize with default Admin team to show logo immediately
   const [teamsState, setTeamsState] = React.useState<Array<{
     name: string
     logo: React.ElementType
     plan: string
     href: string
     order: number
-  }>>([])
+  }>>([
+    { name: "Admin", logo: Logo, plan: "", href: "/admin/dashboard", order: 0 }
+  ])
   
   const loadRoles = React.useCallback(async () => {
     setRolesLoading(true)
@@ -648,10 +668,25 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
         // Extract title for current locale
         let roleName = ''
         if (role.title) {
-          const title = typeof role.title === 'string' 
-            ? JSON.parse(role.title) 
-            : role.title
-          roleName = title[locale] || title.en || title.ru || title.rs || role.name || ''
+          let title: any
+          if (typeof role.title === 'string') {
+            // Try to parse as JSON, fallback to plain string
+            try {
+              title = JSON.parse(role.title)
+            } catch {
+              // If parsing fails, treat as plain string
+              title = role.title
+            }
+          } else {
+            title = role.title
+          }
+          // If title is an object (multi-language), get locale-specific value
+          if (typeof title === 'object' && title !== null) {
+            roleName = title[locale] || title.en || title.ru || title.rs || role.name || ''
+          } else {
+            // If title is a plain string, use it directly
+            roleName = String(title) || role.name || ''
+          }
         } else {
           roleName = role.name || ''
         }

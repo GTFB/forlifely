@@ -232,8 +232,9 @@ export const ExpanseSelector = React.memo(function ExpanseSelector({
       return effectiveTranslations.expanseSelector.label
     }
     // Fallback based on locale
-    if (locale === 'ru') return "Пространство"
-    if (locale === 'rs') return "Prostor"
+    const loc = locale as string
+    if (loc === 'ru') return "Пространство"
+    if (loc === 'rs') return "Prostor"
     return "Expanse"
   }, [effectiveTranslations?.expanseSelector?.label, locale])
 
@@ -242,8 +243,9 @@ export const ExpanseSelector = React.memo(function ExpanseSelector({
       return effectiveTranslations.expanseSelector.general
     }
     // Fallback based on locale
-    if (locale === 'ru') return "Общее"
-    if (locale === 'rs') return "Opšte"
+    const loc = locale as string
+    if (loc === 'ru') return "Общее"
+    if (loc === 'rs') return "Opšte"
     return "General"
   }, [effectiveTranslations?.expanseSelector?.general, locale])
 

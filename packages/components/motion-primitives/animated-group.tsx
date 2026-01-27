@@ -97,9 +97,23 @@ function AnimatedGroup({ children, className, variants, preset, as = 'div', asCh
     const containerVariants = variants?.container || selectedVariants.container
     const itemVariants = variants?.item || selectedVariants.item
 
-    const MotionComponent = motion(as)
+    // Use conditional rendering with built-in motion components to avoid deprecated motion() function
+    const getMotionComponent = (elementType: React.ElementType) => {
+        if (elementType === 'div') return motion.div
+        if (elementType === 'span') return motion.span
+        if (elementType === 'section') return motion.section
+        if (elementType === 'article') return motion.article
+        if (elementType === 'header') return motion.header
+        if (elementType === 'footer') return motion.footer
+        if (elementType === 'main') return motion.main
+        if (elementType === 'nav') return motion.nav
+        if (elementType === 'aside') return motion.aside
+        // Fallback to div for unknown types
+        return motion.div
+    }
 
-    const MotionChild = motion(asChild)
+    const MotionComponent = getMotionComponent(as)
+    const MotionChild = getMotionComponent(asChild)
 
     return (
         <MotionComponent

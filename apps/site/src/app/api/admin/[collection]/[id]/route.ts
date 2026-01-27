@@ -378,6 +378,31 @@ async function handlePut(context: AuthenticatedRequestContext): Promise<Response
     // Execute query
     const result = await executeRawQuery(client, updateSql, values)
 
+    // Handle role assignment for users collection
+    if (collection === 'users' && body.roleUuids !== undefined && Array.isArray(body.roleUuids)) {
+      const { UserRolesRepository } = await import('@/shared/repositories/user-roles.repository')
+      const userRolesRepository = UserRolesRepository.getInstance()
+      
+      // Find user by primary key to get UUID
+      const userResult = await executeRawQuery<{ uuid: string }>(
+        client,
+        `SELECT uuid FROM ${q(collection)} WHERE ${q(pk)} = $1 LIMIT 1`,
+        [idParam]
+      )
+      
+      if (userResult && userResult.length > 0 && userResult[0].uuid) {
+        const userUuid = userResult[0].uuid
+        
+        // Remove all existing roles
+        await userRolesRepository.removeAllRolesFromUser(userUuid)
+        
+        // Assign new roles
+        if (body.roleUuids.length > 0) {
+          await userRolesRepository.assignRolesToUser(userUuid, body.roleUuids)
+        }
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, changes: Array.isArray(result) ? result.length : 0 }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

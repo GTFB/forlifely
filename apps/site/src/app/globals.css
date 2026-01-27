@@ -41,6 +41,7 @@
   --sidebar-ring: oklch(0.7050 0.0150 286.0670);
   --font-sans: Golos Text, ui-sans-serif, sans-serif, system-ui;
   --font-serif: Unbounded, ui-sans-serif, sans-serif, system-ui;
+  --font-heading: Unbounded, ui-sans-serif, sans-serif, system-ui;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.625rem;
   --shadow-x: 0;
@@ -185,8 +186,14 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading) !important;
+  }
+  [data-slot="card-title"] {
+    font-family: var(--font-heading) !important;
+  }
   .font-heading {
-    font-family: var(--font-playfair-display), "Playfair Display", ui-serif, serif, Georgia !important;
+    font-family: var(--font-heading) !important;
   }
 }
 
@@ -197,8 +204,14 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading) !important;
+  }
+  [data-slot="card-title"] {
+    font-family: var(--font-heading) !important;
+  }
   .font-heading {
-    font-family: var(--font-inter-tight), "Playfair Display", ui-serif, serif, Georgia !important;
+    font-family: var(--font-heading) !important;
   }
   button {
     @apply cursor-pointer;
@@ -245,4 +258,172 @@ body {
   *:focus {
     outline: none !important;
   }
+}
+
+/* Fix drawer text color - ensure it respects theme */
+[data-vaul-drawer-wrapper],
+[data-vaul-drawer] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix drawer text color for all children - use inherit to respect parent */
+[data-vaul-drawer-wrapper] *,
+[data-vaul-drawer] * {
+  color: inherit !important;
+}
+
+/* Override for specific text utilities that should use muted */
+[data-vaul-drawer-wrapper] .text-muted-foreground,
+[data-vaul-drawer] .text-muted-foreground {
+  color: var(--muted-foreground) !important;
+}
+
+/* Ensure inputs and form elements are visible */
+[data-vaul-drawer-wrapper] input,
+[data-vaul-drawer-wrapper] textarea,
+[data-vaul-drawer-wrapper] select,
+[data-vaul-drawer] input,
+[data-vaul-drawer] textarea,
+[data-vaul-drawer] select {
+  color: var(--foreground) !important;
+  background-color: var(--input) !important;
+  border-color: var(--border) !important;
+}
+
+[data-vaul-drawer-wrapper] input::placeholder,
+[data-vaul-drawer-wrapper] textarea::placeholder,
+[data-vaul-drawer] input::placeholder,
+[data-vaul-drawer] textarea::placeholder {
+  color: var(--muted-foreground) !important;
+}
+
+/* Fix labels and text elements */
+[data-vaul-drawer-wrapper] label,
+[data-vaul-drawer-wrapper] p,
+[data-vaul-drawer-wrapper] span,
+[data-vaul-drawer-wrapper] div,
+[data-vaul-drawer] label,
+[data-vaul-drawer] p,
+[data-vaul-drawer] span,
+[data-vaul-drawer] div {
+  color: var(--foreground) !important;
+}
+
+/* Fix active tabs - ensure text color is correct */
+[data-vaul-drawer-wrapper] [data-state="active"],
+[data-vaul-drawer] [data-state="active"] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix buttons - ensure text color respects theme */
+[data-vaul-drawer-wrapper] button[data-slot="button"],
+[data-vaul-drawer] button[data-slot="button"] {
+  color: inherit !important;
+}
+
+/* Fix checkbox - ensure checkmark color is correct */
+[data-vaul-drawer-wrapper] [data-state="checked"],
+[data-vaul-drawer] [data-state="checked"] {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+[data-vaul-drawer-wrapper] [data-state="checked"] svg,
+[data-vaul-drawer] [data-state="checked"] svg {
+  color: var(--primary-foreground) !important;
+}
+
+/* Fix table header and rows in light theme */
+:root:not(.dark) thead[class*="bg-muted"],
+:root:not(.dark) [class*="TableHeader"][class*="bg-muted"] {
+  background-color: var(--muted) !important;
+}
+
+:root:not(.dark) tbody tr,
+:root:not(.dark) [class*="TableRow"] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+:root:not(.dark) tbody tr:hover,
+:root:not(.dark) [class*="TableRow"]:hover {
+  background-color: var(--muted) !important;
+}
+
+/* Fix buttons in light theme - ensure they use correct background */
+:root:not(.dark) button[class*="bg-primary-foreground"] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix primary button text color in light theme - ensure black text on yellow background */
+:root:not(.dark) button[data-slot="button"].bg-primary,
+:root:not(.dark) button[data-slot="button"][class*="bg-primary"] {
+  color: oklch(0.1410 0.0050 285.8230) !important;
+}
+
+/* Fix primary button text color in dark theme - ensure light text on yellow background */
+.dark button[data-slot="button"].bg-primary,
+.dark button[data-slot="button"][class*="bg-primary"] {
+  color: var(--primary-foreground) !important;
+}
+
+/* Fix default variant buttons in light theme - ensure text color is correct */
+:root:not(.dark) button[data-slot="button"][class*="bg-background"] {
+  color: var(--foreground) !important;
+}
+
+:root:not(.dark) button[data-slot="button"].bg-background {
+  color: var(--foreground) !important;
+}
+
+/* Fix default variant buttons that have bg-background override */
+:root:not(.dark) button[data-slot="button"].bg-background.text-primary-foreground {
+  color: var(--foreground) !important;
+}
+
+/* Fix all buttons with bg-background class to use foreground color */
+:root:not(.dark) button.bg-background,
+:root:not(.dark) button[class*="bg-background"] {
+  color: var(--foreground) !important;
+}
+
+/* Fix buttons with default variant that have background override */
+:root:not(.dark) button[data-slot="button"][class*="bg-background"][class*="text-primary-foreground"] {
+  color: var(--foreground) !important;
+}
+
+/* Fix all buttons in dark theme - ensure light text */
+.dark button[data-slot="button"] {
+  color: var(--foreground) !important;
+}
+
+/* Override for primary buttons in dark theme - use primary-foreground */
+.dark button[data-slot="button"].bg-primary,
+.dark button[data-slot="button"][class*="bg-primary"] {
+  color: var(--primary-foreground) !important;
+}
+
+/* Override for destructive buttons in dark theme */
+.dark button[data-slot="button"].bg-destructive,
+.dark button[data-slot="button"][class*="bg-destructive"] {
+  color: var(--destructive-foreground) !important;
+}
+
+/* Fix input/search in light theme */
+:root:not(.dark) input[class*="bg-primary-foreground"],
+:root:not(.dark) [class*="bg-primary-foreground"] input {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix table cells in light theme */
+:root:not(.dark) td,
+:root:not(.dark) th,
+:root:not(.dark) [class*="TableCell"],
+:root:not(.dark) [class*="TableHead"] {
+  background-color: inherit !important;
+  color: var(--foreground) !important;
 }

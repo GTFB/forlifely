@@ -3,10 +3,10 @@ import BaseCollection from "./BaseCollection";
 import { generateAid } from "../generate-aid";
 
 export default class Texts extends BaseCollection {
-    __title = 'Новости';
+    __title = 'Отчеты';
     title = new BaseColumn({
         type: 'text',
-        title: 'Заголовок',
+        title: 'Название',
     });
     type = new BaseColumn({
         title: 'Тип',
@@ -21,9 +21,25 @@ export default class Texts extends BaseCollection {
             }],
         },
     });
+    status_name = new BaseColumn({
+        title: 'Статус',
+        relation: {
+            collection: 'taxonomy',
+            valueField: 'name',
+            labelField: 'title',
+            filters: [
+                {
+                    field: 'entity',
+                    op: 'eq',
+                    value: 'texts',
+                },
+            ],
+        },
+    });
     is_public = new BaseColumn({    
         title: 'Публичный',
         type: 'boolean',
+        hiddenTable: true,
     });
     content = new BaseColumn({
         type: 'text',
@@ -86,26 +102,6 @@ export default class Texts extends BaseCollection {
                 // Ensure value is an array
                 instance.dataIn.images = Array.isArray(value) ? value : (value ? [value] : []);
             }
-        },
-    });
-    status_name = new BaseColumn({
-        title: 'Статус',
-        relation: {
-            collection: 'taxonomy',
-            valueField: 'name',
-            labelField: 'title',
-            filters: [
-                {
-                    field: 'entity',
-                    op: 'eq',
-                    value: 'products',
-                },
-                {
-                    field: 'name',
-                    op: 'in',
-                    value: ['PUBLISHED', 'DRAFT', 'ARCHIEVED'],
-                },
-            ],
         },
     });
     gin = new BaseColumn({

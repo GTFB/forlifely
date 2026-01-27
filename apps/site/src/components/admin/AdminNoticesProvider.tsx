@@ -26,6 +26,7 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = React.useState<boolean>(false)
   const [error, setError] = React.useState<string | null>(null)
   const abortRef = React.useRef<AbortController | null>(null)
+  const isMountedRef = React.useRef<boolean>(true)
 
   const fetchNotices = React.useCallback(async () => {
     if (abortRef.current && !abortRef.current.signal.aborted) {
@@ -85,12 +86,14 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
       if ((err as any)?.name === "AbortError" || err instanceof DOMException && err.name === "AbortError") {
         return
       }
-      console.error("[AdminNotices] Failed to fetch admin notices", err)
       
-      // Check if aborted before updating state
-      if (controller.signal.aborted) {
+      // Check if aborted or component unmounted before updating state
+      if (controller.signal.aborted || !isMountedRef.current) {
         return
       }
+      
+      // Only log error if component is still mounted and request wasn't aborted
+      console.error("[AdminNotices] Failed to fetch admin notices", err)
       
       const errorMessage = err instanceof Error ? err.message : "Failed to load admin notices"
       setError(errorMessage)
@@ -109,8 +112,10 @@ export function AdminNoticesProvider({ children }: { children: React.ReactNode }
   }, [])
 
   React.useEffect(() => {
+    isMountedRef.current = true
     fetchNotices()
     return () => {
+      isMountedRef.current = false
       if (abortRef.current && !abortRef.current.signal.aborted) {
         abortRef.current.abort("Component unmounting")
       }

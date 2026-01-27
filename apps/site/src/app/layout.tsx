@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Golos_Text } from "next/font/google";
+import { Unbounded } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
@@ -14,45 +16,63 @@ const geistSans = Geist({
   fallback: ['system-ui', 'arial'],
 });
 
+const golosText = Golos_Text({
+  variable: "--font-sans",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  preload: true,
+  fallback: ['ui-sans-serif', 'system-ui', 'sans-serif'],
+});
+
+const unbounded = Unbounded({
+  variable: "--font-heading",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  preload: true,
+  fallback: ['ui-sans-serif', 'sans-serif', 'system-ui'],
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://altrp.ru'),
-  title: "Altrp",
-  description: "Financial Solutions and Investment Platform",
+  metadataBase: new URL('https://onlytest.ru'),
+  title: "Onlytest",
+  description: "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
   keywords: [
-    "finance",
-    "financial services",
-    "investment",
-    "financial solutions",
-    "financial planning",
-    "wealth management",
-    "financial consulting",
-    "asset management",
-    "financial platform",
-    "investment platform"
+    "game testing",
+    "QA testing",
+    "focus group testing",
+    "game developers",
+    "testers",
+    "bug reports",
+    "game quality assurance",
+    "testing platform",
+    "B2B gaming",
+    "B2C testing",
+    "game feedback",
+    "testing rewards"
   ],
   openGraph: {
     type: "website",
-    siteName: "Altrp",
+    siteName: "Onlytest",
     locale: "ru_RU",
-    url: "https://altrp.ru",
-    title: "Altrp - Financial Solutions and Investment Platform",
-    description: "Financial Solutions and Investment Platform",
+    url: "https://onlytest.ru",
+    title: "Onlytest - Платформа для тестирования игр",
+    description: "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Altrp",
+        alt: "Onlytest",
       },
     ],
   },
   authors: [
     {
-      name: "Altrp",
-      url: "https://altrp.ru",
+      name: "Onlytest",
+      url: "https://onlytest.ru",
     },
   ],
-  creator: "Altrp",
+  creator: "Onlytest",
   icons: [
     {
       rel: "icon",
@@ -72,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning className={PROJECT_SETTINGS.defaultTheme === 'light' ? 'light' : 'dark'}>
+    <html lang="ru" suppressHydrationWarning>
       <head>
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
@@ -88,10 +108,10 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Altrp" />
+        <meta name="apple-mobile-web-app-title" content="Onlytest" />
       </head>
 
-      <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${golosText.variable} ${geistSans.variable} ${unbounded.variable} antialiased font-sans`} suppressHydrationWarning>
         <PwaLoader />
         <SocketUrlProvider socketUrl={process.env.NEXT_PUBLIC_SOCKET_URL}>
           <MeProvider refetchInterval={6000000} refetchOnFocus={true}>

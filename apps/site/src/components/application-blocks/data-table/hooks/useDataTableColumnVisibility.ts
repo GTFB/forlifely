@@ -1,5 +1,4 @@
 import * as React from "react"
-import { useLocalStorage } from "@uidotdev/usehooks"
 import type { VisibilityState } from "@tanstack/react-table"
 import { getTableColumnVisibility } from "@/shared/utils/table-settings"
 
@@ -8,10 +7,28 @@ export function useDataTableColumnVisibility(
   primaryRole: string | null,
   columnVisibilityKey: string
 ) {
-  const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
-    columnVisibilityKey,
-    {}
-  )
+  // Use useState instead of useLocalStorage to avoid SSR issues
+  const [columnVisibility, setColumnVisibilityState] = React.useState<VisibilityState>(() => {
+    if (typeof window === "undefined") {
+      return {}
+    }
+    try {
+      const saved = localStorage.getItem(columnVisibilityKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === "object") {
+          return parsed as VisibilityState
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return {}
+  })
+  
+  const setColumnVisibility = React.useCallback((value: VisibilityState | ((prev: VisibilityState) => VisibilityState)) => {
+    setColumnVisibilityState(value)
+  }, [])
 
   React.useEffect(() => {
     if (!collection || typeof window === "undefined") return
@@ -63,17 +80,17 @@ export function useDataTableColumnVisibility(
   }, [collection, primaryRole, columnVisibilityKey, setColumnVisibility])
 
   React.useEffect(() => {
-    if (collection && typeof window !== "undefined") {
+    if (collection && typeof window !== "undefined" && columnVisibility) {
       try {
         localStorage.setItem(
-          `column-visibility-${collection}`,
+          columnVisibilityKey,
           JSON.stringify(columnVisibility)
         )
       } catch (e) {
         console.warn("Failed to save column visibility to localStorage:", e)
       }
     }
-  }, [columnVisibility, collection])
+  }, [columnVisibility, collection, columnVisibilityKey])
 
   return { columnVisibility, setColumnVisibility }
 }

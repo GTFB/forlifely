@@ -38,10 +38,30 @@ export function RelationSelect({
     const loadOptions = async () => {
       setLoading(true)
       try {
+        // Get current user for template replacement
+        let userHumanAid: string | null = null
+        if (relation.collection === 'products' && relation.filters?.some((f: any) => typeof f.value === 'string' && f.value.includes('{{user.humanAid}}'))) {
+          try {
+            const userRes = await fetch('/api/auth/me', { credentials: 'include' })
+            if (userRes.ok) {
+              const userData = await userRes.json() as { humanAid?: string }
+              userHumanAid = userData?.humanAid || null
+            }
+          } catch (err) {
+            console.error('[RelationSelect] Failed to fetch user:', err)
+          }
+        }
+
         // Compose relation filters: defaults from schema
         const relationFilters: AdminFilter[] = []
         if (Array.isArray(relation.filters)) {
-          relationFilters.push(...relation.filters)
+          relationFilters.push(...relation.filters.map((f: any) => {
+            // Replace template variables
+            if (typeof f.value === 'string' && f.value.includes('{{user.humanAid}}')) {
+              return { ...f, value: f.value.replace('{{user.humanAid}}', userHumanAid || '') }
+            }
+            return f
+          }).filter((f: any) => f.value !== '')) // Remove filters with empty values
         }
         // ALWAYS check what entity values exist in DB for taxonomy when loading taxonomy options
         // This helps debug what entity values are actually stored in the database
@@ -126,6 +146,21 @@ export function RelationSelect({
             // Extract locale-specific value
             if (titleValue && typeof titleValue === 'object') {
               label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || "-"
+            } else {
+              label = String(titleValue || "-")
+            }
+          } else if (relation.collection === 'products' && relation.labelField === 'title') {
+            // Handle products title which might be JSON
+            let titleValue = item[relation.labelField]
+            if (typeof titleValue === 'string') {
+              try {
+                titleValue = JSON.parse(titleValue)
+              } catch {
+                // Not JSON, use as-is
+              }
+            }
+            if (typeof titleValue === 'object' && titleValue !== null) {
+              label = titleValue[locale] || titleValue.en || titleValue.ru || titleValue.rs || String(titleValue) || "-"
             } else {
               label = String(titleValue || "-")
             }

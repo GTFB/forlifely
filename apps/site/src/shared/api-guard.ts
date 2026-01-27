@@ -223,9 +223,75 @@ export function withAllowedRoleGuard<T extends RequestContext>(handler: RouteHan
     }
 
     // Check if user has any of the allowed roles
-    const hasAllowedRole = user.roles.some(r => r.name && allowedRoles.includes(r.name))
+    // Also check role titles (for i18n support) and case-insensitive matching
+    const userRoleNames = user.roles.map(r => r.name).filter(Boolean)
+    const userRoleTitles = user.roles.map(r => {
+      if (r.title) {
+        try {
+          const title = typeof r.title === 'string' ? JSON.parse(r.title) : r.title
+          if (typeof title === 'object' && title !== null) {
+            return title.ru || title.en || title.rs || null
+          }
+          return typeof title === 'string' ? title : null
+        } catch {
+          return typeof r.title === 'string' ? r.title : null
+        }
+      }
+      return null
+    }).filter(Boolean)
+    
+    // Check role names (case-insensitive) and titles
+    const hasAllowedRole = user.roles.some(r => {
+      if (!r.name) return false
+      const roleNameLower = r.name.toLowerCase()
+      return allowedRoles.some(allowed => {
+        const allowedLower = allowed.toLowerCase()
+        // Check exact match
+        if (roleNameLower === allowedLower) return true
+        // Check if role title matches (for "Разработчик" = "developer")
+        if (r.title) {
+          try {
+            const title = typeof r.title === 'string' ? JSON.parse(r.title) : r.title
+            const titleStr = typeof title === 'object' && title !== null 
+              ? (title.ru || title.en || title.rs || '')
+              : (typeof title === 'string' ? title : '')
+            if (titleStr.toLowerCase().includes(allowedLower) || allowedLower.includes(titleStr.toLowerCase())) {
+              return true
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+        return false
+      })
+    })
+    
+    console.log('[withAllowedRoleGuard] Checking roles:', {
+      allowedRoles,
+      userRoleNames,
+      userRoleTitles,
+      hasAllowedRole,
+      userId: user.id,
+      email: user.email,
+      allRoles: user.roles.map(r => ({
+        name: r.name,
+        title: r.title,
+        uuid: r.uuid,
+      })),
+    })
     
     if (!hasAllowedRole) {
+       console.warn('[withAllowedRoleGuard] Access denied:', {
+         allowedRoles,
+         userRoleNames,
+         userRoleTitles,
+         userId: user.id,
+         allRoles: user.roles.map(r => ({
+           name: r.name,
+           title: r.title,
+           uuid: r.uuid,
+         })),
+       })
        return new Response(
         JSON.stringify({ 
           success: false, 

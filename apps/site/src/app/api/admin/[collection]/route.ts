@@ -239,8 +239,29 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
     const collectionConfig = getCollection(collection)
     const processedBody: Record<string, any> = {}
     
+    // Initialize data_in if it doesn't exist
+    if (!processedBody.data_in && body.data_in) {
+      processedBody.data_in = typeof body.data_in === 'string' ? JSON.parse(body.data_in) : body.data_in
+    } else if (!processedBody.data_in) {
+      processedBody.data_in = {}
+    }
+    
     for (const [key, value] of Object.entries(body)) {
       const fieldConfig = (collectionConfig as any)[key]
+      
+      // Handle virtual fields with data_in. prefix
+      if (key.startsWith('data_in.')) {
+        const dataInKey = key.replace('data_in.', '')
+        if (!processedBody.data_in) {
+          processedBody.data_in = {}
+        }
+        processedBody.data_in[dataInKey] = value
+        // Execute beforeSave hook for virtual field if exists
+        if (fieldConfig?.options?.hooks?.beforeSave) {
+          fieldConfig.options.hooks.beforeSave(value, processedBody, context)
+        }
+        continue
+      }
       
       // Skip virtual fields (they don't exist in DB)
       if (fieldConfig?.options?.virtual) {
@@ -278,7 +299,8 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
     for (const key in collectionConfig) {
       const fieldConfig = (collectionConfig as any)[key]
       if (fieldConfig?.options?.hooks?.beforeSave) {
-        const fieldValue = body[key]
+        // Check both direct key and data_in.* prefix
+        const fieldValue = body[key] !== undefined ? body[key] : body[`data_in.${key.replace('data_in.', '')}`]
         if (fieldValue !== undefined) {
           const result = fieldConfig.options.hooks.beforeSave(fieldValue, processedBody, context)
           // If beforeSave returns a value, it should modify the instance
@@ -287,6 +309,29 @@ async function handlePost(context: AuthenticatedRequestContext): Promise<Respons
             processedBody[key] = result
           }
         }
+      }
+    }
+    
+    // For goals collection, automatically add owner and required fields if not present
+    if (collection === 'goals') {
+      if (context.user?.humanAid && processedBody.data_in && !processedBody.data_in.owner) {
+        processedBody.data_in.owner = context.user.humanAid
+      }
+      // Add required fields if not present
+      if (!processedBody.cycle) {
+        processedBody.cycle = 'ONCE'
+      }
+      if (!processedBody.order) {
+        processedBody.order = '0'
+      }
+      if (processedBody.isPublic === undefined || processedBody.isPublic === null) {
+        processedBody.isPublic = 1
+      }
+      if (!processedBody.statusName) {
+        processedBody.statusName = 'draft'
+      }
+      if (!processedBody.type) {
+        processedBody.type = 'TESTING_CAMPAIGN'
       }
     }
 

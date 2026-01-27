@@ -2,12 +2,36 @@ import * as React from "react"
 import type { SelectOption } from "../types"
 import { LANGUAGES } from "@/settings"
 import { getInitialLocale } from "@/lib/getInitialLocale"
-import { useLocalStorage } from "@uidotdev/usehooks"
 
 export type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
 export function useDataTableMetaState(collection: string) {
-  const [locale, setLocale] = useLocalStorage<LanguageCode>("sidebar-locale", getInitialLocale())
+  // Use useState instead of useLocalStorage to avoid SSR issues
+  const [locale, setLocaleState] = React.useState<LanguageCode>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebar-locale")
+      if (saved && LANGUAGES.map((l) => l.code).includes(saved as LanguageCode)) {
+        return saved as LanguageCode
+      }
+    }
+    return getInitialLocale()
+  })
+
+  // Sync with localStorage on client
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sidebar-locale", locale)
+    }
+  }, [locale])
+
+  const setLocale = React.useCallback((newLocale: LanguageCode | ((prev: LanguageCode) => LanguageCode)) => {
+    const actualLocale = typeof newLocale === 'function' ? newLocale(locale) : newLocale
+    setLocaleState(actualLocale)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sidebar-locale", actualLocale)
+      window.dispatchEvent(new CustomEvent('sidebar-locale-changed', { detail: actualLocale }))
+    }
+  }, [locale])
   const [translations, setTranslations] = React.useState<any>(null)
   const [taxonomyConfig, setTaxonomyConfig] = React.useState<any>(null)
   const [segmentStatuses, setSegmentStatuses] = React.useState<SelectOption[]>([])
@@ -90,6 +114,8 @@ export function useDataTableMetaState(collection: string) {
 
   // Sync locale with sidebar when it changes
   React.useEffect(() => {
+    if (typeof window === "undefined") return
+
     const handleLocaleChanged = (e: StorageEvent | CustomEvent) => {
       const newLocale = (e as CustomEvent).detail || (e as StorageEvent).newValue
       if (newLocale && supportedLanguageCodes.includes(newLocale as LanguageCode)) {

@@ -117,7 +117,7 @@ export function DataTableToolbar({
       {/* Date Filter Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
+          <Button variant="outline" size="sm" className="bg-background h-9">
             <IconCalendar className="h-4 w-4" />
             <span className="hidden lg:inline">
               {dateFilter.type && dateFilter.range
@@ -360,7 +360,7 @@ export function DataTableToolbar({
         <div className="hidden lg:block">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="bg-primary-foreground h-9">
+              <Button variant="outline" size="sm" className="bg-background h-9">
                 <IconDownload />
                 <span className="hidden lg:inline">{t.export}</span>
                 <IconChevronDown className="hidden lg:inline" />
@@ -391,7 +391,7 @@ export function DataTableToolbar({
             <Button
               variant="default"
               size="sm"
-              className="bg-primary-foreground h-9 ml-2"
+              className="bg-background text-foreground h-9 ml-2"
               onClick={async () => {
                 try {
                   await onSaveAllChanges()
@@ -406,7 +406,7 @@ export function DataTableToolbar({
           )}
         </div>
         <DataTableColumnSettings {...columnSettingsProps} />
-        <Button variant="outline" size="sm" className="bg-primary-foreground h-9" onClick={onCreateOpen}>
+        <Button variant="outline" size="sm" className="bg-background h-9" onClick={onCreateOpen}>
           <IconPlus />
           <span className="hidden lg:inline">{t.add}</span>
         </Button>

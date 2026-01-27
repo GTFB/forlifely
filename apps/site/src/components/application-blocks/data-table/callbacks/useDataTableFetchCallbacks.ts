@@ -164,9 +164,10 @@ export function useDataTableFetchCallbacks({
           }
 
           if (!fieldTitle && collection === "roles" && col.name === "xaid") {
-            if (locale === "ru") {
+            const loc = locale as string
+            if (loc === "ru") {
               fieldTitle = "Проекты"
-            } else if (locale === "rs") {
+            } else if (loc === "rs") {
               fieldTitle = "Projekti"
             } else {
               fieldTitle = "Expanse"

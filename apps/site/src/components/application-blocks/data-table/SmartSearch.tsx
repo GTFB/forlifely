@@ -123,7 +123,7 @@ export function SmartSearch({
   return (
     <div className={cn("relative w-full max-w-sm", className)}>
       <div className={cn(
-        "relative flex items-center gap-1 min-h-9 rounded-md border bg-primary-foreground px-3 py-1 shadow-xs",
+        "relative flex items-center gap-1 min-h-9 rounded-md border bg-background px-3 py-1 shadow-xs",
         classNameWrapper
       )}>
         <IconSearch className={cn("size-4 shrink-0 text-muted-foreground", classNameIcon)} />

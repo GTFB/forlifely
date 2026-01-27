@@ -83,6 +83,18 @@
       "Settings": "Settings",
       "Seed": "Seed",
       "SqlEditor": "SQL Editor"
+    },
+    "developer": {
+      "platform": "Developer Portal",
+      "menuItems": {
+        "Dashboard": "Dashboard",
+        "Games": "My Games",
+        "Campaigns": "All Campaigns",
+        "Reports": "All Reports",
+        "Billing": "Billing",
+        "Settings": "Studio Settings",
+        "Support": "Support"
+      }
     }
   },
   "dashboard": {
