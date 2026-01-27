@@ -197,5 +197,11 @@
   },
   "tariff": {
     "popular": "Popolare"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Contatti",
+      "deals": "Affari"
+    }
   }
 }

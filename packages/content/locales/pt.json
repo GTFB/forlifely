@@ -198,5 +198,11 @@
   },
   "tariff": {
     "popular": "Popular"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Contatos",
+      "deals": "Negócios"
+    }
   }
 }

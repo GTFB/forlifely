@@ -198,5 +198,11 @@
   },
   "tariff": {
     "popular": "热门"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "联系人",
+      "deals": "交易"
+    }
   }
 }

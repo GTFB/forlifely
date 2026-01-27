@@ -198,5 +198,11 @@
   },
   "tariff": {
     "popular": "인기"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "연락처",
+      "deals": "거래"
+    }
   }
 }

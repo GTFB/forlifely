@@ -52,6 +52,81 @@ export default function ContractorDetailClient({
   const activeTab = externalActiveTab !== undefined ? externalActiveTab : internalActiveTab
   const setActiveTab = externalSetActiveTab || setInternalActiveTab
   
+  // Load translations
+  const [translations, setTranslations] = React.useState<any>(null)
+  const [locale, setLocale] = React.useState<string>('ru')
+  
+  React.useEffect(() => {
+    // Get locale from localStorage or use default
+    const getLocale = (): string => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('sidebar-locale')
+        if (saved) {
+          return saved
+        }
+      }
+      return 'ru'
+    }
+    
+    const currentLocale = getLocale()
+    setLocale(currentLocale)
+    
+    // Load translations
+    const loadTranslations = async () => {
+      try {
+        const cacheKey = `sidebar-translations-${currentLocale}`
+        const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+        
+        if (cached) {
+          try {
+            const cachedTranslations = JSON.parse(cached)
+            setTranslations(cachedTranslations)
+          } catch (e) {
+            console.error('[ContractorDetailClient] Failed to parse cached translations:', e)
+          }
+        }
+        
+        const response = await fetch(`/api/locales/${currentLocale}`)
+        if (!response.ok) {
+          throw new Error(`Failed to load translations: ${response.status}`)
+        }
+        const translationsData = await response.json()
+        setTranslations(translationsData)
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(cacheKey, JSON.stringify(translationsData))
+        }
+      } catch (e) {
+        console.error('[ContractorDetailClient] Failed to load translations:', e)
+        // Fallback: try dynamic import
+        try {
+          const translationsModule = await import(`@/packages/content/locales/${currentLocale}.json`)
+          setTranslations(translationsModule.default || translationsModule)
+        } catch (fallbackError) {
+          console.error('[ContractorDetailClient] Fallback import also failed:', fallbackError)
+        }
+      }
+    }
+    
+    void loadTranslations()
+  }, [])
+  
+  // Get translation helper
+  const t = React.useMemo(() => {
+    if (!translations) {
+      return (key: string, fallback: string) => fallback
+    }
+    return (key: string, fallback: string) => {
+      const keys = key.split('.')
+      let value: any = translations
+      for (const k of keys) {
+        value = value?.[k]
+        if (value === undefined) break
+      }
+      return typeof value === 'string' ? value : fallback
+    }
+  }, [translations])
+  
   // Get title display value (handle translation objects)
   const getTitleDisplay = (title: string | { [key: string]: string }): string => {
     if (typeof title === 'string') {
@@ -87,32 +162,32 @@ export default function ContractorDetailClient({
   const [linkingEntity, setLinkingEntity] = React.useState(false)
 
   const tabsList = (
-    <TabsList className="flex items-center justify-center gap-0 w-full overflow-visible">
-      <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+    <TabsList className="flex items-center justify-end gap-0 w-auto overflow-visible">
+      <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Building2 className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Общее</span>
       </TabsTrigger>
-      <TabsTrigger value="contacts" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="contacts" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Users className="h-4 w-4 sm:h-6 sm:w-6" />
-        <span className="text-xs hidden sm:inline">Контакты</span>
+        <span className="text-xs hidden sm:inline">{t('olap.contractors.contacts', 'Контакты')}</span>
       </TabsTrigger>
-      <TabsTrigger value="deals" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="deals" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Briefcase className="h-4 w-4 sm:h-6 sm:w-6" />
-        <span className="text-xs hidden sm:inline">Сделки</span>
+        <span className="text-xs hidden sm:inline">{t('olap.contractors.deals', 'Сделки')}</span>
       </TabsTrigger>
-      <TabsTrigger value="projects" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="projects" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <FolderKanban className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Проекты</span>
       </TabsTrigger>
-      <TabsTrigger value="goals" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="goals" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Target className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Задачи</span>
       </TabsTrigger>
-      <TabsTrigger value="finances" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="finances" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Wallet className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Финансы</span>
       </TabsTrigger>
-      <TabsTrigger value="documents" className="flex flex-col items-center justify-center gap-1 flex-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
+      <TabsTrigger value="documents" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <FileText className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Документы</span>
       </TabsTrigger>
@@ -121,7 +196,7 @@ export default function ContractorDetailClient({
 
   if (showTabsOnly) {
     return (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
         {tabsList}
       </Tabs>
     )

@@ -96,7 +96,24 @@ export function withRoleGuard<T extends Context>(handler: RouteHandler<T>, check
         user
     } as unknown as T
 
-    return handler(context)
+    try {
+      return await handler(context)
+    } catch (error) {
+      console.error(`[withRoleGuard] Handler error:`, error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorStack = error instanceof Error ? error.stack : undefined
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'HANDLER_ERROR',
+        message: errorMessage,
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
+      }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' }
+      })
+    }
   }
 }
 

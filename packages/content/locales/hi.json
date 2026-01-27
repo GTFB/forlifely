@@ -197,5 +197,11 @@
   },
   "tariff": {
     "popular": "लोकप्रिय"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "संपर्क",
+      "deals": "सौदे"
+    }
   }
 }

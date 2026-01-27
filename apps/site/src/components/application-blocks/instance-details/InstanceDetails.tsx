@@ -104,12 +104,40 @@ export function InstanceDetails({
       ...olapTabs,
     ]
 
+    // Helper function to get icon for tab
+    const getTabIcon = (tab: { id: string; collection?: string }) => {
+      const tabId = tab.id.toLowerCase()
+      const tabCollection = tab.collection?.toLowerCase()
+      
+      if (tabId === 'humans' || tabCollection === 'humans' || tabId === 'contacts') {
+        return Users
+      }
+      if (tabId === 'deals' || tabCollection === 'deals') {
+        return Briefcase
+      }
+      if (tabId === 'projects' || tabCollection === 'projects') {
+        return FolderKanban
+      }
+      if (tabId === 'goals' || tabCollection === 'goals') {
+        return Target
+      }
+      if (tabId === 'finances' || tabCollection === 'finances') {
+        return Wallet
+      }
+      if (tabId === 'documents' || tabCollection === 'documents') {
+        return FileText
+      }
+      // Default icon
+      return Building2
+    }
+    
     const tabsList = (
       <TabsList className="inline-flex items-center justify-center gap-2 w-auto">
         {
           finalTabs.map((tab,idx)=>{
+            const IconComponent = getTabIcon(tab)
             return  <TabsTrigger value={tab.id} key={tab.id} className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-              <Building2 className="h-5 w-5" />
+              <IconComponent className="h-5 w-5" />
               <span className="text-xs">{tab.label}</span>
             </TabsTrigger>
           })

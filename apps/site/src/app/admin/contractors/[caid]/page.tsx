@@ -238,8 +238,8 @@ export default function ContractorDetailPage() {
                 </div>
               </div>
               
-              {/* Center: Tabs (desktop only) */}
-              <div className="hidden sm:flex flex-1 justify-center items-center py-2">
+              {/* Right: Tabs (desktop only) */}
+              <div className="hidden sm:flex flex-1 justify-end items-center py-2 pt-4">
                 <ContractorDetailClient 
                   caid={caid} 
                   contractor={contractor} 

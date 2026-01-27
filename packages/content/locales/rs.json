@@ -557,5 +557,11 @@
     "errorTitle": "Greška",
     "errorMessage": "Neuspešna potvrda promene imejla.",
     "backToLogin": "Nazad na prijavu"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Kontakti",
+      "deals": "Poslovi"
+    }
   }
 }
