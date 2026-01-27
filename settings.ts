@@ -38,8 +38,8 @@ export interface NavigationItem {
 export const PROJECT_SETTINGS = {
   name: 'Altrp',
   description: 'Website Builder',
-  defaultLanguage: 'en',
-  defaultTheme: 'light',
+  defaultLanguage: 'ru',
+  defaultTheme: 'dark' as 'light' | 'dark',
   supportedThemes: ['light', 'dark',],
 } as const;
 
