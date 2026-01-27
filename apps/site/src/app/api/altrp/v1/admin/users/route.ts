@@ -315,7 +315,7 @@ const handlePost = async (context: AuthenticatedRequestContext) => {
     
     // Set emailVerifiedAt if emailVerified is true
     if (emailVerified === true) {
-      userData.emailVerifiedAt = new Date().toISOString()
+      userData.emailVerifiedAt = new Date()
     }
     
     const createdUser = await usersRepository.create(userData)

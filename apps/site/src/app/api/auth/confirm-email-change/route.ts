@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
     await usersRepository.update(user.uuid, {
       email: newEmail,
-      emailVerifiedAt: new Date().toISOString(),
+      emailVerifiedAt: new Date(),
       dataIn: nextDataIn,
     })
 

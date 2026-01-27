@@ -212,7 +212,7 @@ const handlePut = async (
 
     // Update emailVerifiedAt if emailVerified is provided
     if (emailVerified !== undefined) {
-      updateData.emailVerifiedAt = emailVerified ? new Date().toISOString() : null
+      updateData.emailVerifiedAt = emailVerified ? new Date() : null
     }
 
     // Update user

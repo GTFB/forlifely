@@ -503,7 +503,7 @@ export const verifyEmailToken = async (
   delete updatedDataIn.emailVerification
 
   const updatedUser = await usersRepository.update(user.uuid, {
-    emailVerifiedAt: new Date().toISOString(),
+    emailVerifiedAt: new Date(),
     dataIn: updatedDataIn,
   })
 

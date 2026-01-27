@@ -132,7 +132,7 @@ async function handlePost(request: Request, env: Env) {
       passwordHash: hashedPassword,
       salt,
       isActive: true,
-      emailVerifiedAt: new Date().toISOString(),
+      emailVerifiedAt: new Date(),
     })
 
     await userRolesRepository.assignRoleToUser(createdUser.uuid, adminRole.uuid, 0)
