@@ -437,8 +437,8 @@ export function DataTableView({
                             className="cursor-pointer bg-background"
                           >
                             {row.getVisibleCells().map((cell) => {
-                              console.log(cell)
-                              return (
+
+return (
                                 <TableCell
                                   key={cell.id}
                                   onDoubleClick={() => {
