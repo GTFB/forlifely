@@ -1,7 +1,7 @@
 {
-  "name": "Altrp",
-  "short_name": "altrp",
-  "description": "Financial Solutions and Investment Platform",
+  "name": "Onlytest",
+  "short_name": "onlytest",
+  "description": "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

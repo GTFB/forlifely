@@ -82,6 +82,18 @@
       "Settings": "Настройки",
       "Seed": "Seed",
       "SqlEditor": "SQL Редактор"
+    },
+    "developer": {
+      "platform": "Портал разработчика",
+      "menuItems": {
+        "Dashboard": "Главная",
+        "Games": "Мои игры",
+        "Campaigns": "Все кампании",
+        "Reports": "Все отчеты",
+        "Billing": "Финансы",
+        "Settings": "Настройки студии",
+        "Support": "Поддержка"
+      }
     }
   },
   "dashboard": {

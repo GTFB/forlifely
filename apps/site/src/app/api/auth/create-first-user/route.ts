@@ -12,6 +12,7 @@ import { UsersRepository } from '@/shared/repositories/users.repository'
 import { RolesRepository } from '@/shared/repositories/roles.repository'
 import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { buildRequestEnv } from '@/shared/env'
+import { isPostgres } from '@/shared/utils/db'
 interface CreateUserRequest {
   email: string
   name: string
@@ -132,7 +133,7 @@ async function handlePost(request: Request, env: Env) {
       passwordHash: hashedPassword,
       salt,
       isActive: true,
-      emailVerifiedAt: new Date().toISOString(),
+      emailVerifiedAt: isPostgres() ? new Date() : new Date().toISOString(),
     })
 
     await userRolesRepository.assignRoleToUser(createdUser.uuid, adminRole.uuid, 0)

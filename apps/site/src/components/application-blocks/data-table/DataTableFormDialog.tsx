@@ -39,6 +39,22 @@ import { RelationSelect } from "./RelationSelect"
 import { formatDateTimeForLocale } from "./functions/formatDateTimeForLocale"
 import { copyToClipboard } from "./functions/copyToClipboard"
 import type { ColumnSchemaExtended, CollectionData, DataInEntry } from "./types"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Badge } from "@/components/ui/badge"
+import { ChevronsUpDown, Check } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 type LanguageCode = (typeof LANGUAGES)[number]["code"]
 
@@ -199,6 +215,87 @@ export function DataTableFormDialog({
   updateTitleAndValueForLanguage,
 }: DataTableFormDialogProps) {
   const state = { collection, search }
+  
+  // State for roles (only for users collection)
+  const [roles, setRoles] = React.useState<Array<{ uuid: string; title: string | null; name: string | null; isSystem: boolean | null }>>([])
+  const [rolesLoading, setRolesLoading] = React.useState(false)
+  const [rolePopoverOpen, setRolePopoverOpen] = React.useState(false)
+  
+  // Load roles when editing users
+  React.useEffect(() => {
+    if (state.collection === 'users' && editOpen) {
+      const fetchRoles = async () => {
+        try {
+          setRolesLoading(true)
+          const response = await fetch('/api/altrp/v1/admin/roles', {
+            credentials: 'include',
+          })
+          if (response.ok) {
+            const data = await response.json() as { docs?: Array<{ uuid: string; title: string | null; name: string | null; isSystem: boolean | null }> }
+            if (Array.isArray(data.docs)) {
+              setRoles(data.docs)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch roles:', err)
+        } finally {
+          setRolesLoading(false)
+        }
+      }
+      fetchRoles()
+    }
+  }, [state.collection, editOpen])
+  
+  // Load user roles when recordToEdit changes
+  React.useEffect(() => {
+    if (state.collection === 'users' && recordToEdit && editOpen) {
+      // Fetch user with roles
+      const fetchUserRoles = async () => {
+        try {
+          const userUuid = recordToEdit.uuid
+          if (userUuid) {
+            const response = await fetch(`/api/altrp/v1/admin/users/${userUuid}`, {
+              credentials: 'include',
+            })
+            if (response.ok) {
+              const data = await response.json() as { success?: boolean; user?: { roles?: Array<{ uuid: string }> } }
+              if (data.success && data.user?.roles) {
+                const roleUuids = data.user.roles.map((r: { uuid: string }) => r.uuid)
+                setEditData((prev) => ({ ...prev, roleUuids }))
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch user roles:', err)
+        }
+      }
+      fetchUserRoles()
+    }
+  }, [state.collection, recordToEdit, editOpen, setEditData])
+  
+  // Helper function to extract role title/label
+  const getRoleLabel = React.useCallback((role: { title: string | null | object; name: string | null }) => {
+    if (role.title) {
+      let title: any
+      if (typeof role.title === 'string') {
+        try {
+          title = JSON.parse(role.title)
+        } catch {
+          title = role.title
+        }
+      } else {
+        title = role.title
+      }
+      if (typeof title === 'object' && title !== null) {
+        return title[locale] || title.en || title.ru || title.rs || role.name || 'Роль'
+      } else {
+        return String(title) || role.name || 'Роль'
+      }
+    }
+    return role.name || 'Роль'
+  }, [locale])
+  
+  const selectedRoles = roles.filter((role) => (editData.roleUuids || []).includes(role.uuid))
 
   return (
     <>
@@ -230,18 +327,18 @@ export function DataTableFormDialog({
         direction="right"
         handleOnly
       >
-        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
-          <div className="flex h-full flex-col">
+        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0 text-foreground">
+          <div className="flex h-full flex-col text-foreground">
             <div className="border-b px-6 py-4">
               <ResponsiveDialogHeader>
-                <ResponsiveDialogTitle>{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
-                <ResponsiveDialogDescription>
+                <ResponsiveDialogTitle className="text-foreground">{t.addRecord.title.replace("{collection}", collectionLabel)}</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription className="text-muted-foreground">
                   {t.addRecord.description}
                 </ResponsiveDialogDescription>
               </ResponsiveDialogHeader>
             </div>
-            <form onSubmit={handleCreateSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <form onSubmit={handleCreateSubmit} className="flex min-h-0 flex-1 flex-col text-foreground">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 text-foreground">
                 <Tabs value={createFormTab} onValueChange={(v) => setCreateFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
@@ -873,17 +970,17 @@ export function DataTableFormDialog({
         direction="right"
         handleOnly
       >
-        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
-          <div className="flex h-full flex-col">
+        <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0 text-foreground">
+          <div className="flex h-full flex-col text-foreground">
             <div className="border-b px-6 py-4">
               <ResponsiveDialogHeader>
-                <ResponsiveDialogTitle>
+                <ResponsiveDialogTitle className="text-foreground">
                   {isDuplicate
                     ? (t.createRecord?.title || "Create record in {collection}").replace("{collection}", collectionLabel)
                     : (t.editRecord?.title || "Edit record in {collection}").replace("{collection}", collectionLabel)
                   }
                 </ResponsiveDialogTitle>
-                <ResponsiveDialogDescription>
+                <ResponsiveDialogDescription className="text-muted-foreground">
                   {isDuplicate
                     ? (t.createRecord?.description || "Fill in the fields below. Auto-generated fields are not editable and hidden.")
                     : (t.editRecord?.description || "Change fields below. Auto-generated fields are not editable and hidden.")
@@ -891,8 +988,8 @@ export function DataTableFormDialog({
                 </ResponsiveDialogDescription>
               </ResponsiveDialogHeader>
             </div>
-            <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <form onSubmit={handleEditSubmit} className="flex min-h-0 flex-1 flex-col text-foreground">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 text-foreground">
                 <Tabs value={editFormTab} onValueChange={(v) => setEditFormTab(v as any)} className="w-full">
                   <TabsList className="mb-4">
                     <TabsTrigger value="main">{t.tabs?.main || "Main"}</TabsTrigger>
@@ -1177,6 +1274,92 @@ export function DataTableFormDialog({
                           )}
                         </div>
                       ))}
+                      
+                      {/* Roles field for users collection */}
+                      {state.collection === "users" && (
+                        <div className="flex flex-col gap-2">
+                          <Label>Роли</Label>
+                          <Popover open={rolePopoverOpen} onOpenChange={setRolePopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between"
+                                aria-expanded={rolePopoverOpen}
+                                disabled={rolesLoading}
+                              >
+                                <span className="truncate">
+                                  {selectedRoles.length > 0
+                                    ? selectedRoles.length === 1
+                                      ? getRoleLabel(selectedRoles[0])
+                                      : `Выбрано: ${selectedRoles.length}`
+                                    : 'Выберите роли...'}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Поиск ролей..." />
+                                <CommandList>
+                                  <CommandEmpty>Роли не найдены</CommandEmpty>
+                                  <CommandGroup>
+                                    {roles.map((role) => {
+                                      const isSelected = (editData.roleUuids || []).includes(role.uuid)
+                                      const roleLabel = getRoleLabel(role)
+                                      return (
+                                        <CommandItem
+                                          key={role.uuid}
+                                          value={`${roleLabel} ${role.uuid}`}
+                                          onSelect={() => {
+                                            const currentRoleUuids = editData.roleUuids || []
+                                            const newRoleUuids = isSelected
+                                              ? currentRoleUuids.filter((id: string) => id !== role.uuid)
+                                              : [...currentRoleUuids, role.uuid]
+                                            handleEditFieldChange('roleUuids', newRoleUuids)
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              'mr-2 h-4 w-4',
+                                              isSelected ? 'opacity-100' : 'opacity-0'
+                                            )}
+                                          />
+                                          {roleLabel}
+                                          {role.isSystem && (
+                                            <Badge variant="secondary" className="ml-2">
+                                              Системная
+                                            </Badge>
+                                          )}
+                                        </CommandItem>
+                                      )
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          {selectedRoles.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {selectedRoles.map((role) => (
+                                <Badge key={role.uuid} variant="secondary">
+                                  {getRoleLabel(role)}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentRoleUuids = editData.roleUuids || []
+                                      handleEditFieldChange('roleUuids', currentRoleUuids.filter((id: string) => id !== role.uuid))
+                                    }}
+                                    className="ml-2 hover:text-destructive"
+                                  >
+                                    ×
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
                   {state.collection === "roles" && (

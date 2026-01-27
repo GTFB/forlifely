@@ -322,11 +322,21 @@ export function DataTable() {
     return mapped
   }, [])
 
+  // Get collection config early to access defaultSort and title
+  const collectionConfig = React.useMemo(() => {
+    return state.collection ? getCollection(state.collection) : null
+  }, [state.collection])
+
   const collectionLabel = React.useMemo(() => {
+    // First try to get title from collection config
+    if (collectionConfig && (collectionConfig as any).__title) {
+      return (collectionConfig as any).__title
+    }
+    // Then try translations
     const entityOptions = (translations as any)?.taxonomy?.entityOptions || {}
     const key = collectionToEntityKey(state.collection)
     return entityOptions[key] || state.collection
-  }, [state.collection, translations, collectionToEntityKey])
+  }, [state.collection, translations, collectionToEntityKey, collectionConfig])
 
 
 
@@ -535,8 +545,9 @@ export function DataTable() {
 
   // Get locale for date-fns
   const dateFnsLocale = React.useMemo(() => {
-    if (locale === 'ru') return ru
-    if (locale === 'rs') return sr
+    const loc = locale as string
+    if (loc === 'ru') return ru
+    if (loc === 'rs') return sr
     return enUS
   }, [locale])
 
@@ -600,11 +611,6 @@ export function DataTable() {
       void fetchDataRef.current(controller.signal, isMounted)
     }
   }, [searchConditions])
-
-  // Get collection config early to access defaultSort
-  const collectionConfig = React.useMemo(() => {
-    return state.collection ? getCollection(state.collection) : null
-  }, [state.collection])
 
   // Update sortingRef when sorting changes
   React.useEffect(() => {

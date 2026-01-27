@@ -2,6 +2,7 @@ import type { Env } from '@/shared/types'
 import type { altrpUser, altrpUserData } from '@/shared/types/altrp'
 import { UsersRepository } from '@/shared/repositories/users.repository'
 import { sendEmail } from './email.service'
+import { isPostgres } from '@/shared/utils/db'
 
 const VERIFICATION_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 // 24 hours
 export const EMAIL_RESEND_COOLDOWN_MS = 1000 * 60 // 1 minute
@@ -503,7 +504,7 @@ export const verifyEmailToken = async (
   delete updatedDataIn.emailVerification
 
   const updatedUser = await usersRepository.update(user.uuid, {
-    emailVerifiedAt: new Date().toISOString(),
+    emailVerifiedAt: isPostgres() ? new Date() : new Date().toISOString(),
     dataIn: updatedDataIn,
   })
 

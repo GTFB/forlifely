@@ -3,10 +3,12 @@ import BaseCollection from "./BaseCollection";
 import { SortingState } from "@tanstack/react-table";
 
 export default class Products extends BaseCollection {
-    __title = 'Products';
+    __title = 'Мои игры';
     status_name = new BaseColumn({
         defaultCell: ' Not Provided',
         title: 'Статус',
+        hidden: true,
+        hiddenTable: true,
         relation: {
             collection: 'taxonomy',
             valueField: 'name',
@@ -21,6 +23,8 @@ export default class Products extends BaseCollection {
     });
     category = new BaseColumn({
         title: 'Категория',
+        hidden: true,
+        hiddenTable: true,
         relation: {
             collection: 'taxonomy',
             valueField: 'name',
@@ -36,6 +40,8 @@ export default class Products extends BaseCollection {
         title: 'Торговая цена',
         type: 'price',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.price || 0;
         },
@@ -52,6 +58,8 @@ export default class Products extends BaseCollection {
         title: 'Средняя закупочная цена с наценкой',
         type: 'price',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.average_purchase_price || 0;
         },
@@ -68,6 +76,8 @@ export default class Products extends BaseCollection {
         title: 'Средняя закупочная цена',
         type: 'price',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.average_purchase_price_net || 0;
         },
@@ -84,6 +94,8 @@ export default class Products extends BaseCollection {
         title: 'Предел уменьшения',
         type: 'number',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.reduced_limit || 0;
         },
@@ -97,6 +109,7 @@ export default class Products extends BaseCollection {
         },
     });
     paid = new BaseColumn({
+        title: 'ID',
     });
     type = new BaseColumn({
         type: 'text',
@@ -113,6 +126,8 @@ export default class Products extends BaseCollection {
         title: 'SKU',
         type: 'text',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.sku || '';
         },
@@ -141,6 +156,8 @@ export default class Products extends BaseCollection {
     'data_in.warehouse_laid' = new BaseColumn({
         title: 'Склад',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         defaultCell: 'Not Provided',
         value: async (instance: any) => {
             // Parse data_in if it's a string
@@ -175,6 +192,8 @@ export default class Products extends BaseCollection {
         title: 'Сумма наценки',
         type: 'number',
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.markup_amount || 0;
         },
@@ -195,6 +214,8 @@ export default class Products extends BaseCollection {
             labels: ['%', '₽'],
         },
         virtual: true,
+        hidden: true,
+        hiddenTable: true,
         value: async (instance: any) => {
             return instance.data_in?.markup_measurement || '';
         },
@@ -208,6 +229,63 @@ export default class Products extends BaseCollection {
         },
     });
 
+    'data_in.genre' = new BaseColumn({
+        title: 'Жанр',
+        type: 'text',
+        virtual: true,
+        value: async (instance: any) => {
+            if (typeof instance.data_in === 'string') {
+                try {
+                    const parsed = JSON.parse(instance.data_in);
+                    return parsed?.genre || '';
+                } catch {
+                    return '';
+                }
+            }
+            return instance.data_in?.genre || '';
+        },
+        hooks: {
+            beforeSave: (value: any, instance: any) => {
+                if (!instance.data_in) {
+                    instance.data_in = {};
+                }
+                instance.data_in.genre = value;
+            }
+        },
+    });
+
+    'data_in.owner' = new BaseColumn({
+        title: 'Владелец',
+        type: 'text',
+        virtual: true,
+        hidden: true,
+        hiddenTable: true,
+        value: async (instance: any) => {
+            if (typeof instance.data_in === 'string') {
+                try {
+                    const parsed = JSON.parse(instance.data_in);
+                    return parsed?.owner || '';
+                } catch {
+                    return '';
+                }
+            }
+            return instance.data_in?.owner || '';
+        },
+    });
+
+    genre = new BaseColumn({
+        title: 'Жанр',
+        type: 'text',
+        hidden: true,
+        hiddenTable: true,
+    });
+
+    owner = new BaseColumn({
+        title: 'Владелец',
+        type: 'text',
+        hidden: true,
+        hiddenTable: true,
+    });
 
     constructor() {
         super('products');

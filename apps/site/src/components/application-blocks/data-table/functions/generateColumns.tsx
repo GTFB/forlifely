@@ -224,8 +224,9 @@ export function generateColumns(
         // Get alignment for this column
         const alignment = columnAlignment?.[col.name] || (col.name === 'is_system' || col.name === 'order' ? 'center' : 'left')
         const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left'
-        const collectionField = (collectionConfig as unknown as Record<string, unknown>)[col.name] as BaseColumn
-        if (collectionField && collectionField.getOption('i18n')) {
+        const collectionField = (collectionConfig as unknown as Record<string, unknown>)[col.name]
+        // Check if collectionField is an instance of BaseColumn before calling getOption
+        if (collectionField && collectionField instanceof BaseColumn && collectionField.getOption('i18n')) {
           if (typeof value === 'object') {
             value = value[locale] || ''
           }
@@ -605,9 +606,20 @@ export function generateColumns(
       })
 
       // Create columns only for visible data_in fields
+      // Exclude fields that are already defined in schema as virtual fields
+      const schemaDataInFields = new Set(
+        schema
+          .filter(col => col.virtual && col.name.startsWith('data_in.'))
+          .map(col => col.name.replace('data_in.', ''))
+      )
+      
       return Array.from(allDataInKeys)
         .filter((baseKey) => {
           const columnId = `data_in.${baseKey}`
+          // Skip if already defined in schema as virtual field
+          if (schemaDataInFields.has(baseKey)) {
+            return false
+          }
           return columnVisibility[columnId] !== false
         })
         .map((baseKey) => {

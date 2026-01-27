@@ -43,12 +43,19 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
   const { isMobile, state } = useSidebar()
   const pathname = usePathname()
   const router = useRouter()
-  const isCollapsed = state === "collapsed"
+  // Use state with initial value matching server render (always expanded on server)
+  const [isCollapsed, setIsCollapsed] = React.useState(false)
+  
+  React.useEffect(() => {
+    // Update collapsed state only on client after mount
+    setIsCollapsed(state === "collapsed")
+  }, [state])
   // Use ref to track teams to avoid unnecessary state updates
   const teamsRef = React.useRef(teams)
   
   // Determine active team based on current pathname
   const getActiveTeam = React.useCallback(() => {
+    if (!teams || teams.length === 0) return null
     if (!pathname) return teams[0]
     
     if (pathname.startsWith('/c/')) {
@@ -172,7 +179,7 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                     {typeof activeTeam.logo === 'function' ? (
                       <>
                         {isCollapsed ? (
-                          <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-none">
+                          <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-none" suppressHydrationWarning>
                             <Image
                               src="/images/favicon.png"
                               alt="Favicon"
@@ -183,7 +190,10 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                           </div>
                         ) : (
                           <>
-                            <activeTeam.logo className="h-8" />
+                            {(() => {
+                              const LogoComponent = activeTeam.logo as React.ComponentType<{ className?: string }>
+                              return <LogoComponent className="h-8" />
+                            })()}
                             <ChevronsUpDown className="ml-auto" />
                           </>
                         )}
@@ -191,7 +201,22 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                     ) : (
                       <>
                         <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
-                          <activeTeam.logo className="size-4" />
+                          {typeof activeTeam.logo === 'string' ? (
+                            <Image
+                              src={activeTeam.logo}
+                              alt={activeTeam.name}
+                              width={16}
+                              height={16}
+                              className="size-4"
+                            />
+                          ) : (
+                            typeof activeTeam.logo === 'function'
+                              ? (() => {
+                                  const LogoComponent = activeTeam.logo as React.ComponentType<{ className?: string }>
+                                  return <LogoComponent className="size-4" />
+                                })()
+                              : null
+                          )}
                         </div>
                         {!isCollapsed && (
                           <>

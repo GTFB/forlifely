@@ -36,8 +36,8 @@ export interface NavigationItem {
 }
 
 export const PROJECT_SETTINGS = {
-  name: 'Altrp',
-  description: 'Website Builder',
+  name: 'Onlytest',
+  description: 'MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования',
   defaultLanguage: 'ru',
   defaultTheme: 'dark' as 'light' | 'dark',
   supportedThemes: ['light', 'dark',],
@@ -57,7 +57,7 @@ export const LANGUAGES = [
   // { code: 'de', name: 'Deutsch', shortName: 'DE' },
   // { code: 'ko', name: '한국어', shortName: 'KR' },
   // { code: 'it', name: 'Italiano', shortName: 'IT' },
-  { code: 'rs', name: 'Srpski', shortName: 'RS' },
+  // { code: 'rs', name: 'Srpski', shortName: 'RS' },
 ] as const;
 
 // Get supported language codes

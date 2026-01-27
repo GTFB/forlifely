@@ -98,7 +98,7 @@ export function DataTableView({
                   return (
                     <div
                       key={row.id}
-                      className="rounded-lg border bg-primary-foreground p-3 space-y-2"
+                      className="rounded-lg border bg-background p-3 space-y-2"
                       onDoubleClick={() => onEditRequest(row)}
                     >
                       {/* Header with checkbox, title and actions */}
@@ -190,16 +190,16 @@ export function DataTableView({
                   )
                 })
               ) : (
-                <div className="rounded-lg border bg-primary-foreground p-6 text-center text-muted-foreground">
+                <div className="rounded-lg border bg-background p-6 text-center text-muted-foreground">
                   {t.noDataFound.replace("{collection}", collectionLabel)}
                 </div>
               )}
             </div>
           ) : (
             // Table View
-            <div className="overflow-x-auto rounded-lg border bg-primary-foreground">
+            <div className="overflow-x-auto rounded-lg border bg-background">
               <TableRoot>
-                <TableHeader className="bg-muted sticky top-0 z-10">
+                <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
                       {headerGroup.headers.map((header) => {
@@ -209,7 +209,7 @@ export function DataTableView({
                           <TableHead
                             key={header.id}
                             colSpan={header.colSpan}
-                            className={header.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 top-0 z-20 bg-muted" : header.column.id === "select" ? "p-0 pl-0" : ""}
+                            className={header.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 top-0 z-20 bg-muted/50" : header.column.id === "select" ? "p-0 pl-0" : ""}
                             style={{
                               width: header.getSize(),
                               position: header.column.id === "actions" ? "sticky" : "relative",
@@ -370,9 +370,9 @@ export function DataTableView({
                     (
                       <TableRow
                         key={`loading`}
-                        className="cursor-pointer bg-primary-foreground"
+                        className="cursor-pointer bg-background"
                       ><TableCell
-                        className={"p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full"}
+                        className={"p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full"}
                         colSpan={100}
                       >
                           <div className="flex items-center justify-center py-4">
@@ -405,12 +405,12 @@ export function DataTableView({
                               }
                             }
                           }}
-                          className="cursor-pointer bg-primary-foreground"
+                          className="cursor-pointer bg-background"
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell
                               key={cell.id}
-                              className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-primary-foreground h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
+                              className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
                               style={{
                                 width: cell.column.getSize(),
                                 position: cell.column.id === "actions" ? "sticky" : undefined,

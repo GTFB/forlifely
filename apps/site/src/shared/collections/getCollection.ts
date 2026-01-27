@@ -6,6 +6,8 @@ import Roles from "./roles";
 import Contractors from "./contractors";
 import { products } from "../schema";
 import Products from "./products";
+import Goals from "./goals";
+import Texts from "./texts";
 
 const collections: Record<string, BaseCollection> = {
     base: new BaseCollection('base'),
@@ -15,6 +17,8 @@ const collections: Record<string, BaseCollection> = {
     products: new Products(),
     roles: new Roles() as unknown as BaseCollection, // Roles overrides name as BaseColumn, but collection name is still accessible via constructor
     contractors: new Contractors() as unknown as BaseCollection,
+    goals: new Goals(),
+    texts: new Texts(),
 }
 
 export const getCollection = (collection: string): BaseCollection => {

@@ -201,11 +201,11 @@ const ResponsiveDialogClose = ({
 };
 ResponsiveDialogClose.displayName = "ResponsiveDialogClose";
 
-const ResponsiveDialogContentVariants = cva("fixed z-[9999] bg-background", {
+const ResponsiveDialogContentVariants = cva("fixed z-[9999] bg-background text-foreground", {
   variants: {
     device: {
       desktop:
-        "left-1/2 top-1/2 grid max-h-[calc(100%-4rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-transparent dark:!border-primary/10 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
+        "left-1/2 top-1/2 grid max-h-[calc(100%-4rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-transparent dark:!border-primary/10 bg-background text-foreground shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
       mobile: "flex ",
     },
     direction: {
@@ -224,25 +224,25 @@ const ResponsiveDialogContentVariants = cva("fixed z-[9999] bg-background", {
       device: "mobile",
       direction: "bottom",
       className:
-        "inset-x-0 bottom-0 mt-24 h-fit max-h-[75%] flex-col rounded-t-lg border border-b-0 !border-primary/10",
+        "inset-x-0 bottom-0 mt-24 h-fit max-h-[75%] flex-col rounded-t-lg border border-b-0 !border-primary/10 bg-background text-foreground",
     },
     {
       device: "mobile",
       direction: "top",
       className:
-        "inset-x-0 top-0 mb-24 h-fit max-h-[75%] flex-col rounded-b-lg border border-b-0 !border-primary/10",
+        "inset-x-0 top-0 mb-24 h-fit max-h-[75%] flex-col rounded-b-lg border border-b-0 !border-primary/10 bg-background text-foreground",
     },
     {
       device: "mobile",
       direction: "left",
       className:
-        "bottom-2 left-2 top-2 flex w-[420px] max-w-[95vw] flex-col overflow-hidden rounded-lg border bg-background shadow-lg outline-none [--initial-transform:calc(100%+8px)]",
+        "bottom-2 left-2 top-2 flex w-[420px] max-w-[95vw] flex-col overflow-hidden rounded-lg border bg-background text-foreground shadow-lg outline-none [--initial-transform:calc(100%+8px)]",
     },
     {
       device: "mobile",
       direction: "right",
       className:
-        "bottom-2 right-2 top-2 flex w-[420px] max-w-[95vw] flex-col overflow-hidden rounded-lg border bg-background shadow-lg outline-none [--initial-transform:calc(100%+8px)]",
+        "bottom-2 right-2 top-2 flex w-[420px] max-w-[95vw] flex-col overflow-hidden rounded-lg border bg-background text-foreground shadow-lg outline-none [--initial-transform:calc(100%+8px)]",
     },
   ],
 });
@@ -306,6 +306,10 @@ const ResponsiveDialogContent = React.forwardRef<
             }),
             className,
           )}
+          style={{
+            color: 'var(--foreground)',
+            ...(props.style as any),
+          }}
         >
           {!shouldUseDialog && direction === "bottom" && (
             <div
@@ -381,7 +385,7 @@ const ResponsiveDialogTitle = React.forwardRef<
     <ResponsiveDialogTitle
       ref={ref}
       className={cn(
-        "text-lg leading-none font-semibold tracking-tight",
+        "text-lg leading-none font-semibold tracking-tight text-foreground",
         className,
       )}
       {...props}

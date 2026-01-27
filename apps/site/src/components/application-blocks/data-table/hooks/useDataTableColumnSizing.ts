@@ -1,8 +1,28 @@
 import * as React from "react"
-import { useLocalStorage } from "@uidotdev/usehooks"
 
 export function useDataTableColumnSizing(collection: string, columnSizesKey: string) {
-  const [columnSizing, setColumnSizing] = useLocalStorage<Record<string, number>>(columnSizesKey, {})
+  // Use useState instead of useLocalStorage to avoid SSR issues
+  const [columnSizing, setColumnSizingState] = React.useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") {
+      return {}
+    }
+    try {
+      const saved = localStorage.getItem(columnSizesKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === "object") {
+          return parsed as Record<string, number>
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return {}
+  })
+  
+  const setColumnSizing = React.useCallback((value: Record<string, number> | ((prev: Record<string, number>) => Record<string, number>)) => {
+    setColumnSizingState(value)
+  }, [])
 
   React.useEffect(() => {
     if (!collection || typeof window === "undefined") return
