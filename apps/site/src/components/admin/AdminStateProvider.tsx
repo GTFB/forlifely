@@ -5,6 +5,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 import { COLLECTION_GROUPS } from "@/shared/collections"
+import { getCollection } from "@/shared/collections/getCollection"
+import BaseCollection, { type OLAPSettings, type OLAPOptions } from "@/shared/collections/BaseCollection"
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 
 export type AdminFilter = {
   field: string
@@ -33,11 +36,15 @@ const AdminStateContext = createContext<{
   setState: (updater: (prev: AdminState) => AdminState) => void
   replaceState: (next: AdminState) => void
   pushState: (next: Partial<AdminState>) => void
+  collectionConfig: BaseCollection | null
+  olapSettings: OLAPSettings | null
 }>({ 
   state: DEFAULT_STATE, 
   setState: () => {}, 
   replaceState: () => {},
   pushState: () => {},
+  collectionConfig: null,
+  olapSettings: null,
 })
 
 function AdminStateProviderInner({ 
@@ -186,12 +193,73 @@ function AdminStateProviderInner({
 
   const replaceState = useCallback((next: AdminState) => setState(() => next), [setState])
 
+  // Get collection config based on current collection
+  const collectionConfig = useMemo(() => {
+    return state.collection ? getCollection(state.collection) : null
+  }, [state.collection])
+
+  // Get OLAP settings for the current collection
+  const [olapSettings, setOlapSettings] = useState<OLAPSettings | null>(null)
+  const [olapLoading, setOlapLoading] = useState(false)
+
+  useEffect(() => {
+    if (!collectionConfig) {
+      setOlapSettings(null)
+      return
+    }
+
+    let cancelled = false
+    setOlapLoading(true)
+
+    // Get locale from localStorage or use default
+    const getLocale = (): OLAPOptions['locale'] => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('sidebar-locale')
+        const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+        if (saved && supportedLanguageCodes.includes(saved as any)) {
+          return saved as OLAPOptions['locale']
+        }
+      }
+      // Use PROJECT_SETTINGS.defaultLanguage, but ensure it's in LANGUAGES
+      const defaultLang = PROJECT_SETTINGS.defaultLanguage
+      const supportedLanguageCodes = LANGUAGES.map(lang => lang.code)
+      if (supportedLanguageCodes.includes(defaultLang as any)) {
+        return defaultLang as OLAPOptions['locale']
+      }
+      // Fallback to first available language
+      return (LANGUAGES[0]?.code || 'en') as OLAPOptions['locale']
+    }
+    
+    const locale = getLocale()
+    
+    collectionConfig.getOLAP({ locale })
+      .then((settings) => {
+        if (!cancelled) {
+          setOlapSettings(settings)
+          setOlapLoading(false)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load OLAP settings:', error)
+        if (!cancelled) {
+          setOlapSettings(null)
+          setOlapLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [collectionConfig])
+
   const value = useMemo(() => ({ 
     state, 
     setState, 
     replaceState,
     pushState,
-  }), [state, setState, replaceState, pushState])
+    collectionConfig,
+    olapSettings,
+  }), [state, setState, replaceState, pushState, collectionConfig, olapSettings])
 
   return (
     <AdminStateContext.Provider value={value}>
@@ -239,4 +307,56 @@ export function useAdminCollection() {
     }, [ctx.state.collection])
     
     return collectionRef.current
+}
+
+// Hook to get collection config
+export function useCollectionConfig(): BaseCollection | null {
+  const ctx = useContext(AdminStateContext)
+  return ctx.collectionConfig
+}
+
+// Hook to get OLAP settings
+// If locale is provided, loads settings for that specific locale
+// Otherwise returns settings loaded with default locale from context
+export function useOlapSettings(locale?: OLAPOptions['locale']): OLAPSettings | null {
+  const ctx = useContext(AdminStateContext)
+  const [localOlapSettings, setLocalOlapSettings] = useState<OLAPSettings | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // If no locale provided, return context settings
+  if (!locale) {
+    return ctx.olapSettings
+  }
+
+  // If locale is provided, load settings for that locale
+  useEffect(() => {
+    if (!ctx.collectionConfig) {
+      setLocalOlapSettings(null)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+
+    ctx.collectionConfig.getOLAP({ locale })
+      .then((settings) => {
+        if (!cancelled) {
+          setLocalOlapSettings(settings)
+          setLoading(false)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load OLAP settings:', error)
+        if (!cancelled) {
+          setLocalOlapSettings(null)
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [ctx.collectionConfig, locale])
+
+  return localOlapSettings
 }

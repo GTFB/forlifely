@@ -15,6 +15,10 @@ import {
 import type { ColumnSchemaExtended, CollectionData } from "./types"
 import { cn } from "@/lib/utils"
 import { getDataInFieldLabel } from "./utils/dataInHelpers"
+import BaseCollection, { OLAPSettings } from "@/shared/collections/BaseCollection"
+import { LanguageCode } from "@/shared/services/i18n"
+import { useOlapSettings } from "@/components/admin/AdminStateProvider"
+import { useRouter } from "next/navigation"
 
 type DataTableViewProps = {
   error: string | null
@@ -36,7 +40,7 @@ type DataTableViewProps = {
   setColumnFilters: React.Dispatch<React.SetStateAction<ColumnFiltersState>>
   columnsLength: number
   loading: boolean
-  collectionConfig: any
+  collectionConfig: BaseCollection | null
 }
 
 export function DataTableView({
@@ -61,6 +65,29 @@ export function DataTableView({
   loading,
   collectionConfig,
 }: DataTableViewProps) {
+
+  const olapSettings: OLAPSettings | null = useOlapSettings(locale as LanguageCode)
+
+  const router = useRouter()
+  const getOlapUrl = React.useMemo<(data: any) => string | null>(() => {
+    if (!olapSettings) {
+      return (data) => null
+    }
+    const altrpIndex = collectionConfig?.getAltrpIndex()
+    if (!altrpIndex) {
+      return (data) => null
+    }
+
+
+    return (data) => {
+      const idx = data[altrpIndex]
+      if (!idx) {
+        return null
+      }
+      return `/admin/details/${collection}/${idx}`
+    }
+  }, [olapSettings, collection, collectionConfig])
+
   return (
     <>
       {error && (
@@ -81,6 +108,8 @@ export function DataTableView({
             >
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => {
+                  const olapUrl = getOlapUrl(row.original)
+
                   const allVisibleCells = row.getVisibleCells().filter(cell =>
                     cell.column.id !== "select" && cell.column.id !== "actions"
                   )
@@ -384,44 +413,59 @@ export function DataTableView({
                         </TableCell>
                       </TableRow>
                     ) : table.getRowModel().rows?.length ? (
-                      table.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          data-state={row.getIsSelected() && "selected"}
-                          onDoubleClick={() => onEditRequest(row)}
-                          // onClick={() => {
-                          //   const altrpIndex = collectionConfig?.getAltrpIndex()
-                          //   if(typeof altrpIndex === 'string'){
-                          //     const url = `/admin/details/${collection}/${row.original[altrpIndex]}`
-                          //     router.push(url)
-                          //   }
-                          // }}
-                          onAuxClick={(e) => {
-                            if (e.button === 1) {
-                              const altrpIndex = collectionConfig?.getAltrpIndex()
-                              if (typeof altrpIndex === "string") {
-                                const url = `/admin/details/${collection}/${row.original[altrpIndex]}`
-                                window.open(url, "_blank")
+                      table.getRowModel().rows.map((row) => {
+                        const olapUrl = getOlapUrl(row.original)
+                        return (
+
+                          <TableRow
+                            key={row.id}
+                            data-state={row.getIsSelected() && "selected"}
+                            // onClick={() => {
+                            //   const altrpIndex = collectionConfig?.getAltrpIndex()
+                            //   if(typeof altrpIndex === 'string'){
+                            //     const url = `/admin/details/${collection}/${row.original[altrpIndex]}`
+                            //     router.push(url)
+                            //   }
+                            // }}
+                            onAuxClick={(e) => {
+                              if (e.button === 1) {
+                                if (olapUrl) {
+                                  window.open(olapUrl, "_blank")
+                                }
                               }
-                            }
-                          }}
-                          className="cursor-pointer bg-background"
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
-                              style={{
-                                width: cell.column.getSize(),
-                                position: cell.column.id === "actions" ? "sticky" : undefined,
-                                left: cell.column.id === "actions" ? 0 : undefined,
-                              }}
-                            >
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))
+                            }}
+                            className="cursor-pointer bg-background"
+                          >
+                            {row.getVisibleCells().map((cell) => {
+                              console.log(cell)
+                              return (
+                                <TableCell
+                                  key={cell.id}
+                                  onDoubleClick={() => {
+                                    if(cell.column.id !== 'title' && cell.column.id !== 'id'){
+                                      onEditRequest(row)
+                                    }
+                                  }}
+                                  onClick={() => {
+                                    if((cell.column.id === 'title' || cell.column.id === 'id') && olapUrl){
+                                      router.push(olapUrl)
+                                    }
+                                  }}
+
+                                  className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
+                                  style={{
+                                    width: cell.column.getSize(),
+                                    position: cell.column.id === "actions" ? "sticky" : undefined,
+                                    left: cell.column.id === "actions" ? 0 : undefined,
+                                  }}
+                                >
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
                         <TableCell

@@ -2,28 +2,18 @@
 
 import * as React from "react"
 import { getCollection } from "@/shared/collections/getCollection"
-import type { AdminFilter } from "@/shared/types"
-import {  matchesSearchQuery,  type SearchCondition } from "@/shared/utils/search-parser"
-import { exportTable, getFileExtension, getMimeType, addBOM, type ExportFormat } from "@/shared/utils/table-export"
-import { parseImportFile, importRows, type ImportFormat } from "@/shared/utils/table-import"
-import type { DateRange } from "react-day-picker"
+import {  matchesSearchQuery } from "@/shared/utils/search-parser"
 import { ru, enUS, sr } from "date-fns/locale"
 import "react-day-picker/dist/style.css"
-import qs from "qs"
-import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
+import { LANGUAGES, } from "@/settings"
 import { useMe } from "@/providers/MeProvider"
+
 import {
-  getTableDataInFields,
-} from "@/shared/utils/table-settings"
-import {
-  ColumnDef,
-  ColumnFiltersState,
   getCoreRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
   getFilteredRowModel,
   getSortedRowModel,
-  Row,
   SortingState,
   useReactTable,
   VisibilityState,
@@ -31,20 +21,10 @@ import {
 import {
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
 } from "@/components/ui/tabs"
 import { useAdminState } from "@/components/admin/AdminStateProvider"
-import { getInitialLocale } from "@/lib/getInitialLocale"
 import { useDeviceType } from "@/hooks/use-device-type"
-import BaseColumn from "@/shared/columns/BaseColumn"
-import { Check, ChevronsUpDown, ImageIcon } from "lucide-react"
 import type {
-  RelationConfig,
-  SelectOption,
-  ColumnSchemaExtended,
-  CollectionData,
-  StateResponse,
   DataInEntry,
 } from "./types"
 import { generateColumns } from "./functions/generateColumns"
@@ -92,6 +72,7 @@ import { useDataTableImportCallbacks } from "./callbacks/useDataTableImportCallb
 import { useDataTableExportCallbacks } from "./callbacks/useDataTableExportCallbacks"
 import { useDataTableEditingCallbacks } from "./callbacks/useDataTableEditingCallbacks"
 import { useDataTableDeleteCallbacks } from "./callbacks/useDataTableDeleteCallbacks"
+import BaseCollection from "@/shared/collections/BaseCollection"
 
 
 export function DataTable() {
