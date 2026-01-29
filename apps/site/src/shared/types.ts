@@ -4,6 +4,10 @@ import { SiteDbPostgres } from './repositories/utils'
 export type Env = NodeJS.ProcessEnv & {
     AUTH_SECRET?: string
     DB?: SiteDbPostgres
+    AI_API_URL?: string
+    AI_API_TOKEN?: string
+    BOT_TOKEN?: string
+    TRANSCRIPTION_MODEL?: string
 }
 
 export interface TableInfo {

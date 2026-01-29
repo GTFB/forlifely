@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { useMe } from '@/providers/MeProvider'
+import { ChatTriggerButton } from '@/components/chat'
 
 const menuItems = [
     { name: 'Инвесторам', href: '/investors' },
@@ -122,8 +123,8 @@ export const HeroHeader = () => {
                             )}
                             {cabinetUrl && (
                                 <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-
-<Button
+                                    <ChatTriggerButton />
+                                    <Button
                                         asChild
                                         variant="default"
                                         size="sm"

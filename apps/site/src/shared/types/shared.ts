@@ -50,3 +50,15 @@ export interface MeUser {
       dataIn: any
     }>
   }
+
+export interface ChatRequest {
+  message: string;
+  context?: {
+    scene_gaid?: string;
+    text_content?: string;
+  };
+}
+
+export interface ChatResponse {
+  response: string;
+}

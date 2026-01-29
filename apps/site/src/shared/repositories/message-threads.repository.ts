@@ -14,6 +14,7 @@ import {
   } from '../types/altrp-support'
 import { MessagesRepository } from './messages.repository'
 import { UsersRepository } from './users.repository'
+import { parseJson } from './utils'
 import { sql, and, eq, isNull, inArray } from 'drizzle-orm'
 import { logUserJournalEvent } from '../services/user-journal.service'
 import type { Env } from '../types'
@@ -27,6 +28,64 @@ export class MessageThreadsRepository extends BaseRepository<MessageThread> {
 
   public static getInstance(): MessageThreadsRepository {
     return new MessageThreadsRepository()
+  }
+
+  /**
+   * Find or create a chat thread for a user (AI chat).
+   */
+  async findOrCreateByHaid(haid: string, type: string = 'ai_chat'): Promise<MessageThread> {
+    const existing = await this.db
+      .select()
+      .from(this.schema)
+      .where(
+        and(
+          eq(this.schema.xaid, haid),
+          eq(this.schema.type, type),
+          isNull(this.schema.deletedAt)
+        )
+      )
+      .limit(1)
+      .execute()
+
+    if (existing.length > 0) {
+      return existing[0] as MessageThread
+    }
+
+    const newThread = await this.create({
+      maid: generateAid('m'),
+      xaid: haid,
+      type,
+      title: 'AI Chat',
+      statusName: 'active',
+      dataIn: {
+        prompt: 'You are a helpful AI assistant. Provide clear, concise, and helpful responses.',
+        model: 'gemini-2.5-flash',
+        context_length: 6,
+      },
+    } as Partial<NewMessageThread>)
+    return newThread as MessageThread
+  }
+
+  /**
+   * Get thread settings (prompt, model, context_length) from dataIn.
+   */
+  getThreadSettings(thread: MessageThread): {
+    prompt: string
+    model: string
+    context_length: number
+  } {
+    const defaultSettings = {
+      prompt: 'You are a helpful AI assistant. Provide clear, concise, and helpful responses.',
+      model: 'gemini-2.5-flash',
+      context_length: 6,
+    }
+    if (!thread.dataIn) return defaultSettings
+    const dataIn = parseJson<{ prompt?: string; model?: string; context_length?: number }>(thread.dataIn, {})
+    return {
+      prompt: dataIn.prompt ?? defaultSettings.prompt,
+      model: dataIn.model ?? defaultSettings.model,
+      context_length: dataIn.context_length ?? defaultSettings.context_length,
+    }
   }
 
   public async findByMaid(maid: string): Promise<MessageThread | null> {
