@@ -429,11 +429,34 @@ export function useDataTableFormCallbacks({
         }, {} as Record<string, any>)
 
         // Filter out virtual fields from createDataInEntries (they are handled separately via dataInFields)
-        const virtualFieldKeys = new Set(Object.keys(dataInFields))
+        // First, get all virtual field keys from schema (fields with data_in. prefix)
+        const virtualFieldKeysFromSchema = new Set(
+          schema
+            .filter(f => f.name.startsWith('data_in.') && f.virtual)
+            .map(f => f.name.replace('data_in.', ''))
+        )
+        
+        // Also include keys from dataInFields (fields that were filled in formData with data_in. prefix)
+        const virtualFieldKeys = new Set([
+          ...Array.from(virtualFieldKeysFromSchema),
+          ...Object.keys(dataInFields)
+        ])
+        
+        console.log("[handleCreateSubmit] Virtual field keys:", Array.from(virtualFieldKeys))
+        console.log("[handleCreateSubmit] createDataInEntries before filter:", createDataInEntries.map(e => e.key))
+        
         const filteredDataInEntries = createDataInEntries.filter(entry => {
           const baseKey = entry.key.replace(/_[a-z]{2}$/i, '')
-          return !virtualFieldKeys.has(baseKey) && !virtualFieldKeys.has(entry.key)
+          // Exclude if it's a virtual field (either from schema or from formData)
+          const shouldExclude = virtualFieldKeys.has(baseKey) || virtualFieldKeys.has(entry.key)
+          if (shouldExclude) {
+            console.log(`[handleCreateSubmit] Filtering out virtual field entry: ${entry.key} (baseKey: ${baseKey})`)
+          }
+          return !shouldExclude
         })
+        
+        console.log("[handleCreateSubmit] filteredDataInEntries after filter:", filteredDataInEntries.map(e => e.key))
+        console.log("[handleCreateSubmit] dataInFields:", dataInFields)
         
         // Merge data_in fields from virtual fields and entries
         const processedDataIn = entriesToLanguageObjectValue(filteredDataInEntries, enabledLanguageCodes)
@@ -448,8 +471,33 @@ export function useDataTableFormCallbacks({
           body: JSON.stringify(payload),
         })
         if (!res.ok) {
-          const json = await res.json() as { error?: string }
-          throw new Error(json.error || `Create failed: ${res.status}`)
+          let errorMessage = `Create failed: ${res.status}`
+          let errorDetails: any = null
+          try {
+            const errorText = await res.text()
+            console.error(`[handleCreateSubmit] API error response (status ${res.status}):`, errorText || '(empty response)')
+            console.error(`[handleCreateSubmit] Response headers:`, Object.fromEntries(res.headers.entries()))
+            
+            if (errorText) {
+              try {
+                const json = JSON.parse(errorText) as { error?: string; message?: string; details?: string; sql?: string; values?: string[] }
+                errorDetails = json
+                errorMessage = json.message || json.details || json.error || errorText || errorMessage
+                console.error(`[handleCreateSubmit] Parsed error JSON:`, json)
+              } catch {
+                errorMessage = errorText || errorMessage
+              }
+            } else {
+              console.error(`[handleCreateSubmit] Empty error response body`)
+            }
+          } catch (e) {
+            console.error(`[handleCreateSubmit] Failed to read error response:`, e)
+          }
+          
+          const finalError = new Error(errorMessage)
+          ;(finalError as any).status = res.status
+          ;(finalError as any).details = errorDetails
+          throw finalError
         }
         setCreateOpen(false)
         setFormData({})
@@ -577,9 +625,22 @@ export function useDataTableFormCallbacks({
           }, {} as Record<string, any>)
 
           // Filter out virtual fields from editDataInEntries (they are handled separately via dataInFields)
-          const virtualFieldKeys = new Set(Object.keys(dataInFields))
+          // First, get all virtual field keys from schema (fields with data_in. prefix)
+          const virtualFieldKeysFromSchema = new Set(
+            schema
+              .filter(f => f.name.startsWith('data_in.') && f.virtual)
+              .map(f => f.name.replace('data_in.', ''))
+          )
+          
+          // Also include keys from dataInFields (fields that were filled in editData with data_in. prefix)
+          const virtualFieldKeys = new Set([
+            ...Array.from(virtualFieldKeysFromSchema),
+            ...Object.keys(dataInFields)
+          ])
+          
           const filteredDataInEntries = editDataInEntries.filter(entry => {
             const baseKey = entry.key.replace(/_[a-z]{2}$/i, '')
+            // Exclude if it's a virtual field (either from schema or from editData)
             return !virtualFieldKeys.has(baseKey) && !virtualFieldKeys.has(entry.key)
           })
           
@@ -766,8 +827,28 @@ export function useDataTableFormCallbacks({
           return acc
         }, {} as Record<string, any>)
 
+        // Filter out virtual fields from editDataInEntries (they are handled separately via dataInFields)
+        // First, get all virtual field keys from schema (fields with data_in. prefix)
+        const virtualFieldKeysFromSchema = new Set(
+          schema
+            .filter(f => f.name.startsWith('data_in.') && f.virtual)
+            .map(f => f.name.replace('data_in.', ''))
+        )
+        
+        // Also include keys from dataInFields (fields that were filled in editData with data_in. prefix)
+        const virtualFieldKeys = new Set([
+          ...Array.from(virtualFieldKeysFromSchema),
+          ...Object.keys(dataInFields)
+        ])
+        
+        const filteredEditDataInEntries = editDataInEntries.filter(entry => {
+          const baseKey = entry.key.replace(/_[a-z]{2}$/i, '')
+          // Exclude if it's a virtual field (either from schema or from editData)
+          return !virtualFieldKeys.has(baseKey) && !virtualFieldKeys.has(entry.key)
+        })
+        
         // Merge data_in fields from virtual fields and entries
-        const processedDataIn = entriesToLanguageObjectValue(editDataInEntries, enabledLanguageCodes)
+        const processedDataIn = entriesToLanguageObjectValue(filteredEditDataInEntries, enabledLanguageCodes)
         // Merge with existing data_in from record if it exists
         const existingDataIn = currentRecordToEdit?.data_in 
           ? (typeof currentRecordToEdit.data_in === 'string' 

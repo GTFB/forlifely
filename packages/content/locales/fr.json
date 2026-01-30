@@ -202,5 +202,11 @@
   },
   "tariff": {
     "popular": "Populaire"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Contacts",
+      "deals": "Affaires"
+    }
   }
 }

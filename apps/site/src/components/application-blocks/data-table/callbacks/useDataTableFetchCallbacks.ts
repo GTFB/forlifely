@@ -243,6 +243,38 @@ export function useDataTableFetchCallbacks({
           }
         })
 
+        // Add virtual fields from collection config that are not in DB schema
+        const dbColumnNames = new Set(extendedColumns.map(col => col.name))
+        for (const [fieldName, fieldColumn] of Object.entries(collectionConfig as any)) {
+          const baseColumn = fieldColumn as BaseColumn | undefined
+          if (!baseColumn) continue
+          
+          const options = baseColumn.options || {}
+          // Only add virtual fields that start with data_in. and are not already in schema
+          if (options.virtual && fieldName.startsWith('data_in.') && !dbColumnNames.has(fieldName)) {
+            const fieldTitle = options.title || fieldName.replace('data_in.', '').replace(/([A-Z])/g, ' $1').trim()
+            const dataTableFieldTitle = (translations as any)?.fields?.[collection]?.[fieldName] as string | undefined
+            
+            extendedColumns.push({
+              name: fieldName,
+              title: dataTableFieldTitle || fieldTitle,
+              type: 'text', // Default type for virtual fields
+              primary: false,
+              nullable: !options.required,
+              hidden: options.hidden || false,
+              hiddenTable: options.hiddenTable || false,
+              readOnly: options.readOnly || false,
+              required: options.required || false,
+              virtual: true,
+              fieldType: options.type || 'text',
+              textarea: options.textarea || false,
+              enum: options.enum,
+              relation: options.relation,
+              selectOptions: (options as any).selectOptions,
+            })
+          }
+        }
+
         const relationsToLoad = extendedColumns.filter((col) => col.relation)
         const relationDataMap: Record<string, Record<any, string>> = {}
 

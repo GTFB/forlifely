@@ -573,5 +573,11 @@
   "breadcrumbs": {
     "admin_apnel": "Admin Panel",
     "contractors": "Contractors"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Contacts",
+      "deals": "Deals"
+    }
   }
 }

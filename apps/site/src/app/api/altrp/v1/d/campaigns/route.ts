@@ -118,11 +118,11 @@ async function handlePost(context: AuthenticatedRequestContext) {
     const newCampaign = await repository.create({
       uuid: crypto.randomUUID(),
       title: typeof title === "string" ? title : JSON.stringify(title),
-      statusName: "draft", // Start as draft, will be activated after funds are frozen
+      status_name: "draft", // Start as draft, will be activated after funds are frozen
       type: "TESTING_CAMPAIGN", // Custom type for testing campaigns
       cycle: "ONCE", // Required field for goals
       order: "0", // Required field for goals
-      isPublic: 1, // Default to public
+      is_public: 1, // Default to public
       dataIn: campaignDataIn,
     })
 

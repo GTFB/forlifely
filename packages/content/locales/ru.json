@@ -569,5 +569,11 @@
   "breadcrumbs": {
     "admin_apnel": "Панель администратора",
     "contractors": "Контрагенты"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "Контакты",
+      "deals": "Сделки"
+    }
   }
 }

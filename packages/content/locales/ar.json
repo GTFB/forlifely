@@ -197,5 +197,11 @@
   },
   "tariff": {
     "popular": "شائع"
+  },
+  "olap": {
+    "contractors": {
+      "contacts": "جهات الاتصال",
+      "deals": "الصفقات"
+    }
   }
 }
