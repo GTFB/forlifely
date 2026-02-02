@@ -3,6 +3,9 @@
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -10,6 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogTrigger,
+  ResponsiveDialogClose,
+} from '@/packages/components/ui/revola'
 import {
   Table,
   TableBody,
@@ -19,8 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Loader2 } from 'lucide-react'
-import { DeveloperHeader } from '@/components/developer/DeveloperHeader'
+import { Search, Loader2, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { altrpSupportChat } from '@/shared/types/altrp-support'
@@ -41,6 +53,12 @@ export default function DeveloperSupportPageClient() {
   const [operatorFilter, setOperatorFilter] = React.useState<string>('all')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
   const [searchQuery, setSearchQuery] = React.useState('')
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [submitting, setSubmitting] = React.useState(false)
+  const [formData, setFormData] = React.useState({
+    subject: '',
+    message: '',
+  })
 
   const fetchDataBase = React.useCallback(async () => {
     try {
@@ -130,16 +148,135 @@ export default function DeveloperSupportPageClient() {
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.subject || !formData.message) {
+      setError('Заполните все поля')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      const response = await fetch('/api/altrp/v1/c/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json() as { error?: string; message?: string }
+        throw new Error(data.error || data.message || 'Failed to create ticket')
+      }
+
+      const data = await response.json() as { data?: { maid?: string } }
+      
+      setFormData({ subject: '', message: '' })
+      setDialogOpen(false)
+      
+      // Refresh tickets list
+      await fetchData()
+      
+      if (data.data?.maid) {
+        router.push(`/d/support/${data.data.maid}`)
+      }
+    } catch (err) {
+      console.error('Submit error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create ticket')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
-    <>
-      <DeveloperHeader title="Поддержка" />
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Поддержка</h1>
-            <p className="text-muted-foreground">Управление тикетами поддержки</p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-3xl font-bold">Поддержка</h1>
+        <ResponsiveDialog 
+          open={dialogOpen} 
+          onOpenChange={setDialogOpen}
+          onlyDrawer
+          direction="right"
+          handleOnly
+        >
+          <ResponsiveDialogTrigger asChild>
+            <Button className="w-full md:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Создать новое обращение
+            </Button>
+          </ResponsiveDialogTrigger>
+          <ResponsiveDialogContent className="h-[calc(100svh-16px)] w-[560px] max-w-[95vw] overflow-hidden p-0">
+            <div className="flex h-full flex-col">
+              <ResponsiveDialogHeader className="px-6 pt-6">
+                <ResponsiveDialogTitle>Создать новое обращение</ResponsiveDialogTitle>
+                <ResponsiveDialogDescription>
+                  Опишите вашу проблему или вопрос
+                </ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+              <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="subject">Тема *</Label>
+                      <Input
+                        id="subject"
+                        value={formData.subject}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, subject: e.target.value }))
+                        }
+                        placeholder="Краткое описание проблемы"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="message">Сообщение *</Label>
+                      <Textarea
+                        id="message"
+                        value={formData.message}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, message: e.target.value }))
+                        }
+                        placeholder="Подробное описание вашего вопроса или проблемы"
+                        rows={6}
+                        required
+                      />
+                    </div>
+
+                    {error && (
+                      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                        <p className="text-sm text-destructive">{error}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <ResponsiveDialogFooter className="px-6 pb-6 border-t">
+                  <ResponsiveDialogClose asChild>
+                    <Button
+                      type="button"
+                      variant="outline">
+                      Отмена
+                    </Button>
+                  </ResponsiveDialogClose>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Отправка...
+                      </>
+                    ) : (
+                      'Отправить'
+                    )}
+                  </Button>
+                </ResponsiveDialogFooter>
+              </form>
+            </div>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
+      </div>
 
         <Card>
           <CardHeader>
@@ -245,7 +382,6 @@ export default function DeveloperSupportPageClient() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </>
+    </div>
   )
 }
