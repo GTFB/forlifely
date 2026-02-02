@@ -601,6 +601,14 @@
     "contractors": {
       "contacts": "Contacts",
       "deals": "Deals"
+    },
+    "products": {
+      "campaigns": "Campaigns",
+      "goals": "Goals",
+      "reports": "Reports",
+      "assets": "Files",
+      "wallets": "Money",
+      "wallet_transactions": "Money Movement"
     }
   }
 }

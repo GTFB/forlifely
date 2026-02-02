@@ -1,6 +1,8 @@
+import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 import BaseColumn from "../columns/BaseColumn";
-import BaseCollection from "./BaseCollection";
+import BaseCollection, { OLAPOptions, OLAPTab } from "./BaseCollection";
 import { SortingState } from "@tanstack/react-table";
+import { i18n } from "../services/i18n";
 
 export default class Products extends BaseCollection {
     __title = 'Мои игры';
@@ -109,6 +111,7 @@ export default class Products extends BaseCollection {
         },
     });
     paid = new BaseColumn({
+        altrpIndex: true,
         title: 'ID',
     });
     type = new BaseColumn({
@@ -289,5 +292,64 @@ export default class Products extends BaseCollection {
 
     constructor() {
         super('products');
+    }
+
+    async getTabs(options: OLAPOptions): Promise<OLAPTab[]>{
+        const {
+            locale= PROJECT_SETTINGS.defaultLanguage
+        } = options
+        return [
+            {
+                collection: 'product_variants',
+                localKey: 'paid',
+                foreignKey: 'fullPaid',
+                label: await i18n.t('olap.products.campaigns',locale),
+                id: 'product_variants',
+            },
+            {
+                collection: 'goals',
+                localKey: 'paid',
+                foreignKey: 'dataIn.gameId',
+                label: await i18n.t('olap.products.goals',locale),
+                id: 'goals',
+            },
+            {
+                collection: 'texts',
+                localKey: 'paid',
+                foreignKey: 'dataIn.productPaid',
+                label: await i18n.t('olap.products.reports',locale),
+                id: 'texts',
+            },
+            {
+                collection: 'asset_variants',
+                localKey: 'paid',
+                foreignKey: 'dataIn.productPaid',
+                label: await i18n.t('olap.products.assets',locale),
+                id: 'asset_variants',
+            },
+            {
+                collection: 'wallets',
+                localKey: 'paid',
+                foreignKey: 'targetAid',
+                label: await i18n.t('olap.products.wallets',locale),
+                id: 'wallets',
+            },
+            {
+                collection: 'wallet_transactions',
+                localKey: 'paid',
+                foreignKey: 'dataIn.productPaid',
+                label: await i18n.t('olap.products.wallet_transactions',locale),
+                id: 'wallet_transactions',
+            },
+        ]
+    }
+
+    async getOLAP(options: OLAPOptions){
+        const tabs = await this.getTabs(options)
+        
+        const Olap = {
+            tabs
+        }
+        return Olap
     }
 }
