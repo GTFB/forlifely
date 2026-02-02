@@ -373,6 +373,7 @@ export class AIRepository {
       throw new Error(`getFile failed: ${getFileResp.status}`);
     }
     const getFileJson = await getFileResp.json() as TelegramGetFileResponse;
+
     const filePath = getFileJson?.result?.file_path;
     if (!filePath) {
       throw new Error('file_path not found in getFile response');
