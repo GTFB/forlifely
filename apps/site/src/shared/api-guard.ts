@@ -131,6 +131,14 @@ export function withInvestorGuard<T extends Context>(handler: RouteHandler<T>) {
   return withAllowedRoleGuard(handler,['investor'])
 }
 
+export function withTesterGuard<T extends Context>(handler: RouteHandler<T>) {
+  return withAllowedRoleGuard(handler, ['tester', 'Тестер'])
+}
+
+export function withAdministratorGuard<T extends Context>(handler: RouteHandler<T>) {
+  return withAllowedRoleGuard(handler, ['administrator', 'Администратор'])
+}
+
 export function withManagerGuard<T extends Context>(handler: RouteHandler<T>) {
   return withRoleGuard(handler, (userWithRoles: any) => {
     // Logic from original middleware

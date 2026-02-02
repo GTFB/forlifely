@@ -31,9 +31,9 @@ export function InstanceDetailsHeader({
 
     return (
         <div className="mb-4">
-            <div className="flex items-center justify-between mb-4 relative">
+            <div className="flex flex-wrap xl:flex-nowrap items-center justify-between mb-4 relative gap-4">
                 {/* Left block: back button + logo + title */}
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                     <Button onClick={handleBack} variant="outline" size="icon">
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
@@ -57,7 +57,7 @@ export function InstanceDetailsHeader({
                 </div>
 
                 {/* Right block: badge */}
-                <div className="flex-1 flex justify-end">
+                <div className="flex-1 flex justify-end xl:flex-1">
                     {instance.statusName && (
                         <Badge variant="secondary">
                             {instance.statusName}
@@ -66,12 +66,11 @@ export function InstanceDetailsHeader({
                 </div>
                 {/* Tabs */}
                 {tabsList && (
-                    <div className="mt-4">
+                    <div className="w-full xl:w-auto xl:shrink-0">
                         {tabsList}
                     </div>
                 )}
             </div>
-
         </div>
     )
 }

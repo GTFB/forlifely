@@ -95,6 +95,29 @@
         "Settings": "Studio Settings",
         "Support": "Support"
       }
+    },
+    "tester": {
+      "platform": "Tester Portal",
+      "menuItems": {
+        "Dashboard": "Dashboard",
+        "Tasks": "Tasks",
+        "Wallet": "Wallet",
+        "Profile": "Profile",
+        "Support": "Support"
+      }
+    },
+    "administrator": {
+      "platform": "Administrator Portal",
+      "menuItems": {
+        "Dashboard": "Dashboard",
+        "Games": "Games",
+        "Campaigns": "Campaigns",
+        "Reports": "Reports",
+        "Users": "Users",
+        "Directories": "Directories",
+        "Settings": "Settings",
+        "Support": "Support"
+      }
     }
   },
   "dashboard": {

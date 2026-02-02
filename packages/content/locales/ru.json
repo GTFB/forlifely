@@ -94,6 +94,29 @@
         "Settings": "Настройки студии",
         "Support": "Поддержка"
       }
+    },
+    "tester": {
+      "platform": "Портал тестировщика",
+      "menuItems": {
+        "Dashboard": "Главная",
+        "Tasks": "Задания",
+        "Wallet": "Кошелёк",
+        "Profile": "Профиль",
+        "Support": "Поддержка"
+      }
+    },
+    "administrator": {
+      "platform": "Портал администратора",
+      "menuItems": {
+        "Dashboard": "Главная",
+        "Games": "Игры",
+        "Campaigns": "Кампании",
+        "Reports": "Отчеты",
+        "Users": "Пользователи",
+        "Directories": "Справочники",
+        "Settings": "Настройки",
+        "Support": "Поддержка"
+      }
     }
   },
   "dashboard": {

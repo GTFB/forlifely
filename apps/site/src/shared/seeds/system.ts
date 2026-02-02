@@ -21,6 +21,7 @@ export const systemSeed = {
             is_system: 1,
             order: 100,
         },
+
     ],
 
     taxonomy: [
