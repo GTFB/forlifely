@@ -343,7 +343,7 @@ body {
 
 :root:not(.dark) tbody tr,
 :root:not(.dark) [class*="TableRow"] {
-  background-color: var(--background) !important;
+  background-color: var(--card) !important;
   color: var(--foreground) !important;
 }
 

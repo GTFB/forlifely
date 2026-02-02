@@ -127,7 +127,7 @@ export function DataTableView({
                   return (
                     <div
                       key={row.id}
-                      className="rounded-lg border bg-background p-3 space-y-2"
+                      className="rounded-lg border bg-card p-3 space-y-2"
                       onDoubleClick={() => onEditRequest(row)}
                     >
                       {/* Header with checkbox, title and actions */}
@@ -219,14 +219,14 @@ export function DataTableView({
                   )
                 })
               ) : (
-                <div className="rounded-lg border bg-background p-6 text-center text-muted-foreground">
+                <div className="rounded-lg border bg-card p-6 text-center text-muted-foreground">
                   {t.noDataFound.replace("{collection}", collectionLabel)}
                 </div>
               )}
             </div>
           ) : (
             // Table View
-            <div className="overflow-x-auto rounded-lg border bg-background">
+            <div className="overflow-x-auto rounded-lg border bg-card">
               <TableRoot>
                 <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -399,9 +399,9 @@ export function DataTableView({
                     (
                       <TableRow
                         key={`loading`}
-                        className="cursor-pointer bg-background"
+                        className="cursor-pointer bg-card"
                       ><TableCell
-                        className={"p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full"}
+                        className={"p-0 pr-0 lg:static sticky left-0 z-10 bg-card h-full"}
                         colSpan={100}
                       >
                           <div className="flex items-center justify-center py-4">
@@ -434,7 +434,7 @@ export function DataTableView({
                                 }
                               }
                             }}
-                            className="cursor-pointer bg-background"
+                            className="cursor-pointer bg-card"
                           >
                             {row.getVisibleCells().map((cell) => {
 
@@ -452,7 +452,7 @@ return (
                                     }
                                   }}
 
-                                  className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-background h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
+                                  className={cell.column.id === "actions" ? "p-0 pr-0 lg:static sticky left-0 z-10 bg-card h-full" : cell.column.id === "select" ? "p-0 pl-0" : ""}
                                   style={{
                                     width: cell.column.getSize(),
                                     position: cell.column.id === "actions" ? "sticky" : undefined,

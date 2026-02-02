@@ -169,7 +169,7 @@ export function DataTableColumnSettings({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="bg-background h-9">
+        <Button variant="outline" size="sm" className="bg-card h-9">
           <IconLayoutColumns />
           <span className="hidden lg:inline">{t.configureTable}</span>
           <IconChevronDown className="hidden lg:inline" />

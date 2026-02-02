@@ -162,7 +162,7 @@ export default function ContractorDetailClient({
   const [linkingEntity, setLinkingEntity] = React.useState(false)
 
   const tabsList = (
-    <TabsList className="flex items-center justify-end gap-0 w-auto overflow-visible">
+    <TabsList className="inline-flex items-center gap-0 w-auto overflow-visible" style={{ justifyContent: 'flex-end' }}>
       <TabsTrigger value="general" className="flex flex-col items-center justify-center gap-1 px-2 py-1.5 sm:py-3 h-[40px] sm:h-16 bg-white/0 data-[state=inactive]:bg-white/0 data-[state=active]:bg-white data-[state=active]:shadow min-h-[40px] sm:min-h-16">
         <Building2 className="h-4 w-4 sm:h-6 sm:w-6" />
         <span className="text-xs hidden sm:inline">Общее</span>
@@ -196,7 +196,7 @@ export default function ContractorDetailClient({
 
   if (showTabsOnly) {
     return (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="inline-flex">
         {tabsList}
       </Tabs>
     )

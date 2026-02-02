@@ -202,7 +202,7 @@ export default function ContractorDetailPage() {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset className="flex flex-col flex-1 overflow-hidden">
-          <AdminHeader 
+          <AdminHeader
             breadcrumbItems={[
               { label: "Admin Panel", href: "/admin" },
               { label: "Контрагенты", href: "/admin?c=contractors" },
@@ -211,35 +211,32 @@ export default function ContractorDetailPage() {
           />
           <main className="flex-1 overflow-y-auto p-4">
             {/* Header with logo, tabs (desktop), and badge */}
-            <div className="flex items-center justify-between mb-4">
-              {/* Left block: back button + logo + title */}
-              <div className="flex items-center gap-4 flex-1">
-                <Button onClick={() => router.push('/admin?c=contractors&p=1&ps=20')} variant="outline" size="icon">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+              {/* Left column: back button + logo + title */}
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <Button onClick={() => router.push('/admin?c=contractors&p=1&ps=20')} variant="outline" size="icon" className="shrink-0">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {contractor.mediaId && (
                     <img
                       src={`/api/altrp/v1/admin/files/${contractor.mediaId}`}
                       alt="Logo"
-                      className="h-12 w-12 rounded object-cover"
+                      className="h-12 w-12 rounded object-cover shrink-0"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         target.style.display = 'none'
                       }}
                     />
                   )}
-                  <div>
-                    <h1 className="text-3xl font-bold">{titleDisplay}</h1>
+                  <div className="min-w-0">
+                    <h1 className="text-3xl font-bold truncate">{titleDisplay}</h1>
                     <p className="text-muted-foreground">
                       CAID: {contractor.caid}
                     </p>
                   </div>
-                </div>
-              </div>
-              
-              {/* Right: Tabs (desktop only) */}
-              <div className="hidden sm:flex flex-1 justify-end items-center py-2 pt-4">
+                                                  {/* Right column: Tabs + badge */}
+              <div className="hidden sm:flex items-center justify-end gap-4 py-2 pt-4 shrink-0">
                 <ContractorDetailClient 
                   caid={caid} 
                   contractor={contractor} 
@@ -247,18 +244,12 @@ export default function ContractorDetailPage() {
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                 />
-              </div>
-              
-              {/* Right block: badge */}
-              <div className="flex-1 flex justify-end">
                 {contractor.statusName && (
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="shrink-0">
                     {contractor.statusName}
                   </Badge>
                 )}
               </div>
-            </div>
-
             {/* Tabs (mobile only) */}
             <div className="mb-4 sm:hidden">
               <ContractorDetailClient 
@@ -269,6 +260,12 @@ export default function ContractorDetailPage() {
                 setActiveTab={setActiveTab}
               />
             </div>
+
+                </div>
+              </div>
+            </div>
+
+
 
             {/* Tab content */}
             <ContractorDetailClient 
