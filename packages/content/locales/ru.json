@@ -104,6 +104,19 @@
         "Profile": "Профиль",
         "Support": "Поддержка"
       }
+    },
+    "administrator": {
+      "platform": "Портал администратора",
+      "menuItems": {
+        "Dashboard": "Главная",
+        "Games": "Игры",
+        "Campaigns": "Кампании",
+        "Reports": "Отчеты",
+        "Users": "Пользователи",
+        "Directories": "Справочники",
+        "Settings": "Настройки",
+        "Support": "Поддержка"
+      }
     }
   },
   "dashboard": {

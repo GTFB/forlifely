@@ -96,6 +96,17 @@ export const systemSeed = {
             is_system: 1,
             order: 400,
         },
+        {
+            uuid: "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+            name: "administrator",
+            title: "Администратор",
+            dataIn: {
+                auth_redirect_url: '/a',
+            },
+            description: "Administrator with access to games, campaigns, users, and directories management.",
+            is_system: 1,
+            order: 500,
+        },
     ],
 
     taxonomy: [

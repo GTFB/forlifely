@@ -105,6 +105,19 @@
         "Profile": "Profile",
         "Support": "Support"
       }
+    },
+    "administrator": {
+      "platform": "Administrator Portal",
+      "menuItems": {
+        "Dashboard": "Dashboard",
+        "Games": "Games",
+        "Campaigns": "Campaigns",
+        "Reports": "Reports",
+        "Users": "Users",
+        "Directories": "Directories",
+        "Settings": "Settings",
+        "Support": "Support"
+      }
     }
   },
   "dashboard": {

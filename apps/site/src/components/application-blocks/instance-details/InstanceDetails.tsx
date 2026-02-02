@@ -133,13 +133,13 @@ export function InstanceDetails({
     }
     
     const tabsList = (
-      <TabsList className="inline-flex items-center justify-center gap-2 w-auto">
+      <TabsList className="inline-flex items-center justify-center gap-2 w-auto h-8 md:h-14">
         {
           finalTabs.map((tab,idx)=>{
             const IconComponent = getTabIcon(tab)
-            return  <TabsTrigger value={tab.id} key={tab.id} className="flex flex-col items-center justify-center gap-1 px-3 py-2">
-              <IconComponent className="h-5 w-5" />
-              <span className="text-xs">{tab.label}</span>
+            return  <TabsTrigger value={tab.id} key={tab.id} className="flex flex-col items-center justify-center gap-0 md:gap-1 px-2 md:px-3">
+              <IconComponent className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="text-xs hidden md:block">{tab.label}</span>
             </TabsTrigger>
           })
         }
