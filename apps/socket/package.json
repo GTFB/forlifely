@@ -1,5 +1,5 @@
 {
-  "name": "socket-server",
+  "name": "altrp-socket",
   "version": "1.0.0",
   "description": "Socket.io server with Redis adapter",
   "main": "index.js",

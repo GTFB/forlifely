@@ -67,19 +67,22 @@ export default class BaseCollection {
                 continue
             }
 
-            // Parse JSON fields
-
+            // Parse JSON fields (only when value looks like JSON; plain strings are kept as-is)
             if (field.options.type === 'json' && (parsed[key] != null || parsed[camelKey] != null)) {
-                try {
-                    const value = parsed[key] || parsed[camelKey]
-                    if (typeof value === 'string') {
-                        parsed[key] = JSON.parse(value)
-                        parsed[camelKey] = JSON.parse(value)
+                const value = parsed[key] || parsed[camelKey]
+                if (typeof value === 'string') {
+                    const trimmed = value.trim()
+                    // Only attempt parse if string looks like JSON (object or array)
+                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                        try {
+                            const parsedValue = JSON.parse(value)
+                            parsed[key] = parsedValue
+                            parsed[camelKey] = parsedValue
+                        } catch (error) {
+                            console.warn(`Failed to parse JSON field ${key} in collection ${this.name}:`, error)
+                        }
                     }
-
-                } catch (error) {
-                    // Not valid JSON, keep as is
-                    console.warn(`Failed to parse JSON field ${key} in collection ${this.name}:`, error)
+                    // Plain text (e.g. "Суперадминистратор") is left unchanged
                 }
             }
         }
