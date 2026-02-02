@@ -7,11 +7,15 @@ const links = [
         items: [
             {
                 title: 'Для тестеров',
-                href: '/t',
+                href: '/testers',
             },
             {
                 title: 'Для разработчиков',
-                href: '/d',
+                href: '/developers',
+            },
+            {
+                title: 'Открытые игры',
+                href: '/games',
             },
             {
                 title: 'Как это работает',
@@ -19,10 +23,6 @@ const links = [
             },
             {
                 title: 'Тарифы',
-                href: '#',
-            },
-            {
-                title: 'Условия',
                 href: '#',
             },
         ],
@@ -102,7 +102,7 @@ const links = [
 
 export default function FooterSection() {
     return (
-        <footer className="border-b bg-white pt-20 dark:bg-transparent">
+        <footer className="border-b bg-white pt-20 dark:bg-black dark:border-zinc-800">
             <div className="mx-auto max-w-5xl px-6">
                 <div className="grid gap-12 md:grid-cols-5">
                     <div className="md:col-span-1 flex justify-start">

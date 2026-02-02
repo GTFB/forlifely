@@ -34,26 +34,35 @@ export default function BlogPageComponent({
   return (
     <div className="flex-1">
       <HeroHeader />
-      <div className="max-w-7xl mx-auto pt-24 py-16 px-6">
-        <div className="flex items-end justify-between mb-8">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tighter">
-            Блог Altrp
-          </h1>
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <main className="min-h-screen">
+        <section className="px-4 py-16 md:py-24">
+          <div className="mx-auto max-w-6xl space-y-8">
+            <div className="text-center">
+              <h1 className="font-heading text-balance text-4xl font-bold md:text-5xl">
+                Блог OnlyTest
+              </h1>
+              <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                Новости, статьи и полезные материалы о тестировании игр и разработке
+              </p>
+            </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex justify-center mb-8">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Все">Все</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPosts.map((post) => (
             <Link key={post.id} href={`/blog/${post.dataIn?.slug}`}>
               <Card className="shadow-none py-0 gap-3 hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col">
@@ -77,7 +86,7 @@ export default function BlogPageComponent({
                     <div className="flex items-center gap-2">
                       <div className="size-8 rounded-full bg-muted"></div>
                       <span className="text-muted-foreground font-medium text-sm">
-                        Altrp
+                        OnlyTest
                       </span>
                     </div>
 
@@ -91,12 +100,14 @@ export default function BlogPageComponent({
           ))}
         </div>
 
-        {filteredPosts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Статей в этой категории пока нет</p>
+            {filteredPosts.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Статей в этой категории пока нет</p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </section>
+      </main>
       <FooterSection />
     </div>
   );

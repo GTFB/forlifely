@@ -400,6 +400,11 @@ body {
   color: var(--foreground) !important;
 }
 
+/* Fix footer background in dark theme */
+.dark footer {
+  background-color: #000000 !important;
+}
+
 /* Override for primary buttons in dark theme - use primary-foreground */
 .dark button[data-slot="button"].bg-primary,
 .dark button[data-slot="button"][class*="bg-primary"] {
