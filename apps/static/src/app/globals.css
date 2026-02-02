@@ -1,0 +1,434 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+@source "../src/**/*.{ts,tsx,mdx}";
+@source "../../../../packages/**/*.{ts,tsx,mdx}";
+
+
+:root {
+  --background: oklch(0.9800 0 0);
+  --foreground: oklch(0.1450 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.1450 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1450 0 0);
+  --primary: oklch(0.9050 0.1820 98.1110);
+  --primary-foreground: oklch(0.1450 0 0);
+  --secondary: oklch(0.9200 0.0040 286.3200);
+  --secondary-foreground: oklch(0.1450 0 0);
+  --muted: oklch(0.9670 0.0010 286.3750);
+  --muted-foreground: oklch(0.5520 0.0160 285.9380);
+  --accent: oklch(0.9200 0.0040 286.3200);
+  --accent-foreground: oklch(0.1450 0 0);
+  --destructive: oklch(0.5860 0.2530 17.5850);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9200 0.0040 286.3200);
+  --input: oklch(0.9200 0.0040 286.3200);
+  --ring: oklch(0.7050 0.0150 286.0670);
+  --chart-1: oklch(0.9250 0.0840 155.9950);
+  --chart-2: oklch(0.8710 0.1500 154.4490);
+  --chart-3: oklch(0.7920 0.2090 151.7110);
+  --chart-4: oklch(0.7230 0.2190 149.5790);
+  --chart-5: oklch(0.6270 0.1940 149.2140);
+  --sidebar: oklch(1.0000 0 0);
+  --sidebar-foreground: oklch(0.1410 0.0050 285.8230);
+  --sidebar-primary: oklch(0.1450 0 0);
+  --sidebar-primary-foreground: oklch(0.9850 0 0);
+  --sidebar-accent: oklch(0.9670 0.0010 286.3750);
+  --sidebar-accent-foreground: oklch(0.1410 0.0050 285.8230);
+  --sidebar-border: oklch(0.9200 0.0040 286.3200);
+  --sidebar-ring: oklch(0.7050 0.0150 286.0670);
+  --font-sans: Golos Text, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: Unbounded, ui-sans-serif, sans-serif, system-ui;
+  --font-heading: Unbounded, ui-sans-serif, sans-serif, system-ui;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 1px 2px -1px hsl(0 0% 0% / 0.00);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 1px 2px -1px hsl(0 0% 0% / 0.00);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 2px 4px -1px hsl(0 0% 0% / 0.00);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 4px 6px -1px hsl(0 0% 0% / 0.00);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 8px 10px -1px hsl(0 0% 0% / 0.00);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: oklch(0.1410 0.0050 285.8230);
+  --foreground: oklch(0.9850 0 0);
+  --card: oklch(0.2100 0.0060 285.8850);
+  --card-foreground: oklch(0.9850 0 0);
+  --popover: oklch(0.2100 0.0060 285.8850);
+  --popover-foreground: oklch(0.9850 0 0);
+  --primary: oklch(0.9050 0.1820 98.1110);
+  --primary-foreground: oklch(0.1410 0.0050 285.8230);
+  --secondary: oklch(0.3700 0.0130 285.8050);
+  --secondary-foreground: oklch(0.9850 0 0);
+  --muted: oklch(0.2740 0.0060 286.0330);
+  --muted-foreground: oklch(0.7050 0.0150 286.0670);
+  --accent: oklch(0.3710 0 0);
+  --accent-foreground: oklch(0.9850 0 0);
+  --destructive: oklch(0.7120 0.1940 13.4280);
+  --destructive-foreground: oklch(0.9850 0 0);
+  --border: oklch(0.2740 0.0060 286.0330);
+  --input: oklch(0.3700 0.0130 285.8050);
+  --ring: oklch(0.5520 0.0160 285.9380);
+  --chart-1: oklch(0.9250 0.0840 155.9950);
+  --chart-2: oklch(0.8710 0.1500 154.4490);
+  --chart-3: oklch(0.7920 0.2090 151.7110);
+  --chart-4: oklch(0.7230 0.2190 149.5790);
+  --chart-5: oklch(0.6270 0.1940 149.2140);
+  --sidebar: oklch(0.2100 0.0060 285.8850);
+  --sidebar-foreground: oklch(0.9850 0 0);
+  --sidebar-primary: oklch(0.7920 0.2090 151.7110);
+  --sidebar-primary-foreground: oklch(0.9850 0 0);
+  --sidebar-accent: oklch(0.2740 0.0060 286.0330);
+  --sidebar-accent-foreground: oklch(0.9850 0 0);
+  --sidebar-border: oklch(0.3700 0.0130 285.8050);
+  --sidebar-ring: oklch(0.4420 0.0170 285.7860);
+  --font-sans: Golos Text, ui-sans-serif, sans-serif, system-ui;
+  --font-serif: Unbounded, ui-sans-serif, sans-serif, system-ui;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0;
+  --shadow-color: oklch(0 0 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 1px 2px -1px hsl(0 0% 0% / 0.00);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 1px 2px -1px hsl(0 0% 0% / 0.00);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 2px 4px -1px hsl(0 0% 0% / 0.00);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 4px 6px -1px hsl(0 0% 0% / 0.00);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.00), 0 8px 10px -1px hsl(0 0% 0% / 0.00);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.00);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
+
+* {
+  border-color: var(--border);
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  background-color: var(--background);
+  color: hsl(var(--foreground));
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading) !important;
+  }
+  [data-slot="card-title"] {
+    font-family: var(--font-heading) !important;
+  }
+  .font-heading {
+    font-family: var(--font-heading) !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading) !important;
+  }
+  [data-slot="card-title"] {
+    font-family: var(--font-heading) !important;
+  }
+  .font-heading {
+    font-family: var(--font-heading) !important;
+  }
+  button {
+    @apply cursor-pointer;
+  }
+  button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  button:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  [role="button"]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  [role="button"]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  [role="button"]:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  a:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  a:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  a:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  *:focus-visible {
+    outline: none !important;
+  }
+  *:focus {
+    outline: none !important;
+  }
+}
+
+/* Fix drawer text color - ensure it respects theme */
+[data-vaul-drawer-wrapper],
+[data-vaul-drawer] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix drawer text color for all children - use inherit to respect parent */
+[data-vaul-drawer-wrapper] *,
+[data-vaul-drawer] * {
+  color: inherit !important;
+}
+
+/* Override for specific text utilities that should use muted */
+[data-vaul-drawer-wrapper] .text-muted-foreground,
+[data-vaul-drawer] .text-muted-foreground {
+  color: var(--muted-foreground) !important;
+}
+
+/* Ensure inputs and form elements are visible */
+[data-vaul-drawer-wrapper] input,
+[data-vaul-drawer-wrapper] textarea,
+[data-vaul-drawer-wrapper] select,
+[data-vaul-drawer] input,
+[data-vaul-drawer] textarea,
+[data-vaul-drawer] select {
+  color: var(--foreground) !important;
+  background-color: var(--input) !important;
+  border-color: var(--border) !important;
+}
+
+[data-vaul-drawer-wrapper] input::placeholder,
+[data-vaul-drawer-wrapper] textarea::placeholder,
+[data-vaul-drawer] input::placeholder,
+[data-vaul-drawer] textarea::placeholder {
+  color: var(--muted-foreground) !important;
+}
+
+/* Fix labels and text elements */
+[data-vaul-drawer-wrapper] label,
+[data-vaul-drawer-wrapper] p,
+[data-vaul-drawer-wrapper] span,
+[data-vaul-drawer-wrapper] div,
+[data-vaul-drawer] label,
+[data-vaul-drawer] p,
+[data-vaul-drawer] span,
+[data-vaul-drawer] div {
+  color: var(--foreground) !important;
+}
+
+/* Fix active tabs - ensure text color is correct */
+[data-vaul-drawer-wrapper] [data-state="active"],
+[data-vaul-drawer] [data-state="active"] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix buttons - ensure text color respects theme */
+[data-vaul-drawer-wrapper] button[data-slot="button"],
+[data-vaul-drawer] button[data-slot="button"] {
+  color: inherit !important;
+}
+
+/* Fix checkbox - ensure checkmark color is correct */
+[data-vaul-drawer-wrapper] [data-state="checked"],
+[data-vaul-drawer] [data-state="checked"] {
+  background-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+[data-vaul-drawer-wrapper] [data-state="checked"] svg,
+[data-vaul-drawer] [data-state="checked"] svg {
+  color: var(--primary-foreground) !important;
+}
+
+/* Fix table header and rows in light theme */
+:root:not(.dark) thead[class*="bg-muted"],
+:root:not(.dark) [class*="TableHeader"][class*="bg-muted"] {
+  background-color: var(--muted) !important;
+}
+
+:root:not(.dark) tbody tr,
+:root:not(.dark) [class*="TableRow"] {
+  background-color: var(--card) !important;
+  color: var(--foreground) !important;
+}
+
+:root:not(.dark) tbody tr:hover,
+:root:not(.dark) [class*="TableRow"]:hover {
+  background-color: var(--muted) !important;
+}
+
+/* Fix buttons in light theme - ensure they use correct background */
+:root:not(.dark) button[class*="bg-primary-foreground"] {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix primary button text color in light theme - ensure black text on yellow background */
+:root:not(.dark) button[data-slot="button"].bg-primary,
+:root:not(.dark) button[data-slot="button"][class*="bg-primary"] {
+  color: oklch(0.1410 0.0050 285.8230) !important;
+}
+
+/* Fix primary button text color in dark theme - ensure light text on yellow background */
+.dark button[data-slot="button"].bg-primary,
+.dark button[data-slot="button"][class*="bg-primary"] {
+  color: var(--primary-foreground) !important;
+}
+
+/* Fix default variant buttons in light theme - ensure text color is correct */
+:root:not(.dark) button[data-slot="button"][class*="bg-background"] {
+  color: var(--foreground) !important;
+}
+
+:root:not(.dark) button[data-slot="button"].bg-background {
+  color: var(--foreground) !important;
+}
+
+/* Fix default variant buttons that have bg-background override */
+:root:not(.dark) button[data-slot="button"].bg-background.text-primary-foreground {
+  color: var(--foreground) !important;
+}
+
+/* Fix all buttons with bg-background class to use foreground color */
+:root:not(.dark) button.bg-background,
+:root:not(.dark) button[class*="bg-background"] {
+  color: var(--foreground) !important;
+}
+
+/* Fix buttons with default variant that have background override */
+:root:not(.dark) button[data-slot="button"][class*="bg-background"][class*="text-primary-foreground"] {
+  color: var(--foreground) !important;
+}
+
+/* Fix all buttons in dark theme - ensure light text */
+.dark button[data-slot="button"] {
+  color: var(--foreground) !important;
+}
+
+/* Fix footer background in dark theme */
+.dark footer {
+  background-color: #000000 !important;
+}
+
+/* Override for primary buttons in dark theme - use primary-foreground */
+.dark button[data-slot="button"].bg-primary,
+.dark button[data-slot="button"][class*="bg-primary"] {
+  color: var(--primary-foreground) !important;
+}
+
+/* Override for destructive buttons in dark theme */
+.dark button[data-slot="button"].bg-destructive,
+.dark button[data-slot="button"][class*="bg-destructive"] {
+  color: var(--destructive-foreground) !important;
+}
+
+/* Fix input/search in light theme */
+:root:not(.dark) input[class*="bg-primary-foreground"],
+:root:not(.dark) [class*="bg-primary-foreground"] input {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+/* Fix table cells in light theme */
+:root:not(.dark) td,
+:root:not(.dark) th,
+:root:not(.dark) [class*="TableCell"],
+:root:not(.dark) [class*="TableHead"] {
+  background-color: inherit !important;
+  color: var(--foreground) !important;
+}
