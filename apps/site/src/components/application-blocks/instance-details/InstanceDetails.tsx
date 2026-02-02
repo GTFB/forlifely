@@ -9,6 +9,7 @@ import { Button } from "@/packages/components/ui/button"
 import { GeneralTabFactory } from "./general-tabs/GeneralTabFactory"
 import { OLAPTab } from "@/shared/collections/BaseCollection"
 import { DataTableWithLinkButton } from "./DataTableWithLinkButton"
+import { InstanceDetailsHeader } from "./InstanceDetailsHeader"
 
 
 export function InstanceDetails({ 
@@ -145,11 +146,18 @@ export function InstanceDetails({
       </TabsList>
     )
   
-    return (<>
-    
-    <Tabs value={currentActiveTab} onValueChange={setActiveTab} className="w-full">
-          {tabsList}
-        {/* TabsList is rendered in header, so we don't render it here */}
+    return (
+      <Tabs value={currentActiveTab} onValueChange={setActiveTab} className="w-full">
+        {title && (
+          <InstanceDetailsHeader
+            instance={instance}
+            title={title}
+            altrpIndex={altrpIndex}
+            collectionName={collectionName}
+            olapTabs={olapTabs}
+            tabsList={tabsList}
+          />
+        )}
         <TabsContent value="general" className="mt-4">
           <GeneralTabFactory collectionName={collectionName} instance={instance}/>
         </TabsContent>
@@ -284,7 +292,6 @@ export function InstanceDetails({
           </Dialog>
         )}
       </Tabs>
-      </>
     )
   }
 

@@ -21,6 +21,16 @@ export interface MessageToSummarize {
   created_at: string;
 }
 
+interface TelegramGetFileResponse {
+  ok: boolean;
+  result?: {
+    file_path: string;
+    file_id: string;
+    file_unique_id: string;
+    file_size?: number;
+  };
+}
+
 /**
  * Repository for working with AI API
  */
@@ -362,7 +372,7 @@ export class AIRepository {
     if (!getFileResp.ok) {
       throw new Error(`getFile failed: ${getFileResp.status}`);
     }
-    const getFileJson = await getFileResp.json();
+    const getFileJson = await getFileResp.json() as TelegramGetFileResponse;
     const filePath = getFileJson?.result?.file_path;
     if (!filePath) {
       throw new Error('file_path not found in getFile response');
