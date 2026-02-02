@@ -3,19 +3,19 @@ import Link from 'next/link'
 
 const links = [
     {
-        group: 'Услуги',
+        group: 'Платформа',
         items: [
             {
-                title: 'Рассрочка',
-                href: '/c/deals',
+                title: 'Для тестеров',
+                href: '/t',
             },
             {
-                title: 'Инвестиции',
-                href: '/i/dashboard',
+                title: 'Для разработчиков',
+                href: '/d',
             },
             {
-                title: 'Партнерство',
-                href: '/p/dashboard',
+                title: 'Как это работает',
+                href: '/#how-it-works',
             },
             {
                 title: 'Тарифы',
@@ -39,7 +39,7 @@ const links = [
                 href: '/contact',
             },
             {
-                title: 'Новости',
+                title: 'Блог',
                 href: '/blog',
             },
             {
@@ -53,15 +53,15 @@ const links = [
         ],
     },
     {
-        group: 'Клиентам',
+        group: 'Помощь',
         items: [
             {
                 title: 'Личный кабинет',
-                href: '/c/dashboard',
+                href: '/login',
             },
             {
                 title: 'Поддержка',
-                href: '/c/support',
+                href: '/support',
             },
             {
                 title: 'Частые вопросы',
@@ -72,7 +72,7 @@ const links = [
                 href: '#',
             },
             {
-                title: 'Как это работает',
+                title: 'Гайды',
                 href: '#',
             },
         ],
@@ -133,7 +133,7 @@ export default function FooterSection() {
                     </div>
                 </div>
                 <div className="mt-12 flex flex-wrap items-end justify-between gap-6 border-t py-6">
-                    <span className="text-muted-foreground order-last block text-center text-sm md:order-first">© {new Date().getFullYear()} Altrp, Все права защищены</span>
+                    <span className="text-muted-foreground order-last block text-center text-sm md:order-first">© {new Date().getFullYear()} OnlyTest, Все права защищены</span>
                     <div className="order-first flex flex-wrap justify-center gap-6 text-sm md:order-last">
                         <Link
                             href="#"

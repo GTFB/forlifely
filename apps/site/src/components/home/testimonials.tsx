@@ -8,41 +8,35 @@ export default function Testimonials() {
         <section className="py-16 md:py-32">
             <div className="mx-auto max-w-6xl space-y-8 px-6 md:space-y-16">
                 <div className="relative z-10 mx-auto max-w-xl space-y-6 text-center md:space-y-12">
-                    <h2 className="text-4xl font-medium lg:text-5xl">Что говорят наши клиенты и партнеры</h2>
+                    <h2 className="text-4xl font-medium lg:text-5xl">Что говорят тестеры и разработчики</h2>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-rows-2">
                     <Card className="grid grid-rows-[auto_1fr] gap-8 sm:col-span-2 sm:p-6 lg:row-span-2">
                         <CardHeader>
-                            <img
-                                className="h-6 w-fit dark:invert"
-                                src="/images/nike.svg"
-                                alt="Partner Logo"
-                                height="24"
-                                width="auto"
-                            />
+                            <div className="text-2xl font-bold">OnlyTest</div>
                         </CardHeader>
                         <CardContent>
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p className="text-xl font-medium">
-                                    Altrp помог нам предложить нашим клиентам честную рассрочку без переплат. Это значительно увеличило наши продажи и улучшило удовлетворенность клиентов. Прозрачность и этичность - это именно то, чего не хватало на рынке.
+                                    OnlyTest помог нам собрать качественный фидбек от реальных игроков на ранней стадии разработки. Это позволило нам исправить критические баги до релиза и значительно улучшить пользовательский опыт. Платформа удобная, а тестеры действительно заинтересованы в качестве.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] items-center gap-3">
                                     <Avatar className="size-12">
                                         <AvatarImage
                                             src="/images/avatar-placeholder.svg"
-                                            alt="Александр Петров"
+                                            alt="Алексей Соколов"
                                             height="400"
                                             width="400"
                                             loading="lazy"
                                         />
-                                        <AvatarFallback>АП</AvatarFallback>
+                                        <AvatarFallback>АС</AvatarFallback>
                                     </Avatar>
 
                                     <div>
-                                        <cite className="text-sm font-medium">Александр Петров</cite>
-                                        <span className="text-muted-foreground block text-sm">Директор по продажам</span>
+                                        <cite className="text-sm font-medium">Алексей Соколов</cite>
+                                        <span className="text-muted-foreground block text-sm">Lead Game Developer</span>
                                     </div>
                                 </div>
                             </blockquote>
@@ -53,23 +47,23 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p className="text-xl font-medium">
-                                    Инвестирую через Altrp уже полгода. Платформа действительно прозрачная, все операции видны в личном кабинете. Доходность стабильная, а главное - я знаю, что мои деньги работают в реальном бизнесе.
+                                    Тестирую игры на OnlyTest уже несколько месяцев. Платформа удобная, задания понятные, а награды действительно приходят. Особенно нравится, что разработчики читают отзывы и учитывают мнение тестеров. Это не просто заработок, а реальная возможность повлиять на игры.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] items-center gap-3">
                                     <Avatar className="size-12">
                                         <AvatarImage
                                             src="/images/avatar-placeholder.svg"
-                                            alt="Мария Иванова"
+                                            alt="Дмитрий Волков"
                                             height="400"
                                             width="400"
                                             loading="lazy"
                                         />
-                                        <AvatarFallback>МИ</AvatarFallback>
+                                        <AvatarFallback>ДВ</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <cite className="text-sm font-medium">Мария Иванова</cite>
-                                        <span className="text-muted-foreground block text-sm">Инвестор</span>
+                                        <cite className="text-sm font-medium">Дмитрий Волков</cite>
+                                        <span className="text-muted-foreground block text-sm">Тестер</span>
                                     </div>
                                 </div>
                             </blockquote>
@@ -80,23 +74,23 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p>
-                                    Купил ноутбук в рассрочку через Altrp. Без скрытых комиссий, без переплат. Все честно и прозрачно. Одобрение получил за час, деньги перевели в магазин в тот же день.
+                                    Отличная платформа для тестирования игр! Получил доступ к Beta версии новой RPG, нашел несколько багов и получил хорошее вознаграждение. Интерфейс интуитивный, все понятно даже новичку.
                                 </p>
 
                                 <div className="grid items-center gap-3 [grid-template-columns:auto_1fr]">
                                     <Avatar className="size-12">
                                         <AvatarImage
                                             src="/images/avatar-placeholder.svg"
-                                            alt="Дмитрий Сидоров"
+                                            alt="Анна Петрова"
                                             height="400"
                                             width="400"
                                             loading="lazy"
                                         />
-                                        <AvatarFallback>ДС</AvatarFallback>
+                                        <AvatarFallback>АП</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <cite className="text-sm font-medium">Дмитрий Сидоров</cite>
-                                        <span className="text-muted-foreground block text-sm">Покупатель</span>
+                                        <cite className="text-sm font-medium">Анна Петрова</cite>
+                                        <span className="text-muted-foreground block text-sm">Тестер</span>
                                     </div>
                                 </div>
                             </blockquote>
@@ -107,23 +101,23 @@ export default function Testimonials() {
                         <CardContent className="h-full pt-6">
                             <blockquote className="grid h-full grid-rows-[1fr_auto] gap-6">
                                 <p>
-                                    Работаем с Altrp как партнеры уже год. Интеграция простая, выплаты стабильные. Клиенты довольны возможностью рассрочки, а мы - ростом среднего чека.
+                                    Используем OnlyTest для проведения CBT наших проектов. Гибкая настройка задач, качественные отчеты от тестеров и удобная аналитика. Это экономит нам время и деньги на QA-отделе.
                                 </p>
 
                                 <div className="grid grid-cols-[auto_1fr] gap-3">
                                     <Avatar className="size-12">
                                         <AvatarImage
                                             src="/images/avatar-placeholder.svg"
-                                            alt="Елена Козлова"
+                                            alt="Игорь Морозов"
                                             height="400"
                                             width="400"
                                             loading="lazy"
                                         />
-                                        <AvatarFallback>ЕК</AvatarFallback>
+                                        <AvatarFallback>ИМ</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="text-sm font-medium">Елена Козлова</p>
-                                        <span className="text-muted-foreground block text-sm">Партнер, менеджер по развитию</span>
+                                        <p className="text-sm font-medium">Игорь Морозов</p>
+                                        <span className="text-muted-foreground block text-sm">Game Producer</span>
                                     </div>
                                 </div>
                             </blockquote>

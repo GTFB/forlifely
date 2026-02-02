@@ -9,9 +9,8 @@ import { useMe } from '@/providers/MeProvider'
 import { ChatTriggerButton } from '@/components/chat'
 
 const menuItems = [
-    { name: 'Инвесторам', href: '/investors' },
-    { name: 'Потребителям', href: '/consumers' },
-    { name: 'Партнерам', href: '/partners' },
+    { name: 'Для тестеров', href: '/#how-it-works' },
+    { name: 'Для разработчиков', href: '/developers' },
     { name: 'Блог', href: '/blog' },
 ]
 
