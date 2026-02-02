@@ -21,6 +21,16 @@ const collections: Record<string, BaseCollection> = {
     texts: new Texts(),
 }
 
-export const getCollection = (collection: string): BaseCollection => {
-    return collections[collection] || collections.base;
+const managerCollections: Record<string, BaseCollection> = {
+    base: new BaseCollection('base'),
+}
+
+export const getCollection = (collection: string, role: string = 'base'): BaseCollection => {
+    switch (role) {
+        case 'manager': 
+            return managerCollections[collection] || managerCollections.base;
+        default:
+            return collections[collection] || collections.base;
+
+    }
 }
