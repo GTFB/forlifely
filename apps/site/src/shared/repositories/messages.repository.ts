@@ -2,8 +2,9 @@ import BaseRepository from './BaseRepositroy'
 import { schema } from '../schema'
 import type { Message, NewMessage } from '../schema/types'
 import { generateAid } from '../generate-aid'
-import { eq, and, desc, isNull, gt, sql } from 'drizzle-orm'
+import { eq, and, desc, asc, isNull, gt, sql } from 'drizzle-orm'
 import type { altrpSupportChatDataIn, altrpSupportMessage, altrpSupportMessageDataIn } from '../types/altrp-support'
+import type { RecentMessage, MessageToSummarize } from './ai-repository'
 import { parseJson } from './utils'
 import { sendToRoom, sendToUser } from '@/packages/lib/socket'
 import { MessageThreadsRepository } from './message-threads.repository'
@@ -29,6 +30,53 @@ export class MessagesRepository extends BaseRepository<Message> {
         if (!data.dataIn) {
             data.dataIn = {}
         }
+    }
+
+    async getRecentMessages(maid: string, limit: number = 10): Promise<RecentMessage[]> {
+        const messages = await this.db
+            .select()
+            .from(this.schema)
+            .where(and(eq(this.schema.maid, maid), isNull(this.schema.deletedAt)))
+            .orderBy(desc(this.schema.createdAt))
+            .limit(limit)
+            .execute()
+        return messages.reverse().map((msg) => ({
+            title: msg.title || '',
+            data_in: msg.dataIn || null,
+        }))
+    }
+
+    async getAllMessagesByMaid(maid: string): Promise<MessageToSummarize[]> {
+        const messages = await this.db
+            .select()
+            .from(this.schema)
+            .where(and(eq(this.schema.maid, maid), isNull(this.schema.deletedAt)))
+            .orderBy(asc(this.schema.createdAt))
+            .execute()
+        return messages.map((msg) => ({
+            title: msg.title || '',
+            data_in: msg.dataIn || null,
+            full_maid: msg.fullMaid || msg.maid,
+            created_at: msg.createdAt?.toString() || new Date().toISOString(),
+        }))
+    }
+
+    async createUserMessage(maid: string, text: string): Promise<Message> {
+        return (await this.create({
+            maid,
+            title: text,
+            statusName: 'sent',
+            dataIn: { direction: 'incoming', isAIResponse: false },
+        } as Partial<NewMessage>)) as Message
+    }
+
+    async createAIMessage(maid: string, text: string): Promise<Message> {
+        return (await this.create({
+            maid,
+            title: text,
+            statusName: 'sent',
+            dataIn: { direction: 'outgoing', isAIResponse: true },
+        } as Partial<NewMessage>)) as Message
     }
 
     /**

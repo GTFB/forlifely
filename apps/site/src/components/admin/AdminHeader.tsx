@@ -19,6 +19,7 @@ import { useAdminCollection } from "@/components/admin/AdminStateProvider"
 import { getCollection } from "@/shared/collections/getCollection"
 import { LANGUAGES, PROJECT_SETTINGS } from "@/settings"
 import { useNotifications } from "./NotificationsContext"
+import { ChatTriggerButton } from "@/components/chat"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -309,6 +310,7 @@ export const AdminHeader = React.memo(function AdminHeader({
           </BreadcrumbList>
         </Breadcrumb>
         <div className="flex items-center gap-2">
+          <ChatTriggerButton variant="ghost" size="icon" />
           {/* Notifications Bell */}
           <Button
             variant="ghost"
