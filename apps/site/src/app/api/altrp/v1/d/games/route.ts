@@ -198,5 +198,5 @@ async function handlePost(context: AuthenticatedRequestContext) {
 }
 
 // Allow both "developer" and "Разработчик" role names
-export const GET = withAllowedRoleGuard(handleGet, ["developer", "Разработчик"])
-export const POST = withAllowedRoleGuard(handlePost, ["developer", "Разработчик"])
+export const GET = withAllowedRoleGuard(handleGet, ["developer"])
+export const POST = withAllowedRoleGuard(handlePost, ["developer"])

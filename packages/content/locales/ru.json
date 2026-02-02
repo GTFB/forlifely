@@ -574,6 +574,14 @@
     "contractors": {
       "contacts": "Контакты",
       "deals": "Сделки"
+    },
+    "products": {
+      "campaigns": "Кампании",
+      "goals": "Задачи",
+      "reports": "Отчеты",
+      "assets": "Файлы",
+      "wallets": "Деньги",
+      "wallet_transactions": "Движение денег"
     }
   }
 }
