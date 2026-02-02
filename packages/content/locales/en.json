@@ -95,6 +95,16 @@
         "Settings": "Studio Settings",
         "Support": "Support"
       }
+    },
+    "tester": {
+      "platform": "Tester Portal",
+      "menuItems": {
+        "Dashboard": "Dashboard",
+        "Tasks": "Tasks",
+        "Wallet": "Wallet",
+        "Profile": "Profile",
+        "Support": "Support"
+      }
     }
   },
   "dashboard": {

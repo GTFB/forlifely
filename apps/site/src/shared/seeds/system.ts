@@ -85,6 +85,17 @@ export const systemSeed = {
             is_system: 1,
             order: 1000,
         },
+        {
+            uuid: "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+            name: "tester",
+            title: "Тестер",
+            dataIn: {
+                auth_redirect_url: '/t',
+            },
+            description: "Game tester who completes testing tasks and earns reward points.",
+            is_system: 1,
+            order: 400,
+        },
     ],
 
     taxonomy: [

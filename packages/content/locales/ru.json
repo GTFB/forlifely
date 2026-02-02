@@ -94,6 +94,16 @@
         "Settings": "Настройки студии",
         "Support": "Поддержка"
       }
+    },
+    "tester": {
+      "platform": "Портал тестировщика",
+      "menuItems": {
+        "Dashboard": "Главная",
+        "Tasks": "Задания",
+        "Wallet": "Кошелёк",
+        "Profile": "Профиль",
+        "Support": "Поддержка"
+      }
     }
   },
   "dashboard": {
