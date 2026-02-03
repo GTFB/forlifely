@@ -1,5 +1,6 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
+import { PROJECT_SETTINGS } from "@/settings";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,15 +69,15 @@ const Hero01 = () => {
           className="rounded-full py-1 border-border"
         >
           <Link href="#" className="flex items-center gap-1">
-            <span>ALTRP Platform v4.0.0</span>
+            <span>{PROJECT_SETTINGS.name} Platform</span>
             <ArrowUpRight className="size-4 flex-shrink-0" />
           </Link>
         </Badge>
         <h1 className="mt-6 text-4xl sm:text-5xl md:text-6xl lg:text-7xl md:leading-[1.2] font-semibold tracking-tighter">
-          Create digital products without code
+          The operating system for small and medium businesses
         </h1>
         <p className="mt-6 md:text-lg">
-          Powerful platform for rapid generation of web applications, mobile apps and digital solutions
+          {PROJECT_SETTINGS.description}
         </p>
         <div className="mt-12 flex items-center justify-center gap-4">
           <Dialog open={open} onOpenChange={setOpen}>

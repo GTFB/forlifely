@@ -1,7 +1,7 @@
 # Use POSIX shell for portability
 SHELL := /bin/sh
 
-.PHONY: help init install dev build lint format prepare tailwind shadcn hygen test clean branch commit component kill-node env dev-site build-site start-site dev-cms build-cms start-cms dev-app build-app start-app dev-all build-all quick-test
+.PHONY: help init install dev build lint format prepare tailwind shadcn hygen test clean branch commit component kill-node env dev-site build-site start-site dev-static build-static dev-cms build-cms start-cms dev-app build-app start-app dev-all build-all quick-test
 
 help:
 	@echo "Available targets:"
@@ -23,6 +23,8 @@ help:
 	@echo "  commit       - Git add & commit: make commit MSG=\"message\""
 	@echo "  dev-site     - Run site development server"
 	@echo "  build-site   - Build site for production"
+	@echo "  dev-static   - Run static site development server"
+	@echo "  build-static - Build static site for production"
 	@echo "  start-site   - Start site production server"
 	@echo "  dev-cms      - Run CMS development server"
 	@echo "  build-cms    - Build CMS for production"
@@ -125,6 +127,13 @@ build-site:
 
 start-site:
 	bun run start:site
+
+# Static site commands
+dev-static:
+	bun run dev:static
+
+build-static:
+	bun run build:static
 
 # CMS commands
 dev-cms:

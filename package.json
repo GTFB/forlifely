@@ -13,6 +13,8 @@
     "dev:wrangler:site": "bun run --filter=altrp-site dev:all",
     "dev:wrangler:migrate:site": "bun run db:site:migrate:local && bun run --filter=altrp-site dev:all",
     "build:site": "bun run --filter=altrp-site build:static",
+    "dev:static": "bun run --filter=altrp-static dev",
+    "build:static": "bun run --filter=altrp-static build:static",
     "start:site": "bun run --filter=altrp-site start",
     "start:site:migrate": "bun run db:site:migrate && bun run --filter=altrp-site start",
     "dev:socket": "bun run --filter=altrp-socket dev",

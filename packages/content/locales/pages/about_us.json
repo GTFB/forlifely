@@ -1,0 +1,182 @@
+{
+  "en": {
+    "mission": {
+      "quote": "Our mission is to make financial services accessible, transparent, and ethical for everyone.",
+      "paragraph1": "Altrp is a financial platform operating on the principles of Islamic finance. We offer interest-free installment plans and investment products that comply with Sharia norms.",
+      "paragraph2": "We believe that finance should serve people, not the other way around. That's why we build our work on principles of fairness, transparency, and mutual benefit."
+    },
+    "values": {
+      "title": "Our Principles",
+      "items": [
+        {
+          "icon": "Shield",
+          "title": "Transparency",
+          "description": "We maintain an open policy and provide complete information about our terms and processes."
+        },
+        {
+          "icon": "Heart",
+          "title": "Partnership",
+          "description": "We build long-term relationships with clients, investors, and partners based on mutual respect."
+        },
+        {
+          "icon": "Zap",
+          "title": "Innovation",
+          "description": "We use modern technologies to ensure fast and convenient service."
+        },
+        {
+          "icon": "Users",
+          "title": "Responsibility",
+          "description": "We take responsibility for every project and guarantee the fulfillment of obligations."
+        }
+      ]
+    },
+    "team": {
+      "title": "Key People",
+      "description": "Our team consists of experienced professionals who share our values and strive to achieve common goals.",
+      "members": [
+        {
+          "name": "Ivan Ivanov",
+          "title": "Chief Executive Officer",
+          "imageUrl": "https://images.pexels.com/photos/3785079/pexels-photo-3785079.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Maria Petrova",
+          "title": "Chief Financial Officer",
+          "imageUrl": "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Alexey Sidorov",
+          "title": "Director of Development",
+          "imageUrl": "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Elena Kozlova",
+          "title": "Head of Customer Service",
+          "imageUrl": "https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=600"
+        }
+      ]
+    },
+    "legal": {
+      "title": "Details and Documents",
+      "items": [
+        {
+          "title": "Details",
+          "content": {
+            "company": "LLC 'Esnad Finance'",
+            "inn": "INN: 1234567890",
+            "kpp": "KPP: 123456789",
+            "ogrn": "OGRN: 1234567890123",
+            "address": "Address: Moscow, Example St., 1"
+          }
+        },
+        {
+          "title": "Licenses",
+          "content": {
+            "license": "License for microfinance activities No. 12345678901234567",
+            "issuedBy": "Issued by: Central Bank of the Russian Federation",
+            "issueDate": "Issue date: 01.01.2020"
+          }
+        },
+        {
+          "title": "Privacy Policy",
+          "content": {
+            "paragraph1": "We are committed to protecting your personal information in accordance with the requirements of Russian legislation.",
+            "paragraph2": "All data is processed in accordance with Federal Law 'On Personal Data' No. 152-FZ.",
+            "linkText": "Learn more about the privacy policy",
+            "linkHref": "/privacy"
+          }
+        }
+      ]
+    }
+  },
+  "ru": {
+    "mission": {
+      "quote": "Наша миссия — сделать финансовые услуги доступными, прозрачными и этичными для всех.",
+      "paragraph1": "Altrp — это финансовая платформа, работающая по принципам исламского финансирования. Мы предлагаем рассрочку без процентов и инвестиционные продукты, соответствующие нормам Шариата.",
+      "paragraph2": "Мы верим, что финансы должны служить людям, а не наоборот. Поэтому мы строим нашу работу на принципах справедливости, прозрачности и взаимной выгоды."
+    },
+    "values": {
+      "title": "Наши принципы",
+      "items": [
+        {
+          "icon": "Shield",
+          "title": "Прозрачность",
+          "description": "Мы ведем открытую политику и предоставляем полную информацию о наших условиях и процессах."
+        },
+        {
+          "icon": "Heart",
+          "title": "Партнерство",
+          "description": "Строим долгосрочные отношения с клиентами, инвесторами и партнерами на основе взаимного уважения."
+        },
+        {
+          "icon": "Zap",
+          "title": "Технологичность",
+          "description": "Используем современные технологии для обеспечения быстрого и удобного сервиса."
+        },
+        {
+          "icon": "Users",
+          "title": "Ответственность",
+          "description": "Несем ответственность за каждый проект и гарантируем выполнение обязательств."
+        }
+      ]
+    },
+    "team": {
+      "title": "Ключевые лица",
+      "description": "Наша команда состоит из опытных профессионалов, которые разделяют наши ценности и стремятся к достижению общих целей.",
+      "members": [
+        {
+          "name": "Иван Иванов",
+          "title": "Генеральный директор",
+          "imageUrl": "https://images.pexels.com/photos/3785079/pexels-photo-3785079.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Мария Петрова",
+          "title": "Финансовый директор",
+          "imageUrl": "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Алексей Сидоров",
+          "title": "Директор по развитию",
+          "imageUrl": "https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=600"
+        },
+        {
+          "name": "Елена Козлова",
+          "title": "Руководитель клиентского сервиса",
+          "imageUrl": "https://images.pexels.com/photos/733872/pexels-photo-733872.jpeg?auto=compress&cs=tinysrgb&w=600"
+        }
+      ]
+    },
+    "legal": {
+      "title": "Реквизиты и документы",
+      "items": [
+        {
+          "title": "Реквизиты",
+          "content": {
+            "company": "ООО \"Эснад Финанс\"",
+            "inn": "ИНН: 1234567890",
+            "kpp": "КПП: 123456789",
+            "ogrn": "ОГРН: 1234567890123",
+            "address": "Адрес: г. Москва, ул. Примерная, д. 1"
+          }
+        },
+        {
+          "title": "Лицензии",
+          "content": {
+            "license": "Лицензия на осуществление микрофинансовой деятельности №12345678901234567",
+            "issuedBy": "Выдана: Центральным банком Российской Федерации",
+            "issueDate": "Дата выдачи: 01.01.2020"
+          }
+        },
+        {
+          "title": "Политика конфиденциальности",
+          "content": {
+            "paragraph1": "Мы обязуемся защищать вашу личную информацию в соответствии с требованиями законодательства РФ.",
+            "paragraph2": "Все данные обрабатываются в соответствии с Федеральным законом \"О персональных данных\" №152-ФЗ.",
+            "linkText": "Подробнее о политике конфиденциальности",
+            "linkHref": "/privacy"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -30,46 +30,45 @@ const unbounded = Unbounded({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://onlytest.ru'),
-  title: "Onlytest",
-  description: "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
+  metadataBase: new URL('https://altrp.org'),
+  title: PROJECT_SETTINGS.name,
+  description: PROJECT_SETTINGS.description,
   keywords: [
-    "game testing",
-    "QA testing",
-    "focus group testing",
-    "game developers",
-    "testers",
-    "bug reports",
-    "game quality assurance",
-    "testing platform",
-    "B2B gaming",
-    "B2C testing",
-    "game feedback",
-    "testing rewards"
+    "SMB platform",
+    "digital foundation",
+    "headless CMS",
+    "e-commerce",
+    "CRM",
+    "LMS",
+    "AI agents",
+    "API-first",
+    "business automation",
+    "no-code",
+    "low-code",
   ],
   openGraph: {
     type: "website",
-    siteName: "Onlytest",
+    siteName: PROJECT_SETTINGS.name,
     locale: "ru_RU",
-    url: "https://onlytest.ru",
-    title: "Onlytest - Платформа для тестирования игр",
-    description: "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
+    url: "https://altrp.org",
+    title: `${PROJECT_SETTINGS.name} — ${PROJECT_SETTINGS.description}`,
+    description: PROJECT_SETTINGS.description,
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Onlytest",
+        alt: PROJECT_SETTINGS.name,
       },
     ],
   },
   authors: [
     {
-      name: "Onlytest",
-      url: "https://onlytest.ru",
+      name: PROJECT_SETTINGS.name,
+      url: "https://altrp.org",
     },
   ],
-  creator: "Onlytest",
+  creator: PROJECT_SETTINGS.name,
   icons: [
     {
       rel: "icon",
@@ -105,7 +104,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Onlytest" />
+        <meta name="apple-mobile-web-app-title" content={PROJECT_SETTINGS.name} />
       </head>
 
       <body className={`${golosText.variable} ${geistSans.variable} ${unbounded.variable} antialiased font-sans`} suppressHydrationWarning>

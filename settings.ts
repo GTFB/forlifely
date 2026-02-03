@@ -1,49 +1,15 @@
-import { 
-  FileText, 
-  Component, 
-  Users, 
-  Cpu, 
-  Share2, 
-  TestTube, 
-  CheckCircle, 
-  Code,
-  LucideIcon
-} from 'lucide-react'
+export const PROJECT_SETTINGS = {
+  name: 'Altrp',
+  description: 'The first truly open operating system for SMBs. Combine a rock-solid digital foundation with AI agents and modular plugins while maintaining total data and API sovereignty.',
+  defaultLanguage: 'en',
+  defaultTheme: 'light' as 'light' | 'dark',
+  supportedThemes: ['light', 'dark',],
+} as const;
 
-// Layout configuration
 export const LAYOUT_CONFIG = {
   containerWidth: '1440px',
 } as const;
 
-// Map of icon names to Lucide React components
-const ICON_MAP: Record<string, LucideIcon> = {
-  'FileText': FileText,
-  'Component': Component,
-  'Users': Users,
-  'Cpu': Cpu,
-  'Share2': Share2,
-  'TestTube': TestTube,
-  'CheckCircle': CheckCircle,
-  'Code': Code,
-}
-
-
-export interface NavigationItem {
-  id: string
-  title: string
-  icon: LucideIcon
-  href: string
-}
-
-export const PROJECT_SETTINGS = {
-  name: 'Onlytest',
-  description: 'MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования',
-  defaultLanguage: 'ru',
-  defaultTheme: 'dark' as 'light' | 'dark',
-  supportedThemes: ['light', 'dark',],
-} as const;
-
-// Language configuration (ordered by popularity)
 export const LANGUAGES = [
   { code: 'en', name: 'English', shortName: 'EN' },
   // { code: 'zh', name: '中文', shortName: 'CN' },
@@ -60,7 +26,6 @@ export const LANGUAGES = [
   // { code: 'rs', name: 'Srpski', shortName: 'RS' },
 ] as const;
 
-// Get supported language codes
 export const SUPPORTED_LANGUAGES: string[] = LANGUAGES.map(lang => lang.code);
 
 export const CMS_PROVIDER: 'mdx' | 'sqlite' = 'sqlite'

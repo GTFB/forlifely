@@ -1,7 +1,7 @@
 {
-  "name": "Onlytest",
-  "short_name": "onlytest",
-  "description": "MVP веб-платформа, соединяющая разработчиков игр (B2B) и тестеров (B2C) для проведения функционального (QA) и фокус-группового (FGT) тестирования",
+  "name": "Altrp",
+  "short_name": "altrp",
+  "description": "The first truly open operating system for SMBs. Combine a rock-solid digital foundation with AI agents and modular plugins while maintaining total data and API sovereignty.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -17,43 +17,44 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://altrp.org'),
-  title: "ALTRP",
-  description: "Digital Product Generation Platform",
+  title: PROJECT_SETTINGS.name,
+  description: PROJECT_SETTINGS.description,
   keywords: [
-    "digital products",
-    "product generation",
-    "platform development",
-    "web applications",
-    "mobile apps",
-    "software development",
-    "digital solutions",
-    "productivity tools",
-    "automation",
-    "technology platform"
+    "SMB platform",
+    "digital foundation",
+    "headless CMS",
+    "e-commerce",
+    "CRM",
+    "LMS",
+    "AI agents",
+    "API-first",
+    "business automation",
+    "no-code",
+    "low-code",
   ],
   openGraph: {
     type: "website",
-    siteName: "ALTRP",
+    siteName: PROJECT_SETTINGS.name,
     locale: "ru_RU",
     url: "https://altrp.org",
-    title: "ALTRP - Digital Product Generation Platform",
-    description: "Digital Product Generation Platform",
+    title: `${PROJECT_SETTINGS.name} — ${PROJECT_SETTINGS.description}`,
+    description: PROJECT_SETTINGS.description,
     images: [
       {
         url: "/images/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "ALTRP",
+        alt: PROJECT_SETTINGS.name,
       },
     ],
   },
   authors: [
     {
-      name: "ALTRP",
+      name: PROJECT_SETTINGS.name,
       url: "https://altrp.org",
     },
   ],
-  creator: "ALTRP",
+  creator: PROJECT_SETTINGS.name,
   icons: [
     {
       rel: "icon",

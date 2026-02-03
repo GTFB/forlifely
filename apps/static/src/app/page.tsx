@@ -1,22 +1,19 @@
-"use client";
+import type { Metadata } from "next";
+import { HomeClient } from "@/components/pages/HomeClient";
+import { getTranslations, getTranslationValue } from "@/lib/get-translations";
+import { PROJECT_SETTINGS } from "@/settings";
 
-import * as React from "react";
-import HeroSection from "@/components/home/hero-section";
-import HowItWorksSection from "@/components/home/how-it-works-section";
-import BenefitsSection from "@/components/home/benefits-section";
-import { LogoCloud } from "@/components/home/logo-cloud";
-import Testimonials from "@/components/home/testimonials";
-import FooterSection from "@/components/marketing-blocks/footer";
+export async function generateMetadata(): Promise<Metadata> {
+  const translations = await getTranslations();
+  const title = getTranslationValue(translations, "pages.home.title") || "Home";
+  const description = getTranslationValue(translations, "pages.home.description") || PROJECT_SETTINGS.description;
+
+  return {
+    title: `${title} | ${PROJECT_SETTINGS.name}`,
+    description,
+  };
+}
 
 export default function Home() {
-  return (
-    <div className="flex-1">
-      <HeroSection />
-      <HowItWorksSection />
-      <BenefitsSection />
-      <LogoCloud />
-      <Testimonials />
-      <FooterSection />
-    </div>
-  );
+  return <HomeClient />;
 }

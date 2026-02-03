@@ -610,5 +610,220 @@
       "wallets": "Money",
       "wallet_transactions": "Money Movement"
     }
+  },
+  "pages": {
+    "home": {
+      "title": "Home",
+      "description": "Central operating system for small and medium businesses"
+    },
+    "services": {
+      "title": "Services",
+      "description": "Our comprehensive range of services"
+    },
+    "catalog": {
+      "title": "Product Catalog",
+      "description": "Browse our complete product catalog"
+    },
+    "projects": {
+      "title": "Portfolio",
+      "description": "Our completed projects and case studies"
+    },
+    "team": {
+      "title": "Our Team",
+      "description": "Meet the professionals behind our success"
+    },
+    "blog": {
+      "title": "Blog",
+      "description": "Latest news, insights, and updates"
+    },
+    "news": {
+      "title": "News",
+      "description": "Company news and announcements"
+    },
+    "vendors": {
+      "title": "Vendors",
+      "description": "Our trusted partners and vendors"
+    },
+    "ads": {
+      "title": "Advertisements",
+      "description": "Current advertisements and promotions"
+    },
+    "events": {
+      "title": "Events",
+      "description": "Upcoming and past events"
+    },
+    "objects": {
+      "title": "Objects",
+      "description": "Our facilities and locations"
+    },
+    "legal": {
+      "title": "Legal Information",
+      "description": "Legal documents and information"
+    },
+    "knowledge_base": {
+      "title": "Knowledge Base",
+      "description": "Help articles and documentation"
+    },
+    "jobs": {
+      "title": "Careers",
+      "description": "Join our team - open positions"
+    },
+    "testimonials": {
+      "title": "Testimonials",
+      "description": "What our clients say about us"
+    },
+    "prices": {
+      "title": "Pricing",
+      "description": "Our pricing plans and packages"
+    },
+    "wholesale": {
+      "title": "Wholesale",
+      "description": "Wholesale pricing and information"
+    },
+    "about_us": {
+      "title": "About Us",
+      "description": "Learn more about our company"
+    },
+    "history": {
+      "title": "Company History",
+      "description": "Our journey and milestones"
+    },
+    "locations": {
+      "title": "Locations",
+      "description": "Our offices and branches"
+    },
+    "investors": {
+      "title": "For Investors",
+      "description": "Information for investors"
+    },
+    "tenders": {
+      "title": "Procurement",
+      "description": "Current tenders and procurement opportunities"
+    },
+    "certificates": {
+      "title": "Certificates & Licenses",
+      "description": "Our certifications and licenses"
+    },
+    "press": {
+      "title": "Press",
+      "description": "Media coverage and press releases"
+    },
+    "csr": {
+      "title": "Corporate Social Responsibility",
+      "description": "Our commitment to social responsibility"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "description": "Answers to common questions"
+    },
+    "promotions": {
+      "title": "Promotions & Special Offers",
+      "description": "Current promotions and special offers"
+    },
+    "loyalty_program": {
+      "title": "Loyalty Program",
+      "description": "Benefits of our loyalty program"
+    },
+    "affiliate_program": {
+      "title": "Affiliate Program",
+      "description": "Join our affiliate program"
+    },
+    "franchise": {
+      "title": "Franchise",
+      "description": "Franchise opportunities"
+    },
+    "gallery": {
+      "title": "Photo Gallery",
+      "description": "Our photo gallery"
+    },
+    "video": {
+      "title": "Video Reviews",
+      "description": "Video content and reviews"
+    },
+    "appointment": {
+      "title": "Book an Appointment",
+      "description": "Schedule a meeting with us"
+    },
+    "contacts": {
+      "title": "Contact Us",
+      "description": "Get in touch with us"
+    },
+    "search": {
+      "title": "Search Results",
+      "description": "Search results"
+    },
+    "cart": {
+      "title": "Shopping Cart",
+      "description": "Your shopping cart"
+    },
+    "checkout": {
+      "title": "Checkout",
+      "description": "Complete your order"
+    },
+    "compare": {
+      "title": "Compare Products",
+      "description": "Compare selected products"
+    },
+    "wishlist": {
+      "title": "Wishlist",
+      "description": "Your saved items"
+    },
+    "not_found": {
+      "title": "Page Not Found",
+      "description": "The page you're looking for doesn't exist"
+    },
+    "sitemap": {
+      "title": "Sitemap",
+      "description": "Site structure and navigation"
+    },
+    "sign_in": {
+      "title": "Sign In",
+      "description": "Sign in to your account"
+    },
+    "sign_up": {
+      "title": "Sign Up",
+      "description": "Create a new account"
+    },
+    "email_confirmation": {
+      "title": "Email Confirmation",
+      "description": "Confirm your email address"
+    },
+    "password_recovery": {
+      "title": "Password Recovery",
+      "description": "Recover your password"
+    },
+    "under_construction": {
+      "title": "Under Construction",
+      "description": "This page is currently under construction"
+    },
+    "coming_soon": {
+      "title": "Coming Soon",
+      "description": "This page will be available soon"
+    },
+    "system_status": {
+      "title": "System Status",
+      "description": "Current system status and uptime"
+    },
+    "unsubscribe": {
+      "title": "Unsubscribe",
+      "description": "Unsubscribe from our mailing list"
+    },
+    "thank_you": {
+      "title": "Thank You",
+      "description": "Thank you for your submission"
+    }
+  },
+  "footer": {
+    "groups": {
+      "main": "Main",
+      "Products": "Products",
+      "Technical": "Technical",
+      "social_networks": "Social Networks"
+    },
+    "all_rights_reserved": "All rights reserved",
+    "get_support": "Get Support :",
+    "newsletter": "Sign up for newsletter :",
+    "newsletter_placeholder": "Name*",
+    "address": "Delaware, US"
   }
 }

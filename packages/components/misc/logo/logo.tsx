@@ -29,7 +29,7 @@ export function Logo({ className }: LogoProps) {
     )}>
       <Image 
         src={logoSrc}
-        alt="Sun Day Logo" 
+        alt={PROJECT_SETTINGS.name} 
         width={90} 
         height={32}
         priority
