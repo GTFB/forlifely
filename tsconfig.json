@@ -16,7 +16,9 @@
     "types": [],
     "paths": {
       "@/*": [
-        "./*"
+        "./*",
+        "./apps/site/src/*",
+        "./apps/app/src/*"
       ],
       "@/db/*": [
         "./packages/db/*"

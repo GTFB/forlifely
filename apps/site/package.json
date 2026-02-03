@@ -10,7 +10,7 @@
     "dev:wrangler": "bun run build:static && wrangler pages dev --port 3305",
     "dev:all": "cross-env NEXT_PORT=3103 WRANGLER_PORT=3303 PROXY_PORT=3405 node scripts/dev-server.mjs",
     "build": "next build --experimental-build-mode compile",
-    "build:static": "cross-env STATIC_EXPORT=true next build",
+    "build:static": "cross-env STATIC_EXPORT=true next build && node scripts/generate-redirects.mjs",
     "start": "next start -p 3100",
     "type-check": "tsc --noEmit",
     "type-check:save": "powershell -Command \"if (-not (Test-Path test-results)) { New-Item -ItemType Directory -Path test-results | Out-Null }; tsc --noEmit *> test-results/errors.log 2>&1\"",

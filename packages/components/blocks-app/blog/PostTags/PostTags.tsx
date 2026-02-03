@@ -13,8 +13,7 @@ export function PostTags({ tags, className = "" }: PostTagsProps) {
   if (!tags || tags.length === 0) {
     return null;
   }
-  const {locale} =  useAltrpLocale()
-  const localePath = locale !== "" ? `/${locale}` : "";
+  const {localePath} =  useAltrpLocale()
 
   const pathname = usePathname();
 

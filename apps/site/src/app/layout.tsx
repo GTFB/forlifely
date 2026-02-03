@@ -5,7 +5,6 @@ import { Unbounded } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
-import { LocaleProvider } from "@/contexts/LocaleContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -109,11 +108,9 @@ export default function RootLayout({
       </head>
 
       <body className={`${golosText.variable} ${geistSans.variable} ${unbounded.variable} antialiased font-sans`} suppressHydrationWarning>
-        <LocaleProvider locale={''}>
           <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
             {children}
           </ThemeProvider>
-        </LocaleProvider>
       </body>
     </html>
   );

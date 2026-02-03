@@ -6,6 +6,7 @@ import type { LanguageCode } from '@/lib/i18n'
 
 type LocaleContextType = {
   locale: LanguageCode | ''
+  localePath: string
   setLocale: (locale: LanguageCode) => void
 }
 
@@ -16,7 +17,7 @@ type LocaleProviderProps = {
   locale?: string | string[] | undefined
 }
 
-export function LocaleProvider({ children, locale: localeProp }: LocaleProviderProps) {
+export function SiteLocaleProvider({ children, locale: localeProp }: LocaleProviderProps) {
   // Extract locale from prop (can be string, string[], or undefined)
   const localeFromProp = useMemo(() => {
     // Handle undefined or null
@@ -73,6 +74,7 @@ export function LocaleProvider({ children, locale: localeProp }: LocaleProviderP
   const value = useMemo(
     () => ({
       locale: currentLocale,
+      localePath: (currentLocale === '' || currentLocale === PROJECT_SETTINGS.defaultLanguage) ? '' : `/${currentLocale}`,
       setLocale,
     }),
     [currentLocale]
@@ -85,7 +87,11 @@ export function LocaleProvider({ children, locale: localeProp }: LocaleProviderP
   )
 }
 
-export function useAltrpLocale() {
+export function useAltrpLocale(): {
+  locale: LanguageCode | ''
+  localePath: string
+  setLocale: (locale: LanguageCode) => void
+} {
   const context = useContext(LocaleContext)
   if (context === undefined) {
     throw new Error('useAltrpLocale must be used within a LocaleProvider')
