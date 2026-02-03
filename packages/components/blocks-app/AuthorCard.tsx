@@ -2,7 +2,6 @@
 
 import { type Author } from "@/packages/types/author";
 import Link from "next/link";
-import { useLocale } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -12,14 +11,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { User } from "lucide-react";
+import { useAltrpLocale } from '@/contexts/LocaleContext'
 
 interface AuthorCardProps {
   author: Author;
 }
 
 export function AuthorCard({ author }: AuthorCardProps) {
-  const locale = useLocale() === "en" ? "" : useLocale();
-  const localePath = locale !== "" ? `/${locale}` : "";
+
+  const localePath = useAltrpLocale() !== "" ? `/${useAltrpLocale()}` : "";
 
   return (
     <Card className="hover:shadow-md transition-shadow">

@@ -1,7 +1,7 @@
 'use client'
 
 import RoleAuthGuard from "@/components/guards/RoleAuthGuard"
-import { sidebarNavItems } from '@/app/m/nav'
+import { sidebarNavItems } from '@/app/(private)/m/nav'
 import React, { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

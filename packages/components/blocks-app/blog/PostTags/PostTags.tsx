@@ -1,8 +1,8 @@
 "use client";
 import { Badge } from "@/components/ui/badge";
-import { useLocale } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAltrpLocale } from '@/contexts/LocaleContext'
 
 interface PostTagsProps {
   tags: string[];
@@ -13,10 +13,12 @@ export function PostTags({ tags, className = "" }: PostTagsProps) {
   if (!tags || tags.length === 0) {
     return null;
   }
-
-  const locale = useLocale() !== "en" ? useLocale() : "";
+  const {locale} =  useAltrpLocale()
   const localePath = locale !== "" ? `/${locale}` : "";
+
   const pathname = usePathname();
+
+
 
   const currentTag = pathname.match(/\/tags\/([^/]+)/)?.[1];
 

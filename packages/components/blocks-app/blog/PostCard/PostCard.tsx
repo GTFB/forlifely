@@ -1,16 +1,15 @@
 "use client";
 
 import { type Post } from "@/packages/types/post";
-import { useLocale } from "next-intl";
 import { PostTags } from "@/components/blocks-app/blog/PostTags";
 import { PostMeta } from "@/components/blocks-app/blog/PostMeta";
 
 interface PostCardProps {
   post: Post;
+  locale?: string
 }
 
-export function PostCard({ post }: PostCardProps) {
-  const locale = useLocale() !== "en" ? useLocale() : "";
+export function PostCard({ post, locale = '' }: PostCardProps) {
   const localePath = locale !== "" ? `/${locale}` : "";
 
   return (
