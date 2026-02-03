@@ -1,18 +1,14 @@
-import type { Metadata } from "next";
-import { FAQClient } from "@/components/pages/FAQClient";
-import { getTranslations, getTranslationValue } from "@/lib/get-translations";
-import { PROJECT_SETTINGS } from "@/settings";
+"use client";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const translations = await getTranslations();
-  const title = getTranslationValue(translations, "pages.faq.title") || "FAQ";
-  const description = getTranslationValue(translations, "pages.faq.description") || "";
-
-  return {
-    title: `${title} | ${PROJECT_SETTINGS.name}`,
-    description,
-  };
-}
+import * as React from "react";
+import { HeroHeader } from "@/components/home/header";
+import FooterSection from "@/components/marketing-blocks/footer";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const faq = [
   {
@@ -57,10 +53,32 @@ const faq = [
   },
 ];
 
-export default async function FAQPage() {
-  const translations = await getTranslations();
-  const title = getTranslationValue(translations, "pages.faq.title") || "FAQ";
+export default function FAQPage() {
+  return (
+    <div className="flex-1">
+      <HeroHeader />
+      <div className="min-h-screen flex items-center justify-center px-6 pt-24 py-12">
+        <div className="max-w-3xl w-full">
+          <h1 className="text-4xl md:text-5xl font-semibold tracking-tighter mb-8">
+            Ответы на частые вопросы
+          </h1>
 
-  return <FAQClient title={title} faq={faq} />;
+          <Accordion type="multiple" className="w-full">
+            {faq.map((item, index) => (
+              <AccordionItem key={item.question} value={`question-${index}`}>
+                <AccordionTrigger className="text-left text-lg">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-base text-muted-foreground">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </div>
+      <FooterSection />
+    </div>
+  );
 }
 

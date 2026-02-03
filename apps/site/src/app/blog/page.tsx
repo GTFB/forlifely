@@ -1,21 +1,23 @@
+import type { Metadata } from "next";
+import { BlogClient } from "@/components/pages/BlogClient";
+import { getTranslations, getTranslationValue } from "@/lib/get-translations";
+import { PROJECT_SETTINGS } from "@/settings";
 
-import * as React from "react";
-import { TextsRepository } from "@/shared/repositories/texts.repository";
-import { TaxonomyRepository } from "@/shared/repositories/taxonomy.repository";
-import BlogPageComponent from "@/components/admin/pages/BlogPageComponent";
+export async function generateMetadata(): Promise<Metadata> {
+  const translations = await getTranslations();
+  const title = getTranslationValue(translations, "pages.blog.title") || "Blog";
+  const description = getTranslationValue(translations, "pages.blog.description") || "";
 
-export default async function BlogPage() {
-  const textsRepository = TextsRepository.getInstance();
-  const taxonomyRepository = TaxonomyRepository.getInstance();
-  const blogPosts = await textsRepository.findPublishedByType("BLOG");
-  const categories = await taxonomyRepository.getTaxonomies({
-    filters: {
-      conditions: [
-        { field: "entity", operator: "eq", values: ["blog.category"] },
-      ],
-    },
-  });
-
-  return <BlogPageComponent blogPosts={blogPosts} categories={categories.docs.map((category) => category.name).filter(Boolean)} />;
+  return {
+    title: `${title} | ${PROJECT_SETTINGS.name}`,
+    description,
+  };
 }
 
+export default async function BlogPage() {
+  const translations = await getTranslations();
+  const title = getTranslationValue(translations, "pages.blog.title") || "Blog";
+  const description = getTranslationValue(translations, "pages.blog.description") || "";
+
+  return <BlogClient title={title} description={description} />;
+}

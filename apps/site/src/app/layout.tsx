@@ -1,18 +1,32 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import { Golos_Text } from "next/font/google";
+import { Unbounded } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { PROJECT_SETTINGS } from "@/settings";
-import { ScriptOptimizer } from "@/components/ui/script-optimizer";
-import { AccessibilityEnhancer } from "@/components/ui/accessibility-enhancer";
-import { PerformanceMonitor } from "@/components/ui/performance-monitor";
-import { PageTransition } from "@/components/ui/page-transition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   preload: true,
   fallback: ['system-ui', 'arial'],
+});
+
+const golosText = Golos_Text({
+  variable: "--font-sans",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  preload: true,
+  fallback: ['ui-sans-serif', 'system-ui', 'sans-serif'],
+});
+
+const unbounded = Unbounded({
+  variable: "--font-heading",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
+  preload: true,
+  fallback: ['ui-sans-serif', 'sans-serif', 'system-ui'],
 });
 
 export const metadata: Metadata = {
@@ -58,7 +72,7 @@ export const metadata: Metadata = {
   icons: [
     {
       rel: "icon",
-      url: "/images/favicon.jpg",
+      url: "/images/favicon.png",
     },
   ],
   robots: {
@@ -74,25 +88,29 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" suppressHydrationWarning className={PROJECT_SETTINGS.defaultTheme === 'light' ? 'light' : 'dark'}>
+    <html lang="ru" suppressHydrationWarning>
       <head>
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preload" href="/images/logo.svg" as="image" type="image/svg+xml" />
+        <link rel="preload" href="/images/logo_dark.svg" as="image" type="image/svg+xml" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <meta name="theme-color" content="#82181A" />
         <meta name="color-scheme" content="light dark" />
         <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content={PROJECT_SETTINGS.name} />
       </head>
 
-      <body className={`${geistSans.variable} antialiased`} suppressHydrationWarning>
-        <ScriptOptimizer />
-        <AccessibilityEnhancer />
-        <PerformanceMonitor />
-        <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
-            {children}
-        </ThemeProvider>
+      <body className={`${golosText.variable} ${geistSans.variable} ${unbounded.variable} antialiased font-sans`} suppressHydrationWarning>
+            <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
+                {children}
+            </ThemeProvider>
       </body>
     </html>
   );
