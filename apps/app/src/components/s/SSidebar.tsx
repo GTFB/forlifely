@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/application-blocks/nav-user"
 import { useResizableSidebar } from "@/packages/hooks/use-resizable-sidebar"
-import { sidebarNavItems } from "@/app/s/nav"
+import { sidebarNavItems } from "@/app/(private)/s/nav"
 import { useMe } from "@/providers/MeProvider"
 import { Logo } from "@/packages/components/misc/logo/logo"
 

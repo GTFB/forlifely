@@ -163,17 +163,18 @@ const NavMainItem = React.memo(function NavMainItem({
       const collection = urlObj.searchParams.get('c')
       const page = urlObj.searchParams.get('p')
       const pageSize = urlObj.searchParams.get('ps')
-      
-      if (collection) {
-        pushState({
-          collection,
-          page: page ? Number(page) : 1,
-          pageSize: pageSize ? Number(pageSize) : 10,
-        })
-      } else {
-        // Fallback to regular navigation
-        router.push(url)
-      }
+      router.push(url)
+
+      // if (collection) {
+      //   pushState({
+      //     collection,
+      //     page: page ? Number(page) : 1,
+      //     pageSize: pageSize ? Number(pageSize) : 10,
+      //   })
+      // } else {
+      //   // Fallback to regular navigation
+      //   router.push(url)
+      // }
     }
     // For other links (like /admin/sql-editor), let Link handle it normally
   }, [pushState, router])

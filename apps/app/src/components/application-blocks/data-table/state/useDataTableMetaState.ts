@@ -41,9 +41,9 @@ export function useDataTableMetaState(collection: string) {
   // Load Taxonomy config when collection is taxonomy
   React.useEffect(() => {
     if (collection === "taxonomy" && typeof window !== "undefined") {
-      import("../../../../../../app/src/collections/Taxonomy")
+      import("@/shared/collections/taxonomy")
         .then((module) => {
-          setTaxonomyConfig(module.Taxonomy)
+          setTaxonomyConfig(module.default)
         })
         .catch((e) => {
           console.error("[DataTable] Failed to load Taxonomy config:", e)

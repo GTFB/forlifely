@@ -6,7 +6,8 @@ import { PROJECT_SETTINGS } from "@/settings";
 import { ScriptOptimizer } from "@/components/ui/script-optimizer";
 import { AccessibilityEnhancer } from "@/components/ui/accessibility-enhancer";
 import { PerformanceMonitor } from "@/components/ui/performance-monitor";
-import { PageTransition } from "@/components/ui/page-transition";
+import { MeProvider } from "@/providers/MeProvider";
+import { ChatProvider } from "@/components/chat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -90,9 +91,13 @@ export default function RootLayout({
         <ScriptOptimizer />
         <AccessibilityEnhancer />
         <PerformanceMonitor />
-        <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
-            {children}
-        </ThemeProvider>
+        <MeProvider>
+          <ChatProvider>
+            <ThemeProvider attribute="class" defaultTheme={PROJECT_SETTINGS.defaultTheme} enableSystem={false}>
+              {children}
+            </ThemeProvider>
+          </ChatProvider>
+        </MeProvider>
       </body>
     </html>
   );

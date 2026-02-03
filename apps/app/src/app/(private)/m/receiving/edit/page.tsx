@@ -18,7 +18,7 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { ManagerAddEditInventoryItem } from '@/components/m/ManagerAddEditInventoryItem'
 import { useManager } from '@/contexts/ManagerContext'
-import { type InventoryItem } from '@/app/s/receiving/edit/page'
+import { type InventoryItem } from '@/app/(private)/s/receiving/edit/page'
 
 type Location = {
   laid: string

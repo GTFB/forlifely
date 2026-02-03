@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { usePathname } from "next/navigation"
-import { sidebarNavItems } from "@/app/s/nav"
+import { sidebarNavItems } from "@/app/(private)/s/nav"
 
 export function SHeader() {
   const pathname = usePathname()
