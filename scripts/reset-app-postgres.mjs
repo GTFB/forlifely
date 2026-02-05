@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import pg from 'pg';
-import { ensureSiteDatabaseUrl } from './utils/site-db-config.mjs';
+import { ensureSiteDatabaseUrl } from './utils/app-db-config.mjs';
 
 const { Client } = pg;
 
@@ -25,7 +25,7 @@ async function resetPostgresSchema() {
     await client.query('COMMIT');
     console.log('\n✅ Database schema reset successfully!\n');
     console.log('You can now run migrations to recreate the schema:');
-    console.log('   npm run db:site:migrate:local\n');
+    console.log('   npm run db:app:migrate:local\n');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('\n❌ Failed to reset database:');

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Client } from 'pg';
-import { ensureSiteDatabaseUrl } from './utils/site-db-config.mjs';
+import { ensureSiteDatabaseUrl } from './utils/app-db-config.mjs';
 
 async function checkSuffixColumn() {
   ensureSiteDatabaseUrl();

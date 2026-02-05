@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 // Path to local D1 database (created by wrangler)
-const dbPath = join(__dirname, '../apps/site/.wrangler/state/v3/d1/miniflare-D1DatabaseObject')
+const dbPath = join(__dirname, '../apps/app/.wrangler/state/v3/d1/miniflare-D1DatabaseObject')
 
 // Try to find the actual SQLite file using Bun's readdir
 async function findDbFile(basePath: string): Promise<string | null> {
@@ -68,7 +68,7 @@ const dbFilePath = await findDbFile(dbPath)
 if (!dbFilePath) {
   console.error(`❌ Could not find D1 database file in ${dbPath}`)
   console.error(`   Make sure wrangler dev server has been run at least once:`)
-  console.error(`   bun run dev:wrangler:site`)
+  console.error(`   bun run dev:wrangler:app`)
   console.error(`   Then stop it and run this script.`)
   process.exit(1)
 }
@@ -81,7 +81,7 @@ Channel	TELEGRAM	Telegram	300		4617b51a-28f5-4690-b92e-1c6d32fe8662
 Channel	WHATSAPP	Whatsapp	400		06938620-7e98-4c69-8dca-8800bf502221
 Channel	MATRIX	Matrix	500		e4136d8a-428d-478f-a9e8-9edad08b4be5
 Channel	CHATGPT	ChatGPT	600		52eb4423-b95e-45aa-87ed-5ece53203902
-Channel	WEBSITE	Website	700		474eada9-cdd5-405b-95a3-0549f114ead7
+Channel	WEBSITE	Webapp	700		474eada9-cdd5-405b-95a3-0549f114ead7
 Channel	PUSH	Push	800		d8a0becb-c2f2-45d4-b4ff-a220120e6d28
 Channel	SMS	SMS	900		19298e5a-ea0f-42bf-8014-c7246ffd0729
 City	NOVI_SAD	Novi Sad	1000		aebde375-1bc0-4234-b43b-7f4bccc69f19
@@ -107,7 +107,7 @@ Asset	REPORT	Report	2900		915538a1-01c5-4d53-9e62-d5928547b0eb
 Asset	PRESENTATION	Presentation	3000		0ecaf832-b8dc-455b-8209-b50267aa40b0
 Asset	CERTIFICATE	Certificate	3100		f529946d-8cf6-455d-a999-5a517a0de71c
 Asset	ACCOUNT	Account	3200		01ed6cf3-c700-4390-8f50-770fa19410a0
-Asset	WEBSITE	Website	3300		8f3a3a0f-7b62-4571-921f-39c738a195a6
+Asset	WEBSITE	Webapp	3300		8f3a3a0f-7b62-4571-921f-39c738a195a6
 Base	RECEIVING	🟢 Receiving	3400		ea2d25ab-5450-484b-b4cb-4034a8028171
 Base	SHIPPING	🔴 Shipping	3500		bb3f43aa-bacb-40bf-a2d6-2e04ed2eac18
 Base	RESERVATION	🟡 Reservation	3600		bce3c196-95de-4ea4-ac0d-a635702a9964
@@ -438,7 +438,7 @@ const TITLE_TRANSLATIONS: Record<string, string> = {
   'Whatsapp': 'Whatsapp',
   'Matrix': 'Matrix',
   'ChatGPT': 'ChatGPT',
-  'Website': 'Веб-сайт',
+  'Webapp': 'Веб-сайт',
   'Push': 'Push',
   'SMS': 'SMS',
   // City
