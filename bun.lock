@@ -129,6 +129,7 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20251109.0",
+        "@playwright/test": "^1.55.1",
         "@types/minimatch": "^6.0.0",
         "@types/node": "^20.14.11",
         "@types/react": "^19",

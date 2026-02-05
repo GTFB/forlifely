@@ -26,7 +26,10 @@
     "d1:query:local": "wrangler d1 execute altrp-site-db --local",
     "d1:query:remote": "wrangler d1 execute altrp-site-db --remote",
     "hash-password": "node scripts/hash-password.mjs",
-    "test:int": "bun test --config ./tsconfig.json test/int/"
+    "test:int": "bun test --config ./tsconfig.json test/int/",
+    "test:e2e": "playwright test",
+    "test:e2e:public-pages": "playwright test test/e2e/public-pages.spec.ts",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@aws-sdk/client-rekognition": "^3.948.0",
@@ -142,6 +145,7 @@
     "cssnano": "^7.0.6",
     "eslint": "^8.0.0",
     "eslint-config-next": "^16.1.1",
+    "@playwright/test": "^1.55.1",
     "typescript": "^5.5.4",
     "wrangler": "^4.51.0"
   }
