@@ -56,6 +56,21 @@ class I18nService {
   }
 
   private async fetchTranslations(locale: string): Promise<Translations> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(`/api/locales/${locale}`)
+        if (response.ok) {
+          const text = await response.text()
+          try {
+            return JSON.parse(text) as Translations
+          } catch {
+            console.warn(`[I18nService] Invalid JSON from /api/locales/${locale}, using direct import`)
+          }
+        }
+      } catch (e) {
+        console.warn(`[I18nService] Fetch translations failed for ${locale}:`, e)
+      }
+    }
     try {
       const module = await import(`@/packages/content/locales/${locale}.json`)
       return module.default || module

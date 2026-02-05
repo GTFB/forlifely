@@ -97,7 +97,12 @@ export function MeProvider({
       }
 
       const text = await response.text()
-      const data = (text ? JSON.parse(text) : {}) as { user?: MeUser }
+      let data: { user?: MeUser }
+      try {
+        data = (text ? JSON.parse(text) : {}) as { user?: MeUser }
+      } catch {
+        data = {}
+      }
 
       if (authDebugEnabled && typeof window !== 'undefined') {
         setAuthDebug({
