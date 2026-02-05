@@ -115,7 +115,13 @@ export const AdminHeader = React.memo(function AdminHeader({
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
-        const translationsData = await response.json() as { dataTable?: { adminPanel?: string }; taxonomy?: { entityOptions?: Record<string, string> } }
+        const text = await response.text()
+        let translationsData: { dataTable?: { adminPanel?: string }; taxonomy?: { entityOptions?: Record<string, string> } }
+        try {
+          translationsData = JSON.parse(text)
+        } catch {
+          throw new Error('Invalid JSON from locales API')
+        }
         setTranslations(translationsData)
         
         // Cache translations

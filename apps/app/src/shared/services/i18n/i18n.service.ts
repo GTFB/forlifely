@@ -85,8 +85,12 @@ class I18nService {
       try {
         const response = await fetch(`/api/locales/${locale}`)
         if (response.ok) {
-          const translations = await response.json() as Translations
-          return translations
+          const text = await response.text()
+          try {
+            return JSON.parse(text) as Translations
+          } catch {
+            console.warn(`[I18nService] Invalid JSON from /api/locales/${locale}, using direct import`)
+          }
         }
       } catch (e) {
         console.warn(`[I18nService] Failed to fetch translations from API for ${locale}, trying direct import:`, e)

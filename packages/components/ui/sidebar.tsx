@@ -317,7 +317,13 @@ function SidebarTrigger({
         if (!response.ok) {
           throw new Error(`Failed to load translations: ${response.status}`)
         }
-        const translationsData = await response.json() as any
+        const text = await response.text()
+        let translationsData: any
+        try {
+          translationsData = JSON.parse(text)
+        } catch {
+          return
+        }
         setToggleSidebarText(translationsData?.dataTable?.toggleSidebar || "Toggle Sidebar")
         
         // Cache translations

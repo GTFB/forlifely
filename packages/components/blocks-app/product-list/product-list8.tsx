@@ -8,7 +8,6 @@ import z from "zod";
 
 import { cn } from "@/lib/utils";
 
-import { Price, PriceValue } from "@/components/shadcnblocks/price";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +58,16 @@ interface ProductPrice {
   sale?: number;
   currency: string;
   discount?: `-${number}%`;
+}
+
+function ProductPriceDisplay({ price, currency, variant, onSale }: { price: number; currency: string; variant: "sale" | "regular"; onSale?: boolean }) {
+  const formatted = new Intl.NumberFormat(undefined, { style: "currency", currency }).format(price);
+  if (variant === "sale") return <span className="text-primary font-medium">{formatted}</span>;
+  return <span className={cn(onSale && "text-muted-foreground line-through text-sm")}>{formatted}</span>;
+}
+
+function Price({ onSale, children }: { onSale: boolean; children: React.ReactNode }) {
+  return <div className="flex flex-wrap items-baseline gap-x-1.5">{children}</div>;
 }
 
 interface ProductFormProps {
@@ -846,8 +855,8 @@ const ProductCard = ({
         <div className="space-y-0.5 pt-3.5">
           <CardTitle className="leading-relaxed">{name}</CardTitle>
           <Price onSale={sale != null}>
-            <PriceValue price={sale} currency={currency} variant="sale" />
-            <PriceValue price={regular} currency={currency} variant="regular" />
+            {sale != null && <ProductPriceDisplay price={sale} currency={currency} variant="sale" />}
+            <ProductPriceDisplay price={regular} currency={currency} variant="regular" onSale={sale != null} />
           </Price>
         </div>
       </CardContent>
