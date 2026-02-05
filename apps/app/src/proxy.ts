@@ -9,24 +9,27 @@ const defaultLocale = PROJECT_SETTINGS.defaultLanguage;
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if pathname starts with default locale - redirect to path without locale
+  // Redirect default locale to path without locale
   if (pathname === `/${defaultLocale}`) {
-    // Redirect /en to /
     return NextResponse.redirect(new URL('/', request.url));
   }
   
   if (pathname.startsWith(`/${defaultLocale}/`)) {
-    // Redirect /en/... to /...
     const pathWithoutLocale = pathname.slice(`/${defaultLocale}`.length);
     return NextResponse.redirect(new URL(pathWithoutLocale || '/', request.url));
   }
 
-  const pathnameHasLocale = locales.some(
-    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
+  // Check if pathname already has a non-default locale
+  const pathnameHasNonDefaultLocale = locales.some(
+    (locale) => locale !== defaultLocale && (pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`)
   );
 
-  if (pathnameHasLocale) return; 
+  // If non-default locale is present, continue as normal
+  if (pathnameHasNonDefaultLocale) {
+    return;
+  }
 
+  // If no locale, add default locale via rewrite (internal, URL stays the same)
   request.nextUrl.pathname = `/${defaultLocale}${pathname}`;
   return NextResponse.rewrite(request.nextUrl);
 }

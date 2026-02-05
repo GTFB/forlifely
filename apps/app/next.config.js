@@ -38,15 +38,9 @@ const PUBLIC_PATHS = [
 const nextConfig = {
   outputFileTracingRoot: ROOT_DIR,
   transpilePackages: ['packages/components'],
-  async redirects() {
-    return PUBLIC_PATHS.map((segment) => ({
-      source: `/${segment}`,
-      destination: `/${DEFAULT_LOCALE}/${segment}`,
-      permanent: false,
-    }))
-  },
+  // redirects() removed - handled by middleware (proxy.ts) to avoid redirect loops
   images: {
-    unoptimized: process.env.NODE_ENV === 'production',
+    unoptimized: true,
     domains: ['images.unsplash.com', 'images.pexels.com'],
     remotePatterns: [
       {

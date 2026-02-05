@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { FAQClient } from "@/components/pages/FAQClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -58,9 +59,12 @@ const faq = [
 ];
 
 export default async function FAQPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.faq) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.faq.title") || "FAQ";
 
-  return <FAQClient title={title} faq={faq} />;
+  return <PUBLIC_PAGES_COMPONENTS.faq title={title} faq={faq} />;
 }
 

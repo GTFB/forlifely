@@ -27,7 +27,7 @@ const nextConfig = {
   outputFileTracingRoot: ROOT_DIR,
   transpilePackages: ['packages/components'],
   images: {
-    unoptimized: process.env.NODE_ENV === 'production',
+    unoptimized: true,
     domains: ['images.unsplash.com', 'images.pexels.com'],
     remotePatterns: [
       {

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { LocationsClient } from "@/components/pages/LocationsClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LocationsPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.locations) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.locations.title") || "Locations";
   const description = getTranslationValue(translations, "pages.locations.description") || "";
 
-  return <LocationsClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.locations title={title} description={description} />;
 }

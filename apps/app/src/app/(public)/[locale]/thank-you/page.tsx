@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { ThankYouClient } from "@/components/pages/ThankYouClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ThankYouPage() {
+  if (!PUBLIC_PAGES_COMPONENTS["thank-you"]) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.thank_you.title") || "Thank You";
   const description = getTranslationValue(translations, "pages.thank_you.description") || "";
 
-  return <ThankYouClient title={title} description={description} />;
+  const Component = PUBLIC_PAGES_COMPONENTS["thank-you"];
+  return <Component title={title} description={description} />;
 }

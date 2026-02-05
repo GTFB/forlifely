@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { FranchiseClient } from "@/components/pages/FranchiseClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function FranchisePage() {
+  if (!PUBLIC_PAGES_COMPONENTS.franchise) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.franchise.title") || "Franchise";
   const description = getTranslationValue(translations, "pages.franchise.description") || "";
 
-  return <FranchiseClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.franchise title={title} description={description} />;
 }

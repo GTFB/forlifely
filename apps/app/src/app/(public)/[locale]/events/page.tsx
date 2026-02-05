@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { EventsClient } from "@/components/pages/EventsClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function EventsPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.events) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.events.title") || "Events";
   const description = getTranslationValue(translations, "pages.events.description") || "";
 
-  return <EventsClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.events title={title} description={description} />;
 }

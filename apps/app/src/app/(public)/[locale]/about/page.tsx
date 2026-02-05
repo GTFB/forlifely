@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations, getTranslationValue, getPageTranslations } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
-import { AboutClient } from "@/components/pages/AboutClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,12 +16,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AboutPage() {
+
+  if(!PUBLIC_PAGES_COMPONENTS.about){
+    notFound()
+  }
   const translations = await getTranslations();
   const pageTranslations = await getPageTranslations("about_us");
   const title = getTranslationValue(translations, "pages.about_us.title") || "About Us";
 
+
   return (
-    <AboutClient
+    <PUBLIC_PAGES_COMPONENTS.about
       title={title}
       mission={pageTranslations.mission}
       values={pageTranslations.values}

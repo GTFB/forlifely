@@ -63,7 +63,7 @@ interface Legal {
   items: LegalInfoItem[];
 }
 
-interface AboutClientProps {
+export interface AboutClientProps {
   title: string;
   mission: Mission;
   values: Values;

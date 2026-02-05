@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { WishlistClient } from "@/components/pages/WishlistClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function WishlistPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.wishlist) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.wishlist.title") || "Wishlist";
   const description = getTranslationValue(translations, "pages.wishlist.description") || "";
 
-  return <WishlistClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.wishlist title={title} description={description} />;
 }

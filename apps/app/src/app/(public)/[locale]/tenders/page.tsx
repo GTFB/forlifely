@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { TendersClient } from "@/components/pages/TendersClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TendersPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.tenders) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.tenders.title") || "Procurement";
   const description = getTranslationValue(translations, "pages.tenders.description") || "";
 
-  return <TendersClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.tenders title={title} description={description} />;
 }

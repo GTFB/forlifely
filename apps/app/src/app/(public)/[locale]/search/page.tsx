@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { SearchClient } from "@/components/pages/SearchClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SearchPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.search) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.search.title") || "Search Results";
   const description = getTranslationValue(translations, "pages.search.description") || "";
 
-  return <SearchClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.search title={title} description={description} />;
 }

@@ -1,36 +1,9 @@
-"use client";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
+import { NotFoundClient } from "@/packages/components/pages/NotFoundClient";
 
-import * as React from "react";
-import { HeroHeader } from "@/components/home/header";
-import FooterSection from "@/components/marketing-blocks/footer";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 export default function NotFound() {
-  return (
-    <div className="flex-1">
-      <HeroHeader />
-      <div className="min-h-screen flex items-center justify-center px-6 pt-24 pb-16">
-        <div className="text-center max-w-md">
-          <h1 className="text-6xl md:text-8xl font-bold mb-4">404</h1>
-          <h2 className="text-2xl md:text-3xl font-semibold mb-4">
-            Страница не найдена
-          </h2>
-          <p className="text-muted-foreground mb-8">
-            К сожалению, запрашиваемая страница не существует или была перемещена.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg">
-              <Link href="/">На главную</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/blog">Блог</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-      <FooterSection />
-    </div>
-  );
+  const _NotFoundcomponent = PUBLIC_PAGES_COMPONENTS['404'] || NotFoundClient
+  return <_NotFoundcomponent/>;
 }
 

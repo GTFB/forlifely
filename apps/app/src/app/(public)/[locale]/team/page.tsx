@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { TeamClient } from "@/components/pages/TeamClient";
+import { PUBLIC_PAGES_COMPONENTS } from "@/app-public-components";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { PROJECT_SETTINGS } from "@/settings";
+import { notFound } from "next/navigation";
 
 export async function generateMetadata(): Promise<Metadata> {
   const translations = await getTranslations();
@@ -15,9 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TeamPage() {
+  if (!PUBLIC_PAGES_COMPONENTS.team) {
+    notFound();
+  }
   const translations = await getTranslations();
   const title = getTranslationValue(translations, "pages.team.title") || "Our Team";
   const description = getTranslationValue(translations, "pages.team.description") || "";
 
-  return <TeamClient title={title} description={description} />;
+  return <PUBLIC_PAGES_COMPONENTS.team title={title} description={description} />;
 }
