@@ -39,7 +39,11 @@ const SignUp05Page = () => {
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
-    console.log(data);
+    const normalizedData = {
+      ...data,
+      email: data.email.toLowerCase(),
+    };
+    console.log(normalizedData);
   };
 
   return (

@@ -48,9 +48,9 @@ export function loadSiteEnv() {
   }
 
   const envFiles = [
-    resolve('apps/site/.env'),
-    resolve('apps/site/.dev.vars'),
-    resolve('apps/site/example.env'),
+    resolve('apps/app/.env'),
+    resolve('apps/app/.dev.vars'),
+    resolve('apps/app/example.env'),
   ];
 
   envFiles.forEach(loadEnvFile);
@@ -63,7 +63,7 @@ export function ensureSiteDatabaseUrl() {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
-      'DATABASE_URL is not defined. Please set it in apps/site/.env or export it before running this script.',
+      'DATABASE_URL is not defined. Please set it in apps/app/.env or export it before running this script.',
     );
   }
 
@@ -75,6 +75,6 @@ export function resolveSiteMigrationsDir() {
     return process.env.MIGRATIONS_DIR;
   }
 
-  return resolve('migrations/site');
+  return resolve('migrations/app');
 }
 

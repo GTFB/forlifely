@@ -143,7 +143,7 @@ export default function LoginPage() {
     setResetSuccess(null)
 
     if (forgotMode) {
-      const email = formData.email.trim()
+      const email = formData.email.trim().toLowerCase()
       if (!email) {
         setError((t.errors as any).emailRequired || t.errors.loginFailed)
         return
@@ -168,12 +168,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const normalizedFormData = {
+        ...formData,
+        email: formData.email.toLowerCase(),
+      }
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(normalizedFormData),
       })
 
       // Check if response is JSON before parsing
@@ -284,7 +288,7 @@ export default function LoginPage() {
   }
 
   const handleResendVerification = async () => {
-    const targetEmail = (pendingEmail || formData.email).trim()
+    const targetEmail = (pendingEmail || formData.email).trim().toLowerCase()
     if (!targetEmail) {
       setError('Укажите email, чтобы отправить письмо повторно.')
       return

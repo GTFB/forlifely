@@ -158,7 +158,7 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: formData.email,
+          email: formData.email.toLowerCase(),
           password: formData.password,
           confirmPassword: formData.confirmPassword,
           lastName: formData.lastName.trim(),

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { ensureSiteDatabaseUrl, resolveSiteMigrationsDir } from './utils/site-db-config.mjs';
+import { ensureSiteDatabaseUrl, resolveSiteMigrationsDir } from './utils/app-db-config.mjs';
 
 function prepareEnvironment() {
   const migrationsDir = resolveSiteMigrationsDir();
@@ -12,7 +12,7 @@ async function runMigrations() {
   prepareEnvironment();
 
   try {
-    await import(new URL('../apps/site/scripts/migrate-postgres.mjs', import.meta.url));
+    await import(new URL('../apps/app/scripts/migrate-postgres.mjs', import.meta.url));
   } catch (error) {
     console.error('\n❌ Failed to execute PostgreSQL migrations:');
     console.error(error.message);
