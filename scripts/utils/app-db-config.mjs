@@ -48,10 +48,11 @@ export function loadSiteEnv() {
   }
 
   const envFiles = [
+    process.env.APP_ENV_FILE,
     resolve('apps/app/.env'),
     resolve('apps/app/.dev.vars'),
     resolve('apps/app/example.env'),
-  ];
+  ].filter(Boolean);
 
   envFiles.forEach(loadEnvFile);
   envLoaded = true;
@@ -63,7 +64,7 @@ export function ensureSiteDatabaseUrl() {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
-      'DATABASE_URL is not defined. Please set it in apps/app/.env or export it before running this script.',
+      'DATABASE_URL is not defined. Set it in apps/app/.env, use APP_ENV_FILE=/path/to/.env, or export DATABASE_URL before running this script.',
     );
   }
 

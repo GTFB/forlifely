@@ -23,16 +23,40 @@ const APP_NODE_MODULES = path.join(APP_DIR, 'node_modules')
 const ROOT_NODE_MODULES = path.join(ROOT_DIR, 'node_modules')
 const useAppNodeModulesFirst = fs.existsSync(APP_NODE_MODULES)
 
+const DEFAULT_LOCALE = 'en'
+const PUBLIC_PATHS = [
+  'about', 'ads', 'affiliate-program', 'appointment', 'blog', 'cart', 'catalog',
+  'certificates', 'checkout', 'coming-soon', 'compare', 'contact', 'csr',
+  'email-confirmation', 'events', 'faq', 'franchise', 'gallery', 'history',
+  'investors', 'jobs', 'knowledge-base', 'legal', 'locations', 'loyalty-program',
+  'news', 'objects', 'password-recovery', 'press', 'prices', 'projects',
+  'promotions', 'search', 'services', 'sign-in', 'sign-up', 'sitemap',
+  'system-status', 'team', 'tenders', 'testimonials', 'thank-you',
+  'under-construction', 'unsubscribe', 'vendors', 'video', 'wholesale', 'wishlist',
+]
+
 const nextConfig = {
   outputFileTracingRoot: ROOT_DIR,
   transpilePackages: ['packages/components'],
+  async redirects() {
+    return PUBLIC_PATHS.map((segment) => ({
+      source: `/${segment}`,
+      destination: `/${DEFAULT_LOCALE}/${segment}`,
+      permanent: false,
+    }))
+  },
   images: {
     unoptimized: process.env.NODE_ENV === 'production',
-    domains: ['images.unsplash.com'],
+    domains: ['images.unsplash.com', 'images.pexels.com'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
         pathname: '/**',
       },
     ],
