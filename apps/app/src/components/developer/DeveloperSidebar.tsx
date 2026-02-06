@@ -253,7 +253,7 @@ export function DeveloperSidebar({ ...props }: React.ComponentProps<typeof Sideb
     return {
       name: user.name || user.email || "Разработчик",
       email: user.email || "",
-      avatar: (user as any).avatarUrl || "/avatars/placeholder-user.jpg",
+      avatar: (user as any).avatarUrl || "/images/avatar-placeholder.svg",
     }
   }, [user])
 

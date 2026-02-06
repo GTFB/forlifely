@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { altrpSupportMessageType } from '@/shared/types/altrp-support'
-import { FileStorageService } from '@/shared/services/file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 
 const handlePost = async (context: AuthenticatedRequestContext) => {
   const { request, user } = context

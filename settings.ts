@@ -28,6 +28,18 @@ export const LANGUAGES = [
 
 export const SUPPORTED_LANGUAGES: string[] = LANGUAGES.map(lang => lang.code);
 
+// Private role-based routes that don't use locale prefix (from (private) folder)
+export const PRIVATE_ROLE_ROUTES = [
+  'a', // admin alternative routes
+  'c', // consumer routes
+  'd', // dealer routes
+  'i', // investor routes
+  'm', // manager routes
+  'p', // partner routes
+  's', // storekeeper routes
+  't', // task routes
+] 
+
 export const CMS_PROVIDER: 'mdx' | 'sqlite' = 'sqlite'
 
 export const APP_DB_CLIENT: 'sqlite' | 'postgres' = 'sqlite'

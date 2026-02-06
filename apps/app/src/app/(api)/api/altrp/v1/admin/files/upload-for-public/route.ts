@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { FileStorageService } from '@/shared/services/file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 
 /**
  * POST /api/altrp/v1/admin/files/upload-for-public

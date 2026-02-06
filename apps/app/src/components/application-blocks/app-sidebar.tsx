@@ -883,7 +883,7 @@ const AppSidebarComponent = function AppSidebar({ ...props }: React.ComponentPro
       const newProps = {
         name: toFirstLastName(user.name),
         email: user.email,
-        avatar: (user as any).avatarUrl || "/avatars/placeholder-user.jpg",
+        avatar: (user as any).avatarUrl || "/images/avatar-placeholder.svg",
       }
       // Only update if changed
       if (!userPropsRef.current || 

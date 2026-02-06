@@ -246,7 +246,7 @@ export function AdministratorSidebar({ ...props }: React.ComponentProps<typeof S
     return {
       name: user.name || user.email || "Администратор",
       email: user.email || "",
-      avatar: (user as any).avatarUrl || "/avatars/placeholder-user.jpg",
+      avatar: (user as any).avatarUrl || "/images/avatar-placeholder.svg",
     }
   }, [user])
 

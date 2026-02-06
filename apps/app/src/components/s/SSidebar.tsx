@@ -63,7 +63,7 @@ export function SSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             user={{
               name: user.name || user.email || "User",
               email: user.email || "",
-              avatar: "/avatars/placeholder-user.jpg",
+              avatar: "/images/avatar-placeholder.svg",
             }}
           />
         )}

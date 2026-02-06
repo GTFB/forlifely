@@ -229,7 +229,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         return {
           name: toFirstLastName(meUser.name),
           email: meUser.email,
-          avatar: avatarUrl || "/avatars/placeholder-user.jpg",
+          avatar: avatarUrl || "/images/avatar-placeholder.svg",
         }
       }
       return null
@@ -239,7 +239,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
     return {
       name: toFirstLastName(user.name),
       email: user.email,
-      avatar: avatarUrl || "/avatars/placeholder-user.jpg",
+      avatar: avatarUrl || "/images/avatar-placeholder.svg",
     }
   }, [user, meUser])
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { AuthenticatedRequestContext } from "@/shared/api-guard"
 import { withTesterGuard } from "@/shared/api-guard"
-import { FileStorageService } from "@/shared/services/file-storage.service"
+import { FileStorageService } from "@/shared/storage/file-storage.service"
 
 /**
  * POST /api/altrp/v1/t/upload

@@ -117,4 +117,4 @@ if (STATIC_EXPORT) {
     return config
   }
 }
-module.exports = STATIC_EXPORT ? withPWA(nextConfig) : nextConfig
+module.exports = withPWA(nextConfig) 

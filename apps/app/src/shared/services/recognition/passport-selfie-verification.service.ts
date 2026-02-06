@@ -1,4 +1,4 @@
-import { FileStorageService } from '../file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 import { HumanRepository } from '../../repositories/human.repository'
 import { DocumentRecognitionService } from './document-recognition.service'
 import type { IFaceRecognitionProvider, IOcrProvider, FaceComparisonResult } from './providers'

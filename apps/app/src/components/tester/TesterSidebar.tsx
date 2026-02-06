@@ -205,7 +205,7 @@ export function TesterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
     return {
       name: user.name || user.email || "Тестер",
       email: user.email || "",
-      avatar: (user as any).avatarUrl || "/avatars/placeholder-user.jpg",
+      avatar: (user as any).avatarUrl || "/images/avatar-placeholder.svg",
     }
   }, [user])
 

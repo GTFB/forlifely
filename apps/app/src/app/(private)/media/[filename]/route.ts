@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { FileStorageService } from '@/shared/services/file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 import { MediaRepository } from '@/shared/repositories/media.repository'
 import { eq, and, isNull } from 'drizzle-orm'
 import { schema } from '@/shared/schema'

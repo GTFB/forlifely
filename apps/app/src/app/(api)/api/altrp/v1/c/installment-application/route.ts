@@ -5,7 +5,7 @@ import { DealsRepository } from '@/shared/repositories/deals.repository'
 import { HumanRepository } from '@/shared/repositories/human.repository'
 import { LoanApplicationDataIn } from '@/shared/types/altrp'
 import { withClientGuard } from '@/shared/api-guard'
-import { FileStorageService } from '@/shared/services/file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 
 /**
  * POST /api/c/installment-application

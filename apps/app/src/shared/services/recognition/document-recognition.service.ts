@@ -1,4 +1,4 @@
-import { FileStorageService } from '../file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 import { HumanRepository } from '../../repositories/human.repository'
 import type { IOcrProvider } from './providers'
 import type { altrpHuman, ClientDataIn } from '../../types/altrp'

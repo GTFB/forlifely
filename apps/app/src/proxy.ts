@@ -1,28 +1,23 @@
-import { LANGUAGES, PROJECT_SETTINGS } from '@/settings';
+import { LANGUAGES, PROJECT_SETTINGS, PRIVATE_ROLE_ROUTES } from '@/settings';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const locales = LANGUAGES.map(l => l.code);
 const defaultLocale = PROJECT_SETTINGS.defaultLanguage;
 
-// Private routes that don't use locale prefix (from (private) folder)
-const PRIVATE_ROUTES = [
+// Stable private routes that don't use locale prefix
+const STABLE_PRIVATE_ROUTES = [
   'login',
   'register',
   'reset-password',
   'verify-email',
   'confirm-email-change',
   'admin',
-  'a', // admin alternative routes
-  'c', // consumer routes
-  'd', // dealer routes
-  'i', // investor routes
-  'm', // manager routes
-  'p', // partner routes
-  's', // storekeeper routes
-  't', // task routes
   'media',
 ];
+
+// Combine stable and role-based routes
+const PRIVATE_ROUTES: readonly string[] = [...STABLE_PRIVATE_ROUTES, ...PRIVATE_ROLE_ROUTES];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -62,5 +57,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|images|site.webmanifest|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api|images|site.webmanifest|_next/static|_next/image|favicon.ico|sw.js|/workbox).*)'],
 };

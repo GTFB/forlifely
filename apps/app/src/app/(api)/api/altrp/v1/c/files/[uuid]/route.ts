@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withClientGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
-import { FileStorageService } from '@/shared/services/file-storage.service'
+import { FileStorageService } from '@/shared/storage/file-storage.service'
 
 /**
  * Encodes filename according to RFC 5987
