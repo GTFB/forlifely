@@ -4,7 +4,7 @@ import { MessagesRepository } from '@/shared/repositories/messages.repository'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 import { altrpSupportChat, altrpSupportChatDataIn, altrpSupportMessageType } from '@/shared/types/altrp-support'
 import type { DbFilters, DbOrders, DbPagination } from '@/shared/types/shared'
-import { FileStorageService } from '@/shared/storage/file-storage.service'
+import { FileStorageService } from '@/shared/services/storage/file-storage.service'
 
 const parseQueryParams = (url: URL): { filters: DbFilters; orders: DbOrders; pagination: DbPagination } => {
   const filters: DbFilters = { conditions: [] }

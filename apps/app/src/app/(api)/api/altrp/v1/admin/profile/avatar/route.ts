@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { withAdminGuard, type AuthenticatedRequestContext } from "@/shared/api-guard"
 import { MeRepository } from "@/shared/repositories/me.repository"
 import { HumanRepository } from "@/shared/repositories/human.repository"
-import { FileStorageService } from "@/shared/storage/file-storage.service"
+import { FileStorageService } from "@/shared/services/storage/file-storage.service"
 import type { ClientDataIn } from "@/shared/types/altrp"
 
 function parseHumanDataIn(dataIn: unknown): ClientDataIn & Record<string, any> {

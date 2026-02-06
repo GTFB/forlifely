@@ -3,7 +3,7 @@ import { withAdminGuard, type AuthenticatedRequestContext } from '@/shared/api-g
 import { GoalsRepository } from '@/shared/repositories/goals.repository'
 import { MessageThreadsRepository } from '@/shared/repositories/message-threads.repository'
 import { MessagesRepository } from '@/shared/repositories/messages.repository'
-import { FileStorageService } from '@/shared/storage/file-storage.service'
+import { FileStorageService } from '@/shared/services/storage/file-storage.service'
 import { parseJson } from '@/shared/repositories/utils'
 import type { AdminTaskDataIn } from '@/shared/types/tasks'
 import type { altrpSupportMessageDataIn } from '@/shared/types/altrp-support'
