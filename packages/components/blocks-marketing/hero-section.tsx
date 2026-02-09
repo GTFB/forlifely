@@ -5,7 +5,6 @@ import { type Variants } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { TextEffect } from '@/components/motion-primitives/text-effect'
 import { AnimatedGroup } from '@/components/motion-primitives/animated-group'
-import { HeroHeader } from "@/components/blocks-marketing/header"
 import { Gamepad2, Trophy, Star } from 'lucide-react'
 
 const transitionVariants: { item: Variants } = {
@@ -31,8 +30,6 @@ const transitionVariants: { item: Variants } = {
 export default function HeroSection() {
     return (
         <>
-            <HeroHeader />
-
             <main className="overflow-hidden [--color-primary-foreground:var(--color-white)] [--color-primary:var(--color-green-600)]">
                 <section>
                     <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-32 lg:pt-48">

@@ -1,7 +1,7 @@
 import { TagList } from '@/components/blocks-app/TagList';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {

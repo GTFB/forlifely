@@ -1,6 +1,6 @@
 import { PostList } from '@/components/blocks-app/blog/PostList/PostList';
 import { getTranslations } from 'next-intl/server';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {

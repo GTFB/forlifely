@@ -59,7 +59,7 @@ export const metadata: Metadata = {
   icons: [
     {
       rel: "icon",
-      url: "/images/favicon.jpg",
+      url: "/images/favicon.png",
     },
   ],
   robots: {

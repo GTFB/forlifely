@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { HeroHeader } from "@/components/blocks-marketing/header";
 import FooterSection from "@/components/blocks-marketing/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +33,6 @@ export function ContactClient({ title, description }: ContactClientProps) {
 
   return (
     <div className="flex-1">
-      <HeroHeader />
       <div className="min-h-screen flex items-center justify-center px-6 pt-24 py-12">
         <Container className="w-full">
           <div className="text-center mb-12">

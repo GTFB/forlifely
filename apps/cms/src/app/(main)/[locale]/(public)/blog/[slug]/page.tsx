@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import { PostTags } from '@/components/blocks-app/blog/PostTags';
 import { PostMeta } from '@/components/blocks-app/blog/PostMeta';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 export const dynamic = 'force-dynamic';
 
 interface BlogPostPageProps {

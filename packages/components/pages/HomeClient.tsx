@@ -1,21 +1,28 @@
 "use client";
 
-import HeroSection from "@/components/blocks-marketing/hero-section";
-import HowItWorksSection from "@/components/blocks-marketing/how-it-works-section";
-import BenefitsSection from "@/components/blocks-marketing/benefits-section";
-import { LogoCloud } from "@/components/blocks-marketing/logo-cloud";
-import Testimonials from "@/components/blocks-marketing/testimonials";
-import FooterSection from "@/components/blocks-marketing/footer";
+import type { Feature183Content } from "@/components/pages/Home/feature183";
+import { Feature183 } from "@/components/pages/Home/feature183";
+import type { Feature27Content } from "@/components/pages/Home/feature27";
+import { Feature27 } from "@/components/pages/Home/feature27";
+import type { Hero91Content } from "@/components/pages/Home/hero91";
+import { Hero91 } from "@/components/pages/Home/hero91";
 
-export function HomeClient() {
+export interface HomeContent {
+  hero: Hero91Content;
+  feature: Feature27Content;
+  howItWorks: Feature183Content;
+}
+
+interface HomeClientProps {
+  homeContent: HomeContent;
+}
+
+export function HomeClient({ homeContent }: HomeClientProps) {
   return (
     <div className="flex-1">
-      <HeroSection />
-      <HowItWorksSection />
-      <BenefitsSection />
-      <LogoCloud />
-      <Testimonials />
-      <FooterSection />
+      <Hero91 content={homeContent.hero} />
+      <Feature27 content={homeContent.feature} />
+      <Feature183 content={homeContent.howItWorks} />
     </div>
   );
 }

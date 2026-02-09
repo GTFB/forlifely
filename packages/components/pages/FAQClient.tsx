@@ -1,6 +1,5 @@
 "use client";
 
-import { HeroHeader } from "@/components/blocks-marketing/header";
 import FooterSection from "@/components/blocks-marketing/footer";
 import {
   Accordion,
@@ -23,7 +22,6 @@ interface FAQClientProps {
 export function FAQClient({ title, faq }: FAQClientProps) {
   return (
     <div className="flex-1">
-      <HeroHeader />
       <div className="min-h-screen flex items-center justify-center px-6 pt-24 py-12">
         <Container className="w-full">
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tighter mb-8">

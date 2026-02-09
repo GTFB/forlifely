@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/misc/theme-toggle';
 import { useLocale, useTranslations } from 'next-intl';
 import { DynamicBreadcrumbs } from '@/components/misc/dynamic-breadcrumbs';
 import { PopupSearch } from '@/components/blocks-app/search/PopupSearch';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 export default function Layout({
   children,
 }: {

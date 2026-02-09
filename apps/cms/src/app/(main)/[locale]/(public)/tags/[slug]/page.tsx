@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import { Tag } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { TagPostList } from '@/components/blocks-app/blog/TagPostList';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 export const dynamic = 'force-dynamic';
 
 interface TagPageProps {

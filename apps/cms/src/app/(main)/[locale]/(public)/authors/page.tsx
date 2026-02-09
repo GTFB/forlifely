@@ -1,6 +1,6 @@
 import { AuthorList } from '@/components/blocks-app/AuthorList';
 import { Metadata } from 'next';
-import { Container } from '@/components/misc/layout/Container';
+import { Container } from '@/packages/components/misc/layout/container';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {

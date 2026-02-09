@@ -43,14 +43,14 @@ export async function getPageTranslations(pageName: string, locale?: string): Pr
     
     switch (pageName) {
       case 'about_us': {
-        const module = await import('@/packages/content/locales/pages/about_us.json')
+        const module = await import('@/packages/content/pages/about_us.json')
         pageTranslations = module.default || module
         break
       }
       default:
         // Try dynamic import as fallback (may not work on Cloudflare Pages)
         try {
-          const module = await import(`@/packages/content/locales/pages/${pageName}.json`)
+          const module = await import(`@/packages/content/pages/${pageName}.json`)
           pageTranslations = module.default || module
         } catch {
           return {}

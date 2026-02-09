@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Play, Zap, Shield, Globe } from "lucide-react";
-import { Container } from "@/components/misc/layout/Container";
+import { Container } from "@/packages/components/misc/layout/container";
 import { useTranslations } from "next-intl";
 export function HeroBlock() {
   const  t  = useTranslations('home');

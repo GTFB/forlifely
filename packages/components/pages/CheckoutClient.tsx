@@ -1,6 +1,5 @@
 "use client";
 
-import { HeroHeader } from "@/components/blocks-marketing/header";
 import FooterSection from "@/components/blocks-marketing/footer";
 import { Container } from "@/components/blocks-marketing/Container";
 
@@ -12,7 +11,6 @@ interface CheckoutClientProps {
 export function CheckoutClient({ title, description }: CheckoutClientProps) {
   return (
     <div className="flex-1">
-      <HeroHeader />
       <section className="pt-24 py-16 md:py-32">
         <Container>
           <h1 className="text-4xl md:text-5xl font-medium mb-8">{title}</h1>

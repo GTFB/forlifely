@@ -1,4 +1,8 @@
 {
+  "banner": {
+    "title": "We are celebrating our launch!",
+    "description": "Get on our invite list and find the support you need."
+  },
   "navigation": {
     "about": "About",
     "admin": "Admin",
@@ -12,6 +16,9 @@
     "group1SectionA": "Group 1 - Section A",
     "group2SectionD": "Group 2 - Section D",
     "home": "Home",
+    "meet_lifely": "Meet Lifely",
+    "mentors": "Lifely for Mentors",
+    "members": "Feel supported with Lifely",
     "navigation": "Navigation",
     "overview": "Overview",
     "page": "Page",
@@ -614,7 +621,35 @@
   "pages": {
     "home": {
       "title": "Home",
-      "description": "Central operating system for small and medium businesses"
+      "description": "Central operating system for small and medium businesses",
+      "hero": {
+        "title": "No longer face diabetes alone. We can support you.",
+        "description": "Stressed or concerned about how to manage diabetes? Have no fear, Lifely is here to help you. Be part of a new type of platform that harnesses the power of mentoring and technology to help you confidently tackle diabetes.",
+        "button1": "Get your invite",
+        "button2": "Learn about Lifely",
+        "subtitle": ""
+      },
+      "feature": {
+        "heading": "What is Lifely?",
+        "description": "Lifely is a brand new platform that can connect you with a skilled and knowledgeable mentor who is trained to help you overcome the hurdles of living with diabetes.",
+        "card_members_title": "For members",
+        "card_members_description": "Anyone who is living with diabetes can join Lifely. We pair you with a mentor who uniquely understands you and helps you conquer your hurdles",
+        "card_members_button": "See how we help our members",
+        "card_mentors_title": "For mentors",
+        "card_mentors_description": "If you've faced a hurdle in your life with diabetes and want to help others, we want you to make life better for our members. And we'll pay you, too.",
+        "card_mentors_button": "Learn about becoming a mentor"
+      },
+      "how_it_works": {
+        "heading": "How does Lifely work?",
+        "description": "Our platform works seamlessly to make it easy for you to get the support you need.",
+        "step1_title": "Sign up",
+        "step1_description": "It takes a few steps to sign up. After you sign up, you'll be asked to create an account.",
+        "step2_title": "Find a mentor",
+        "step2_description": "After just a few questions, we will present you with a few mentors who are uniquely ready to help you",
+        "step3_title": "Meet & improve",
+        "step3_description": "Meet with your mentor online at your own pace. As you work together, our platform helps you improve and grow stronger with your mentor",
+        "button": "Learn more about Lifely"
+      }
     },
     "services": {
       "title": "Services",

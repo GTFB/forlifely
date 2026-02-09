@@ -19,13 +19,16 @@ import { FAQClient } from "./packages/components/pages/FAQClient";
 import { FranchiseClient } from "./packages/components/pages/FranchiseClient";
 import { GalleryClient } from "./packages/components/pages/GalleryClient";
 import { HistoryClient } from "./packages/components/pages/HistoryClient";
-import { HomeClient } from "./packages/components/pages/HomeClient";
+import { HomeClient, type HomeContent } from "./packages/components/pages/HomeClient";
 import { InvestorsClient } from "./packages/components/pages/InvestorsClient";
 import { JobsClient } from "./packages/components/pages/JobsClient";
 import { KnowledgeBaseClient } from "./packages/components/pages/KnowledgeBaseClient";
 import { LegalClient } from "./packages/components/pages/LegalClient";
 import { LocationsClient } from "./packages/components/pages/LocationsClient";
 import { LoyaltyProgramClient } from "./packages/components/pages/LoyaltyProgramClient";
+import { MembersClient } from "./packages/components/pages/MembersClient";
+import { MentorsClient } from "./packages/components/pages/MentorsClient";
+import { MeetUsClient } from "./packages/components/pages/MeetUsClient";
 import { NewsClient } from "./packages/components/pages/NewsClient";
 import { ObjectsClient } from "./packages/components/pages/ObjectsClient";
 import { PasswordRecoveryClient } from "./packages/components/pages/PasswordRecoveryClient";
@@ -56,7 +59,7 @@ export type PubliPagesComponent = Record<string, PublicPageComponent>;
 
 export const PUBLIC_PAGES_COMPONENTS: PubliPagesComponent = {
   about: (props) => <AboutClient {...(props as unknown as AboutClientProps)} />,
-  home: () => <HomeClient />,
+  home: (props) => <HomeClient homeContent={(props as { homeContent: HomeContent }).homeContent} />,
   ads: (props) => <AdsClient {...(props as { title: string; description: string })} />,
   "affiliate-program": (props) => <AffiliateProgramClient {...(props as { title: string; description: string })} />,
   appointment: (props) => <AppointmentClient {...(props as { title: string; description: string })} />,
@@ -81,6 +84,9 @@ export const PUBLIC_PAGES_COMPONENTS: PubliPagesComponent = {
   legal: (props) => <LegalClient {...(props as { title: string; description: string })} />,
   locations: (props) => <LocationsClient {...(props as { title: string; description: string })} />,
   "loyalty-program": (props) => <LoyaltyProgramClient {...(props as { title: string; description: string })} />,
+  members: (props) => <MembersClient {...(props as { title: string; description?: string })} />,
+  mentors: (props) => <MentorsClient {...(props as { title: string; description?: string })} />,
+  "meet-us": (props) => <MeetUsClient {...(props as { title: string; description?: string })} />,
   news: (props) => <NewsClient {...(props as { title: string; description: string })} />,
   objects: (props) => <ObjectsClient {...(props as { title: string; description: string })} />,
   "password-recovery": (props) => <PasswordRecoveryClient {...(props as { title: string; description: string })} />,
