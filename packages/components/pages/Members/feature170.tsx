@@ -57,9 +57,11 @@ const Feature170 = ({ className }: Feature170Props) => {
         </div>
 
         <div className="mt-10 grid gap-8 sm:grid-cols-2 md:mt-14 lg:grid-cols-3">
-          {values.map((value, index) => (
+          {values.map((value, index) => {
+            const Icon = value.icon;
+            return (
             <div className="flex gap-2.5" key={index}>
-              <value.icon className="mt-0.5 size-[18px] shrink-0" />
+              <Icon className="mt-0.5 size-[18px] shrink-0" />
               <div>
                 <h3 className="text-lg leading-none! tracking-[-0.96px] lg:text-2xl">
                   {value.title}
@@ -69,7 +71,8 @@ const Feature170 = ({ className }: Feature170Props) => {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

@@ -7,8 +7,8 @@ RUN apt-get update && apt-get install -y python3 make g++ unzip curl && \
 
 WORKDIR /app
 
-# Copy root files for dependency installation
-COPY package.json bun.lock tsconfig.json settings.ts ./
+# Copy root files for dependency installation (app-public-components is imported by apps/app via @/ alias)
+COPY package.json bun.lock tsconfig.json settings.ts app-public-components.tsx ./
 
 # Copy site package.json to correct location for workspace detection
 COPY apps/site/package.json ./apps/site/

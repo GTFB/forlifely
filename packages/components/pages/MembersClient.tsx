@@ -2,28 +2,27 @@
 
 import FooterSection from "@/components/blocks-marketing/footer";
 import { Container } from "@/components/blocks-marketing/Container";
-import { Feature170 } from "@/components/pages/Members/feature172";
+import { Feature170 } from "@/components/pages/Members/feature170";
 import { Feature62 } from "@/components/pages/Members/feature62";
+import { Hero91 } from "@/components/pages/Members/hero91";
+import type { Hero91Content } from "@/components/pages/Members/hero91";
 
 interface MembersClientProps {
   title: string;
   description?: string;
+  hero?: Hero91Content;
 }
 
-export function MembersClient({ title, description }: MembersClientProps) {
+export function MembersClient({ title, description, hero }: MembersClientProps) {
+  const heroContent: Hero91Content = hero ?? {
+    title,
+    description: description ?? "",
+    button1: "",
+    button2: "",
+  };
   return (
     <div className="flex-1">
-      <section className="pt-24 pb-16 md:py-32">
-        <Container>
-          <h1 className="mb-8 text-4xl font-medium md:text-5xl">{title}</h1>
-          {description && (
-            <p className="mb-8 text-lg text-muted-foreground">{description}</p>
-          )}
-          <div className="prose prose-lg max-w-none">
-            <p>Feel supported with Lifely. Content coming soon.</p>
-          </div>
-        </Container>
-      </section>
+      <Hero91 content={heroContent} />
       <Feature170 />
       <Feature62 />
       <FooterSection />
