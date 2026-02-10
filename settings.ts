@@ -7,7 +7,7 @@ export const PROJECT_SETTINGS = {
 } as const;
 
 export const LAYOUT_CONFIG = {
-  containerWidth: '1440px',
+  containerWidth: '1280px',
 } as const;
 
 export const LANGUAGES = [

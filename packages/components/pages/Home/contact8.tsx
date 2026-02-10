@@ -30,11 +30,11 @@ const Contact8 = ({ className }: Contact8Props) => {
   return (
     <section className={cn("bg-purple-100 py-32", className)}>
       <Container>
-        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-2">
+        <div className="grid w-full gap-8 md:grid-cols-2">
           <img
             src="/images/5.jpg"
             alt=""
-            className="h-full min-h-[280px] w-full rounded-lg object-cover object-center"
+            className="min-h-[280px] w-full rounded-lg object-cover object-center md:min-h-0 md:h-full"
           />
           <div className="rounded-lg border bg-background p-8 shadow-sm">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">

@@ -2,6 +2,8 @@
 
 import FooterSection from "@/components/blocks-marketing/footer";
 import { Container } from "@/components/blocks-marketing/Container";
+import { Feature170 } from "@/components/pages/Members/feature172";
+import { Feature62 } from "@/components/pages/Members/feature62";
 
 interface MembersClientProps {
   title: string;
@@ -22,6 +24,8 @@ export function MembersClient({ title, description }: MembersClientProps) {
           </div>
         </Container>
       </section>
+      <Feature170 />
+      <Feature62 />
       <FooterSection />
     </div>
   );

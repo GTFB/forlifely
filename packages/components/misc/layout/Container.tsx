@@ -7,12 +7,12 @@ export function Container({
   children: React.ReactNode;
   className?: string;
 }) {
-  const { containerWidth = "1440px" } = LAYOUT_CONFIG;
+  const { containerWidth } = LAYOUT_CONFIG;
 
-  const containerWidthClasses = `width-[${containerWidth}] max-width-[100%]`;
   return (
     <div
-      className={`container mx-auto px-4 ${containerWidthClasses} ${className}`}
+      className={`mx-auto w-full px-4 ${className ?? ""}`.trim()}
+      style={{ maxWidth: containerWidth }}
     >
       {children}
     </div>
