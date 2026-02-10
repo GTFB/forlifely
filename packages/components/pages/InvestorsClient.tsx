@@ -22,7 +22,6 @@ export function InvestorsClient({ title, description }: InvestorsClientProps) {
           </div>
         </Container>
       </section>
-      <FooterSection />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 export const PROJECT_SETTINGS = {
-  name: 'Altrp',
-  description: 'The first truly open operating system for SMBs. Combine a rock-solid digital foundation with AI agents and modular plugins while maintaining total data and API sovereignty.',
+  name: 'Lifely',
+  description: 'Feel supported with Lifely. We match you with a mentor who has lived with diabetes and helps you set small, doable goals—so managing your health feels clear and manageable every day.',
   defaultLanguage: 'en',
   defaultTheme: 'light' as 'light' | 'dark',
   supportedThemes: ['light', 'dark',],

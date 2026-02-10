@@ -180,7 +180,10 @@ const Footer31 = ({ className }: Footer31Props) => {
 
   return (
     <section
-      className={cn("dark bg-background py-32 text-foreground", className)}
+      className={cn(
+        "dark border-t border-border bg-background py-32 text-foreground",
+        className,
+      )}
     >
       <Container>
         <div className="flex flex-col gap-16">

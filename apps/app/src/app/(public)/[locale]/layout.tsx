@@ -1,4 +1,4 @@
-import { AppLayoutWithNav } from "@/components/AppLayoutWithNav";
+import { PublicLayoutSwitcher } from "@/components/PublicLayoutSwitcher";
 import { SiteLocaleProvider } from "@/contexts/LocaleContext";
 import { getTranslations, getTranslationValue } from "@/lib/get-translations";
 import { LANGUAGES } from "@/settings";
@@ -32,9 +32,9 @@ export default async function Layout({
   };
   return (
     <SiteLocaleProvider locale={locale}>
-      <AppLayoutWithNav navLabels={navLabels} bannerLabels={bannerLabels}>
+      <PublicLayoutSwitcher navLabels={navLabels} bannerLabels={bannerLabels}>
         {children}
-      </AppLayoutWithNav>
+      </PublicLayoutSwitcher>
     </SiteLocaleProvider>
   );
 }

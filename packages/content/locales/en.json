@@ -189,6 +189,12 @@
     "sendingResetLink": "Sending...",
     "backToLogin": "Back to login",
     "resetEmailSent": "If an account exists for this email, a reset link has been sent.",
+    "verificationPrompt": "Please verify your email to sign in. We can resend the verification email on request.",
+    "resendSending": "Sending...",
+    "resendCooldown": "Resend in {{seconds}} s",
+    "resendButton": "Resend verification email",
+    "resendSuccess": "Verification email has been sent again.",
+    "resendEmailRequired": "Enter your email to resend the verification email.",
     "errors": {
       "apiNotFound": "API endpoint not found. Please ensure you are running the development server correctly.\n\nFor local development with Cloudflare Functions, use:\n  npm run dev:all\n\nThis will start both Next.js and Wrangler servers.",
       "serverError": "Server error. Please try again later.",
@@ -649,6 +655,167 @@
         "step3_title": "Meet & improve",
         "step3_description": "Meet with your mentor online at your own pace. As you work together, our platform helps you improve and grow stronger with your mentor",
         "button": "Learn more about Lifely"
+      }
+    },
+    "members": {
+      "title": "Feel supported with Lifely",
+      "description": "Join as a member and get support from a mentor who understands life with diabetes.",
+      "hero": {
+        "title": "Make diabetes manageable—together",
+        "description": "Join as a member and pair with a mentor who's walked your path. Use Lifely to meet with your mentor, manage medications, log your day, and celebrate wins—big and small.",
+        "button1": "Get your invite",
+        "button2": "",
+        "imageSrc": "/images/2.jpg"
+      },
+      "feature62": {
+        "heading": "Lifely turns stress into a trusted, simple plan",
+        "description": "Feeling overwhelmed is normal, but Lifely is here to help! We match you with a mentor who's walked this path and helps you set small, doable goals. Our mentors work with you to create a plan that works for you, but also creates much more:",
+        "items": [
+          {
+            "imageSrc": "/images/6.jpg",
+            "title": "Talk to someone who's been there",
+            "description": "Our mentors understand the unique challenges that come with living with diabetes. Whether you are looking for emotional, practical, or day-to-day support, our mentors can help.",
+            "imageRight": false
+          },
+          {
+            "imageSrc": "/images/7.jpg",
+            "title": "Your judgment-free space",
+            "description": "In addition to living with diabetes, all Lifely mentors are expertly trained to create the space you need to be your best. They create safe conversations that normalize fears, frustration, and \"is this normal?\" moments.",
+            "imageRight": true
+          },
+          {
+            "imageSrc": "/images/8.jpg",
+            "title": "Move at your pace",
+            "description": "You'll work with your mentor to set bite-size goals (sleep, meals, movement, medications) that matter to you. Your mentor and our tools will help you move at a speed you're comfortable with to build confidence over time.",
+            "imageRight": false
+          }
+        ]
+      },
+      "feature170": {
+        "heading": "Our tools turn daily care into doable steps",
+        "description": "We give all our members a private, all-in-one toolkit—paired with a mentor who's been there—so managing diabetes feels clear and manageable every day.",
+        "cards": [
+          {
+            "title": "Setting and meeting your goals",
+            "description": "We want to help you reach your health goals. On your terms. That's why our platform has:",
+            "bullets": [
+              { "bold": "Smart goals", "text": " curated to help you create bite-size goals that you can feel confident in meeting" },
+              { "bold": "Gentle nudges", "text": " to keep you going in the right direction" },
+              { "bold": "Private chat and video meetings", "text": " with your mentor to deepen your connection and make further progress on your goals" }
+            ]
+          },
+          {
+            "title": "Tools that make the journey easier",
+            "description": "Everyone can use a little help. That's why we included helpful tools to support your goals:",
+            "bullets": [
+              { "bold": "Medication and health tracking", "text": " to help remind you to remember the tiny things that lead to healthy habits" },
+              { "bold": "Journaling", "text": " to help you capture your thoughts, stay in sync with yourself, and help you uncover unknown barriers to progress" }
+            ]
+          },
+          {
+            "title": "Feel supported by our technology",
+            "description": "We have carefully designed our platform with the latest advancements in technology to support you on your journey:",
+            "bullets": [
+              { "bold": "The insights dashboard", "text": " provides a clear, simplified view of your journey to help you monitor progress and celebrate wins and find what needs adjusting" },
+              { "bold": "Our AI session recaps", "text": " provide clear summaries and next steps after each time you meet with your mentor" }
+            ]
+          }
+        ]
+      },
+      "feature183": {
+        "heading": "How do you get started with Lifely?",
+        "description": "Excited to get moving towards your health goals with a Lifely mentor? We are getting ready for our initial, private launch and would love to have you.",
+        "subtitle": "Sign up for our waitlist now",
+        "subtitleDescription": "Once you're in, it's just a few steps to get up and going with Lifely.",
+        "steps": [
+          { "title": "Tell us about you", "description": "Share a little about yourself so we understand your goals and preferences." },
+          { "title": "Find your mentor", "description": "You'll choose your mentor—someone who's been there and understands your day-to-day." },
+          { "title": "Work on your goals", "description": "Set your goals, and meet with your mentor to help motivate you to meet them. Our tools can also help you see progress add up quickly." }
+        ],
+        "buttonLabel": "Get your invite",
+        "buttonHref": "#",
+        "imageSrc": "/images/9.jpg"
+      }
+    },
+    "mentors": {
+      "title": "Lifely for Mentors",
+      "description": "Join as a mentor and help others live better with diabetes.",
+      "hero": {
+        "title": "Mentors are the heart of our community",
+        "description": "Have you had experience with diabetes? Want to help others take on the disease with what you know, and make a real impact? Then join Lifely as a mentor to help others live their best lives.",
+        "button1": "Get your invite",
+        "button2": "",
+        "imageSrc": "/images/3.jpg"
+      },
+      "feature62": {
+        "heading": "Become a truly special person to those who need help",
+        "description": "Our mentors help our members make sense of diabetes, and put the control back to them (not the disease). With your unique lived experience and steady encouragement, you can turn fear and confusion into clarity, small wins, and momentum—that lasts for life.",
+        "items": [
+          {
+            "imageSrc": "/images/10.jpg",
+            "title": "Listen. Understand. And help.",
+            "description": "You get to help someone be in the driver's seat of their health. Share your stories and tactics of how you cope, live, and thrive—through the good days and the bad ones, too. By mentoring someone, you'll listen, understand, and help people not feel ashamed of what is happening.",
+            "imageRight": false
+          },
+          {
+            "imageSrc": "/images/11.jpg",
+            "title": "Become an anchor in care",
+            "description": "Your experience in managing diabetes can help someone understand what to do in their care. No understanding of medical jargon is needed. Rather, you can translate how daily changes in the disease can be responded to in a human, culturally-appropriate way.",
+            "imageRight": true
+          },
+          {
+            "imageSrc": "/images/12.jpg",
+            "title": "And become better while you're at it",
+            "description": "All Lifely mentors get the good feeling of helping others. But what else? You'll get access to our exclusive training library to become a better listener, coach, and person. And you may earn some money along the way, too.",
+            "imageRight": false
+          }
+        ]
+      },
+      "feature170": {
+        "heading": "Our tools make it simple to focus on your mentees",
+        "description": "Every mentor has access to our custom-built toolkit for focusing on our mentees.",
+        "cards": [
+          {
+            "title": "Fast and easy communication",
+            "description": "We want to minimize any barriers you have in meeting with your mentees:",
+            "bullets": [
+              { "bold": "Smart meetings", "text": " help you schedule and meet with your mentees at ease, yet pushed to be their best" },
+              { "bold": "Easy, simple scheduling", "text": " to make it easy to find a time that works" },
+              { "bold": "Private chat and video meetings", "text": " to deepen your connection and make further progress" }
+            ]
+          },
+          {
+            "title": "Analytics to help you find insights",
+            "description": "Sometimes it's tough to see the big picture. Our analytics can help you:",
+            "bullets": [
+              { "bold": "Get context", "text": " on how mentees are doing in and out of meetings to help you ask the right questions" },
+              { "bold": "See tiny and large improvements", "text": " in the physical and emotional health of your mentees" },
+              { "bold": "Understand the next step", "text": " for goals and actions you and your mentee should take in between sessions" }
+            ]
+          },
+          {
+            "title": "AI assistance to bring out your best",
+            "description": "Our intelligence has been designed to help bring out your best and allow you to focus on providing support:",
+            "bullets": [
+              { "bold": "A smart chatbot", "text": " that you can ask questions, prepare for upcoming sessions, recall previous information, and offload simple tasks to if you're busy" },
+              { "bold": "Intelligent preparation and debriefing", "text": " presents you with a quick, accurate rollup so you don't have to remember every detail yourself, especially in back-to-back sessions" }
+            ]
+          }
+        ]
+      },
+      "feature183": {
+        "heading": "How do you get started with Lifely?",
+        "description": "Excited to help others, give back, and get paid? Lifely would love to have you in our private launch.",
+        "subtitle": "Sign up for our waitlist now",
+        "subtitleDescription": "Once you're in, it's just a few steps to get up and going with Lifely.",
+        "steps": [
+          { "title": "Tell us about you", "description": "Share a little about yourself so we understand your goals and preferences." },
+          { "title": "Get set up", "description": "Answer a few questions and take a couple quick courses to become eligible to set up sessions." },
+          { "title": "Meet. And earn.", "description": "Once eligible, our technology will begin matching you with people that you can mentor. You'll be paid for your time." }
+        ],
+        "buttonLabel": "Get your invite",
+        "buttonHref": "#",
+        "imageSrc": "/images/13.jpg"
       }
     },
     "services": {

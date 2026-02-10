@@ -40,7 +40,7 @@ interface Footer11Props {
 
 const Footer11 = ({ className }: Footer11Props) => {
   return (
-    <section className={cn("py-16 md:py-24 lg:py-32", className)}>
+    <section className={cn("border-t border-border py-16 md:py-24 lg:py-32", className)}>
       <Container>
         <div className="flex flex-col items-start justify-between gap-8 py-4 md:flex-row lg:py-8">
           {/* Logo + tagline */}

@@ -22,7 +22,6 @@ export function MeetUsClient({ title, description }: MeetUsClientProps) {
           </div>
         </Container>
       </section>
-      <FooterSection />
     </div>
   );
 }

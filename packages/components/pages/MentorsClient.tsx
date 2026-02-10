@@ -1,28 +1,44 @@
 "use client";
 
-import FooterSection from "@/components/blocks-marketing/footer";
-import { Container } from "@/components/blocks-marketing/Container";
+import { Feature183 } from "@/components/pages/Mentors/feature183";
+import type { Feature183Content } from "@/components/pages/Mentors/feature183";
+import { Feature170 } from "@/components/pages/Mentors/feature170";
+import type { Feature170Content } from "@/components/pages/Mentors/feature170";
+import { Feature62 } from "@/components/pages/Mentors/feature62";
+import type { Feature62Content } from "@/components/pages/Mentors/feature62";
+import { Hero91 } from "@/components/pages/Mentors/hero91";
+import type { Hero91Content } from "@/components/pages/Mentors/hero91";
 
 interface MentorsClientProps {
   title: string;
   description?: string;
+  hero?: Hero91Content;
+  feature62?: Feature62Content;
+  feature170?: Feature170Content;
+  feature183?: Feature183Content;
 }
 
-export function MentorsClient({ title, description }: MentorsClientProps) {
+export function MentorsClient({
+  title,
+  description,
+  hero,
+  feature62,
+  feature170,
+  feature183,
+}: MentorsClientProps) {
+  const heroContent: Hero91Content =
+    hero ?? {
+      title,
+      description: description ?? "",
+      button1: "",
+      button2: "",
+    };
   return (
     <div className="flex-1">
-      <section className="pt-24 pb-16 md:py-32">
-        <Container>
-          <h1 className="mb-8 text-4xl font-medium md:text-5xl">{title}</h1>
-          {description && (
-            <p className="mb-8 text-lg text-muted-foreground">{description}</p>
-          )}
-          <div className="prose prose-lg max-w-none">
-            <p>Lifely for Mentors. Content coming soon.</p>
-          </div>
-        </Container>
-      </section>
-      <FooterSection />
+      <Hero91 content={heroContent} />
+      <Feature62 content={feature62} />
+      <Feature170 className="bg-muted" content={feature170} />
+      <Feature183 content={feature183} />
     </div>
   );
 }

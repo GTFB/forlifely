@@ -1,6 +1,7 @@
 "use client";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useLayoutEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ interface MobileNavigationMenuProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
   localePath: string;
   labels: typeof DEFAULT_NAV_LABELS & { home: string; members: string; mentors: string; meetLifely: string };
+  pathname: string;
 }
 
 const LOGO = {
@@ -65,6 +67,7 @@ function buildHref(localePath: string | undefined, path: string): string {
 }
 
 const Navbar8 = ({ className, localePath = "", labels: labelsProp }: Navbar8Props) => {
+  const pathname = usePathname() ?? "";
   const labels = { ...DEFAULT_NAV_LABELS, ...labelsProp };
   const navigation: NavLink[] = [
     { title: labels.members, url: "/members" },
@@ -105,19 +108,28 @@ const Navbar8 = ({ className, localePath = "", labels: labelsProp }: Navbar8Prop
             </Link>
             <NavigationMenu className="hidden lg:flex [&>div:nth-child(2)]:left-1/2 [&>div:nth-child(2)]:-translate-x-1/2">
               <NavigationMenuList>
-                {navigation.map((item, index) => (
-                  <NavigationMenuItem
-                    key={`desktop-link-${index}`}
-                    value={`${index}`}
-                    className={`${navigationMenuTriggerStyle()} bg-transparent`}
-                  >
-                    <NavigationMenuLink asChild>
-                      <Link href={buildHref(localePath, item.url)}>
-                        {item.title}
-                      </Link>
-                    </NavigationMenuLink>
-                  </NavigationMenuItem>
-                ))}
+                {navigation.map((item, index) => {
+                  const href = buildHref(localePath, item.url);
+                  const isActive = pathname === href;
+                  return (
+                    <NavigationMenuItem
+                      key={`desktop-link-${index}`}
+                      value={`${index}`}
+                      className={`${navigationMenuTriggerStyle()} bg-transparent`}
+                    >
+                      <NavigationMenuLink asChild>
+                        <Link
+                          href={href}
+                          className={cn(
+                            isActive && "underline underline-offset-4 font-semibold",
+                          )}
+                        >
+                          {item.title}
+                        </Link>
+                      </NavigationMenuLink>
+                    </NavigationMenuItem>
+                  );
+                })}
               </NavigationMenuList>
             </NavigationMenu>
             <div className="flex items-center gap-3.5">
@@ -142,12 +154,13 @@ const Navbar8 = ({ className, localePath = "", labels: labelsProp }: Navbar8Prop
         setOpen={setOpen}
         localePath={localePath}
         labels={labels}
+        pathname={pathname}
       />
     </section>
   );
 };
 
-const MobileNavigationMenu = ({ open, setOpen, localePath, labels }: MobileNavigationMenuProps) => {
+const MobileNavigationMenu = ({ open, setOpen, localePath, labels, pathname }: MobileNavigationMenuProps) => {
   const mobileNav: NavLink[] = [
     { title: labels.members, url: "/members" },
     { title: labels.mentors, url: "/mentors" },
@@ -202,16 +215,23 @@ const MobileNavigationMenu = ({ open, setOpen, localePath, labels }: MobileNavig
                 {labels.home}
               </Link>
             </SheetClose>
-            {mobileNav.map((item, index) => (
-              <SheetClose key={`mobile-nav-link-${index}`} asChild>
-                <Link
-                  href={buildHref(localePath, item.url)}
-                  className="text-base text-primary-foreground underline-offset-4 hover:underline"
-                >
-                  {item.title}
-                </Link>
-              </SheetClose>
-            ))}
+            {mobileNav.map((item, index) => {
+              const href = buildHref(localePath, item.url);
+              const isActive = pathname === href;
+              return (
+                <SheetClose key={`mobile-nav-link-${index}`} asChild>
+                  <Link
+                    href={href}
+                    className={cn(
+                      "text-base text-primary-foreground underline-offset-4 hover:underline",
+                      isActive && "underline font-semibold",
+                    )}
+                  >
+                    {item.title}
+                  </Link>
+                </SheetClose>
+              );
+            })}
             <SheetClose asChild>
               <Link
                 href={buildHref(localePath, "/meet-us")}

@@ -17,27 +17,26 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://altrp.org'),
+  metadataBase: new URL("https://forlifely.com"),
   title: PROJECT_SETTINGS.name,
   description: PROJECT_SETTINGS.description,
   keywords: [
-    "SMB platform",
-    "digital foundation",
-    "headless CMS",
-    "e-commerce",
-    "CRM",
-    "LMS",
-    "AI agents",
-    "API-first",
-    "business automation",
-    "no-code",
-    "low-code",
+    "diabetes",
+    "mentoring",
+    "health goals",
+    "diabetes support",
+    "Lifely",
+    "mentor",
+    "blood sugar",
+    "chronic condition",
+    "peer support",
+    "health coaching",
   ],
   openGraph: {
     type: "website",
     siteName: PROJECT_SETTINGS.name,
     locale: "ru_RU",
-    url: "https://altrp.org",
+    url: "https://forlifely.com",
     title: `${PROJECT_SETTINGS.name} — ${PROJECT_SETTINGS.description}`,
     description: PROJECT_SETTINGS.description,
     images: [
@@ -52,7 +51,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: PROJECT_SETTINGS.name,
-      url: "https://altrp.org",
+      url: "https://forlifely.com",
     },
   ],
   creator: PROJECT_SETTINGS.name,
