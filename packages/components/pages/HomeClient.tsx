@@ -6,6 +6,7 @@ import type { Feature27Content } from "@/components/pages/Home/feature27";
 import { Feature27 } from "@/components/pages/Home/feature27";
 import type { Hero91Content } from "@/components/pages/Home/hero91";
 import { Hero91 } from "@/components/pages/Home/hero91";
+import { Contact8 } from "@/components/pages/Home/contact8";
 
 export interface HomeContent {
   hero: Hero91Content;
@@ -23,6 +24,7 @@ export function HomeClient({ homeContent }: HomeClientProps) {
       <Hero91 content={homeContent.hero} />
       <Feature27 content={homeContent.feature} />
       <Feature183 content={homeContent.howItWorks} />
+      <Contact8 />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useAltrpLocale } from "@/contexts/LocaleContext";
 import { Banner4 } from "@/components/pages/Home/banner4";
+import { Footer11 } from "@/components/pages/Home/footer";
 import { Navbar8, type Navbar8Labels } from "@/components/pages/Home/navbar8";
 
 export interface NavLabels extends Navbar8Labels {}
@@ -29,6 +30,7 @@ export function AppLayoutWithNav({
         <Navbar8 localePath={localePath} labels={navLabels} />
       </div>
       {children}
+      <Footer11 />
     </>
   );
 }
