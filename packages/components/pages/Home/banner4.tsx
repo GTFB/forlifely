@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { Container } from "@/components/misc/layout/container";
+import { Container } from "@/components/misc/layout/Container";
 import { Button } from "@/components/ui/button";
 
 const BANNER_DISMISSED_KEY = "banner4-dismissed";

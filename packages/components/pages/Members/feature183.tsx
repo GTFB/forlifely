@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-import { Container } from "@/components/misc/layout/container";
+import { Container } from "@/components/misc/layout/Container";
 import { Button } from "@/components/ui/button";
 
 export interface Feature183Step {

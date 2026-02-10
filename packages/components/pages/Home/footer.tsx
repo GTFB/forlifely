@@ -8,7 +8,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
-import { Container } from "@/components/misc/layout/container";
+import { Container } from "@/components/misc/layout/Container";
 import { Logo } from "@/components/misc/logo/logo";
 
 const TAGLINE = "Don't face diabetes alone";
