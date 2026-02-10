@@ -10,8 +10,8 @@ WORKDIR /app
 # Copy root files for dependency installation
 COPY package.json bun.lock tsconfig.json settings.ts ./
 
-# Copy site package.json to correct location for workspace detection
-COPY apps/site/package.json ./apps/site/
+# Copy app package.json to correct location for workspace detection
+COPY apps/app/package.json ./apps/app/
 
 # Install dependencies at root (this hoists dependencies so shared packages can find them)
 # Using --no-frozen-lockfile because we are only building one workspace member
@@ -28,12 +28,10 @@ COPY packages ./packages
 COPY scripts ./scripts
 COPY migrations ./migrations
 
-# Copy all site files
+# Copy all apps (including app)
 COPY apps ./apps
 
-# Migrate the database
-
-# Build the Next.js application
+# Build the Next.js application (apps/app)
 WORKDIR /app/apps/app/
 # Добавляем эти строки:
 ARG NEXT_PUBLIC_SOCKET_URL
@@ -78,5 +76,5 @@ EXPOSE 3100
 ENV PORT=3100
 ENV HOSTNAME="0.0.0.0"
 
-# Use start:site from root package.json
-ENTRYPOINT ["bun", "run", "start:site:migrate"]
+# Run app migrations then start app (from monorepo root)
+ENTRYPOINT ["sh", "-c", "bun run db:app:migrate && bun run start:app"]
