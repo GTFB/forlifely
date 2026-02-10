@@ -34,7 +34,7 @@ COPY apps ./apps
 # Migrate the database
 
 # Build the Next.js application
-WORKDIR /apps/app/
+WORKDIR /app/apps/app/
 # Добавляем эти строки:
 ARG NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
