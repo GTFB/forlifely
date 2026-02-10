@@ -14,8 +14,7 @@ interface BlogClientProps {
 
 export function BlogClient({ title, description, blogPosts }: BlogClientProps) {
   return (
-    <div className="flex-1">
-      <HeroHeader />
+    <div className="flex-1">  
       <section className="pt-24 py-16 md:py-32">
         <Container>
           <h1 className="text-4xl md:text-5xl font-medium mb-8">{title}</h1>
@@ -35,7 +34,6 @@ export function BlogClient({ title, description, blogPosts }: BlogClientProps) {
           )}
         </Container>
       </section>
-      <FooterSection />
     </div>
   );
 }
