@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tag } from 'lucide-react';
 import { PostCard } from '@/components/blocks-app/blog/PostCard/PostCard';
 import { getTranslations } from 'next-intl/server';
-import { Container } from '@/packages/components/misc/layout/container';
+import { Container } from '@/packages/components/misc/layout/Container';
 export const dynamic = 'force-dynamic';
 
 interface CategoryPageProps {

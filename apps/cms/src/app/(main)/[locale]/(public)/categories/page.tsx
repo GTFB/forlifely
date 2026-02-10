@@ -1,6 +1,6 @@
 import { CategoryList } from '@/components/blocks-app/CategoryList';
 import { Metadata } from 'next';
-import { Container } from '@/packages/components/misc/layout/container';
+import { Container } from '@/packages/components/misc/layout/Container';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {

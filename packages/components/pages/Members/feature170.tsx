@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-import { Container } from "@/components/misc/layout/container";
+import { Container } from "@/components/misc/layout/Container";
 
 export interface Feature170Card {
   title: string;

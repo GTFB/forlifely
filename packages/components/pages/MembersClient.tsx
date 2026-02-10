@@ -1,6 +1,6 @@
 "use client";
 
-import { Container } from "@/components/misc/layout/container";
+import { Container } from "@/components/misc/layout/Container";
 import { Feature183 } from "@/components/pages/Members/feature183";
 import type { Feature183Content } from "@/components/pages/Members/feature183";
 import { Feature170 } from "@/components/pages/Members/feature170";

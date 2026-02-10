@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { PageRepository } from '@/repositories/page.repository';
 import { MediaRepository } from '@/repositories/media.repository';
 import { MediaDisplay } from '@/components/blocks-app/cms/MediaDisplay';
-import { Container } from '@/packages/components/misc/layout/container';
+import { Container } from '@/packages/components/misc/layout/Container';
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 
