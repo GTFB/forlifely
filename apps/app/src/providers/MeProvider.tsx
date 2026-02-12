@@ -71,11 +71,11 @@ export function MeProvider({
 
       if (!response.ok) {
         if (authDebugEnabled && typeof window !== 'undefined') {
-          let bodyText = ''
+          let debugBodyText = ''
           try {
-            bodyText = await response.clone().text()
+            debugBodyText = await response.clone().text()
           } catch {
-            bodyText = ''
+            debugBodyText = ''
           }
           setAuthDebug({
             at: new Date().toISOString(),
@@ -85,7 +85,7 @@ export function MeProvider({
             ua: navigator.userAgent,
             meStatus: response.status,
             meStatusText: response.statusText,
-            meBody: bodyText,
+            meBody: debugBodyText,
           })
         }
         if (response.status === 401) {
@@ -93,7 +93,25 @@ export function MeProvider({
           setError(null)
           return
         }
-        throw new Error(`Failed to fetch user: ${response.statusText}`)
+
+        let errorBodyText = ''
+        try {
+          errorBodyText = await response.text()
+        } catch {
+          errorBodyText = ''
+        }
+
+        if (authDebugEnabled) {
+          console.warn('Failed to fetch user response:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorBodyText,
+          })
+        }
+
+        setUser(null)
+        setError(response.statusText || 'Failed to load user data')
+        return
       }
 
       const text = await response.text()
@@ -123,7 +141,9 @@ export function MeProvider({
         setUser(null)
       }
     } catch (err) {
-      console.error('Failed to fetch user data:', err)
+      if (authDebugEnabled) {
+        console.warn('Failed to fetch user data:', err)
+      }
       setError(err instanceof Error ? err.message : 'Failed to load user data')
       setUser(null)
     } finally {

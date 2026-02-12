@@ -14,6 +14,7 @@ const STABLE_PRIVATE_ROUTES = [
   'confirm-email-change',
   'admin',
   'media',
+  'onboarding',
 ];
 
 // Combine stable and role-based routes
