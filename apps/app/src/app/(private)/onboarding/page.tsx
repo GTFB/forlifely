@@ -800,7 +800,14 @@ const StepFiveCta = ({ onClick, disabled }: StepCtaProps) => {
   );
 };
 
-const SuccessScreenComponent = ({ onClick }: { onClick: () => void }) => {
+const SuccessScreenComponent = ({
+  onClick,
+  selectedRole,
+}: {
+  onClick: () => void;
+  selectedRole?: "member" | "mentor" | "";
+}) => {
+  const accountPath = selectedRole === "mentor" ? "/mentor" : "/member";
   return (
     <div className="flex w-full max-w-xl flex-col items-center justify-center space-y-6 rounded-lg bg-background p-8 shadow-lg">
       <div className="space-y-4 text-center">
@@ -833,7 +840,7 @@ const SuccessScreenComponent = ({ onClick }: { onClick: () => void }) => {
           variant="outline"
           onClick={() => {
             if (typeof window !== "undefined") {
-              window.location.href = "/";
+              window.location.href = accountPath;
             }
           }}
         >
@@ -1393,10 +1400,13 @@ const Onboarding2 = ({
           <div className="flex min-h-[60dvh] w-full flex-col-reverse items-start tracking-tighter md:h-[550px] md:flex-row">
             {currentStep === 3 ? (
               <div className="flex h-full w-full items-center justify-center p-6 lg:p-12">
-                <SuccessScreenComponent onClick={() => {
-                  setIsPersonalizePhase(true);
-                  setCurrentStep(steps.length);
-                }} />
+                <SuccessScreenComponent
+                  selectedRole={onboardingData?.step1?.role}
+                  onClick={() => {
+                    setIsPersonalizePhase(true);
+                    setCurrentStep(steps.length);
+                  }}
+                />
               </div>
             ) : (
               <>

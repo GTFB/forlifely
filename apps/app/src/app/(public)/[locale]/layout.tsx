@@ -20,7 +20,7 @@ export default async function Layout({
   const translations = await getTranslations(locale);
   const navLabels = {
     home: getTranslationValue(translations, "navigation.home") ?? "Home",
-    members: getTranslationValue(translations, "navigation.members") ?? "Feel supported with Lifely",
+    members: getTranslationValue(translations, "navigation.members") ?? "Lifely for Members",
     mentors: getTranslationValue(translations, "navigation.mentors") ?? "Lifely for Mentors",
     meetLifely: getTranslationValue(translations, "navigation.meet_lifely") ?? "Meet Lifely",
   };

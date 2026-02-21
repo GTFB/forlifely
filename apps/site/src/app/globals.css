@@ -310,6 +310,11 @@ body {
   *:focus {
     outline: none !important;
   }
+
+  /* Outline primary button: border in theme color (overrides global border-color) */
+  [data-button-variant="outlinePrimary"] {
+    border-color: var(--primary) !important;
+  }
 }
 
 /* Fix drawer text color - ensure it respects theme */

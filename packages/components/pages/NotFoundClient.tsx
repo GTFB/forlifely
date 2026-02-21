@@ -36,7 +36,7 @@ export function NotFoundClient() {
                 <Button asChild size="lg">
                   <Link href="/">Home</Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
+                <Button asChild variant="outlinePrimary" size="lg">
                   <Link href="/blog">Blog</Link>
                 </Button>
               </div>

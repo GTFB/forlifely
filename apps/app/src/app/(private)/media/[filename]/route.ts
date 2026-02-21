@@ -94,11 +94,11 @@ export async function GET(
     const fileStorageService = FileStorageService.getInstance()
     const fileContent = await fileStorageService.getFileContent(media.uuid)
     const arrayBuffer = await fileContent.arrayBuffer()
-    const fileBuffer = Buffer.from(arrayBuffer)
+    const fileBytes = new Uint8Array(arrayBuffer)
 
     // Ensure public/media exists and cache file on disk for subsequent requests
     await fs.mkdir(publicMediaDir, { recursive: true })
-    await fs.writeFile(publicFilePath, fileBuffer)
+    await fs.writeFile(publicFilePath, fileBytes)
 
     // Determine content type
     const contentType = getContentType(safeFilename, media.mimeType || undefined)
@@ -109,7 +109,7 @@ export async function GET(
     headers.set('Cache-Control', 'public, max-age=31536000, immutable') // Cache for 1 year
     headers.set('Content-Disposition', `inline; filename="${encodeURIComponent(safeFilename)}"`)
 
-    return new Response(new Uint8Array(fileBuffer), {
+    return new Response(fileBytes, {
       status: 200,
       headers,
     })

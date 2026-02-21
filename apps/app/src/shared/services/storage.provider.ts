@@ -30,8 +30,8 @@ export class LocalStorageProvider implements IStorageProvider {
     const relativePath = path.join('uploads', uniqueName) // Relative path for DB
     const absolutePath = path.join(this.uploadDir, uniqueName)
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(absolutePath, buffer)
+    const fileBytes = new Uint8Array(await file.arrayBuffer())
+    await writeFile(absolutePath, fileBytes)
 
     return {
       path: relativePath,

@@ -35,6 +35,8 @@ export const PRIVATE_ROLE_ROUTES = [
   'd', // dealer routes
   'i', // investor routes
   'm', // manager routes
+  'member', // member routes
+  'mentor', // mentor routes
   'p', // partner routes
   's', // storekeeper routes
   't', // task routes

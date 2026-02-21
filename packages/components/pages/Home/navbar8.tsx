@@ -42,7 +42,7 @@ const LOGO = {
 
 const DEFAULT_NAV_LABELS = {
   home: "Home",
-  members: "Feel supported with Lifely",
+  members: "Lifely for Members",
   mentors: "Lifely for Mentors",
   meetLifely: "Meet Lifely",
 };

@@ -62,11 +62,11 @@ const Hero91 = ({
               </Button>
             )}
             {button2Href ? (
-              <Button asChild variant="secondary" className="h-fit cursor-pointer rounded-full px-6 py-3">
+              <Button asChild variant="outlinePrimary" className="h-fit cursor-pointer rounded-full px-6 py-3">
                 <Link href={button2Href}>{button2}</Link>
               </Button>
             ) : (
-              <Button variant="secondary" className="h-fit cursor-pointer rounded-full px-6 py-3">
+              <Button variant="outlinePrimary" className="h-fit cursor-pointer rounded-full px-6 py-3">
                 {button2}
               </Button>
             )}

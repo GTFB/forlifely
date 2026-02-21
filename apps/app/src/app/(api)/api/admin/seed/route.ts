@@ -2,6 +2,8 @@
 
 import { Env } from '@/shared/types'
 import { SeedRepository } from '@/shared/repositories/seed.repository'
+import { RolesRepository } from '@/shared/repositories/roles.repository'
+import { UserRolesRepository } from '@/shared/repositories/user-roles.repository'
 import { seeds, type SeedDefinition } from '@/shared/seeds'
 import { withAdminGuard, AuthenticatedRequestContext } from '@/shared/api-guard'
 
@@ -89,11 +91,33 @@ export async function onRequestPost(context: AuthenticatedRequestContext): Promi
     const seedRepository = SeedRepository.getInstance()
     const results = await seedRepository.seedMultiple(seedData as SeedData)
 
+    // After importing system seed, attach mentor/member roles
+    // to the user who triggered the seed.
+    let assignedRoles: string[] = []
+    if (body.seedId === 'system') {
+      const rolesRepository = RolesRepository.getInstance()
+      const userRolesRepository = UserRolesRepository.getInstance()
+      const allRoles = await rolesRepository.findAll()
+
+      const roleUuids = allRoles
+        .filter((role) => role.name === 'member' || role.name === 'mentor')
+        .map((role) => role.uuid)
+
+      if (roleUuids.length > 0) {
+        await userRolesRepository.assignRolesToUser(context.user.user.uuid, roleUuids)
+        assignedRoles = allRoles
+          .filter((role) => roleUuids.includes(role.uuid))
+          .map((role) => role.name || '')
+          .filter(Boolean)
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         seedId: body.seedId,
         results,
+        assignedRoles,
       }),
       {
         status: 200,

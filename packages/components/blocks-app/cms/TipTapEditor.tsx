@@ -429,9 +429,9 @@ export function TipTapEditor({
           variant="ghost"
           size="sm"
           onClick={(e) =>
-            handleToolbarClick(e, () => editor.chain().focus().undo().run())
+            handleToolbarClick(e, () => (editor.chain().focus() as any).undo().run())
           }
-          disabled={!editor.can().undo()}
+          disabled={!((editor.can() as any).undo?.() ?? false)}
           title="Undo"
         >
           <Undo className="w-4 h-4" />
@@ -442,9 +442,9 @@ export function TipTapEditor({
           variant="ghost"
           size="sm"
           onClick={(e) =>
-            handleToolbarClick(e, () => editor.chain().focus().redo().run())
+            handleToolbarClick(e, () => (editor.chain().focus() as any).redo().run())
           }
-          disabled={!editor.can().redo()}
+          disabled={!((editor.can() as any).redo?.() ?? false)}
           title="Redo"
         >
           <Redo className="w-4 h-4" />

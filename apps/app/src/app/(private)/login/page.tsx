@@ -243,6 +243,13 @@ export default function LoginPage() {
         (role) => role.name === 'Administrator'
       )
 
+      const hasMentorRole = data.user?.roles?.some(
+        (role) => role.name === 'mentor' || role.name === 'Mentor'
+      )
+      const hasMemberRole = data.user?.roles?.some(
+        (role) => role.name === 'member' || role.name === 'Member'
+      )
+
       // Check if user has any role with auth_redirect_url
       let redirectUrl = '/admin' // Default for admin
       
@@ -267,13 +274,19 @@ export default function LoginPage() {
           }
         }
 
-        // If no custom redirect and user doesn't have Administrator role, redirect to home
+        // If no custom redirect and user doesn't have Administrator role, route by role
         if (!foundRedirect && !hasAdministratorRole) {
-          redirectUrl = '/'
+          if (hasMentorRole) {
+            redirectUrl = '/mentor'
+          } else if (hasMemberRole) {
+            redirectUrl = '/member'
+          } else {
+            redirectUrl = '/'
+          }
         }
       } else if (!hasAdministratorRole) {
-        // No roles and no Administrator, redirect to home
-        redirectUrl = '/'
+        // No roles and no Administrator, redirect by fallback
+        redirectUrl = hasMentorRole ? '/mentor' : hasMemberRole ? '/member' : '/'
       }
 
       // Redirect to determined URL

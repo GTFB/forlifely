@@ -249,4 +249,9 @@ body {
   html[data-scroll-locked] {
     padding-right: var(--removed-body-scroll-bar-size, 0px) !important;
   }
+
+  /* Outline primary button: border in theme color (overrides global border-color) */
+  [data-button-variant="outlinePrimary"] {
+    border-color: var(--primary) !important;
+  }
 }

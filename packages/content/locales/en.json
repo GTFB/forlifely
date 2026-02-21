@@ -18,7 +18,7 @@
     "home": "Home",
     "meet_lifely": "Meet Lifely",
     "mentors": "Lifely for Mentors",
-    "members": "Feel supported with Lifely",
+    "members": "Lifely for Members",
     "navigation": "Navigation",
     "overview": "Overview",
     "page": "Page",
@@ -224,6 +224,212 @@
     "success": {
       "title": "Success",
       "message": "Password was updated. You can now sign in."
+    }
+  },
+  "cabinet": {
+    "mentor": {
+      "pages": {
+        "dashboard": {
+          "title": "Mentor Dashboard",
+          "description": "Your operational hub with upcoming sessions, key alerts, and immediate actions.",
+          "workflows": [
+            "Review today's schedule and priority notifications.",
+            "Open active session workflows in one click.",
+            "Track tasks requiring mentor response."
+          ],
+          "outcomes": ["Clear daily plan", "Faster action handling", "Reduced missed events"],
+          "screen": {
+            "stats": [
+              { "label": "Sessions today", "value": "4", "hint": "2 starting in the next 3 hours" },
+              { "label": "Open tasks", "value": "7", "hint": "3 high-priority items" },
+              { "label": "Weekly completion", "value": "82%", "hint": "Stable execution pace" }
+            ],
+            "checklist": [
+              "Review today's schedule and priority notifications.",
+              "Open active session workflows in one click.",
+              "Track tasks requiring mentor response."
+            ]
+          }
+        },
+        "profile": {
+          "title": "Mentor Profile",
+          "description": "Manage profile quality, trust signals, and mentoring context.",
+          "workflows": [
+            "Update personal and mentoring information.",
+            "Keep skills, pitch, and visibility settings current.",
+            "Maintain profile data used for matching."
+          ],
+          "outcomes": ["Better profile completeness", "Higher matching relevance", "Improved trust perception"]
+        },
+        "bookings": {
+          "title": "My Bookings",
+          "description": "Monitor upcoming, past, and cancelled sessions with filters and details.",
+          "workflows": [
+            "Filter bookings by status and participant.",
+            "Open session records and outcomes.",
+            "Prepare for upcoming sessions from one place."
+          ],
+          "outcomes": ["Clear booking visibility", "Lower scheduling friction", "Better continuity"],
+          "screen": {
+            "stats": [
+              { "label": "Upcoming sessions", "value": "5", "hint": "3 this week" },
+              { "label": "Completed sessions", "value": "14", "hint": "Summaries available" },
+              { "label": "Canceled", "value": "1", "hint": "Needs reschedule" }
+            ]
+          }
+        },
+        "sessions_preparation": {
+          "title": "Session Preparation",
+          "description": "Complete pre-session checks before entering the live room."
+        },
+        "sessions_join": {
+          "title": "Session Join",
+          "description": "Validate access and join the secure room with readiness checks."
+        },
+        "sessions_waiting-room": {
+          "title": "Session Waiting Room",
+          "description": "Wait for participant readiness with preview and status updates."
+        },
+        "sessions_room": {
+          "title": "Session Room",
+          "description": "Conduct live sessions with controls, notes, and AI-guided context."
+        },
+        "sessions_summary": {
+          "title": "Post-Session Summary",
+          "description": "Review key topics, action items, and generated session insights."
+        },
+        "sessions_end": {
+          "title": "End Session",
+          "description": "Finalize session closure with the appropriate end-state flow."
+        },
+        "payments_payouts": {
+          "title": "Mentor Payout Dashboard",
+          "description": "Track earnings, pending payout windows, and payment method details.",
+          "screen": {
+            "stats": [
+              { "label": "Expected payout", "value": "$540", "hint": "Next payout: Friday" },
+              { "label": "Transactions this month", "value": "12", "hint": "Full detail available" },
+              { "label": "Financial health", "value": "Healthy", "hint": "No blocked operations" }
+            ]
+          }
+        },
+        "settings": {
+          "title": "Settings",
+          "description": "Configure account, security, payout preferences, and mentor availability.",
+          "screen": {
+            "stats": [
+              { "label": "Security status", "value": "Protected", "hint": "2FA and email verified" },
+              { "label": "Notification rules", "value": "9", "hint": "Across booking and session events" },
+              { "label": "Preference updates", "value": "2", "hint": "Changed this week" }
+            ]
+          }
+        }
+      }
+    },
+    "member": {
+      "pages": {
+        "dashboard": {
+          "title": "Member Dashboard",
+          "description": "Your overview page for sessions, reminders, and quick actions.",
+          "workflows": [
+            "Review your current schedule and notices.",
+            "Access booking, health, and session workflows quickly.",
+            "Track progress across key member activities."
+          ],
+          "outcomes": ["Better daily focus", "Faster navigation", "Consistent follow-through"],
+          "screen": {
+            "stats": [
+              { "label": "Upcoming sessions", "value": "3", "hint": "1 starts later today" },
+              { "label": "Health entries", "value": "6", "hint": "Logged in the last 7 days" },
+              { "label": "Credits left", "value": "18", "hint": "Enough for around 3 sessions" }
+            ]
+          }
+        },
+        "profile": {
+          "title": "Member Profile",
+          "description": "Maintain personal context used across matching and session planning."
+        },
+        "matching": {
+          "title": "Mentor Matching",
+          "description": "Find the best-fit mentors using compatibility and preference signals."
+        },
+        "bookings": {
+          "title": "My Bookings",
+          "description": "Manage session lifecycle from upcoming events to post-session records.",
+          "screen": {
+            "stats": [
+              { "label": "Upcoming sessions", "value": "4", "hint": "2 this week" },
+              { "label": "Completed sessions", "value": "11", "hint": "Summaries are available" },
+              { "label": "Canceled", "value": "1", "hint": "You can rebook quickly" }
+            ]
+          }
+        },
+        "bookings_book": {
+          "title": "Book Session",
+          "description": "Confirm slot, mentor context, and credit status before booking."
+        },
+        "sessions_preparation": {
+          "title": "Session Preparation",
+          "description": "Check devices and complete readiness steps before joining."
+        },
+        "sessions_join": {
+          "title": "Session Join",
+          "description": "Validate access and join your session with stable media checks."
+        },
+        "sessions_waiting-room": {
+          "title": "Session Waiting Room",
+          "description": "Wait for the other participant with live readiness status."
+        },
+        "sessions_room": {
+          "title": "Session Room",
+          "description": "Participate in the live session with notes and guided prompts."
+        },
+        "sessions_summary": {
+          "title": "Post-Session Summary",
+          "description": "Review insights, recommendations, and follow-up tasks."
+        },
+        "sessions_end": {
+          "title": "End Session",
+          "description": "Close the room and complete the post-session flow."
+        },
+        "payments_credits": {
+          "title": "Credit Purchase",
+          "description": "Purchase and manage credits for upcoming sessions.",
+          "screen": {
+            "stats": [
+              { "label": "Available credits", "value": "18", "hint": "Enough for around 3 sessions" },
+              { "label": "Recommended package", "value": "10", "hint": "Based on your weekly usage" },
+              { "label": "Low-balance alert", "value": "Off", "hint": "Enable in notification settings" }
+            ]
+          }
+        },
+        "payments_history": {
+          "title": "Transaction History",
+          "description": "Review purchases, usage, and refunds with clear status context.",
+          "screen": {
+            "stats": [
+              { "label": "Transactions this month", "value": "12", "hint": "Purchases, usage, and refunds" },
+              { "label": "Pending charges", "value": "0", "hint": "No unresolved payment events" },
+              { "label": "Receipts available", "value": "12", "hint": "Ready for download or email" }
+            ]
+          }
+        },
+        "payments_balance": {
+          "title": "Credit Balance",
+          "description": "Track available and reserved credits with low-balance controls."
+        },
+        "settings": {
+          "title": "Settings",
+          "description": "Manage account info, security/login settings, payments, and preferences.",
+          "screen": {
+            "stats": [
+              { "label": "Security status", "value": "Protected", "hint": "Password and email are verified" },
+              { "label": "Notification rules", "value": "8", "hint": "Across sessions, health, and payments" },
+              { "label": "Profile completeness", "value": "84%", "hint": "2 optional fields left" }
+            ]
+          }
+        }
+      }
     }
   },
   "dataTable": {

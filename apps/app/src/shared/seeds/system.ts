@@ -43,6 +43,28 @@ export const systemSeed = {
             is_system: 1,
             order: 10,
         },
+        {
+            uuid: "d4e5f6a7-62c8-44dd-1fa3-d94fa03e2162",
+            name: "member",
+            title: "Участник",
+            dataIn: {
+                auth_redirect_url: '/member',
+            },
+            description: "Роль участника Lifely",
+            is_system: 1,
+            order: 300,
+        },
+        {
+            uuid: "e5f6a7b8-73d9-45ee-2ab4-ea50b14f3273",
+            name: "mentor",
+            title: "Ментор",
+            dataIn: {
+                auth_redirect_url: '/mentor',
+            },
+            description: "Роль ментора Lifely",
+            is_system: 1,
+            order: 400,
+        },
     ],
 
     taxonomy: [

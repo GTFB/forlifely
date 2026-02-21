@@ -48,7 +48,7 @@ const Footer11 = ({ className }: Footer11Props) => {
             <a href="/" className="inline-block">
               <Logo className="h-8 justify-start" />
             </a>
-            <p className="text-xl font-semibold text-purple-900 md:text-2xl">
+            <p className="text-xl font-semibold text-black md:text-2xl dark:text-white">
               {TAGLINE}
             </p>
           </div>
